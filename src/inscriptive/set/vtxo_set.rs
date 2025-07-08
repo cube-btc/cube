@@ -1,5 +1,5 @@
 use crate::{
-    constructive::{entity::account::account::Account, txn::ext::OutpointExt, txo::vtxo::VTXO},
+    constructive::{txn::ext::OutpointExt, txo::vtxo::VTXO},
     operative::Chain,
 };
 use secp::Point;
