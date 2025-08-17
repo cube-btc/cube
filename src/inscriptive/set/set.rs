@@ -1,6 +1,6 @@
 use super::{
     utxo_set::{UTXOSet, UTXO_SET},
-    vtxo_set::{VTXOSet, VTXO_SET},
+    zktlc_set::{ZKTLCSet, ZKTLC_SET},
 };
 use crate::operative::Chain;
 use std::sync::Arc;
@@ -13,7 +13,7 @@ pub type COIN_SET = Arc<Mutex<CoinSet>>;
 /// Set for storing bare and virtual coins (UTXOs and VTXOs).
 pub struct CoinSet {
     utxo_set: UTXO_SET,
-    vtxo_set: VTXO_SET,
+    zktlc_set: ZKTLC_SET,
 }
 
 impl CoinSet {
@@ -22,10 +22,10 @@ impl CoinSet {
         // Construct utxo set.
         let utxo_set = UTXOSet::new(chain)?;
 
-        // Construct vtxo set.
-        let vtxo_set = VTXOSet::new(chain)?;
+        // Construct zktlc set.
+        let zktlc_set = ZKTLCSet::new(chain)?;
 
-        let set = CoinSet { utxo_set, vtxo_set };
+        let set = CoinSet { utxo_set, zktlc_set };
 
         Some(Arc::new(Mutex::new(set)))
     }
@@ -35,8 +35,8 @@ impl CoinSet {
         Arc::clone(&self.utxo_set)
     }
 
-    /// Returns the VTXO set.
-    pub fn vtxo_set(&self) -> VTXO_SET {
-        Arc::clone(&self.vtxo_set)
+    /// Returns the ZKTLC set.
+    pub fn zktlc_set(&self) -> ZKTLC_SET {
+        Arc::clone(&self.zktlc_set)
     }
 }

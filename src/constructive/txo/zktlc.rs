@@ -8,36 +8,31 @@ use serde::{Deserialize, Serialize};
 
 type Bytes = Vec<u8>;
 
-// Recharge allowance starts 45 days after the VTXO is created.
-// a VTXO expires in 90 days, so this is %50 of the total lifespan.
 const RECHARGE_HEIGHT_OFFSET: u32 = 144 * 45;
 
-/// VTXO (Virtual Transaction Output) is a Bitcoin transaction output that is held by a user, but is not confirmed on the chain.
-///
-/// See: https://ark-protocol.org/intro/vtxos/index.html
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct VTXO {
+pub struct ZKTLC {
     account: Point,
-    operator: Point,
+    engine: Point,
     outpoint: Option<OutPoint>,
     value: Option<u64>,
     at_rollup_height: Option<u32>,
     at_bitcoin_height: Option<u32>,
 }
 
-impl VTXO {
+impl ZKTLC {
     /// Creates a new VTXO.     
     pub fn new(
         account: Point,
-        operator: Point,
+        engine: Point,
         outpoint: Option<OutPoint>,
         value: Option<u64>,
         at_rollup_height: Option<u32>,
         at_bitcoin_height: Option<u32>,
-    ) -> VTXO {
-        VTXO {
+    ) -> ZKTLC {
+        ZKTLC {
             account,
-            operator,
+            engine,
             outpoint,
             value,
             at_rollup_height,
@@ -58,9 +53,9 @@ impl VTXO {
         self.account.clone()
     }
 
-    /// Returns the operator key of the VTXO.
-    pub fn operator_key(&self) -> Point {
-        self.operator
+    /// Returns the engine key of the VTXO.
+    pub fn engine_key(&self) -> Point {
+        self.engine
     }
 
     /// Returns the outpoint of the VTXO.
@@ -88,7 +83,7 @@ impl VTXO {
         let mut keys = Vec::<Point>::new();
 
         keys.push(self.account_key());
-        keys.push(self.operator_key());
+        keys.push(self.engine_key());
 
         keys
     }
@@ -128,7 +123,8 @@ impl VTXO {
     }
 }
 
-impl P2TR for VTXO {
+// TODO: re-factor this for ZKTLC.
+impl P2TR for ZKTLC {
     fn taproot(&self) -> Option<TapRoot> {
         //// Inner Key: (Self + Operator)
         let agg_inner_key = self.agg_inner_key()?;

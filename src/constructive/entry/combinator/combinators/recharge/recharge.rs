@@ -1,14 +1,14 @@
-use crate::constructive::txo::vtxo::VTXO;
+use crate::constructive::txo::zktlc::ZKTLC;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Recharge {
-    pub recharge_vtxos: Vec<VTXO>,
+    pub recharge_vtxos: Vec<ZKTLC>,
 }
 
 impl Recharge {
-    pub fn new(vtxos: Vec<VTXO>) -> Option<Recharge> {
-        let mut recharge_vtxos = Vec::<VTXO>::new();
+    pub fn new(vtxos: Vec<ZKTLC>) -> Option<Recharge> {
+        let mut recharge_vtxos = Vec::<ZKTLC>::new();
 
         for vtxo in vtxos.iter() {
             match vtxo.outpoint() {
@@ -22,7 +22,7 @@ impl Recharge {
         Some(liftup)
     }
 
-    pub fn vtxos(&self) -> Vec<VTXO> {
+    pub fn vtxos(&self) -> Vec<ZKTLC> {
         self.recharge_vtxos.clone()
     }
 
