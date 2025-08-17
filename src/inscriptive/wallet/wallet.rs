@@ -1,7 +1,4 @@
-use super::{
-    lift_wallet::{LiftWallet, LIFT_WALLET},
-    vtxo_wallet::{VTXOWallet, VTXO_WALLET},
-};
+use super::lift_wallet::{LiftWallet, LIFT_WALLET};
 use crate::operative::Chain;
 use colored::Colorize;
 use secp::Point;
@@ -12,13 +9,11 @@ use tokio::sync::Mutex;
 #[allow(non_camel_case_types)]
 pub type WALLET = Arc<Mutex<Wallet>>;
 
-/// Wallet for storing Lifts and VTXOs.
+/// Wallet for storing Lift outputs.
 pub struct Wallet {
     account_key: Point,
     // Lift wallet.
     lift_wallet: LIFT_WALLET,
-    // VTXO wallet.
-    vtxo_wallet: VTXO_WALLET,
 }
 
 impl Wallet {
@@ -56,13 +51,9 @@ impl Wallet {
         // Construct lift wallet.
         let lift_wallet = LiftWallet::new(chain)?;
 
-        // Construct vtxo wallet.
-        let vtxo_wallet = VTXOWallet::new(chain)?;
-
         let wallet = Wallet {
             account_key,
             lift_wallet,
-            vtxo_wallet,
         };
 
         Some(Arc::new(Mutex::new(wallet)))
@@ -74,9 +65,5 @@ impl Wallet {
 
     pub fn lift_wallet(&self) -> LIFT_WALLET {
         Arc::clone(&self.lift_wallet)
-    }
-
-    pub fn vtxo_wallet(&self) -> VTXO_WALLET {
-        Arc::clone(&self.vtxo_wallet)
     }
 }
