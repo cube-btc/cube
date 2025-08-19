@@ -9,7 +9,7 @@ use crate::{
         },
         stack::stack_item::StackItem,
     },
-    inscriptive::{repo::repo::PROGRAMS_REPO, state::state_holder::STATE_HOLDER},
+    inscriptive::{repo::repo::PROGRAMS_REPO, state_holder::state_holder::STATE_HOLDER},
 };
 use std::{collections::HashMap, sync::Arc};
 

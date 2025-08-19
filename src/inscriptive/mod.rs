@@ -6,5 +6,5 @@ pub mod registery;
 pub mod repo;
 pub mod rollup;
 pub mod set;
-pub mod state;
+pub mod state_holder;
 pub mod wallet;

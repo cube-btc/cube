@@ -4,7 +4,7 @@ use crate::{
         stack_error::{StackError, StorageError},
         stack_holder::StackHolder,
     },
-    inscriptive::state::state_holder::STATE_HOLDER,
+    inscriptive::state_holder::state_holder::STATE_HOLDER,
 };
 
 /// The `OP_SWRITE` opcode.

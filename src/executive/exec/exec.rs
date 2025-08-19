@@ -76,7 +76,7 @@ use crate::{
         program::method::method_type::MethodType,
         stack::{stack_holder::StackHolder, stack_item::StackItem},
     },
-    inscriptive::{repo::repo::PROGRAMS_REPO, state::state_holder::STATE_HOLDER},
+    inscriptive::{repo::repo::PROGRAMS_REPO, state_holder::state_holder::STATE_HOLDER},
 };
 
 /// The type of the external ops counter.

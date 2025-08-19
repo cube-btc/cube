@@ -5,7 +5,7 @@ use crate::{
         stack_holder::StackHolder,
         stack_item::StackItem,
     },
-    inscriptive::state::state_holder::STATE_HOLDER,
+    inscriptive::state_holder::state_holder::STATE_HOLDER,
 };
 
 /// The `OP_SREAD` opcode.
