@@ -1,110 +1,178 @@
-use crate::{
-    constructive::entity::account::account::Account,
-    inscriptive::coin_holder::account_coin_holder::account_coin_holder_error::AccountCoinHolderConstructionError,
-    operative::Chain,
+use super::account_coin_holder_error::{
+    AccountCoinHolderConstructionError, AccountCoinHolderSaveError,
 };
-use std::{collections::HashMap, sync::Arc};
+use crate::operative::Chain;
+use std::collections::HashMap;
+use std::sync::Arc;
 use tokio::sync::Mutex;
 
-/// Guarded account coin holder.
+/// Account key.
 #[allow(non_camel_case_types)]
-pub type ACCOUNT_COIN_HOLDER = Arc<Mutex<AccountCoinHolder>>;
-
-/// Registery index of an account for efficient referencing (from 1 to U32::MAX).
-#[allow(non_camel_case_types)]
-type REGISTERY_INDEX = u32;
+type ACCOUNT_KEY = [u8; 32];
 
 /// BTC balance of an account in satoshis.
 #[allow(non_camel_case_types)]
-type COIN_BALANCE = u64;
+type ACCOUNT_COIN_BALANCE = u64;
 
-/// A database manager for storing and retrieving account coin balances.
+/// A struct for containing account coin balances in-memory and on-disk.
 pub struct AccountCoinHolder {
-    // In-memory list of coin balances by registery index.
-    coin_balances: HashMap<REGISTERY_INDEX, COIN_BALANCE>,
-    // In-storage db for storing the coin balances.
-    coin_balances_db: sled::Db,
+    /// In-memory cache of account balances: ACCOUNT_KEY -> ACCOUNT_COIN_BALANCE
+    coins: HashMap<ACCOUNT_KEY, ACCOUNT_COIN_BALANCE>,
+    /// Sled DB with all account balances in a single tree.
+    balance_db: sled::Db,
+    /// In-memory cache of ephemeral states.
+    ephemeral_coins: HashMap<ACCOUNT_KEY, ACCOUNT_COIN_BALANCE>,
+    /// In-memory cache of ephemeral states backup.
+    ephemeral_coins_backup: HashMap<ACCOUNT_KEY, ACCOUNT_COIN_BALANCE>,
 }
 
+/// Guarded state holder.
+#[allow(non_camel_case_types)]
+pub type ACCOUNT_COIN_HOLDER = Arc<Mutex<AccountCoinHolder>>;
+
+// TODO: Implement a rank-based caching mechanism to only cache the high-ranked states.
+// Right now, we are caching *ALL* account states in memory.
 impl AccountCoinHolder {
-    /// Construct the account coin holder.
+    /// Initialize the state for the given chain
     pub fn new(chain: Chain) -> Result<ACCOUNT_COIN_HOLDER, AccountCoinHolderConstructionError> {
-        // Open the account coin holder db.
-        let coin_balances_db = {
-            let path = format!("{}/{}/{}", "db", chain.to_string(), "coin_holder/account");
-            sled::open(path).map_err(AccountCoinHolderConstructionError::DBOpenError)?
-        };
+        // Open the balance db.
+        let balance_path = format!("db/{}/coin/account/balance", chain.to_string());
+        let balance_db = sled::open(balance_path)
+            .map_err(AccountCoinHolderConstructionError::BalancesDBOpenError)?;
 
-        // Initialize the in-memory list of coin balances.
-        let mut coin_balances = HashMap::<REGISTERY_INDEX, COIN_BALANCE>::new();
+        // Initialize the in-memory cache of account coins.
+        let mut coins = HashMap::<ACCOUNT_KEY, ACCOUNT_COIN_BALANCE>::new();
 
-        // Collect the in-memory list of coin balances by registery index.
-        for (index, lookup) in coin_balances_db.iter().enumerate() {
-            if let Ok((key, val)) = lookup {
-                // Key is the 4-byte registery index.
-                let registery_index: u32 =
-                    u32::from_le_bytes(key.as_ref().try_into().map_err(|_| {
-                        AccountCoinHolderConstructionError::RegisteryIndexDeserializeErrorAtIndex(
-                            index,
-                        )
-                    })?);
+        // Iterate over all account balances in the balance db.
+        for account_balance in balance_db.iter() {
+            // Get the key and value.
+            let (k, v) = match account_balance {
+                Ok((k, v)) => (k, v),
+                Err(e) => {
+                    return Err(AccountCoinHolderConstructionError::AccountBalanceIterError(
+                        e,
+                    ));
+                }
+            };
 
-                // Value is the coin balance.
-                let coin_balance: COIN_BALANCE =
-                    u64::from_le_bytes(val.as_ref().try_into().map_err(|_| {
-                        AccountCoinHolderConstructionError::CoinBalanceDeserializeErrorAtIndex(
-                            index,
-                        )
-                    })?);
+            // Convert the key to an account key.
+            let account_key: [u8; 32] = k.to_vec().try_into().map_err(|_| {
+                AccountCoinHolderConstructionError::InvalidAccountKeyBytes(k.to_vec())
+            })?;
 
-                // Insert into the in-memory list of coin balances.
-                coin_balances.insert(registery_index, coin_balance);
-            }
+            // Convert the value to an account balance.
+            let account_balance: u64 = u64::from_le_bytes(v.as_ref().try_into().map_err(|_| {
+                AccountCoinHolderConstructionError::InvalidAccountBalance(v.to_vec())
+            })?);
+
+            // Insert the account balance into the in-memory cache.
+            coins.insert(account_key, account_balance);
         }
 
-        // Construct the account coin holder.
-        let account_coin_holder = Self {
-            coin_balances,
-            coin_balances_db,
+        // Create the state holder.
+        let account_coin_holder = AccountCoinHolder {
+            coins,
+            balance_db,
+            ephemeral_coins: HashMap::<ACCOUNT_KEY, ACCOUNT_COIN_BALANCE>::new(),
+            ephemeral_coins_backup: HashMap::<ACCOUNT_KEY, ACCOUNT_COIN_BALANCE>::new(),
         };
 
-        // Construct the guarded account coin holder.
-        let guarded_account_coin_holder = Arc::new(Mutex::new(account_coin_holder));
-
-        // Return the guarded account coin holder.
-        Ok(guarded_account_coin_holder)
+        // Return the guarded state holder.
+        Ok(Arc::new(Mutex::new(account_coin_holder)))
     }
 
-    /// Get the coin balance of an account by its account key.
-    pub async fn get_coin_balance(&self, account: &Account) -> Option<u64> {
-        // Get the registery index of the account.
-        let registery_index = account.registery_index()?;
-
-        // Get the coin balance by the registery index.
-        self.coin_balances.get(&registery_index).cloned()
+    /// Clones ephemeral states into the backup.
+    fn backup_ephemeral_states(&mut self) {
+        self.ephemeral_coins_backup = self.ephemeral_coins.clone();
     }
 
-    /// Update the coin balance of an account by its account key.
-    pub async fn update_coin_balance(
+    /// Restores ephemeral states from the backup.
+    fn restore_ephemeral_states(&mut self) {
+        self.ephemeral_coins = self.ephemeral_coins_backup.clone();
+    }
+
+    /// Prepares the state holder prior to each execution.
+    ///
+    /// NOTE: Used by the Engine coordinator.
+    pub fn pre_execution(&mut self) {
+        // Backup the ephemeral states.
+        self.backup_ephemeral_states();
+    }
+
+    /// Get the account coin balance for an account key.
+    pub async fn get_account_balance(&self, account_key: ACCOUNT_KEY) -> Option<u64> {
+        // Try to get from the ephemeral states first.
+        if let Some(balance) = self.ephemeral_coins.get(&account_key) {
+            return Some(*balance);
+        }
+
+        // And then try to get from the states.
+        self.coins.get(&account_key).cloned()
+    }
+
+    /// Updates the account coin balance for an account key ephemerally.
+    pub async fn update_account_balance(
         &mut self,
-        account: &Account,
-        new_coin_balance: u64,
+        account_key: ACCOUNT_KEY,
+        new_balance: ACCOUNT_COIN_BALANCE,
     ) -> Option<()> {
-        // Get the registery index of the account.
-        let registery_index = account.registery_index()?;
-
-        // Update the in-memory coin balance of the account by the given registery index.
-        self.coin_balances.insert(registery_index, new_coin_balance);
-
-        // Update the in-storage coin balance of the account by the given registery index.
-        self.coin_balances_db
-            .insert(
-                &registery_index.to_le_bytes(),
-                &new_coin_balance.to_le_bytes(),
-            )
-            .ok()?;
+        // Insert (or update) the balance into the ephemeral states.
+        self.ephemeral_coins.insert(account_key, new_balance);
 
         // Return the result.
         Some(())
+    }
+
+    /// Reverts the state update(s) associated with the last execution.
+    ///
+    /// NOTE: Used by the Engine coordinator.
+    pub fn rollback_last(&mut self) {
+        // Restore the ephemeral states from the backup.
+        self.restore_ephemeral_states();
+    }
+
+    /// Reverts all state updates associated with all executions.
+    ///
+    /// NOTE: Used by the Engine coordinator.
+    pub fn rollback_all(&mut self) {
+        // Clear the ephemeral states.
+        self.ephemeral_coins.clear();
+
+        // Clear the ephemeral states backup.
+        self.ephemeral_coins_backup.clear();
+    }
+
+    /// Saves the states updated associated with all executions (on-disk and in-memory).
+    pub fn save_all_executions(&mut self) -> Result<(), AccountCoinHolderSaveError> {
+        // Iterate over all ephemeral states.
+        for (account_key, ephemeral_balance) in self.ephemeral_coins.iter() {
+            // In-memory insertion.
+            {
+                // Insert or update the balance in memory.
+                self.coins.insert(*account_key, *ephemeral_balance);
+            }
+
+            // On-disk insertion.
+            {
+                // Save the balance to the balance db.
+                self.balance_db
+                    .insert(account_key, ephemeral_balance.to_le_bytes().to_vec())
+                    .map_err(|e| {
+                        AccountCoinHolderSaveError::TreeValueInsertError(
+                            account_key.to_owned(),
+                            *ephemeral_balance,
+                            e,
+                        )
+                    })?;
+            }
+        }
+
+        // Clear the ephemeral states.
+        self.ephemeral_coins.clear();
+
+        // Clear the ephemeral states backup.
+        self.ephemeral_coins_backup.clear();
+
+        Ok(())
     }
 }
