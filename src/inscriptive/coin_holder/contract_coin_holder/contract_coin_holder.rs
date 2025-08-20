@@ -434,18 +434,40 @@ impl ContractCoinHolder {
             }
         }
 
-        // Save ephemeral shadow allocations to disk.
-        for (contract_id, ephemeral_shadow_alloc) in self.ephemeral_shadow_allocs.iter() {
+        // Save ephemeral shadow allocation sums to disk and memory.
+        for (contract_id, ephemeral_shadow_alloc_sum) in self.ephemeral_shadow_allocs.iter() {
+            // In-memory insertion.
+            {
+                // Insert or update the balance and shadow allocation in memory.
+                self.coins.insert(
+                    *contract_id,
+                    (
+                        self.ephemeral_balances
+                            .get(contract_id)
+                            .cloned()
+                            .unwrap_or_default(),
+                        *ephemeral_shadow_alloc_sum,
+                        self.ephemeral_shadow_spaces
+                            .get(contract_id)
+                            .cloned()
+                            .unwrap_or_default(),
+                    ),
+                );
+            }
+
             // On-disk insertion.
             {
-                // Save the shadow allocation to the shadow allocation db.
+                // Save the shadow allocation sum to the shadow allocation db.
                 self.shadow_alloc_sum_db
-                    .insert(contract_id, ephemeral_shadow_alloc.to_le_bytes().to_vec())
+                    .insert(
+                        contract_id,
+                        ephemeral_shadow_alloc_sum.to_le_bytes().to_vec(),
+                    )
                     .map_err(|e| {
                         ContractCoinHolderSaveError::TreeValueInsertError(
                             contract_id.to_owned(),
                             contract_id.to_vec(),
-                            *ephemeral_shadow_alloc,
+                            *ephemeral_shadow_alloc_sum,
                             e,
                         )
                     })?;
