@@ -1,6 +1,6 @@
-/// Contract ID: 32-byte unique identifier.
+/// Contract registery index.
 #[allow(non_camel_case_types)]
-type CONTRACT_ID = [u8; 32];
+type CONTRACT_REGISTERY_INDEX = u32;
 
 /// State key.
 #[allow(non_camel_case_types)]
@@ -14,14 +14,19 @@ type STATE_VALUE = Vec<u8>;
 #[derive(Debug, Clone)]
 pub enum StateHolderConstructionError {
     MainDBOpenError(sled::Error),
-    SubDBOpenError(CONTRACT_ID, sled::Error),
-    InvalidContractIDBytes(Vec<u8>),
+    SubDBOpenError(CONTRACT_REGISTERY_INDEX, sled::Error),
+    InvalidContractRegisteryIndexBytes(Vec<u8>),
     DBIterCollectInvalidKeyAtIndex(usize),
 }
 
 /// The state save error.
 #[derive(Debug, Clone)]
 pub enum StateHolderSaveError {
-    OpenTreeError(CONTRACT_ID, sled::Error),
-    TreeValueInsertError(CONTRACT_ID, STATE_KEY, STATE_VALUE, sled::Error),
+    OpenTreeError(CONTRACT_REGISTERY_INDEX, sled::Error),
+    TreeValueInsertError(
+        CONTRACT_REGISTERY_INDEX,
+        STATE_KEY,
+        STATE_VALUE,
+        sled::Error,
+    ),
 }
