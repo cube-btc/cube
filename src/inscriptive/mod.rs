@@ -1,5 +1,6 @@
 pub mod baked;
 pub mod blacklist;
+pub mod coin_holder;
 pub mod epoch;
 pub mod lp;
 pub mod registery;
