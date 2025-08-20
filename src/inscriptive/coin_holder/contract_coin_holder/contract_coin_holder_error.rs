@@ -17,17 +17,20 @@ pub enum ContractCoinHolderConstructionError {
     BalancesDBOpenError(sled::Error),
     // Key deserialize at index error.
     ContractIDDeserializeErrorAtIndex(usize),
-    // Value deserialize at index error.
+    // Value deserialize at index error.    
     CoinBalanceDeserializeErrorAtIndex(usize),
     // Sub DB open error.
-    ShadowsDBOpenError(sled::Error),
-    ShadowsTreeOpenError(CONTRACT_ID, sled::Error),
+    ShadowAllocDBOpenError(sled::Error),
+    ShadowSpaceDBOpenError(sled::Error),
+    ShadowSpaceTreeOpenError(CONTRACT_ID, sled::Error),
     InvalidContractIDBytes(Vec<u8>),
     ContractShadowIterError(sled::Error),
     InvalidShadowAccountKey(Vec<u8>),
     InvalidShadowBalance(Vec<u8>),
     InvalidContractBalance(Vec<u8>),
+    InvalidShadowAllocation(Vec<u8>),
     BalanceGetError(CONTRACT_ID, sled::Error),
+    ShadowAllocationGetError(CONTRACT_ID, sled::Error),
 }
 
 /// The state save error.

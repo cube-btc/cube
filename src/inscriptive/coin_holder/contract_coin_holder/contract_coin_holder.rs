@@ -12,7 +12,11 @@ type CONTRACT_ID = [u8; 32];
 
 /// BTC balance of a contract in satoshis.
 #[allow(non_camel_case_types)]
-type CONTRACT_COIN_BALANCE = u64;
+type CONTRACT_BALANCE = u64;
+
+/// Total BTC shadow allocation of a contract in satoshis.
+#[allow(non_camel_case_types)]
+type CONTRACT_SHADOW_ALLOC_SUM = u64;
 
 /// Shadow account key.
 #[allow(non_camel_case_types)]
@@ -28,16 +32,40 @@ type CONTRACT_SHADOW_SPACE = HashMap<SHADOW_ACCOUNT_KEY, SHADOW_ACCOUNT_COIN_BAL
 
 /// A struct for containing contract/program states in-memory and on-disk.
 pub struct ContractCoinHolder {
-    /// In-memory cache of states: CONTRACT_ID -> (CONTRACT_COIN_BALANCE, { SHADOW_ACCOUNT_KEY -> SHADOW_ACCOUNT_COIN_BALANCE })
-    coins: HashMap<CONTRACT_ID, (CONTRACT_COIN_BALANCE, CONTRACT_SHADOW_SPACE)>,
+    // IN-MEMORY STATES
+    /// In-memory cache of states: CONTRACT_ID -> (CONTRACT_BALANCE, CONTRACT_SHADOW_ALLOC_SUM, CONTRACT_SHADOW_SPACE)
+    coins: HashMap<
+        CONTRACT_ID,
+        (
+            CONTRACT_BALANCE,
+            CONTRACT_SHADOW_ALLOC_SUM,
+            CONTRACT_SHADOW_SPACE,
+        ),
+    >,
+
+    // ON-DISK STATES
     /// Sled DB with all contract balances in a single tree.
     balance_db: sled::Db,
+    /// Sled DB with all contract shadow allocations in a single tree.
+    shadow_alloc_sum_db: sled::Db,
     /// Sled DB with contract shadow trees.
-    shadows_db: sled::Db,
-    /// In-memory cache of ephemeral states.
-    ephemeral_coins: HashMap<CONTRACT_ID, (CONTRACT_COIN_BALANCE, CONTRACT_SHADOW_SPACE)>,
+    shadow_space_db: sled::Db,
+
+    // EPHEMERAL STATES
+    /// In-memory cache of ephemeral balances.
+    ephemeral_balances: HashMap<CONTRACT_ID, CONTRACT_BALANCE>,
+    /// In-memory cache of ephemeral shadow allocations.
+    ephemeral_shadow_allocs: HashMap<CONTRACT_ID, CONTRACT_SHADOW_ALLOC_SUM>,
+    /// In-memory cache of ephemeral shadow spaces.
+    ephemeral_shadow_spaces: HashMap<CONTRACT_ID, CONTRACT_SHADOW_SPACE>,
+
+    // BACKUPS
     /// In-memory cache of ephemeral states backup.
-    ephemeral_coins_backup: HashMap<CONTRACT_ID, (CONTRACT_COIN_BALANCE, CONTRACT_SHADOW_SPACE)>,
+    ephemeral_balances_backup: HashMap<CONTRACT_ID, CONTRACT_BALANCE>,
+    /// In-memory cache of ephemeral shadow allocations backup.
+    ephemeral_shadow_allocs_backup: HashMap<CONTRACT_ID, CONTRACT_SHADOW_ALLOC_SUM>,
+    /// In-memory cache of ephemeral shadow spaces backup.
+    ephemeral_shadow_spaces_backup: HashMap<CONTRACT_ID, CONTRACT_SHADOW_SPACE>,
 }
 
 /// Guarded state holder.
@@ -54,28 +82,40 @@ impl ContractCoinHolder {
         let balance_db = sled::open(balance_path)
             .map_err(ContractCoinHolderConstructionError::BalancesDBOpenError)?;
 
+        // Open the shadow allocation db.
+        let shadow_alloc_sum_path =
+            format!("db/{}/coin/contract/shadow_alloc_sum", chain.to_string());
+        let shadow_alloc_sum_db = sled::open(shadow_alloc_sum_path)
+            .map_err(ContractCoinHolderConstructionError::ShadowAllocDBOpenError)?;
+
         // Open the shadows db.
-        let shadows_path = format!("db/{}/coin/contract/shadows", chain.to_string());
-        let shadows_db = sled::open(shadows_path)
-            .map_err(ContractCoinHolderConstructionError::ShadowsDBOpenError)?;
+        let shadow_space_path = format!("db/{}/coin/contract/shadow_space", chain.to_string());
+        let shadow_space_db = sled::open(shadow_space_path)
+            .map_err(ContractCoinHolderConstructionError::ShadowSpaceDBOpenError)?;
 
         // Initialize the in-memory cache of contract coins.
-        let mut coins =
-            HashMap::<CONTRACT_ID, (CONTRACT_COIN_BALANCE, CONTRACT_SHADOW_SPACE)>::new();
+        let mut coins = HashMap::<
+            CONTRACT_ID,
+            (
+                CONTRACT_BALANCE,
+                CONTRACT_SHADOW_ALLOC_SUM,
+                CONTRACT_SHADOW_SPACE,
+            ),
+        >::new();
 
         // Iterate over all contract trees in the shadows db.
-        for tree_name in shadows_db.tree_names() {
+        for tree_name in shadow_space_db.tree_names() {
             let contract_id: CONTRACT_ID = tree_name.as_ref().try_into().map_err(|_| {
                 ContractCoinHolderConstructionError::InvalidContractIDBytes(tree_name.to_vec())
             })?;
 
             // Open the contract tree.
-            let tree = shadows_db.open_tree(&tree_name).map_err(|e| {
-                ContractCoinHolderConstructionError::ShadowsTreeOpenError(contract_id, e)
+            let tree = shadow_space_db.open_tree(&tree_name).map_err(|e| {
+                ContractCoinHolderConstructionError::ShadowSpaceTreeOpenError(contract_id, e)
             })?;
 
             // Initialize the in-memory cache of contract shadows.
-            let mut contract_shadows =
+            let mut contract_shadow_space =
                 HashMap::<SHADOW_ACCOUNT_KEY, SHADOW_ACCOUNT_COIN_BALANCE>::new();
 
             // Iterate over all items in the contract tree.
@@ -101,8 +141,8 @@ impl ContractCoinHolder {
                         ContractCoinHolderConstructionError::InvalidShadowBalance(v.to_vec())
                     })?);
 
-                // Insert the shadow into the in-memory cache.
-                contract_shadows.insert(shadow_account_key, shadow_value);
+                // Insert the shadow value into the shadow space.
+                contract_shadow_space.insert(shadow_account_key, shadow_value);
             }
 
             // Get the contract balance from the balances db.
@@ -126,21 +166,53 @@ impl ContractCoinHolder {
                 }
             };
 
-            // Insert the contract shadows and balance into the in-memory cache.
-            coins.insert(contract_id, (contract_balance, contract_shadows));
+            // Get the contract shadow allocation from the shadow allocation db.
+            let contract_shadow_alloc_sum = {
+                // Get the shadow allocation value using contract_id as the key
+                match shadow_alloc_sum_db.get(&contract_id) {
+                    Ok(Some(shadow_alloc_bytes)) => u64::from_le_bytes(
+                        shadow_alloc_bytes.as_ref().try_into().map_err(|_| {
+                            ContractCoinHolderConstructionError::InvalidShadowAllocation(
+                                shadow_alloc_bytes.to_vec(),
+                            )
+                        })?,
+                    ),
+                    Ok(None) => 0, // Default shadow allocation if not found
+                    Err(e) => {
+                        return Err(
+                            ContractCoinHolderConstructionError::ShadowAllocationGetError(
+                                contract_id,
+                                e,
+                            ),
+                        );
+                    }
+                }
+            };
+
+            // Insert the contract shadows, shadow allocation, and balance into the in-memory cache.
+            coins.insert(
+                contract_id,
+                (
+                    contract_balance,
+                    contract_shadow_alloc_sum,
+                    contract_shadow_space,
+                ),
+            );
         }
 
         // Create the state holder.
         let contract_coin_holder = ContractCoinHolder {
             coins,
             balance_db,
-            shadows_db,
-            ephemeral_coins:
-                HashMap::<CONTRACT_ID, (CONTRACT_COIN_BALANCE, CONTRACT_SHADOW_SPACE)>::new(),
-            ephemeral_coins_backup: HashMap::<
-                CONTRACT_ID,
-                (CONTRACT_COIN_BALANCE, CONTRACT_SHADOW_SPACE),
-            >::new(),
+            shadow_alloc_sum_db,
+            shadow_space_db,
+            ephemeral_balances: HashMap::<CONTRACT_ID, CONTRACT_BALANCE>::new(),
+            ephemeral_shadow_allocs: HashMap::<CONTRACT_ID, CONTRACT_SHADOW_ALLOC_SUM>::new(),
+            ephemeral_shadow_spaces: HashMap::<CONTRACT_ID, CONTRACT_SHADOW_SPACE>::new(),
+            ephemeral_balances_backup: HashMap::<CONTRACT_ID, CONTRACT_BALANCE>::new(),
+            ephemeral_shadow_allocs_backup: HashMap::<CONTRACT_ID, CONTRACT_SHADOW_ALLOC_SUM>::new(
+            ),
+            ephemeral_shadow_spaces_backup: HashMap::<CONTRACT_ID, CONTRACT_SHADOW_SPACE>::new(),
         };
 
         // Return the guarded state holder.
@@ -149,12 +221,16 @@ impl ContractCoinHolder {
 
     /// Clones ephemeral states into the backup.
     fn backup_ephemeral_states(&mut self) {
-        self.ephemeral_coins_backup = self.ephemeral_coins.clone();
+        self.ephemeral_balances_backup = self.ephemeral_balances.clone();
+        self.ephemeral_shadow_allocs_backup = self.ephemeral_shadow_allocs.clone();
+        self.ephemeral_shadow_spaces_backup = self.ephemeral_shadow_spaces.clone();
     }
 
     /// Restores ephemeral states from the backup.
     fn restore_ephemeral_states(&mut self) {
-        self.ephemeral_coins = self.ephemeral_coins_backup.clone();
+        self.ephemeral_balances = self.ephemeral_balances_backup.clone();
+        self.ephemeral_shadow_allocs = self.ephemeral_shadow_allocs_backup.clone();
+        self.ephemeral_shadow_spaces = self.ephemeral_shadow_spaces_backup.clone();
     }
 
     /// Prepares the state holder prior to each execution.
@@ -168,12 +244,25 @@ impl ContractCoinHolder {
     /// Get the contract coin balance for a contract ID.
     pub async fn get_contract_balance(&self, contract_id: [u8; 32]) -> Option<u64> {
         // Try to get from the ephemeral states first.
-        if let Some((balance, _)) = self.ephemeral_coins.get(&contract_id) {
+        if let Some(balance) = self.ephemeral_balances.get(&contract_id) {
             return Some(*balance);
         }
 
         // And then try to get from the states.
-        self.coins.get(&contract_id).map(|(balance, _)| *balance)
+        self.coins.get(&contract_id).map(|(balance, _, _)| *balance)
+    }
+
+    /// Get the contract shadow allocation for a contract ID.
+    pub async fn get_contract_shadow_alloc_sum(&self, contract_id: [u8; 32]) -> Option<u64> {
+        // Try to get from the ephemeral states first.
+        if let Some(shadow_alloc) = self.ephemeral_shadow_allocs.get(&contract_id) {
+            return Some(*shadow_alloc);
+        }
+
+        // And then try to get from the states.
+        self.coins
+            .get(&contract_id)
+            .map(|(_, shadow_alloc, _)| *shadow_alloc)
     }
 
     /// Get the shadow balance of an account for a specific contract ID.
@@ -183,43 +272,42 @@ impl ContractCoinHolder {
         shadow_account_key: SHADOW_ACCOUNT_KEY,
     ) -> Option<u64> {
         // Try to get from the ephemeral states first.
-        if let Some((_, shadow_balance)) = self.ephemeral_coins.get(&contract_id) {
+        if let Some(shadow_balance) = self.ephemeral_shadow_spaces.get(&contract_id) {
             return shadow_balance.get(&shadow_account_key).cloned();
         }
 
         // And then try to get from the states.
         self.coins
             .get(&contract_id)
-            .and_then(|(_, shadow_balance)| shadow_balance.get(&shadow_account_key).cloned())
+            .and_then(|(_, _, shadow_balance)| shadow_balance.get(&shadow_account_key).cloned())
     }
 
     /// Inserts or updates a shadow balance by key and contract ID ephemerally.
-    pub async fn insert_update_shadow_balance(
+    pub async fn insert_update_account_shadow_balance(
         &mut self,
         contract_id: [u8; 32],
         shadow_account_key: SHADOW_ACCOUNT_KEY,
         shadow_value: SHADOW_ACCOUNT_COIN_BALANCE,
     ) -> Option<()> {
-        // Get mutable ephemeral states.
-        let ephemeral_coins = match self.ephemeral_coins.get_mut(&contract_id) {
-            Some((balance, shadows)) => (balance, shadows),
+        // Get mutable ephemeral shadow spaces.
+        let ephemeral_shadow_balance = match self.ephemeral_shadow_spaces.get_mut(&contract_id) {
+            Some(shadow_balance) => shadow_balance,
             None => {
                 // Create it if it doesn't exist.
-                let contract_shadows =
+                let new_shadow_balance =
                     HashMap::<SHADOW_ACCOUNT_KEY, SHADOW_ACCOUNT_COIN_BALANCE>::new();
 
                 // Insert it.
-                self.ephemeral_coins
-                    .insert(contract_id, (0, contract_shadows));
+                self.ephemeral_shadow_spaces
+                    .insert(contract_id, new_shadow_balance);
 
                 // Get it again.
-                let (balance, shadows) = self.ephemeral_coins.get_mut(&contract_id).unwrap(); // Safe because we just inserted it.
-                (balance, shadows)
+                self.ephemeral_shadow_spaces.get_mut(&contract_id).unwrap() // Safe because we just inserted it.
             }
         };
 
         // Insert (or update) the value into the ephemeral states.
-        ephemeral_coins.1.insert(shadow_account_key, shadow_value);
+        ephemeral_shadow_balance.insert(shadow_account_key, shadow_value);
 
         // Return the result.
         Some(())
@@ -229,28 +317,54 @@ impl ContractCoinHolder {
     pub async fn update_contract_balance(
         &mut self,
         contract_id: [u8; 32],
-        new_balance: CONTRACT_COIN_BALANCE,
+        new_balance: CONTRACT_BALANCE,
     ) -> Option<()> {
         // Get mutable ephemeral states.
-        let ephemeral_coins = match self.ephemeral_coins.get_mut(&contract_id) {
-            Some((balance, shadows)) => (balance, shadows),
+        let ephemeral_balance = match self.ephemeral_balances.get_mut(&contract_id) {
+            Some(balance) => balance,
             None => {
                 // Create it if it doesn't exist.
-                let contract_shadows =
-                    HashMap::<SHADOW_ACCOUNT_KEY, SHADOW_ACCOUNT_COIN_BALANCE>::new();
+                let new_balance = 0;
 
                 // Insert it.
-                self.ephemeral_coins
-                    .insert(contract_id, (0, contract_shadows));
+                self.ephemeral_balances.insert(contract_id, new_balance);
 
                 // Get it again.
-                let (balance, shadows) = self.ephemeral_coins.get_mut(&contract_id).unwrap(); // Safe because we just inserted it.
-                (balance, shadows)
+                self.ephemeral_balances.get_mut(&contract_id).unwrap() // Safe because we just inserted it.
             }
         };
 
         // Update the balance in the ephemeral states.
-        *ephemeral_coins.0 = new_balance;
+        *ephemeral_balance = new_balance;
+
+        // Return the result.
+        Some(())
+    }
+
+    /// Updates the contract shadow allocation for a contract ID ephemerally.
+    pub async fn update_contract_shadow_alloc_sum(
+        &mut self,
+        contract_id: [u8; 32],
+        new_shadow_alloc: CONTRACT_SHADOW_ALLOC_SUM,
+    ) -> Option<()> {
+        // Get mutable ephemeral states.
+        let ephemeral_shadow_alloc = match self.ephemeral_shadow_allocs.get_mut(&contract_id) {
+            Some(shadow_alloc) => shadow_alloc,
+            None => {
+                // Create it if it doesn't exist.
+                let new_shadow_alloc = 0;
+
+                // Insert it.
+                self.ephemeral_shadow_allocs
+                    .insert(contract_id, new_shadow_alloc);
+
+                // Get it again.
+                self.ephemeral_shadow_allocs.get_mut(&contract_id).unwrap() // Safe because we just inserted it.
+            }
+        };
+
+        // Update the shadow allocation in the ephemeral states.
+        *ephemeral_shadow_alloc = new_shadow_alloc;
 
         // Return the result.
         Some(())
@@ -269,56 +383,46 @@ impl ContractCoinHolder {
     /// NOTE: Used by the Engine coordinator.
     pub fn rollback_all(&mut self) {
         // Clear the ephemeral states.
-        self.ephemeral_coins.clear();
+        self.ephemeral_balances.clear();
+        self.ephemeral_shadow_allocs.clear();
+        self.ephemeral_shadow_spaces.clear();
 
         // Clear the ephemeral states backup.
-        self.ephemeral_coins_backup.clear();
+        self.ephemeral_balances_backup.clear();
+        self.ephemeral_shadow_allocs_backup.clear();
+        self.ephemeral_shadow_spaces_backup.clear();
     }
 
     /// Saves the states updated associated with all executions (on-disk and in-memory).
     ///
     /// TODO Performance Optimization: Open the tree *once per contract ID* and then insert all key-values at once.
     pub fn save_all_executions(&mut self) -> Result<(), ContractCoinHolderSaveError> {
-        // Iterate over all ephemeral states.
-        for (contract_id, (ephemeral_balance, ephemeral_shadows)) in self.ephemeral_coins.iter() {
+        // Save ephemeral balances and shadow allocations.
+        for (contract_id, ephemeral_balance) in self.ephemeral_balances.iter() {
             // In-memory insertion.
             {
-                // Get mutable states.
-                let coins = match self.coins.get_mut(contract_id) {
-                    Some(coins) => coins,
-                    None => {
-                        // Create it if it doesn't exist.
-                        let contract_shadows =
-                            HashMap::<SHADOW_ACCOUNT_KEY, SHADOW_ACCOUNT_COIN_BALANCE>::new();
-
-                        // Insert it.
-                        self.coins
-                            .insert(contract_id.to_owned(), (0, contract_shadows));
-
-                        // Get it again.
-                        self.coins.get_mut(contract_id).unwrap() // Safe because we just inserted it.
-                    }
-                };
-
-                // Update the balance and allocations in memory.
-                coins.0 = *ephemeral_balance;
-
-                // Iterate over all ephemeral allocations for this contract.
-                for (ephemeral_shadow_account_key, ephemeral_shadow_value) in
-                    ephemeral_shadows.iter()
-                {
-                    coins.1.insert(
-                        ephemeral_shadow_account_key.clone(),
-                        *ephemeral_shadow_value,
-                    );
-                }
+                // Insert or update the balance and shadow allocation in memory.
+                self.coins.insert(
+                    *contract_id,
+                    (
+                        *ephemeral_balance,
+                        self.ephemeral_shadow_allocs
+                            .get(contract_id)
+                            .cloned()
+                            .unwrap_or_default(),
+                        self.ephemeral_shadow_spaces
+                            .get(contract_id)
+                            .cloned()
+                            .unwrap_or_default(),
+                    ),
+                );
             }
 
             // On-disk insertion.
             {
                 // Save the balance to the balances db.
                 self.balance_db
-                    .insert(&contract_id, ephemeral_balance.to_le_bytes().to_vec())
+                    .insert(contract_id, ephemeral_balance.to_le_bytes().to_vec())
                     .map_err(|e| {
                         ContractCoinHolderSaveError::TreeValueInsertError(
                             contract_id.to_owned(),
@@ -327,17 +431,72 @@ impl ContractCoinHolder {
                             e,
                         )
                     })?;
+            }
+        }
 
+        // Save ephemeral shadow allocations to disk.
+        for (contract_id, ephemeral_shadow_alloc) in self.ephemeral_shadow_allocs.iter() {
+            // On-disk insertion.
+            {
+                // Save the shadow allocation to the shadow allocation db.
+                self.shadow_alloc_sum_db
+                    .insert(contract_id, ephemeral_shadow_alloc.to_le_bytes().to_vec())
+                    .map_err(|e| {
+                        ContractCoinHolderSaveError::TreeValueInsertError(
+                            contract_id.to_owned(),
+                            contract_id.to_vec(),
+                            *ephemeral_shadow_alloc,
+                            e,
+                        )
+                    })?;
+            }
+        }
+
+        // Save ephemeral shadow spaces.
+        for (contract_id, ephemeral_shadow_space) in self.ephemeral_shadow_spaces.iter() {
+            // In-memory insertion.
+            {
+                // Get mutable shadow spaces or create if doesn't exist.
+                let shadow_spaces =
+                    if let Some((_, _, shadow_spaces)) = self.coins.get_mut(contract_id) {
+                        shadow_spaces
+                    } else {
+                        // Create it if it doesn't exist.
+                        let new_shadow_spaces =
+                            HashMap::<SHADOW_ACCOUNT_KEY, SHADOW_ACCOUNT_COIN_BALANCE>::new();
+
+                        // Insert it.
+                        self.coins
+                            .insert(contract_id.to_owned(), (0, 0, new_shadow_spaces));
+
+                        // Get it again.
+                        &mut self.coins.get_mut(contract_id).unwrap().2 // Safe because we just inserted it.
+                    };
+
+                // Iterate over all ephemeral shadow balances for this contract.
+                for (ephemeral_shadow_account_key, ephemeral_shadow_value) in
+                    ephemeral_shadow_space.iter()
+                {
+                    shadow_spaces.insert(
+                        ephemeral_shadow_account_key.clone(),
+                        *ephemeral_shadow_value,
+                    );
+                }
+            }
+
+            // On-disk insertion.
+            {
                 // Save the shadows to the shadows db.
-                let shadows_tree = self.shadows_db.open_tree(&contract_id).map_err(|e| {
-                    ContractCoinHolderSaveError::OpenTreeError(contract_id.to_owned(), e)
-                })?;
+                let shadow_space_tree =
+                    self.shadow_space_db.open_tree(&contract_id).map_err(|e| {
+                        ContractCoinHolderSaveError::OpenTreeError(contract_id.to_owned(), e)
+                    })?;
 
                 // Insert all shadows into the on-disk contract tree.
                 for (ephemeral_shadow_account_key, ephemeral_shadow_value) in
-                    ephemeral_shadows.iter()
+                    ephemeral_shadow_space.iter()
                 {
-                    shadows_tree
+                    shadow_space_tree
                         .insert(
                             ephemeral_shadow_account_key.to_vec(),
                             ephemeral_shadow_value.to_le_bytes().to_vec(),
@@ -355,10 +514,14 @@ impl ContractCoinHolder {
         }
 
         // Clear the ephemeral states.
-        self.ephemeral_coins.clear();
+        self.ephemeral_balances.clear();
+        self.ephemeral_shadow_allocs.clear();
+        self.ephemeral_shadow_spaces.clear();
 
         // Clear the ephemeral states backup.
-        self.ephemeral_coins_backup.clear();
+        self.ephemeral_balances_backup.clear();
+        self.ephemeral_shadow_allocs_backup.clear();
+        self.ephemeral_shadow_spaces_backup.clear();
 
         Ok(())
     }
