@@ -176,3 +176,12 @@ impl AccountCoinHolder {
         Ok(())
     }
 }
+
+/// Erase by db path.
+pub fn erase_account_coin_holder(chain: Chain) {
+    // Balance db path.
+    let balance_path = format!("db/{}/coin/account/balance", chain.to_string());
+
+    // Erase the path.
+    let _ = std::fs::remove_dir_all(balance_path);
+}

@@ -1128,3 +1128,16 @@ impl ContractCoinHolder {
         Ok(())
     }
 }
+
+/// Erase by db path.
+pub fn erase_contract_coin_holder(chain: Chain) {
+    // Balance db path.
+    let balance_path = format!("db/{}/coin/contract/balance", chain.to_string());
+
+    // Shadow space db path.
+    let shadow_space_path = format!("db/{}/coin/contract/shadow_space", chain.to_string());
+
+    // Erase the paths.
+    let _ = std::fs::remove_dir_all(balance_path);
+    let _ = std::fs::remove_dir_all(shadow_space_path);
+}
