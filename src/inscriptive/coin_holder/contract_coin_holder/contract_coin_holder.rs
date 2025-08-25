@@ -17,13 +17,22 @@ type ACCOUNT_KEY = [u8; 32];
 #[allow(non_camel_case_types)]
 type CONTRACT_ID = [u8; 32];
 
+/// Satoshi amount.
+#[allow(non_camel_case_types)]
+type SATOSHI_AMOUNT = u64;
+
+/// A custom, high-precision satoshi amount.
+/// 1 satoshi = 100,000,000 sati-satoshis.
+#[allow(non_camel_case_types)]
+type SATI_SATOSHI_AMOUNT = u128;
+
 /// A struct for representing a shadow space of a contract.
 #[derive(Clone)]
 struct ContractShadowSpace {
     // Total allocated BTC value of the entire shadow space.
-    pub allocs_sum: u64,
+    pub allocs_sum: SATOSHI_AMOUNT,
     // Allocated BTC values of each account.
-    pub allocs: HashMap<ACCOUNT_KEY, u64>,
+    pub allocs: HashMap<ACCOUNT_KEY, SATI_SATOSHI_AMOUNT>,
 }
 
 /// A struct for containing BTC balance and shadow space allocations of a contract.
@@ -94,13 +103,10 @@ impl ContractCoinHolder {
             })?;
 
             // Initialize the in-memory cache of contract shadow space.
-            let mut allocs = HashMap::<ACCOUNT_KEY, u64>::new();
-
-            // Calculated allocs sum.
-            let mut calculated_allocs_sum: u64 = 0;
+            let mut allocs = HashMap::<ACCOUNT_KEY, SATI_SATOSHI_AMOUNT>::new();
 
             // On-disk stored allocs sum.
-            let mut stored_allocs_sum: u64 = 0;
+            let mut allocs_sum: u64 = 0;
 
             // Iterate over all items in the contract tree.
             for alloc in shadow_space_tree.iter() {
@@ -122,33 +128,37 @@ impl ContractCoinHolder {
                         )
                     })?;
 
-                // Convert the value to an allocation value.
-                let alloc_value: u64 =
-                    u64::from_le_bytes(alloc_value.as_ref().try_into().map_err(|_| {
-                        ContractCoinHolderConstructionError::InvalidShadowBalance(
-                            alloc_value.to_vec(),
-                        )
-                    })?);
+                // Match the account key.
+                match alloc_account_key == [0xff; 32] {
+                    false => {
+                        // This key is a normal account key that corresponds to an account allocation.
 
-                // If the account key is the special key (0xff..),
-                // this represents the allocs sum in the shadow space.
-                if alloc_account_key == [0xff; 32] {
-                    stored_allocs_sum = alloc_value;
-                    continue;
+                        // Convert the value to an allocation value.
+                        let alloc_value_in_sati_satoshis: u128 =
+                            u128::from_le_bytes(alloc_value.as_ref().try_into().map_err(|_| {
+                                ContractCoinHolderConstructionError::InvalidShadowAllocValueBytes(
+                                    alloc_value.to_vec(),
+                                )
+                            })?);
+
+                        // Update the shadow space allocations.
+                        allocs.insert(alloc_account_key, alloc_value_in_sati_satoshis);
+                    }
+                    true => {
+                        // This key (0xff..) is a special key that corresponds to the allocs sum value.
+
+                        // Convert the value to an allocation value.
+                        let allocs_sum_value_in_satoshis: u64 =
+                            u64::from_le_bytes(alloc_value.as_ref().try_into().map_err(|_| {
+                                ContractCoinHolderConstructionError::InvalidShadowAllocsSumBytes(
+                                    alloc_value.to_vec(),
+                                )
+                            })?);
+
+                        // Update the shadow space allocations sum.
+                        allocs_sum = allocs_sum_value_in_satoshis;
+                    }
                 }
-
-                // Update the shadow space allocations.
-                allocs.insert(alloc_account_key, alloc_value);
-                calculated_allocs_sum += alloc_value; // Update the shadow space allocations sum.
-            }
-
-            // Check if the calculated allocs sum matches the stored allocs sum.
-            if calculated_allocs_sum != stored_allocs_sum {
-                return Err(ContractCoinHolderConstructionError::AllocsSumMismatch(
-                    contract_id,
-                    calculated_allocs_sum,
-                    stored_allocs_sum,
-                ));
             }
 
             // Get the contract balance from the balance db.
@@ -182,11 +192,11 @@ impl ContractCoinHolder {
             };
 
             // Check if the shadow space allocations sum exceeds the contract balance.
-            if calculated_allocs_sum > contract_balance {
+            if allocs_sum > contract_balance {
                 return Err(
                     ContractCoinHolderConstructionError::AllocsSumExceedsTheContractBalance(
                         contract_id,
-                        stored_allocs_sum,
+                        allocs_sum,
                         contract_balance,
                     ),
                 );
@@ -195,10 +205,7 @@ impl ContractCoinHolder {
             // Create the contract body.
             let contract_body = ContractBody {
                 balance: contract_balance,
-                shadow_space: ContractShadowSpace {
-                    allocs_sum: stored_allocs_sum,
-                    allocs,
-                },
+                shadow_space: ContractShadowSpace { allocs_sum, allocs },
             };
 
             // Insert the contract body into the in-memory cache.
@@ -268,11 +275,11 @@ impl ContractCoinHolder {
     }
 
     /// Get the shadow allocation value of an account for a specific contract ID.
-    pub fn get_account_shadow_alloc_value(
+    pub fn get_account_shadow_alloc_value_in_sati_satoshis(
         &self,
         contract_id: [u8; 32],
         account_key: ACCOUNT_KEY,
-    ) -> Option<u64> {
+    ) -> Option<u128> {
         // Try to get from the ephemeral states first.
         if let Some(shadow_space) = self.ephemeral_shadow_spaces.get(&contract_id) {
             return shadow_space.allocs.get(&account_key).cloned();
@@ -282,6 +289,28 @@ impl ContractCoinHolder {
         self.in_memory
             .get(&contract_id)
             .and_then(|body| body.shadow_space.allocs.get(&account_key).cloned())
+    }
+
+    /// Get the shadow allocation value of an account for a specific contract ID in satoshis.
+    pub fn get_account_shadow_alloc_value_in_satoshis(
+        &self,
+        contract_id: [u8; 32],
+        account_key: ACCOUNT_KEY,
+    ) -> Option<u64> {
+        // Get the sati-satoshi value.
+        let sati_satoshi_value =
+            self.get_account_shadow_alloc_value_in_sati_satoshis(contract_id, account_key)?;
+
+        // Divide by 100_000_000 to get the satoshi value.
+        let satoshi_value = sati_satoshi_value / 100_000_000;
+
+        // Return the result.
+        Some(satoshi_value as u64)
+    }
+
+    /// Checks if a contract is registered.
+    pub fn in_contract_registered(&self, contract_id: [u8; 32]) -> bool {
+        self.in_memory.contains_key(&contract_id)
     }
 
     /// Registers a list of contract IDs.
@@ -319,12 +348,12 @@ impl ContractCoinHolder {
             {
                 // Balances-db.
                 {
-                    // Create the value bytes.
-                    let value_bytes: [u8; 8] = 0u64.to_le_bytes();
+                    // Create the contract balance value bytes initially set to zero.
+                    let initial_contract_balance_bytes: [u8; 8] = 0u64.to_le_bytes();
 
                     // Save the balance to the balances db.
                     self.balance_db
-                        .insert(contract_id, value_bytes.to_vec())
+                        .insert(contract_id, initial_contract_balance_bytes.to_vec())
                         .map_err(|e| {
                             ContractCoinHolderRegisterError::TreeValueInsertError(contract_id, e)
                         })?;
@@ -338,12 +367,15 @@ impl ContractCoinHolder {
                             ContractCoinHolderRegisterError::OpenTreeError(contract_id, e)
                         })?;
 
-                    // Create the value bytes.
-                    let value_bytes: [u8; 8] = 0u64.to_le_bytes();
+                    // Create the contract allocs sum value bytes initially set to zero.
+                    let initial_contract_allocs_sum_bytes: [u8; 8] = 0u64.to_le_bytes();
 
-                    // Insert the allocs sum with the special key (0xff..).
+                    // Insert the allocs sum with the special key (0xff..) for the allocs sum value.
                     shadow_space_tree
-                        .insert([0xff; 32].to_vec(), value_bytes.to_vec())
+                        .insert(
+                            [0xff; 32].to_vec(),
+                            initial_contract_allocs_sum_bytes.to_vec(),
+                        )
                         .map_err(|e| {
                             ContractCoinHolderRegisterError::TreeValueInsertError(contract_id, e)
                         })?;
@@ -363,7 +395,7 @@ impl ContractCoinHolder {
     ) -> Result<(), ShadowAllocError> {
         // Check if the account key is already allocated.
         if self
-            .get_account_shadow_alloc_value(contract_id, account_key)
+            .get_account_shadow_alloc_value_in_sati_satoshis(contract_id, account_key)
             .is_some()
         {
             return Err(ShadowAllocError::AccountKeyAlreadyAllocated(
@@ -415,17 +447,20 @@ impl ContractCoinHolder {
         &mut self,
         contract_id: [u8; 32],
         account_key: ACCOUNT_KEY,
-        increase_value: u64,
+        up_value_in_satoshis: u64,
     ) -> Result<(), ShadowAllocUpError> {
+        // Convert the increase value to sati-satoshi value.
+        let up_value_in_sati_satoshis: u128 = (up_value_in_satoshis as u128) * 100_000_000;
+
         // Get the old account allocation value and contract balance before any mutable borrows.
-        let existing_account_shadow_alloc_value = self
-            .get_account_shadow_alloc_value(contract_id, account_key)
+        let existing_account_shadow_alloc_value_in_sati_satoshis: u128 = self
+            .get_account_shadow_alloc_value_in_sati_satoshis(contract_id, account_key)
             .ok_or(ShadowAllocUpError::UnableToGetOldAccountAllocValue(
                 contract_id,
                 account_key,
             ))?;
 
-        let existing_contract_balance = self
+        let existing_contract_balance_in_satoshis: u64 = self
             .get_contract_balance(contract_id)
             .ok_or(ShadowAllocUpError::UnableToGetContractBalance(contract_id))?;
 
@@ -459,28 +494,29 @@ impl ContractCoinHolder {
             };
 
         // Calculate the new allocation value.
-        let new_account_shadow_alloc_value = existing_account_shadow_alloc_value + increase_value;
+        let new_account_shadow_alloc_value_in_sati_satoshis: u128 =
+            existing_account_shadow_alloc_value_in_sati_satoshis + up_value_in_sati_satoshis;
 
         // Calculate the new allocation sum value.
-        let new_contract_allocs_sum_value =
-            ephemeral_contract_shadow_space.allocs_sum + increase_value;
+        let new_contract_allocs_sum_value_in_satoshis: u64 =
+            ephemeral_contract_shadow_space.allocs_sum + up_value_in_satoshis;
 
         // Check if the new contract alloc sum value exceeds the contract balance.
-        if new_contract_allocs_sum_value > existing_contract_balance {
+        if new_contract_allocs_sum_value_in_satoshis > existing_contract_balance_in_satoshis {
             return Err(ShadowAllocUpError::AllocsSumExceedsTheContractBalance(
                 contract_id,
-                new_contract_allocs_sum_value,
-                existing_contract_balance,
+                new_contract_allocs_sum_value_in_satoshis,
+                existing_contract_balance_in_satoshis,
             ));
         }
 
         // Insert (or update) the account shadow allocation value into the ephemeral states.
         ephemeral_contract_shadow_space
             .allocs
-            .insert(account_key, new_account_shadow_alloc_value);
+            .insert(account_key, new_account_shadow_alloc_value_in_sati_satoshis);
 
         // Update the contract shadow allocation sum value.
-        ephemeral_contract_shadow_space.allocs_sum = new_contract_allocs_sum_value;
+        ephemeral_contract_shadow_space.allocs_sum = new_contract_allocs_sum_value_in_satoshis;
 
         // Return the result.
         Ok(())
@@ -491,27 +527,31 @@ impl ContractCoinHolder {
         &mut self,
         contract_id: [u8; 32],
         account_key: ACCOUNT_KEY,
-        decrease_value: u64,
+        down_value_in_satoshis: u64,
     ) -> Result<(), ShadowAllocDownError> {
+        // Convert the decrease value to sati-satoshi value.
+        let down_value_in_sati_satoshis: u128 = (down_value_in_satoshis as u128) * 100_000_000;
+
         // Get the old account allocation value and contract balance before any mutable borrows.
-        let existing_account_shadow_alloc_value = self
-            .get_account_shadow_alloc_value(contract_id, account_key)
+        let existing_account_shadow_alloc_value_in_sati_satoshis: u128 = self
+            .get_account_shadow_alloc_value_in_sati_satoshis(contract_id, account_key)
             .ok_or(ShadowAllocDownError::UnableToGetOldAccountAllocValue(
                 contract_id,
                 account_key,
             ))?;
 
-        let existing_contract_balance = self.get_contract_balance(contract_id).ok_or(
-            ShadowAllocDownError::UnableToGetContractBalance(contract_id),
-        )?;
+        let existing_contract_balance_in_satoshis: u64 =
+            self.get_contract_balance(contract_id).ok_or(
+                ShadowAllocDownError::UnableToGetContractBalance(contract_id),
+            )?;
 
         // Check if the decrease would make the allocation value go below zero.
-        if decrease_value > existing_account_shadow_alloc_value {
+        if down_value_in_sati_satoshis > existing_account_shadow_alloc_value_in_sati_satoshis {
             return Err(ShadowAllocDownError::AllocValueWouldGoBelowZero(
                 contract_id,
                 account_key,
-                existing_account_shadow_alloc_value,
-                decrease_value,
+                existing_account_shadow_alloc_value_in_sati_satoshis,
+                down_value_in_sati_satoshis,
             ));
         }
 
@@ -545,28 +585,29 @@ impl ContractCoinHolder {
             };
 
         // Calculate the new allocation value.
-        let new_account_shadow_alloc_value = existing_account_shadow_alloc_value - decrease_value;
+        let new_account_shadow_alloc_value_in_sati_satoshis: u128 =
+            existing_account_shadow_alloc_value_in_sati_satoshis - down_value_in_sati_satoshis;
 
         // Calculate the new allocation sum value.
-        let new_contract_allocs_sum_value =
-            ephemeral_contract_shadow_space.allocs_sum - decrease_value;
+        let new_contract_allocs_sum_value_in_satoshis: u64 =
+            ephemeral_contract_shadow_space.allocs_sum - down_value_in_satoshis;
 
         // Check if the new contract alloc sum value exceeds the contract balance.
-        if new_contract_allocs_sum_value > existing_contract_balance {
+        if new_contract_allocs_sum_value_in_satoshis > existing_contract_balance_in_satoshis {
             return Err(ShadowAllocDownError::AllocsSumExceedsTheContractBalance(
                 contract_id,
-                new_contract_allocs_sum_value,
-                existing_contract_balance,
+                new_contract_allocs_sum_value_in_satoshis,
+                existing_contract_balance_in_satoshis,
             ));
         }
 
         // Insert (or update) the account shadow allocation value into the ephemeral states.
         ephemeral_contract_shadow_space
             .allocs
-            .insert(account_key, new_account_shadow_alloc_value);
+            .insert(account_key, new_account_shadow_alloc_value_in_sati_satoshis);
 
         // Update the contract shadow allocation sum value.
-        ephemeral_contract_shadow_space.allocs_sum = new_contract_allocs_sum_value;
+        ephemeral_contract_shadow_space.allocs_sum = new_contract_allocs_sum_value_in_satoshis;
 
         // Return the result.
         Ok(())
@@ -598,7 +639,7 @@ impl ContractCoinHolder {
     /// TODO Performance Optimization: Open the tree *once per contract ID* and then insert all key-values at once.
     pub fn save_all_executions(&mut self) -> Result<(), ContractCoinHolderSaveError> {
         // #0 Save ephemeral balances.
-        for (contract_id, ephemeral_balance) in self.ephemeral_balances.iter() {
+        for (contract_id, ephemeral_contract_balance) in self.ephemeral_balances.iter() {
             // #0.0 In-memory insertion.
             {
                 // Get mutable contract body.
@@ -607,19 +648,21 @@ impl ContractCoinHolder {
                 )?;
 
                 // Update the balance in the in-memory states.
-                contract_body.balance = *ephemeral_balance;
+                contract_body.balance = *ephemeral_contract_balance;
             }
 
             // #0.1 On-disk insertion.
             {
                 // Save the balance to the balances db.
                 self.balance_db
-                    .insert(contract_id, ephemeral_balance.to_le_bytes().to_vec())
+                    .insert(
+                        contract_id,
+                        ephemeral_contract_balance.to_le_bytes().to_vec(),
+                    )
                     .map_err(|e| {
-                        ContractCoinHolderSaveError::TreeValueInsertError(
+                        ContractCoinHolderSaveError::BalanceValueInsertError(
                             *contract_id,
-                            *contract_id,
-                            *ephemeral_balance,
+                            *ephemeral_contract_balance,
                             e,
                         )
                     })?;
@@ -648,19 +691,19 @@ impl ContractCoinHolder {
                     .map_err(|e| ContractCoinHolderSaveError::OpenTreeError(*contract_id, e))?;
 
                 // Insert all shadows into the on-disk contract tree.
-                for (ephemeral_shadow_account_key, ephemeral_shadow_value) in
+                for (ephemeral_shadow_account_key, ephemeral_shadow_alloc_value) in
                     ephemeral_shadow_space.allocs.iter()
                 {
                     shadow_space_tree
                         .insert(
                             ephemeral_shadow_account_key.to_vec(),
-                            ephemeral_shadow_value.to_le_bytes().to_vec(),
+                            ephemeral_shadow_alloc_value.to_le_bytes().to_vec(),
                         )
                         .map_err(|e| {
-                            ContractCoinHolderSaveError::TreeValueInsertError(
+                            ContractCoinHolderSaveError::ShadowSpaceTreeAllocInsertError(
                                 *contract_id,
                                 *ephemeral_shadow_account_key,
-                                *ephemeral_shadow_value,
+                                *ephemeral_shadow_alloc_value,
                                 e,
                             )
                         })?;
@@ -673,9 +716,8 @@ impl ContractCoinHolder {
                         ephemeral_shadow_space.allocs_sum.to_le_bytes().to_vec(),
                     )
                     .map_err(|e| {
-                        ContractCoinHolderSaveError::TreeValueInsertError(
+                        ContractCoinHolderSaveError::ShadowSpaceTreeAllocsSumInsertError(
                             *contract_id,
-                            [0xff; 32],
                             ephemeral_shadow_space.allocs_sum,
                             e,
                         )

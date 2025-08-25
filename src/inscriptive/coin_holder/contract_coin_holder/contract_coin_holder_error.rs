@@ -14,6 +14,15 @@ type ALLOCS_SUM = u64;
 #[allow(non_camel_case_types)]
 type CONTRACT_BALANCE = u64;
 
+/// Satoshi amount.
+#[allow(non_camel_case_types)]
+type SATOSHI_AMOUNT = u64;
+
+/// A custom, high-precision satoshi amount.
+/// 1 satoshi = 100,000,000 sati-satoshis.
+#[allow(non_camel_case_types)]
+type SATI_SATOSHI_AMOUNT = u128;
+
 /// The state construction error.
 #[derive(Debug, Clone)]
 pub enum ContractCoinHolderConstructionError {
@@ -30,12 +39,12 @@ pub enum ContractCoinHolderConstructionError {
     InvalidContractIDBytes(Vec<u8>),
     ContractShadowIterError(sled::Error),
     InvalidShadowAccountKey(Vec<u8>),
-    InvalidShadowBalance(Vec<u8>),
-    InvalidShadowAllocation(Vec<u8>),
+    InvalidShadowAllocValueBytes(Vec<u8>),
+    InvalidShadowAllocsSumBytes(Vec<u8>),
+    //InvalidShadowAllocation(Vec<u8>),
     UnableToGetContractBalance(CONTRACT_ID, Option<sled::Error>),
     InvalidBalanceBytesError(Vec<u8>),
     //
-    AllocsSumMismatch(CONTRACT_ID, ALLOCS_SUM, ALLOCS_SUM),
     AllocsSumExceedsTheContractBalance(CONTRACT_ID, ALLOCS_SUM, CONTRACT_BALANCE),
     ShadowAllocationGetError(CONTRACT_ID, sled::Error),
 }
@@ -44,7 +53,9 @@ pub enum ContractCoinHolderConstructionError {
 #[derive(Debug, Clone)]
 pub enum ContractCoinHolderSaveError {
     OpenTreeError(CONTRACT_ID, sled::Error),
-    TreeValueInsertError(CONTRACT_ID, ACCOUNT_KEY, u64, sled::Error),
+    BalanceValueInsertError(CONTRACT_ID, SATOSHI_AMOUNT, sled::Error),
+    ShadowSpaceTreeAllocInsertError(CONTRACT_ID, ACCOUNT_KEY, SATI_SATOSHI_AMOUNT, sled::Error),
+    ShadowSpaceTreeAllocsSumInsertError(CONTRACT_ID, SATOSHI_AMOUNT, sled::Error),
     ContractBodyNotFound(CONTRACT_ID),
 }
 
@@ -79,5 +90,10 @@ pub enum ShadowAllocDownError {
     UnableToGetOldAccountAllocValue(CONTRACT_ID, ACCOUNT_KEY),
     UnableToGetContractBalance(CONTRACT_ID),
     AllocsSumExceedsTheContractBalance(CONTRACT_ID, ALLOCS_SUM, CONTRACT_BALANCE),
-    AllocValueWouldGoBelowZero(CONTRACT_ID, ACCOUNT_KEY, u64, u64),
+    AllocValueWouldGoBelowZero(
+        CONTRACT_ID,
+        ACCOUNT_KEY,
+        SATI_SATOSHI_AMOUNT,
+        SATI_SATOSHI_AMOUNT,
+    ),
 }
