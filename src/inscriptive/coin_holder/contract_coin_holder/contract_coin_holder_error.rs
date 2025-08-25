@@ -74,7 +74,7 @@ pub enum ShadowAllocError {
     ShadowSpaceNotFound(CONTRACT_ID),
 }
 
-/// The state save error.
+/// The state save error.   
 #[derive(Debug, Clone)]
 pub enum ShadowAllocUpError {
     ShadowSpaceNotFound(CONTRACT_ID),
@@ -96,4 +96,47 @@ pub enum ShadowAllocDownError {
         SATI_SATOSHI_AMOUNT,
         SATI_SATOSHI_AMOUNT,
     ),
+}
+
+/// The shadow allocation increase error.
+#[derive(Debug, Clone)]
+pub enum ShadowAllocUpAllError {
+    UnableToGetContractBalance(CONTRACT_ID),
+    UnableToGetContractAllocsSum(CONTRACT_ID),
+    AllocsSumExceedsTheContractBalance(CONTRACT_ID, ALLOCS_SUM, CONTRACT_BALANCE),
+    ShadowSpaceNotFound(CONTRACT_ID),
+    OperationNotPossibleWithZeroAllocsSum(CONTRACT_ID),
+}
+
+/// The shadow allocation decrease error.
+
+#[derive(Debug, Clone)]
+pub enum ShadowAllocDownAllError {
+    UnableToGetContractBalance(CONTRACT_ID),
+    UnableToGetContractAllocsSum(CONTRACT_ID),
+    AllocsSumExceedsTheContractBalance(CONTRACT_ID, ALLOCS_SUM, CONTRACT_BALANCE),
+    ShadowSpaceNotFound(CONTRACT_ID),
+    OperationNotPossibleWithZeroAllocsSum(CONTRACT_ID),
+    AllocsSumWouldGoBelowZero(CONTRACT_ID, ALLOCS_SUM, SATOSHI_AMOUNT),
+    IndividualAllocationWouldGoBelowZero(
+        CONTRACT_ID,
+        ACCOUNT_KEY,
+        SATI_SATOSHI_AMOUNT,
+        SATI_SATOSHI_AMOUNT,
+    ),
+}
+
+/// The contract balance increase error.
+#[derive(Debug, Clone)]
+pub enum ContractBalanceUpError {
+    UnableToGetContractBalance(CONTRACT_ID),
+    ContractBodyNotFound(CONTRACT_ID),
+}
+
+/// The contract balance decrease error.
+#[derive(Debug, Clone)]
+pub enum ContractBalanceDownError {
+    UnableToGetContractBalance(CONTRACT_ID),
+    ContractBodyNotFound(CONTRACT_ID),
+    ContractBalanceWouldGoBelowZero(CONTRACT_ID, CONTRACT_BALANCE, SATOSHI_AMOUNT),
 }
