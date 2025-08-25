@@ -6,6 +6,10 @@ type ACCOUNT_KEY = [u8; 32];
 #[allow(non_camel_case_types)]
 type ACCOUNT_BALANCE = u64;
 
+/// Satoshi amount.
+#[allow(non_camel_case_types)]
+type SATOSHI_AMOUNT = u64;
+
 /// The account coin holder construction error.
 #[derive(Debug, Clone)]
 pub enum AccountCoinHolderConstructionError {
@@ -19,4 +23,17 @@ pub enum AccountCoinHolderConstructionError {
 #[derive(Debug, Clone)]
 pub enum AccountCoinHolderSaveError {
     TreeValueInsertError(ACCOUNT_KEY, ACCOUNT_BALANCE, sled::Error),
+}
+
+/// The account balance increase error.
+#[derive(Debug, Clone)]
+pub enum AccountBalanceUpError {
+    UnableToGetAccountBalance(ACCOUNT_KEY),
+}
+
+/// The account balance decrease error.
+#[derive(Debug, Clone)]
+pub enum AccountBalanceDownError {
+    UnableToGetAccountBalance(ACCOUNT_KEY),
+    AccountBalanceWouldGoBelowZero(ACCOUNT_KEY, ACCOUNT_BALANCE, SATOSHI_AMOUNT),
 }

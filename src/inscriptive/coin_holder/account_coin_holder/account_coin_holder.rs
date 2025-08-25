@@ -1,5 +1,6 @@
 use super::account_coin_holder_error::{
-    AccountCoinHolderConstructionError, AccountCoinHolderSaveError,
+    AccountBalanceDownError, AccountBalanceUpError, AccountCoinHolderConstructionError,
+    AccountCoinHolderSaveError,
 };
 use crate::operative::Chain;
 use std::collections::HashMap;
@@ -17,7 +18,7 @@ type ACCOUNT_COIN_BALANCE = u64;
 /// A struct for containing account coin balances in-memory and on-disk.
 pub struct AccountCoinHolder {
     /// In-memory cache of account balances: ACCOUNT_KEY -> ACCOUNT_COIN_BALANCE
-    coins: HashMap<ACCOUNT_KEY, ACCOUNT_COIN_BALANCE>,
+    in_memory: HashMap<ACCOUNT_KEY, ACCOUNT_COIN_BALANCE>,
     /// Sled DB with all account balances in a single tree.
     balance_db: sled::Db,
     /// In-memory cache of ephemeral states.
@@ -41,7 +42,7 @@ impl AccountCoinHolder {
             .map_err(AccountCoinHolderConstructionError::BalancesDBOpenError)?;
 
         // Initialize the in-memory cache of account coins.
-        let mut coins = HashMap::<ACCOUNT_KEY, ACCOUNT_COIN_BALANCE>::new();
+        let mut in_memory = HashMap::<ACCOUNT_KEY, ACCOUNT_COIN_BALANCE>::new();
 
         // Iterate over all account balances in the balance db.
         for account_balance in balance_db.iter() {
@@ -66,12 +67,12 @@ impl AccountCoinHolder {
             })?);
 
             // Insert the account balance into the in-memory cache.
-            coins.insert(account_key, account_balance);
+            in_memory.insert(account_key, account_balance);
         }
 
         // Create the state holder.
         let account_coin_holder = AccountCoinHolder {
-            coins,
+            in_memory,
             balance_db,
             ephemeral_coins: HashMap::<ACCOUNT_KEY, ACCOUNT_COIN_BALANCE>::new(),
             ephemeral_coins_backup: HashMap::<ACCOUNT_KEY, ACCOUNT_COIN_BALANCE>::new(),
@@ -106,21 +107,65 @@ impl AccountCoinHolder {
             return Some(*balance);
         }
 
-        // And then try to get from the states.
-        self.coins.get(&account_key).cloned()
+        // And then try to get from the permanent in-memory states.
+        self.in_memory.get(&account_key).cloned()
     }
 
-    /// Updates the account coin balance for an account key ephemerally.
-    pub async fn update_account_balance(
+    /// Increases an account balance by a given value.
+    pub async fn account_balance_up(
         &mut self,
         account_key: ACCOUNT_KEY,
-        new_balance: ACCOUNT_COIN_BALANCE,
-    ) -> Option<()> {
+        up_value_in_satoshis: u64,
+    ) -> Result<(), AccountBalanceUpError> {
+        // Get the old account balance before any mutable borrows.
+        let existing_account_balance_in_satoshis: u64 =
+            self.get_account_balance(account_key).await.ok_or(
+                AccountBalanceUpError::UnableToGetAccountBalance(account_key),
+            )?;
+
+        // Calculate the new account balance.
+        let new_account_balance_in_satoshis: u64 =
+            existing_account_balance_in_satoshis + up_value_in_satoshis;
+
         // Insert (or update) the balance into the ephemeral states.
-        self.ephemeral_coins.insert(account_key, new_balance);
+        self.ephemeral_coins
+            .insert(account_key, new_account_balance_in_satoshis);
 
         // Return the result.
-        Some(())
+        Ok(())
+    }
+
+    /// Decreases an account balance by a given value.
+    pub async fn account_balance_down(
+        &mut self,
+        account_key: ACCOUNT_KEY,
+        down_value_in_satoshis: u64,
+    ) -> Result<(), AccountBalanceDownError> {
+        // Get the old account balance before any mutable borrows.
+        let existing_account_balance_in_satoshis: u64 =
+            self.get_account_balance(account_key).await.ok_or(
+                AccountBalanceDownError::UnableToGetAccountBalance(account_key),
+            )?;
+
+        // Check if the decrease would make the account balance go below zero.
+        if down_value_in_satoshis > existing_account_balance_in_satoshis {
+            return Err(AccountBalanceDownError::AccountBalanceWouldGoBelowZero(
+                account_key,
+                existing_account_balance_in_satoshis,
+                down_value_in_satoshis,
+            ));
+        }
+
+        // Calculate the new account balance.
+        let new_account_balance_in_satoshis: u64 =
+            existing_account_balance_in_satoshis - down_value_in_satoshis;
+
+        // Insert (or update) the balance into the ephemeral states.
+        self.ephemeral_coins
+            .insert(account_key, new_account_balance_in_satoshis);
+
+        // Return the result.
+        Ok(())
     }
 
     /// Reverts the state update(s) associated with the last execution.
@@ -149,7 +194,7 @@ impl AccountCoinHolder {
             // In-memory insertion.
             {
                 // Insert or update the balance in memory.
-                self.coins.insert(*account_key, *ephemeral_balance);
+                self.in_memory.insert(*account_key, *ephemeral_balance);
             }
 
             // On-disk insertion.
