@@ -1,5 +1,5 @@
 use super::state_holder_error::{StateHolderConstructionError, StateHolderSaveError};
-use crate::inscriptive::registery::contract_registery::CONTRACT_REGISTERY;
+use crate::inscriptive::registery::contract_registery::contract_registery::CONTRACT_REGISTERY;
 use crate::operative::Chain;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -113,8 +113,8 @@ impl StateHolder {
         let registery_index = {
             let _contract_registery = self.contract_registery.lock().await;
             _contract_registery
-                .contract_by_contract_id(contract_id)?
-                .registery_index()
+                .get_contract_info_by_contract_id(contract_id)?
+                .0
         };
 
         // Try to get from the ephemeral states first.
@@ -139,8 +139,8 @@ impl StateHolder {
         let registery_index = {
             let _contract_registery = self.contract_registery.lock().await;
             _contract_registery
-                .contract_by_contract_id(contract_id)?
-                .registery_index()
+                .get_contract_info_by_contract_id(contract_id)?
+                .0
         };
 
         // Get mutable ephemeral states.

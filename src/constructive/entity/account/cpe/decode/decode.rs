@@ -1,7 +1,7 @@
 use crate::constructive::entity::account::account::Account;
 use crate::constructive::entity::account::cpe::decode::decode_error::AccountCPEDecodingError;
 use crate::constructive::valtype::val::short_val::short_val::ShortVal;
-use crate::inscriptive::registery::account_registery::ACCOUNT_REGISTERY;
+use crate::inscriptive::registery::account_registery::account_registery::ACCOUNT_REGISTERY;
 use bit_vec::BitVec;
 use secp::Point;
 
@@ -41,7 +41,7 @@ impl Account {
                 // Check if the key is already registered.
                 let is_registered = {
                     let _account_registery = account_registery.lock().await;
-                    _account_registery.is_registered(public_key)
+                    _account_registery.is_account_registered(public_key.serialize_xonly())
                 };
 
                 // If the key is already registered, return an error.
@@ -65,7 +65,7 @@ impl Account {
                 // Retrieve the account given rank value.
                 let account = {
                     let _account_registery = account_registery.lock().await;
-                    _account_registery.account_by_rank(rank).ok_or(
+                    _account_registery.get_account_by_rank(rank).ok_or(
                         AccountCPEDecodingError::FailedToLocateAccountGivenRank(rank),
                     )?
                 };

@@ -11,8 +11,8 @@ use crate::constructive::entity::contract::contract::Contract;
 use crate::constructive::valtype::maybe_common::maybe_common::maybe_common::MaybeCommon;
 use crate::constructive::valtype::val::long_val::long_val::LongVal;
 use crate::constructive::valtype::val::short_val::short_val::ShortVal;
-use crate::inscriptive::registery::account_registery::ACCOUNT_REGISTERY;
-use crate::inscriptive::registery::contract_registery::CONTRACT_REGISTERY;
+use crate::inscriptive::registery::account_registery::account_registery::ACCOUNT_REGISTERY;
+use crate::inscriptive::registery::contract_registery::contract_registery::CONTRACT_REGISTERY;
 use crate::inscriptive::registery::registery::REGISTERY;
 use bit_vec::BitVec;
 

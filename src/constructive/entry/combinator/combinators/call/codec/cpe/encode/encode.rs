@@ -5,7 +5,10 @@ use crate::{
         },
         valtype::{val::atomic_val::atomic_val::AtomicVal, val::short_val::short_val::ShortVal},
     },
-    inscriptive::{registery::contract_registery::CONTRACT_REGISTERY, repo::repo::PROGRAMS_REPO},
+    inscriptive::{
+        registery::contract_registery::contract_registery::CONTRACT_REGISTERY,
+        repo::repo::PROGRAMS_REPO,
+    },
 };
 use bit_vec::BitVec;
 
@@ -32,7 +35,7 @@ impl Call {
         // Contract rank
         let contract_rank = {
             let _contract_registery = contract_registery.lock().await;
-            _contract_registery.rank_by_contract_id(self.contract_id)
+            _contract_registery.get_rank_by_contract_id(self.contract_id)
         }
         .ok_or(CallCPEEncodeError::ContractRankNotFoundAtContractId(
             self.contract_id,

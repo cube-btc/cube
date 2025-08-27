@@ -10,7 +10,7 @@ use crate::inscriptive::epoch::dir::EpochDirectory;
 use crate::inscriptive::epoch::dir::EPOCH_DIRECTORY;
 use crate::inscriptive::lp::dir::LPDirectory;
 use crate::inscriptive::lp::dir::LP_DIRECTORY;
-use crate::inscriptive::registery::account_registery::ACCOUNT_REGISTERY;
+use crate::inscriptive::registery::account_registery::account_registery::ACCOUNT_REGISTERY;
 use crate::inscriptive::registery::registery::Registery;
 use crate::inscriptive::registery::registery::REGISTERY;
 use crate::inscriptive::rollup::dir::RollupDirectory;
@@ -70,8 +70,8 @@ pub async fn run(key_holder: KeyHolder, chain: Chain, rpc_holder: RPCHolder) {
 
     // #5 Initialize Registery.
     let registery: REGISTERY = match Registery::new(chain) {
-        Some(dir) => dir,
-        None => {
+        Ok(dir) => dir,
+        Err(_) => {
             println!("{}", "Error initializing registery.".red());
             return;
         }
@@ -139,7 +139,9 @@ pub async fn run(key_holder: KeyHolder, chain: Chain, rpc_holder: RPCHolder) {
 
         let _account_registery = account_registery.lock().await;
 
-        match _account_registery.account_by_key_maybe_registered(key_holder.public_key()) {
+        match _account_registery
+            .get_account_by_account_key(key_holder.public_key().serialize_xonly())
+        {
             Some(account) => account,
             None => {
                 println!("{}", "Error constructing account.".red());

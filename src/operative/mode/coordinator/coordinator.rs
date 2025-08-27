@@ -69,8 +69,8 @@ pub async fn run(key_holder: KeyHolder, chain: Chain, rpc_holder: RPCHolder) {
 
     // #4 Initialize Registery.
     let registery: REGISTERY = match Registery::new(chain) {
-        Some(dir) => dir,
-        None => {
+        Ok(dir) => dir,
+        Err(_) => {
             println!("{}", "Error initializing registery.".red());
             return;
         }

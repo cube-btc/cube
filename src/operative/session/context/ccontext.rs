@@ -18,7 +18,9 @@ use crate::{
     },
     inscriptive::{
         blacklist::BLIST_DIRECTORY,
-        registery::{account_registery::ACCOUNT_REGISTERY, registery::REGISTERY},
+        registery::{
+            account_registery::account_registery::ACCOUNT_REGISTERY, registery::REGISTERY,
+        },
     },
     operative::session::{
         allowance::allowance, commit::NSessionCommit, commitack::CSessionCommitAck,
@@ -348,7 +350,7 @@ impl CSessionCtx {
             };
 
             let _account_registery = account_registery.lock().await;
-            match _account_registery.account_by_key(account.key()) {
+            match _account_registery.get_account_by_account_key(account.key().serialize_xonly()) {
                 Some(account) => account.registery_index(),
                 None => None,
             }

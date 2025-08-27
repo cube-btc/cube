@@ -96,7 +96,7 @@ impl ContractCoinHolder {
 
         // Iterate over all contract shadow spaces in the shadow space db.
         for tree_name in shadow_space_db.tree_names() {
-            let contract_id: CONTRACT_ID = tree_name.as_ref().try_into().map_err(|_| {
+            let contract_id: [u8; 32] = tree_name.as_ref().try_into().map_err(|_| {
                 ContractCoinHolderConstructionError::InvalidContractIDBytes(tree_name.to_vec())
             })?;
 
