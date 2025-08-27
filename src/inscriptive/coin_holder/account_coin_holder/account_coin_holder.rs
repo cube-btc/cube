@@ -1,6 +1,9 @@
 use super::account_coin_holder_error::{
     AccountBalanceDownError, AccountCoinHolderConstructionError, AccountCoinHolderSaveError,
 };
+use crate::inscriptive::coin_holder::account_coin_holder::account_coin_holder_error::{
+    AccountBalanceUpError, AccountCoinHolderRegisterError,
+};
 use crate::operative::Chain;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -99,7 +102,7 @@ impl AccountCoinHolder {
     }
 
     /// Get the account coin balance for an account key.
-    pub async fn get_account_balance(&self, account_key: ACCOUNT_KEY) -> Option<u64> {
+    pub fn get_account_balance(&self, account_key: ACCOUNT_KEY) -> Option<u64> {
         // Try to get from the ephemeral states first.
         if let Some(balance) = self.ephemeral_coins.get(&account_key) {
             return Some(*balance);
@@ -109,29 +112,47 @@ impl AccountCoinHolder {
         self.in_memory.get(&account_key).cloned()
     }
 
-    /// Increases an account balance by a given value.
-    /// This function also serves the purpose of registering an account if not already registered.
+    /// Registers an account if it is not already registered.
     ///
     /// NOTE: These changes are saved with the use of the `save_all` function.
-    pub async fn account_balance_up(
+    pub fn register_account(
+        &mut self,
+        account_key: ACCOUNT_KEY,
+    ) -> Result<(), AccountCoinHolderRegisterError> {
+        // Check if the account is already registered by retrieving its balance.
+        if self.get_account_balance(account_key).is_some() {
+            return Err(AccountCoinHolderRegisterError::AccountAlreadyRegistered(
+                account_key,
+            ));
+        }
+
+        // Insert into the ephemeral states with zero balance.
+        self.ephemeral_coins.insert(account_key, 0);
+
+        // Return the result.
+        Ok(())
+    }
+
+    /// Increases an account balance by a given value.
+    ///
+    /// NOTE: These changes are saved with the use of the `save_all` function.
+    pub fn account_balance_up(
         &mut self,
         account_key: ACCOUNT_KEY,
         up_value_in_satoshis: u64,
-    ) {
+    ) -> Result<(), AccountBalanceUpError> {
         // Try to get the  account balance.
-        let existing_account_balance_in_satoshis: u64 =
-            match self.get_account_balance(account_key).await {
-                // If the account is already registered, return the balance.
-                Some(balance) => balance,
-                // If the account is not registered, register it with zero balance.
-                None => {
-                    // Register the account with zero balance.
-                    self.ephemeral_coins.insert(account_key, 0);
-
-                    // Return zero.
-                    0
-                }
-            };
+        let existing_account_balance_in_satoshis: u64 = match self.get_account_balance(account_key)
+        {
+            // If the account is already registered, return the balance.
+            Some(balance) => balance,
+            // If the account is not registered, return an error.
+            None => {
+                return Err(AccountBalanceUpError::UnableToGetAccountBalance(
+                    account_key,
+                ))
+            }
+        };
 
         // Calculate the new account balance.
         let new_account_balance_in_satoshis: u64 =
@@ -140,31 +161,31 @@ impl AccountCoinHolder {
         // Insert (or update) the balance into the ephemeral states.
         self.ephemeral_coins
             .insert(account_key, new_account_balance_in_satoshis);
+
+        // Return the result.
+        Ok(())
     }
 
     /// Decreases an account balance by a given value.
-    /// This function also serves the purpose of registering an account if not already registered.
     ///
     /// NOTE: These changes are saved with the use of the `save_all` function.
-    pub async fn account_balance_down(
+    pub fn account_balance_down(
         &mut self,
         account_key: ACCOUNT_KEY,
         down_value_in_satoshis: u64,
     ) -> Result<(), AccountBalanceDownError> {
-        // Try to get the  account balance.
-        let existing_account_balance_in_satoshis: u64 =
-            match self.get_account_balance(account_key).await {
-                // If the account is already registered, return the balance.
-                Some(balance) => balance,
-                // If the account is not registered, register it with zero balance.
-                None => {
-                    // Register the account with zero balance.
-                    self.ephemeral_coins.insert(account_key, 0);
-
-                    // Return zero.
-                    0
-                }
-            };
+        // Try to get the account balance.
+        let existing_account_balance_in_satoshis: u64 = match self.get_account_balance(account_key)
+        {
+            // If the account is already registered, return the balance.
+            Some(balance) => balance,
+            // If the account is not registered, return an error.
+            None => {
+                return Err(AccountBalanceDownError::UnableToGetAccountBalance(
+                    account_key,
+                ))
+            }
+        };
 
         // Check if the decrease would make the account balance go below zero.
         if down_value_in_satoshis > existing_account_balance_in_satoshis {

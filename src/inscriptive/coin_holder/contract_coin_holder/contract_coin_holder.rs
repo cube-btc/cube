@@ -316,37 +316,32 @@ impl ContractCoinHolder {
         Some(satoshi_value as u64)
     }
 
-    /// Registers a list of contract IDs.
+    /// Registers a contract if it is not already registered.
     ///
     /// NOTE: These changes are saved with the use of the `save_all` function.
-    pub fn register_contract_ids(
+    pub fn register_contract(
         &mut self,
-        contract_ids: Vec<[u8; 32]>,
+        contract_id: [u8; 32],
     ) -> Result<(), ContractCoinHolderRegisterError> {
-        // Check if at least one of the contract IDs is already registered.
-        for contract_id in contract_ids.iter() {
-            if self.in_memory.contains_key(contract_id) {
-                return Err(
-                    ContractCoinHolderRegisterError::ContractIDAlreadyRegistered(*contract_id),
-                );
-            }
+        // Check if the contract ID is already registered.
+        if self.in_memory.contains_key(&contract_id) {
+            return Err(ContractCoinHolderRegisterError::ContractAlreadyRegistered(
+                contract_id,
+            ));
         }
 
-        // Iterate over all contract IDs.
-        for contract_id in contract_ids {
-            // Insert into the epheremal balances with zero balance.
-            self.ephemeral_balances.insert(contract_id, 0);
+        // Insert into the epheremal balances with zero balance.
+        self.ephemeral_balances.insert(contract_id, 0);
 
-            // Create a fresh new shadow space with zero allocs sum.
-            let fresh_new_shadow_space = ContractShadowSpace {
-                allocs_sum: 0,
-                allocs: HashMap::new(),
-            };
+        // Create a fresh new shadow space with zero allocs sum.
+        let fresh_new_shadow_space = ContractShadowSpace {
+            allocs_sum: 0,
+            allocs: HashMap::new(),
+        };
 
-            // Insert into the epheremal shadow spaces.
-            self.ephemeral_shadow_spaces
-                .insert(contract_id, fresh_new_shadow_space);
-        }
+        // Insert into the epheremal shadow spaces.
+        self.ephemeral_shadow_spaces
+            .insert(contract_id, fresh_new_shadow_space);
 
         // Return the result.
         Ok(())

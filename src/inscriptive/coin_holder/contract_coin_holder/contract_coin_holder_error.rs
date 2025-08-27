@@ -62,7 +62,7 @@ pub enum ContractCoinHolderSaveError {
 /// The state register error.
 #[derive(Debug, Clone)]
 pub enum ContractCoinHolderRegisterError {
-    ContractIDAlreadyRegistered(CONTRACT_ID),
+    ContractAlreadyRegistered(CONTRACT_ID),
 }
 
 /// The shadow allocation error.
