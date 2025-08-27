@@ -63,8 +63,6 @@ pub enum ContractCoinHolderSaveError {
 #[derive(Debug, Clone)]
 pub enum ContractCoinHolderRegisterError {
     ContractIDAlreadyRegistered(CONTRACT_ID),
-    TreeValueInsertError(CONTRACT_ID, sled::Error),
-    OpenTreeError(CONTRACT_ID, sled::Error),
 }
 
 /// The shadow allocation error.

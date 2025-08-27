@@ -46,7 +46,8 @@ struct ContractBody {
     pub shadow_space: ContractShadowSpace,
 }
 
-/// A struct for containing contract/program states in-memory and on-disk.
+/// A database manager for handling contract balances and shadow spaces.
+/// For now, we are caching everything in memory.
 pub struct ContractCoinHolder {
     // IN-MEMORY STATES
     /// In-memory cache of states: CONTRACT_ID -> ContractBody
@@ -316,6 +317,8 @@ impl ContractCoinHolder {
     }
 
     /// Registers a list of contract IDs.
+    ///
+    /// NOTE: These changes are saved with the use of the `save_all` function.
     pub fn register_contract_ids(
         &mut self,
         contract_ids: Vec<[u8; 32]>,
@@ -331,58 +334,18 @@ impl ContractCoinHolder {
 
         // Iterate over all contract IDs.
         for contract_id in contract_ids {
-            // Save in-memory states.
-            {
-                // Get the contract balance.
-                let fresh_new_contract_body = ContractBody {
-                    balance: 0,
-                    shadow_space: ContractShadowSpace {
-                        allocs_sum: 0,
-                        allocs: HashMap::new(),
-                    },
-                };
+            // Insert into the epheremal balances with zero balance.
+            self.ephemeral_balances.insert(contract_id, 0);
 
-                // Insert the contract body into the in-memory cache.
-                self.in_memory.insert(contract_id, fresh_new_contract_body);
-            }
+            // Create a fresh new shadow space with zero allocs sum.
+            let fresh_new_shadow_space = ContractShadowSpace {
+                allocs_sum: 0,
+                allocs: HashMap::new(),
+            };
 
-            // Save on-disk states.
-            {
-                // Balances-db.
-                {
-                    // Create the contract balance value bytes initially set to zero.
-                    let initial_contract_balance_bytes: [u8; 8] = 0u64.to_le_bytes();
-
-                    // Save the balance to the balances db.
-                    self.balance_db
-                        .insert(contract_id, initial_contract_balance_bytes.to_vec())
-                        .map_err(|e| {
-                            ContractCoinHolderRegisterError::TreeValueInsertError(contract_id, e)
-                        })?;
-                }
-
-                // Shadow-space-db.
-                {
-                    // Only insert the allocs sum with the special key (0xff..) into a new tree.
-                    let shadow_space_tree =
-                        self.shadow_space_db.open_tree(contract_id).map_err(|e| {
-                            ContractCoinHolderRegisterError::OpenTreeError(contract_id, e)
-                        })?;
-
-                    // Create the contract allocs sum value bytes initially set to zero.
-                    let initial_contract_allocs_sum_bytes: [u8; 8] = 0u64.to_le_bytes();
-
-                    // Insert the allocs sum with the special key (0xff..) for the allocs sum value.
-                    shadow_space_tree
-                        .insert(
-                            [0xff; 32].to_vec(),
-                            initial_contract_allocs_sum_bytes.to_vec(),
-                        )
-                        .map_err(|e| {
-                            ContractCoinHolderRegisterError::TreeValueInsertError(contract_id, e)
-                        })?;
-                }
-            }
+            // Insert into the epheremal shadow spaces.
+            self.ephemeral_shadow_spaces
+                .insert(contract_id, fresh_new_shadow_space);
         }
 
         // Return the result.
@@ -390,6 +353,8 @@ impl ContractCoinHolder {
     }
 
     /// Increases a contract balance by a given value.
+    ///
+    /// NOTE: These changes are saved with the use of the `save_all` function.
     pub fn contract_balance_up(
         &mut self,
         contract_id: [u8; 32],
@@ -442,6 +407,8 @@ impl ContractCoinHolder {
     }
 
     /// Decreases a contract balance by a given value.
+    ///
+    /// NOTE: These changes are saved with the use of the `save_all` function.
     pub fn contract_balance_down(
         &mut self,
         contract_id: [u8; 32],
@@ -503,6 +470,8 @@ impl ContractCoinHolder {
     }
 
     // Creates an allocation space for an account in a contract shadow space.
+    ///
+    /// NOTE: These changes are saved with the use of the `save_all` function.
     pub fn shadow_alloc(
         &mut self,
         contract_id: [u8; 32],
@@ -557,7 +526,9 @@ impl ContractCoinHolder {
         Ok(())
     }
 
-    /// Inserts or updates a shadow allocation value by key and contract ID ephemerally.
+    /// Inserts or updates a shadow allocation value by key and contract ID ephemerally.    
+    ///
+    /// NOTE: These changes are saved with the use of the `save_all` function.
     pub fn shadow_alloc_up(
         &mut self,
         contract_id: [u8; 32],
@@ -639,6 +610,8 @@ impl ContractCoinHolder {
     }
 
     /// Decreases a shadow allocation value by key and contract ID ephemerally.
+    ///
+    /// NOTE: These changes are saved with the use of the `save_all` function.
     pub fn shadow_alloc_down(
         &mut self,
         contract_id: [u8; 32],
@@ -730,7 +703,9 @@ impl ContractCoinHolder {
         Ok(())
     }
 
-    /// Increases the shadow allocation value of all accounts in a contract shadow space by a given value.
+    /// Proportionaly increases the shadow allocation value of all accounts in a contract shadow space by a given value.
+    ///
+    /// NOTE: These changes are saved with the use of the `save_all` function.
     pub fn shadow_alloc_up_all(
         &mut self,
         contract_id: [u8; 32],
@@ -856,7 +831,9 @@ impl ContractCoinHolder {
         Ok(individual_update_values_in_sati_satoshis.len() as u64)
     }
 
-    /// Decreases the shadow allocation value of all accounts in a contract shadow space by a given value.
+    /// Proportionaly decreases the shadow allocation value of all accounts in a contract shadow space by a given value.
+    ///
+    /// NOTE: These changes are saved with the use of the `save_all` function.
     pub fn shadow_alloc_down_all(
         &mut self,
         contract_id: [u8; 32],
@@ -1005,17 +982,13 @@ impl ContractCoinHolder {
         Ok(individual_update_values_in_sati_satoshis.len() as u64)
     }
 
-    /// Reverts the state update(s) associated with the last execution.
-    ///
-    /// NOTE: Used by the Engine coordinator.
+    /// Reverts the epheremal changes associated with the last execution.
     pub fn rollback_last(&mut self) {
         // Restore the ephemeral states from the backup.
         self.restore_ephemeral_states();
     }
 
-    /// Reverts all state updates associated with all executions.
-    ///
-    /// NOTE: Used by the Engine coordinator.
+    /// Clears all epheremal changes.
     pub fn rollback_all(&mut self) {
         // Clear the ephemeral states.
         self.ephemeral_balances.clear();
@@ -1026,10 +999,8 @@ impl ContractCoinHolder {
         self.backup_of_ephemeral_shadow_spaces.clear();
     }
 
-    /// Saves the states updated associated with all executions (on-disk and in-memory).
-    ///
-    /// TODO Performance Optimization: Open the tree *once per contract ID* and then insert all key-values at once.
-    pub fn save_all_executions(&mut self) -> Result<(), ContractCoinHolderSaveError> {
+    /// Saves all epheremal changes in-memory and on-disk.
+    pub fn save_all(&mut self) -> Result<(), ContractCoinHolderSaveError> {
         // #0 Save ephemeral balances.
         for (contract_id, ephemeral_contract_balance) in self.ephemeral_balances.iter() {
             // #0.0 In-memory insertion.

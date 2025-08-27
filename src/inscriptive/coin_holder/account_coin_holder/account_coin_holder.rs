@@ -1,6 +1,5 @@
 use super::account_coin_holder_error::{
-    AccountBalanceDownError, AccountBalanceUpError, AccountCoinHolderConstructionError,
-    AccountCoinHolderSaveError,
+    AccountBalanceDownError, AccountCoinHolderConstructionError, AccountCoinHolderSaveError,
 };
 use crate::operative::Chain;
 use std::collections::HashMap;
@@ -15,24 +14,23 @@ type ACCOUNT_KEY = [u8; 32];
 #[allow(non_camel_case_types)]
 type ACCOUNT_COIN_BALANCE = u64;
 
-/// A struct for containing account coin balances in-memory and on-disk.
+/// A database manager for handling account balances.
+/// For now, we are caching everything in memory.
 pub struct AccountCoinHolder {
     /// In-memory cache of account balances: ACCOUNT_KEY -> ACCOUNT_COIN_BALANCE
     in_memory: HashMap<ACCOUNT_KEY, ACCOUNT_COIN_BALANCE>,
     /// Sled DB with all account balances in a single tree.
     balance_db: sled::Db,
-    /// In-memory cache of ephemeral states.
+    /// In-memory cache of ephemeral account balances.
     ephemeral_coins: HashMap<ACCOUNT_KEY, ACCOUNT_COIN_BALANCE>,
-    /// In-memory cache of ephemeral states backup.
+    /// In-memory cache of ephemeral account balances backup.
     ephemeral_coins_backup: HashMap<ACCOUNT_KEY, ACCOUNT_COIN_BALANCE>,
 }
 
-/// Guarded state holder.
+/// Guarded account coin holder.
 #[allow(non_camel_case_types)]
 pub type ACCOUNT_COIN_HOLDER = Arc<Mutex<AccountCoinHolder>>;
 
-// TODO: Implement a rank-based caching mechanism to only cache the high-ranked states.
-// Right now, we are caching *ALL* account states in memory.
 impl AccountCoinHolder {
     /// Initialize the state for the given chain
     pub fn new(chain: Chain) -> Result<ACCOUNT_COIN_HOLDER, AccountCoinHolderConstructionError> {
@@ -112,16 +110,28 @@ impl AccountCoinHolder {
     }
 
     /// Increases an account balance by a given value.
+    /// This function also serves the purpose of registering an account if not already registered.
+    ///
+    /// NOTE: These changes are saved with the use of the `save_all` function.
     pub async fn account_balance_up(
         &mut self,
         account_key: ACCOUNT_KEY,
         up_value_in_satoshis: u64,
-    ) -> Result<(), AccountBalanceUpError> {
-        // Get the old account balance before any mutable borrows.
+    ) {
+        // Try to get the  account balance.
         let existing_account_balance_in_satoshis: u64 =
-            self.get_account_balance(account_key).await.ok_or(
-                AccountBalanceUpError::UnableToGetAccountBalance(account_key),
-            )?;
+            match self.get_account_balance(account_key).await {
+                // If the account is already registered, return the balance.
+                Some(balance) => balance,
+                // If the account is not registered, register it with zero balance.
+                None => {
+                    // Register the account with zero balance.
+                    self.ephemeral_coins.insert(account_key, 0);
+
+                    // Return zero.
+                    0
+                }
+            };
 
         // Calculate the new account balance.
         let new_account_balance_in_satoshis: u64 =
@@ -130,22 +140,31 @@ impl AccountCoinHolder {
         // Insert (or update) the balance into the ephemeral states.
         self.ephemeral_coins
             .insert(account_key, new_account_balance_in_satoshis);
-
-        // Return the result.
-        Ok(())
     }
 
     /// Decreases an account balance by a given value.
+    /// This function also serves the purpose of registering an account if not already registered.
+    ///
+    /// NOTE: These changes are saved with the use of the `save_all` function.
     pub async fn account_balance_down(
         &mut self,
         account_key: ACCOUNT_KEY,
         down_value_in_satoshis: u64,
     ) -> Result<(), AccountBalanceDownError> {
-        // Get the old account balance before any mutable borrows.
+        // Try to get the  account balance.
         let existing_account_balance_in_satoshis: u64 =
-            self.get_account_balance(account_key).await.ok_or(
-                AccountBalanceDownError::UnableToGetAccountBalance(account_key),
-            )?;
+            match self.get_account_balance(account_key).await {
+                // If the account is already registered, return the balance.
+                Some(balance) => balance,
+                // If the account is not registered, register it with zero balance.
+                None => {
+                    // Register the account with zero balance.
+                    self.ephemeral_coins.insert(account_key, 0);
+
+                    // Return zero.
+                    0
+                }
+            };
 
         // Check if the decrease would make the account balance go below zero.
         if down_value_in_satoshis > existing_account_balance_in_satoshis {
@@ -168,17 +187,13 @@ impl AccountCoinHolder {
         Ok(())
     }
 
-    /// Reverts the state update(s) associated with the last execution.
-    ///
-    /// NOTE: Used by the Engine coordinator.
+    /// Reverts the epheremal changes associated with the last execution.
     pub fn rollback_last(&mut self) {
         // Restore the ephemeral states from the backup.
         self.restore_ephemeral_states();
     }
 
-    /// Reverts all state updates associated with all executions.
-    ///
-    /// NOTE: Used by the Engine coordinator.
+    /// Clears all epheremal changes.
     pub fn rollback_all(&mut self) {
         // Clear the ephemeral states.
         self.ephemeral_coins.clear();
@@ -187,8 +202,8 @@ impl AccountCoinHolder {
         self.ephemeral_coins_backup.clear();
     }
 
-    /// Saves the states updated associated with all executions (on-disk and in-memory).
-    pub fn save_all_executions(&mut self) -> Result<(), AccountCoinHolderSaveError> {
+    /// Saves all epheremal changes in-memory and on-disk.
+    pub fn save_all(&mut self) -> Result<(), AccountCoinHolderSaveError> {
         // Iterate over all ephemeral states.
         for (account_key, ephemeral_balance) in self.ephemeral_coins.iter() {
             // In-memory insertion.
