@@ -333,12 +333,15 @@ impl AccountRegistery {
     pub fn increment_account_call_counter(
         &mut self,
         account_key: ACCOUNT_KEY,
+        optimized: bool,
     ) -> Result<(), AccountRegisteryIncrementCallCounterError> {
-        // If the account is not registered, return an error.
-        if !self.is_account_registered(account_key) {
-            return Err(
-                AccountRegisteryIncrementCallCounterError::AccountNotRegistered(account_key),
-            );
+        // If not optimized, check if the account is registered.
+        if !optimized {
+            if !self.is_account_registered(account_key) {
+                return Err(
+                    AccountRegisteryIncrementCallCounterError::AccountNotRegistered(account_key),
+                );
+            }
         }
 
         // Try to get the in-block call counter from the epheremal list.
@@ -415,23 +418,25 @@ impl AccountRegistery {
             // Save in-memory:
             {
                 // Get the mutable account body from the in-memory list.
-                let account_body = self.accounts.get_mut(account_key).ok_or(
+                let in_memory_permanent_account_body = self.accounts.get_mut(account_key).ok_or(
                     AccountRegisterySaveAllError::UnableToGetAccountCallCounter(*account_key),
                 )?;
 
                 // Update the call counter.
-                account_body.update_call_counter(*call_counter);
+                in_memory_permanent_account_body.update_call_counter(*call_counter);
             }
 
             // Save on-disk:
             {
                 // Open the tree for the account.
-                let tree = self.db.open_tree(account_key).map_err(|e| {
-                    AccountRegisterySaveAllError::UnableToOpenAccountTree(*account_key, e)
-                })?;
+                let on_disk_permanent_account_tree =
+                    self.db.open_tree(account_key).map_err(|e| {
+                        AccountRegisterySaveAllError::UnableToOpenAccountTree(*account_key, e)
+                    })?;
 
                 // Insert the new call counter into the tree.
-                tree.insert([0x01u8; 1], call_counter.to_le_bytes().to_vec())
+                on_disk_permanent_account_tree
+                    .insert([0x01u8; 1], call_counter.to_le_bytes().to_vec())
                     .map_err(|e| {
                         AccountRegisterySaveAllError::UnableToInsertCallCounter(*account_key, e)
                     })?;

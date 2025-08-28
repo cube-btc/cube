@@ -1,4 +1,4 @@
-use crate::executive::exec::accountant::accountant_error::InsertPaymentError;
+use crate::{executive::exec::accountant::accountant_error::InsertPaymentError, inscriptive::state_holder::state_holder_error::StateHolderInsertUpdateValueError};
 
 /// The call error.
 #[derive(Debug, Clone)]
@@ -67,6 +67,8 @@ pub enum StorageError {
     InvalidStorageKeyLength(u8),
     /// The invalid storage value length error.
     InvalidStorageValueLength(u8),
+    /// The state holder insert update value error.
+    StateHolderInsertUpdateValueError(StateHolderInsertUpdateValueError),
 }
 
 /// The memory error.

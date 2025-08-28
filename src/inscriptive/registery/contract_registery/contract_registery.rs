@@ -336,12 +336,15 @@ impl ContractRegistery {
     pub fn increment_contract_call_counter(
         &mut self,
         contract_id: CONTRACT_ID,
+        optimized: bool,
     ) -> Result<(), ContractRegisteryIncrementCallCounterError> {
-        // If the contract is not registered, return an error.
-        if !self.is_contract_registered(contract_id) {
-            return Err(
-                ContractRegisteryIncrementCallCounterError::ContractNotRegistered(contract_id),
-            );
+        // If not optimized, check if the contract is registered.
+        if !optimized {
+            if !self.is_contract_registered(contract_id) {
+                return Err(
+                    ContractRegisteryIncrementCallCounterError::ContractNotRegistered(contract_id),
+                );
+            }
         }
 
         // Try to get the in-block call counter from the epheremal list.
@@ -417,23 +420,25 @@ impl ContractRegistery {
             // Save in-memory:
             {
                 // Get the mutable contract body from the in-memory list.
-                let contract_body = self.contracts.get_mut(contract_id).ok_or(
+                let in_memory_permanent_contract_body = self.contracts.get_mut(contract_id).ok_or(
                     ContractRegisterySaveAllError::UnableToGetContractCallCounter(*contract_id),
                 )?;
 
                 // Update the call counter.
-                contract_body.update_call_counter(*call_counter);
+                in_memory_permanent_contract_body.update_call_counter(*call_counter);
             }
 
             // Save on-disk:
             {
                 // Open the tree for the contract.
-                let tree = self.db.open_tree(contract_id).map_err(|e| {
-                    ContractRegisterySaveAllError::UnableToOpenContractTree(*contract_id, e)
-                })?;
+                let on_disk_permanent_contract_tree =
+                    self.db.open_tree(contract_id).map_err(|e| {
+                        ContractRegisterySaveAllError::UnableToOpenContractTree(*contract_id, e)
+                    })?;
 
                 // Insert the new call counter into the tree.
-                tree.insert([0x01u8; 1], call_counter.to_le_bytes().to_vec())
+                on_disk_permanent_contract_tree
+                    .insert([0x01u8; 1], call_counter.to_le_bytes().to_vec())
                     .map_err(|e| {
                         ContractRegisterySaveAllError::UnableToInsertCallCounter(*contract_id, e)
                     })?;

@@ -1000,13 +1000,13 @@ impl ContractCoinHolder {
         for (contract_id, ephemeral_contract_balance) in self.ephemeral_balances.iter() {
             // #0.0 In-memory insertion.
             {
-                // Get mutable contract body.
-                let contract_body = self.in_memory.get_mut(contract_id).ok_or(
+                // Get mutable in-memory permanent contract body.
+                let in_memory_permanent_contract_body = self.in_memory.get_mut(contract_id).ok_or(
                     ContractCoinHolderSaveError::ContractBodyNotFound(*contract_id),
                 )?;
 
                 // Update the balance in the in-memory states.
-                contract_body.balance = *ephemeral_contract_balance;
+                in_memory_permanent_contract_body.balance = *ephemeral_contract_balance;
             }
 
             // #0.1 On-disk insertion.
@@ -1031,19 +1031,19 @@ impl ContractCoinHolder {
         for (contract_id, ephemeral_shadow_space) in self.ephemeral_shadow_spaces.iter() {
             // #1.0 In-memory insertion.
             {
-                // Get mutable contract body.
-                let contract_body = self.in_memory.get_mut(contract_id).ok_or(
+                // Get mutable in-memory permanent contract body.
+                let in_memory_permanent_contract_body = self.in_memory.get_mut(contract_id).ok_or(
                     ContractCoinHolderSaveError::ContractBodyNotFound(*contract_id),
                 )?;
 
-                // Update the shadow space in the in-memory states.
-                contract_body.shadow_space = ephemeral_shadow_space.clone();
+                // Update the shadow space in the in-memory permanent states.
+                in_memory_permanent_contract_body.shadow_space = ephemeral_shadow_space.clone();
             }
 
             // #1.1 On-disk insertion.
             {
-                // Save the shadows to the shadows db.
-                let shadow_space_tree = self
+                // Open the contract tree using the contract ID as the tree name.
+                let on_disk_permanent_shadow_space = self
                     .shadow_space_db
                     .open_tree(contract_id)
                     .map_err(|e| ContractCoinHolderSaveError::OpenTreeError(*contract_id, e))?;
@@ -1052,7 +1052,7 @@ impl ContractCoinHolder {
                 for (ephemeral_shadow_account_key, ephemeral_shadow_alloc_value) in
                     ephemeral_shadow_space.allocs.iter()
                 {
-                    shadow_space_tree
+                    on_disk_permanent_shadow_space
                         .insert(
                             ephemeral_shadow_account_key.to_vec(),
                             ephemeral_shadow_alloc_value.to_le_bytes().to_vec(),
@@ -1068,7 +1068,7 @@ impl ContractCoinHolder {
                 }
 
                 // Also save the allocs sum with the special key (0xff..).
-                shadow_space_tree
+                on_disk_permanent_shadow_space
                     .insert(
                         [0xff; 32].to_vec(),
                         ephemeral_shadow_space.allocs_sum.to_le_bytes().to_vec(),

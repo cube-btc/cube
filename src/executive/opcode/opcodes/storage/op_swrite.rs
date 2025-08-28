@@ -48,12 +48,15 @@ impl OP_SWRITE {
             let mut _state_holder = state_holder.lock().await;
 
             _state_holder
-                .insert_value(
+                .insert_update_value(
                     stack_holder.contract_id(),
                     &key.bytes().to_vec(),
                     &value.bytes().to_vec(),
+                    true,
                 )
-                .await;
+                .map_err(|e| {
+                    StackError::StorageError(StorageError::StateHolderInsertUpdateValueError(e))
+                })?;
         }
 
         // Calculate the number of ops.

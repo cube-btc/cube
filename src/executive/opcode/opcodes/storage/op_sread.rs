@@ -39,7 +39,7 @@ impl OP_SREAD {
         // Read from storage.
         let read_value = {
             let _state_holder = state_holder.lock().await;
-            _state_holder.get_value(&key.bytes().to_vec(), stack_holder.contract_id()).await
+            _state_holder.get_value(stack_holder.contract_id(), &key.bytes().to_vec())
         };
 
         // Push the read value to the main stack.

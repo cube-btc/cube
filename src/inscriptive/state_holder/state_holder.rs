@@ -1,13 +1,15 @@
 use super::state_holder_error::{StateHolderConstructionError, StateHolderSaveError};
-use crate::inscriptive::registery::contract_registery::contract_registery::CONTRACT_REGISTERY;
+use crate::inscriptive::state_holder::state_holder_error::{
+    StateHolderInsertUpdateValueError, StateHolderRegisterContractError,
+};
 use crate::operative::Chain;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-/// Contract registery index.
+/// Contract ID (32 bytes).
 #[allow(non_camel_case_types)]
-type REGISTERY_INDEX = u32;
+type CONTRACT_ID = [u8; 32];
 
 /// State key.
 #[allow(non_camel_case_types)]
@@ -19,16 +21,14 @@ type STATE_VALUE = Vec<u8>;
 
 /// A struct for containing contract/program states in-memory and on-disk.
 pub struct StateHolder {
-    /// Contract registery.
-    contract_registery: CONTRACT_REGISTERY,
-    /// In-memory cache of states: CONTRACT_REGISTERY_INDEX -> { STATE_KEY -> STATE_VALUE }
-    states: HashMap<REGISTERY_INDEX, HashMap<STATE_KEY, STATE_VALUE>>,
+    /// In-memory cache of states: CONTRACT_ID -> { STATE_KEY -> STATE_VALUE }
+    states: HashMap<CONTRACT_ID, HashMap<STATE_KEY, STATE_VALUE>>,
     /// Sled DB with contract trees.
     states_db: sled::Db,
     /// In-memory cache of ephemeral states.
-    ephemeral_states: HashMap<REGISTERY_INDEX, HashMap<STATE_KEY, STATE_VALUE>>,
+    ephemeral_states: HashMap<CONTRACT_ID, HashMap<STATE_KEY, STATE_VALUE>>,
     /// In-memory cache of ephemeral states backup.
-    ephemeral_states_backup: HashMap<REGISTERY_INDEX, HashMap<STATE_KEY, STATE_VALUE>>,
+    ephemeral_states_backup: HashMap<CONTRACT_ID, HashMap<STATE_KEY, STATE_VALUE>>,
 }
 
 /// Guarded state holder.
@@ -39,30 +39,24 @@ pub type STATE_HOLDER = Arc<Mutex<StateHolder>>;
 // Right now, we are caching *ALL* contract states in memory.
 impl StateHolder {
     /// Initialize the state for the given chain
-    pub fn new(
-        chain: Chain,
-        contract_registery: &CONTRACT_REGISTERY,
-    ) -> Result<STATE_HOLDER, StateHolderConstructionError> {
+    pub fn new(chain: Chain) -> Result<STATE_HOLDER, StateHolderConstructionError> {
         // Open the main state db.
         let path = format!("db/{}/state", chain.to_string());
         let states_db = sled::open(path).map_err(StateHolderConstructionError::MainDBOpenError)?;
 
         // Initialize the in-memory cache of contract states.
-        let mut states = HashMap::<REGISTERY_INDEX, HashMap<STATE_KEY, STATE_VALUE>>::new();
+        let mut states = HashMap::<CONTRACT_ID, HashMap<STATE_KEY, STATE_VALUE>>::new();
 
         // Iterate over all contract trees in the main state db.
         for tree_name in states_db.tree_names() {
-            let registery_index: u32 =
-                u32::from_le_bytes(tree_name.as_ref().try_into().map_err(|_| {
-                    StateHolderConstructionError::InvalidContractRegisteryIndexBytes(
-                        tree_name.to_vec(),
-                    )
-                })?);
+            let contract_id: [u8; 32] = tree_name.as_ref().try_into().map_err(|_| {
+                StateHolderConstructionError::InvalidContractIDBytes(tree_name.to_vec())
+            })?;
 
             // Open the contract tree.
             let tree = states_db
                 .open_tree(&tree_name)
-                .map_err(|e| StateHolderConstructionError::SubDBOpenError(registery_index, e))?;
+                .map_err(|e| StateHolderConstructionError::SubDBOpenError(contract_id, e))?;
 
             // Iterate over all items in the contract tree.
             let contract_state = tree
@@ -72,17 +66,15 @@ impl StateHolder {
                 .collect::<HashMap<STATE_KEY, STATE_VALUE>>();
 
             // Insert the contract state into the in-memory cache.
-            states.insert(registery_index, contract_state);
+            states.insert(contract_id, contract_state);
         }
 
         // Create the state holder.
         let state_holder = StateHolder {
-            contract_registery: Arc::clone(contract_registery),
             states,
             states_db,
-            ephemeral_states: HashMap::<REGISTERY_INDEX, HashMap<STATE_KEY, STATE_VALUE>>::new(),
-            ephemeral_states_backup:
-                HashMap::<REGISTERY_INDEX, HashMap<STATE_KEY, STATE_VALUE>>::new(),
+            ephemeral_states: HashMap::<CONTRACT_ID, HashMap<STATE_KEY, STATE_VALUE>>::new(),
+            ephemeral_states_backup: HashMap::<CONTRACT_ID, HashMap<STATE_KEY, STATE_VALUE>>::new(),
         };
 
         // Return the guarded state holder.
@@ -107,55 +99,83 @@ impl StateHolder {
         self.backup_ephemeral_states();
     }
 
-    /// Get the value by key and contract registery index.
-    pub async fn get_value(&self, key: &STATE_KEY, contract_id: [u8; 32]) -> Option<STATE_VALUE> {
-        // Get the registery index of the contract.
-        let registery_index = {
-            let _contract_registery = self.contract_registery.lock().await;
-            _contract_registery
-                .get_contract_info_by_contract_id(contract_id)?
-                .0
-        };
-
+    /// Get the value by key and contract ID.
+    pub fn get_value(&self, contract_id: CONTRACT_ID, key: &STATE_KEY) -> Option<STATE_VALUE> {
         // Try to get from the ephemeral states first.
-        if let Some(state) = self.ephemeral_states.get(&registery_index) {
+        if let Some(state) = self.ephemeral_states.get(&contract_id) {
             return state.get(key).cloned();
         }
 
-        // And then try to get from the states.
+        // And then try to get from the permanent states.
         self.states
-            .get(&registery_index)
+            .get(&contract_id)
             .and_then(|state| state.get(key).cloned())
     }
 
-    /// Inserts or updates a value by key and contract ID ephemerally.
-    pub async fn insert_value(
+    /// Checks if the contract is registered.
+    fn is_contract_registered(&self, contract_id: CONTRACT_ID) -> bool {
+        self.ephemeral_states.contains_key(&contract_id) || self.states.contains_key(&contract_id)
+    }
+
+    /// Registers a new contract.
+    ///
+    /// NOTE: These changes are saved with the use of the `save_all` function.
+    pub fn register_contract(
         &mut self,
-        contract_id: [u8; 32],
+        contract_id: CONTRACT_ID,
+    ) -> Result<(), StateHolderRegisterContractError> {
+        // Check if the contract is already registered epheremally or permanently.
+        if self.is_contract_registered(contract_id) {
+            // Return an error if the contract is already registered.
+            return Err(StateHolderRegisterContractError::ContractAlreadyRegistered(
+                contract_id,
+            ));
+        }
+
+        // Create a fresh new contract states.
+        let fresh_new_contract_states = HashMap::<STATE_KEY, STATE_VALUE>::new();
+
+        // Insert it into ephemeral states.
+        self.ephemeral_states
+            .insert(contract_id, fresh_new_contract_states);
+
+        Ok(())
+    }
+
+    /// Inserts or updates a value by key and contract ID into the ephemeral states.
+    ///
+    /// NOTE: These changes are saved with the use of the `save_all` function.
+    pub fn insert_update_value(
+        &mut self,
+        contract_id: CONTRACT_ID,
         key: &STATE_KEY,
         value: &STATE_VALUE,
-    ) -> Option<()> {
-        // Get the registery index of the contract.
-        let registery_index = {
-            let _contract_registery = self.contract_registery.lock().await;
-            _contract_registery
-                .get_contract_info_by_contract_id(contract_id)?
-                .0
-        };
+        optimized: bool,
+    ) -> Result<(), StateHolderInsertUpdateValueError> {
+        // If not optimized, check if the contract is registered.
+        if !optimized {
+            if !self.is_contract_registered(contract_id) {
+                // Return an error if the contract is not registered.
+                return Err(StateHolderInsertUpdateValueError::ContractNotRegistered(
+                    contract_id,
+                ));
+            }
+        }
 
         // Get mutable ephemeral states.
-        let ephemeral_contract_states = match self.ephemeral_states.get_mut(&registery_index) {
+        let ephemeral_contract_states = match self.ephemeral_states.get_mut(&contract_id) {
             Some(states) => states,
             None => {
                 // Create it if it doesn't exist.
                 let contract_states = HashMap::<STATE_KEY, STATE_VALUE>::new();
 
                 // Insert it.
-                self.ephemeral_states
-                    .insert(registery_index, contract_states);
+                self.ephemeral_states.insert(contract_id, contract_states);
 
                 // Get it again.
-                self.ephemeral_states.get_mut(&registery_index).unwrap() // Safe because we just inserted it.
+                self.ephemeral_states
+                    .get_mut(&contract_id)
+                    .expect("This will never fail because we just inserted it.")
             }
         };
 
@@ -163,7 +183,7 @@ impl StateHolder {
         ephemeral_contract_states.insert(key.clone(), value.clone());
 
         // Return the result.
-        Some(())
+        Ok(())
     }
 
     /// Reverts the state update(s) associated with the last execution.
@@ -185,50 +205,54 @@ impl StateHolder {
         self.ephemeral_states_backup.clear();
     }
 
-    /// Saves the states updated associated with all executions (on-disk and in-memory).
-    ///
-    /// TODO Performance Optimization: Open the tree *once per contract ID* and then insert all key-values at once.
-    pub fn save_all_executions(&mut self) -> Result<(), StateHolderSaveError> {
+    /// Saves the ephemeral states to permanent in-memory states and on-disk state DB.
+    pub fn save_all(&mut self) -> Result<(), StateHolderSaveError> {
         // Iterate over all ephemeral states.
-        for (registery_index, ephemeral_contract_states) in self.ephemeral_states.iter() {
+        for (contract_id, ephemeral_contract_states) in self.ephemeral_states.iter() {
+            // Get mutable in-memory permanent states.
+            let in_memory_permanent_states = match self.states.get_mut(contract_id) {
+                // Returns some if the contract is already registered.
+                Some(states) => states,
+                // Returns none if the contract is not registered.
+                // In this case, we have to register it in-memory.
+                None => {
+                    // Create a fresh new contract states.
+                    let fresh_new_contract_states = HashMap::<STATE_KEY, STATE_VALUE>::new();
+
+                    // Insert it.
+                    self.states.insert(*contract_id, fresh_new_contract_states);
+
+                    // Get it again.
+                    self.states
+                        .get_mut(contract_id)
+                        .expect("This will never fail because we just inserted it.")
+                }
+            };
+
+            // Open the contract tree using the contract ID as the tree name.
+            // This also registers the contract on-disk if it is not already registered.
+            let on_disk_permanent_states_tree = self
+                .states_db
+                .open_tree(contract_id)
+                .map_err(|e| StateHolderSaveError::OpenTreeError(*contract_id, e))?;
+
             // Iterate over all items in the contract state.
             for (ephemeral_state_key, ephemeral_state_value) in ephemeral_contract_states.iter() {
                 // In-memory insertion.
                 {
-                    // Get mutable states.
-                    let states = match self.states.get_mut(registery_index) {
-                        Some(states) => states,
-                        None => {
-                            // Create it if it doesn't exist.
-                            let contract_states = HashMap::<STATE_KEY, STATE_VALUE>::new();
-
-                            // Insert it.
-                            self.states.insert(*registery_index, contract_states);
-
-                            // Get it again.
-                            self.states.get_mut(registery_index).unwrap() // Safe because we just inserted it.
-                        }
-                    };
-
                     // Insert the value into the in-memory contract states.
-                    states.insert(ephemeral_state_key.clone(), ephemeral_state_value.clone());
+                    in_memory_permanent_states
+                        .insert(ephemeral_state_key.clone(), ephemeral_state_value.clone());
                 }
 
                 // On-disk insertion.
                 {
-                    // Open the contract tree.
-                    let tree = self
-                        .states_db
-                        .open_tree(&registery_index.to_le_bytes())
-                        .map_err(|e| {
-                            StateHolderSaveError::OpenTreeError(registery_index.to_owned(), e)
-                        })?;
-
                     // Insert the value into the on-disk contract tree.
-                    tree.insert(ephemeral_state_key, ephemeral_state_value.clone())
+                    on_disk_permanent_states_tree
+                        .insert(ephemeral_state_key, ephemeral_state_value.clone())
                         .map_err(|e| {
                             StateHolderSaveError::TreeValueInsertError(
-                                registery_index.to_owned(),
+                                *contract_id,
                                 ephemeral_state_key.clone(),
                                 ephemeral_state_value.clone(),
                                 e,
