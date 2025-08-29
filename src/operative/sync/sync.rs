@@ -19,7 +19,8 @@ use std::time::Duration;
 use tokio::time::sleep;
 
 /// Number of blocks a block needs to be buried to be considered final.
-const BLOCK_DEPTH_FOR_FINALITY: u64 = 2;
+/// This will require 6 on-chain confirmations for a transaction to be considered final.
+const BLOCK_DEPTH_FOR_FINALITY: u64 = 5;
 
 type LiftSPK = Vec<u8>;
 
@@ -175,21 +176,21 @@ impl RollupSync for ROLLUP_DIRECTORY {
                     // Check for a new block.
                     'check_for_a_new_block: loop {
                         match get_chain_tip(rpc_holder) {
-                            Ok((tip, _)) => {
+                            Ok((new_tip, _)) => {
                                 // Check if the chain tip has changed.
-                                match tip != bitcoin_node_chain_tip {
+                                match new_tip > bitcoin_node_chain_tip {
                                     // A new block was mined.
                                     true => {
                                         // Update the chain tip.
-                                        bitcoin_node_chain_tip = tip;
+                                        bitcoin_node_chain_tip = new_tip;
 
                                         // Print the new chain tip.
-                                        println!("New Bitcoin chain tip: #{}", tip);
+                                        println!("New Bitcoin chain tip: #{}", new_tip);
 
                                         // Stop checking for a new block.
                                         break 'check_for_a_new_block;
                                     }
-                                    // No new block was mined.
+                                    // No new block was mined (or possibly a small reorg if the new tip is smaller).
                                     false => {
                                         // Check if the cube node is fully synced.
                                         if !synced {
