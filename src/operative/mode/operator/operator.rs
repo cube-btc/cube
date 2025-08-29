@@ -102,7 +102,7 @@ pub async fn run(key_holder: KeyHolder, chain: Chain, rpc_holder: BitcoinRPCHold
 
         tokio::spawn(async move {
             let _ = rollup_dir
-                .sync(
+                .spawn_background_sync_task(
                     chain,
                     &rpc_holder,
                     &key_holder,
@@ -119,7 +119,7 @@ pub async fn run(key_holder: KeyHolder, chain: Chain, rpc_holder: BitcoinRPCHold
     println!("{}", "Syncing rollup.");
 
     // #9 Await rollup to be fully synced.
-    rollup_dir.await_sync().await;
+    rollup_dir.await_ibd().await;
 
     println!("{}", "Syncing complete.");
 

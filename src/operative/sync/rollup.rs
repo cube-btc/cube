@@ -46,8 +46,8 @@ pub async fn lifts_spks_to_scan(
 
 #[async_trait]
 pub trait RollupSync {
-    /// Continuously syncs the rollup.
-    async fn sync(
+    /// Spawns a background task to continuously sync the rollup.
+    async fn spawn_background_sync_task(
         &self,
         chain: Chain,
         rpc_holder: &BitcoinRPCHolder,
@@ -59,13 +59,13 @@ pub trait RollupSync {
         coin_set: &COIN_SET,
     );
 
-    /// Awaits the rollup to be synced to the latest Bitcoin chain tip.
-    async fn await_sync(&self);
+    /// Awaits the rollup to be fully synced to the latest chain tip.
+    async fn await_ibd(&self);
 }
 
 #[async_trait]
 impl RollupSync for ROLLUP_DIRECTORY {
-    async fn await_sync(&self) {
+    async fn await_ibd(&self) {
         loop {
             let is_fully_synced = {
                 let _self = self.lock().await;
@@ -79,7 +79,7 @@ impl RollupSync for ROLLUP_DIRECTORY {
         }
     }
 
-    async fn sync(
+    async fn spawn_background_sync_task(
         &self,
         chain: Chain,
         rpc_holder: &BitcoinRPCHolder,
