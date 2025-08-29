@@ -242,14 +242,27 @@ impl RollupSync for ROLLUP_DIRECTORY {
                         false => cube_node_sync_height + 1,
                     };
 
+                    // Retrieve the block.
                     let block = match retrieve_block(rpc_holder, height_to_sync) {
                         Ok(block) => block,
-                        Err(_) => {
+                        Err(err) => {
+                            // Print the error.
+                            eprintln!(
+                                "{}",
+                                format!(
+                                    "Retrieve block error at height #{}: {}. Retrying in 5s...",
+                                    height_to_sync, err
+                                )
+                                .yellow()
+                            );
+
+                            // Sleep and retry.
                             sleep(Duration::from_secs(5)).await;
-                            continue;
+                            continue 'outer_sync_iteration;
                         }
                     };
 
+                    // Retrieve the lift spks to scan.
                     let lift_spks_to_scan = match wallet {
                         Some(_) => match lifts_spks_to_scan(key_holder, epoch_dir).await {
                             Some(spks) => spks,
