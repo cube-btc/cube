@@ -1,7 +1,5 @@
 ![Cube](https://i.ibb.co/KjnGsD7L/cube-text-logo.png)
-Cube is a virtual machine designed to enable bridgeless smart contract execution natively on Bitcoin.
-
-> Cube is currently in the early development phase.
+Cube is a four-elemental, fire-sampled state machine built to supercharge Bitcoin with programmability.
 
 ## Installation
 
@@ -37,10 +35,6 @@ cargo run <chain> <mode> <bitcoin-rpc-url> <bitcoin-rpc-user> <bitcoin-rpc-passw
 ```sh
 cargo run signet node http://127.0.0.1:38332 user password
 ```
-
-## Contributing
-
-We welcome contributions! Please [check the areas where we need help](https://github.com/cube-vm/cube/blob/main/CONTRIB.md) for more details on how you can contribute.
 
 ## License
 
