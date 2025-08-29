@@ -53,12 +53,12 @@ impl ContractBody {
 /// There are two in-memory lists, one by registery index and one by rank.
 pub struct ContractRegistery {
     // In-memory list of contracts by registery index.
-    contracts: HashMap<CONTRACT_ID, ContractBody>,
+    in_memory_contracts: HashMap<CONTRACT_ID, ContractBody>,
     // In-memory list of contracts by rank.
-    ranked: HashMap<RANK, CONTRACT_ID>,
+    in_memory_ranks: HashMap<RANK, CONTRACT_ID>,
 
     // In-storage db for storing the contracts and their call counters.
-    db: sled::Db,
+    on_disk_db: sled::Db,
 
     // Ephemeral states
     epheremal_contracts_to_register: Vec<CONTRACT_ID>,
@@ -175,9 +175,9 @@ impl ContractRegistery {
 
         // Construct the contract registery.
         let contract_registery = ContractRegistery {
-            contracts,
-            ranked,
-            db: contract_registery_db,
+            in_memory_contracts: contracts,
+            in_memory_ranks: ranked,
+            on_disk_db: contract_registery_db,
             epheremal_contracts_to_register: Vec::new(),
             epheremal_contracts_to_increment: HashMap::new(),
             backup_of_ephemeral_contracts_to_register: Vec::new(),
@@ -226,13 +226,13 @@ impl ContractRegistery {
         }
 
         // Try from in-memory states next.
-        self.contracts.contains_key(&contract_id)
+        self.in_memory_contracts.contains_key(&contract_id)
     }
 
     /// Returns the rank of a contract by its ID.
     pub fn get_rank_by_contract_id(&self, contract_id: CONTRACT_ID) -> Option<RANK> {
         // Iterate ranked list and return the rank of the contract ID.
-        for (rank, id) in self.ranked.iter() {
+        for (rank, id) in self.in_memory_ranks.iter() {
             // If the ID matches, return the rank.
             if id == &contract_id {
                 return Some(*rank);
@@ -246,7 +246,7 @@ impl ContractRegistery {
     /// Returns the contract ID by its rank.
     pub fn get_contract_id_by_rank(&self, rank: RANK) -> Option<CONTRACT_ID> {
         // Return the contract ID by the rank.
-        self.ranked.get(&rank).cloned()
+        self.in_memory_ranks.get(&rank).cloned()
     }
 
     /// Returns the contract by its ID.
@@ -255,7 +255,7 @@ impl ContractRegistery {
         contract_id: CONTRACT_ID,
     ) -> Option<(REGISTERY_INDEX, CALL_COUNTER, RANK)> {
         // Return the contract body by the contract ID.
-        let contract_body = self.contracts.get(&contract_id)?;
+        let contract_body = self.in_memory_contracts.get(&contract_id)?;
 
         let registery_index = contract_body.registery_index;
         let call_counter = contract_body.call_counter;
@@ -265,7 +265,7 @@ impl ContractRegistery {
 
     /// Returns the contract by its key.
     pub fn get_contract_by_contract_key(&self, contract_id: CONTRACT_ID) -> Option<Contract> {
-        let contract_body = self.contracts.get(&contract_id)?;
+        let contract_body = self.in_memory_contracts.get(&contract_id)?;
         let rank = self.get_rank_by_contract_id(contract_id)?;
         let registery_index = contract_body.registery_index;
         Some(Contract {
@@ -278,8 +278,8 @@ impl ContractRegistery {
     /// Returns the contract by its rank.
     pub fn get_contract_by_rank(&self, rank: RANK) -> Option<Contract> {
         // Return the contract ID by the rank.
-        let contract_id = self.ranked.get(&rank).cloned()?;
-        let contract_body = self.contracts.get(&contract_id)?;
+        let contract_id = self.in_memory_ranks.get(&rank).cloned()?;
+        let contract_body = self.in_memory_contracts.get(&contract_id)?;
         let registery_index = contract_body.registery_index;
         Some(Contract {
             contract_id,
@@ -388,57 +388,102 @@ impl ContractRegistery {
         self.backup_of_ephemeral_contracts_to_increment.clear();
     }
 
+    /// Returns the height of the registery index.
+    fn registery_index_height(&self) -> u32 {
+        self.in_memory_contracts.len() as u32
+    }
+
     /// Saves all ephemeral states to in-memory and on-disk.
     pub fn save_all(&mut self) -> Result<(), ContractRegisterySaveAllError> {
-        // Initialize the contract save list.
-        let mut contract_save_list = HashMap::<CONTRACT_ID, u64>::new();
+        // Calculate the registery index.
+        let registery_index_height = self.registery_index_height();
 
-        // Fill the list with contracts to register.
-        for contract_id in self.epheremal_contracts_to_register.iter() {
-            // Insert the contract ID into the save list.
-            contract_save_list.insert(*contract_id, 0);
-        }
+        // Register the contracts.
+        for (index, contract_id) in self.epheremal_contracts_to_register.iter().enumerate() {
+            // Calculate the registery index.
+            let registery_index = registery_index_height + index as u32;
 
-        // Fill the list with updated call counter values.
-        for (contract_id, in_block_call_counter) in self.epheremal_contracts_to_increment.iter() {
-            // Get the contract call counter from the in-memory list.
-            let historical_call_counter = self
-                .contracts
-                .get(contract_id)
-                .ok_or(ContractRegisterySaveAllError::UnableToGetContractCallCounter(*contract_id))?
-                .call_counter;
+            // Initial call counter value is set to zero.
+            let initial_call_counter = 0;
 
-            // Calculate the new call counter.
-            let new_call_counter = historical_call_counter + *in_block_call_counter as u64;
-
-            // Insert the new call counter into the save list.
-            contract_save_list.insert(*contract_id, new_call_counter);
-        }
-
-        // Iterate over the save list.
-        for (contract_id, call_counter) in contract_save_list.iter() {
             // Save in-memory:
             {
-                // Get the mutable contract body from the in-memory list.
-                let in_memory_permanent_contract_body = self.contracts.get_mut(contract_id).ok_or(
-                    ContractRegisterySaveAllError::UnableToGetContractCallCounter(*contract_id),
-                )?;
+                // Construct the contract body.
+                let contract_body = ContractBody {
+                    registery_index,
+                    call_counter: initial_call_counter,
+                };
 
-                // Update the call counter.
-                in_memory_permanent_contract_body.update_call_counter(*call_counter);
+                // Insert the contract body into the in-memory list.
+                self.in_memory_contracts.insert(*contract_id, contract_body);
             }
 
             // Save on-disk:
             {
                 // Open the tree for the contract.
-                let on_disk_permanent_contract_tree =
-                    self.db.open_tree(contract_id).map_err(|e| {
+                let on_disk_contract_tree =
+                    self.on_disk_db.open_tree(contract_id).map_err(|e| {
                         ContractRegisterySaveAllError::UnableToOpenContractTree(*contract_id, e)
                     })?;
 
+                // Get the registery index bytes.
+                let registery_index_bytes = registery_index.to_le_bytes().to_vec();
+
+                // Insert the registery index into the tree.
+                // 0x00 key byte represents the registery index.
+                on_disk_contract_tree
+                    .insert([0x00u8; 1], registery_index_bytes.to_vec())
+                    .map_err(|e| {
+                        ContractRegisterySaveAllError::UnableToInsertRegisteryIndex(*contract_id, e)
+                    })?;
+
+                // Fresh new call counter bytes.
+                let initial_call_counter_bytes = initial_call_counter.to_le_bytes().to_vec();
+
+                // Insert the call counter into the tree.
+                // 0x01 key byte represents the call counter.
+                on_disk_contract_tree
+                    .insert([0x01u8; 1], initial_call_counter_bytes)
+                    .map_err(|e| {
+                        ContractRegisterySaveAllError::UnableToInsertCallCounter(*contract_id, e)
+                    })?;
+            }
+        }
+
+        // Increment the call counter of the contracts.
+        for (contract_id, in_block_call_counter) in self.epheremal_contracts_to_increment.iter() {
+            // Get the mutable contract body from the in-memory list.
+            let in_memory_contract_body = self.in_memory_contracts.get_mut(contract_id).ok_or(
+                ContractRegisterySaveAllError::UnableToGetContractCallCounter(*contract_id),
+            )?;
+
+            // Get the historical call counter.
+            let historical_call_counter = in_memory_contract_body.call_counter;
+
+            // Calculate the new call counter.
+            let new_call_counter = historical_call_counter + *in_block_call_counter as u64;
+
+            // Save in-memory:
+            {
+                // Update the call counter.
+                in_memory_contract_body.update_call_counter(new_call_counter);
+            }
+
+            // Save on-disk:
+            {
+                // Open the tree for the contract.
+                let on_disk_contract_tree =
+                    self.on_disk_db.open_tree(contract_id).map_err(|e| {
+                        ContractRegisterySaveAllError::UnableToOpenContractTree(*contract_id, e)
+                    })?;
+
+                // Get the call counter bytes.
+                let new_call_counter_bytes = new_call_counter.to_le_bytes().to_vec();
+
                 // Insert the new call counter into the tree.
-                on_disk_permanent_contract_tree
-                    .insert([0x01u8; 1], call_counter.to_le_bytes().to_vec())
+                // 0x01 key byte represents the call counter.
+                on_disk_contract_tree
+                    .insert([0x01u8; 1], new_call_counter_bytes)
                     .map_err(|e| {
                         ContractRegisterySaveAllError::UnableToInsertCallCounter(*contract_id, e)
                     })?;
@@ -446,10 +491,10 @@ impl ContractRegistery {
         }
 
         // Rank the contracts by call counter (descending) and registry index (ascending as tiebreaker).
-        let new_ranked_contracts = Self::rank_contracts(&self.contracts);
+        let new_ranked_contracts = Self::rank_contracts(&self.in_memory_contracts);
 
         // Update the ranked list.
-        self.ranked = new_ranked_contracts;
+        self.in_memory_ranks = new_ranked_contracts;
 
         // Return the result.
         Ok(())

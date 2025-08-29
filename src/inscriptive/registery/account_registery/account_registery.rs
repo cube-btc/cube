@@ -52,13 +52,13 @@ impl AccountBody {
 /// Directory for storing accounts and their call counters.
 /// There are two in-memory lists, one by registery index and one by rank.
 pub struct AccountRegistery {
-    // In-memory list of accounts by registery index.
-    accounts: HashMap<ACCOUNT_KEY, AccountBody>,
-    // In-memory list of accounts by rank.
-    ranked: HashMap<RANK, ACCOUNT_KEY>,
+    // In-memory cache of accounts by registery index.
+    in_memory_accounts: HashMap<ACCOUNT_KEY, AccountBody>,
+    // In-memory cache of accounts by rank.
+    in_memory_ranks: HashMap<RANK, ACCOUNT_KEY>,
 
-    // In-storage db for storing the accounts and their call counters.
-    db: sled::Db,
+    // On-disk db for storing the accounts and their call counters.
+    on_disk_db: sled::Db,
 
     // Ephemeral states
     epheremal_accounts_to_register: Vec<ACCOUNT_KEY>,
@@ -175,9 +175,9 @@ impl AccountRegistery {
 
         // Construct the account registery.
         let account_registery = AccountRegistery {
-            accounts,
-            ranked,
-            db: account_registery_db,
+            in_memory_accounts: accounts,
+            in_memory_ranks: ranked,
+            on_disk_db: account_registery_db,
             epheremal_accounts_to_register: Vec::new(),
             epheremal_accounts_to_increment: HashMap::new(),
             backup_of_ephemeral_accounts_to_register: Vec::new(),
@@ -224,13 +224,13 @@ impl AccountRegistery {
         }
 
         // Try from in-memory states next.
-        self.accounts.contains_key(&account_key)
+        self.in_memory_accounts.contains_key(&account_key)
     }
 
     /// Returns the rank of an account by its key.
     pub fn get_rank_by_account_key(&self, account_key: ACCOUNT_KEY) -> Option<RANK> {
         // Iterate ranked list and return the rank of the account key.
-        for (rank, key) in self.ranked.iter() {
+        for (rank, key) in self.in_memory_ranks.iter() {
             // If the key matches, return the rank.
             if key == &account_key {
                 return Some(*rank);
@@ -244,7 +244,7 @@ impl AccountRegistery {
     /// Returns the account key by its rank.
     pub fn get_account_key_by_rank(&self, rank: RANK) -> Option<ACCOUNT_KEY> {
         // Return the account key by the rank.
-        self.ranked.get(&rank).cloned()
+        self.in_memory_ranks.get(&rank).cloned()
     }
 
     /// Returns the account by its key.
@@ -253,7 +253,7 @@ impl AccountRegistery {
         account_key: ACCOUNT_KEY,
     ) -> Option<(REGISTERY_INDEX, CALL_COUNTER, RANK)> {
         // Return the account body by the account key.
-        let account_body = self.accounts.get(&account_key)?;
+        let account_body = self.in_memory_accounts.get(&account_key)?;
         let rank = self.get_rank_by_account_key(account_key)?;
         let registery_index = account_body.registery_index;
         let call_counter = account_body.call_counter;
@@ -262,7 +262,7 @@ impl AccountRegistery {
 
     /// Returns the account by its key.
     pub fn get_account_by_account_key(&self, account_key: ACCOUNT_KEY) -> Option<Account> {
-        let account_body = self.accounts.get(&account_key)?;
+        let account_body = self.in_memory_accounts.get(&account_key)?;
         let rank = self.get_rank_by_account_key(account_key)?;
         let registery_index = account_body.registery_index;
         Some(Account {
@@ -275,8 +275,8 @@ impl AccountRegistery {
     /// Returns the account by its rank.
     pub fn get_account_by_rank(&self, rank: RANK) -> Option<Account> {
         // Return the account key by the rank.
-        let account_key = self.ranked.get(&rank).cloned()?;
-        let account_body = self.accounts.get(&account_key)?;
+        let account_key = self.in_memory_ranks.get(&rank).cloned()?;
+        let account_body = self.in_memory_accounts.get(&account_key)?;
         let registery_index = account_body.registery_index;
 
         Some(Account {
@@ -384,59 +384,100 @@ impl AccountRegistery {
         self.backup_of_ephemeral_accounts_to_increment.clear();
     }
 
+    /// Returns the height of the registery index.
+    fn registery_index_height(&self) -> u32 {
+        self.in_memory_accounts.len() as u32
+    }
+
     /// Saves all ephemeral states to in-memory and on-disk.
     pub fn save_all(&mut self) -> Result<(), AccountRegisterySaveAllError> {
-        // Initialize the account save list.
-        let mut account_save_list = HashMap::<ACCOUNT_KEY, u64>::new();
+        // Get the height of the registery index.
+        let registery_index_height = self.registery_index_height();
 
-        // Fill the list with accounts to register.
-        for account_key in self.epheremal_accounts_to_register.iter() {
-            // Insert the account key into the save list.
-            account_save_list.insert(*account_key, 0);
+        // Register the accounts.
+        for (index, account_key) in self.epheremal_accounts_to_register.iter().enumerate() {
+            // Calculate the registery index.
+            let registery_index = registery_index_height + index as u32;
+
+            // Initial call counter value is set to zero.
+            let initial_call_counter = 0;
+
+            // Save-in-memory:
+            {
+                // Construct the account body.
+                let account_body = AccountBody {
+                    registery_index,
+                    call_counter: initial_call_counter,
+                };
+
+                // Insert the account body into the in-memory list.
+                self.in_memory_accounts.insert(*account_key, account_body);
+            }
+
+            // Save-on-disk:
+            {
+                // Open the tree for the account.
+                let on_disk_account_tree = self.on_disk_db.open_tree(account_key).map_err(|e| {
+                    AccountRegisterySaveAllError::UnableToOpenAccountTree(*account_key, e)
+                })?;
+
+                // Get the registery index bytes.
+                let registery_index_bytes = registery_index.to_le_bytes().to_vec();
+
+                // Insert the registery index into the tree.
+                // 0x00 key byte represents the registery index.
+                on_disk_account_tree
+                    .insert([0x00u8; 1], registery_index_bytes)
+                    .map_err(|e| {
+                        AccountRegisterySaveAllError::UnableToInsertRegisteryIndex(*account_key, e)
+                    })?;
+
+                // Fresh new call counter bytes.
+                let initial_call_counter_bytes = initial_call_counter.to_le_bytes().to_vec();
+
+                // Insert the call counter into the tree.
+                // 0x01 key byte represents the call counter.
+                on_disk_account_tree
+                    .insert([0x01u8; 1], initial_call_counter_bytes)
+                    .map_err(|e| {
+                        AccountRegisterySaveAllError::UnableToInsertCallCounter(*account_key, e)
+                    })?;
+            }
         }
 
-        // Fill the list with updated call counter values.
+        // Increment the call counter of the accounts.
         for (account_key, in_block_call_counter) in self.epheremal_accounts_to_increment.iter() {
-            // Get the account call counter from the in-memory list.
-            let historical_call_counter = self
-                .accounts
-                .get(account_key)
-                .ok_or(AccountRegisterySaveAllError::UnableToGetAccountCallCounter(
-                    *account_key,
-                ))?
-                .call_counter;
+            // Get the mutable account body from the in-memory list.
+            let in_memory_account_body = self.in_memory_accounts.get_mut(account_key).ok_or(
+                AccountRegisterySaveAllError::UnableToGetAccountCallCounter(*account_key),
+            )?;
+
+            // Get the historical call counter.
+            let historical_call_counter = in_memory_account_body.call_counter;
 
             // Calculate the new call counter.
             let new_call_counter = historical_call_counter + *in_block_call_counter as u64;
 
-            // Insert the new call counter into the save list.
-            account_save_list.insert(*account_key, new_call_counter);
-        }
-
-        // Iterate over the save list.
-        for (account_key, call_counter) in account_save_list.iter() {
             // Save in-memory:
             {
-                // Get the mutable account body from the in-memory list.
-                let in_memory_permanent_account_body = self.accounts.get_mut(account_key).ok_or(
-                    AccountRegisterySaveAllError::UnableToGetAccountCallCounter(*account_key),
-                )?;
-
                 // Update the call counter.
-                in_memory_permanent_account_body.update_call_counter(*call_counter);
+                in_memory_account_body.update_call_counter(new_call_counter);
             }
 
             // Save on-disk:
             {
                 // Open the tree for the account.
-                let on_disk_permanent_account_tree =
-                    self.db.open_tree(account_key).map_err(|e| {
-                        AccountRegisterySaveAllError::UnableToOpenAccountTree(*account_key, e)
-                    })?;
+                let on_disk_account_tree = self.on_disk_db.open_tree(account_key).map_err(|e| {
+                    AccountRegisterySaveAllError::UnableToOpenAccountTree(*account_key, e)
+                })?;
+
+                // Get the call counter bytes.
+                let new_call_counter_bytes = new_call_counter.to_le_bytes().to_vec();
 
                 // Insert the new call counter into the tree.
-                on_disk_permanent_account_tree
-                    .insert([0x01u8; 1], call_counter.to_le_bytes().to_vec())
+                // 0x01 key byte represents the call counter.
+                on_disk_account_tree
+                    .insert([0x01u8; 1], new_call_counter_bytes)
                     .map_err(|e| {
                         AccountRegisterySaveAllError::UnableToInsertCallCounter(*account_key, e)
                     })?;
@@ -444,10 +485,10 @@ impl AccountRegistery {
         }
 
         // Rank the accounts by call counter (descending) and registry index (ascending as tiebreaker).
-        let new_ranked_accounts = Self::rank_accounts(&self.accounts);
+        let new_ranked_accounts = Self::rank_accounts(&self.in_memory_accounts);
 
         // Update the ranked list.
-        self.ranked = new_ranked_accounts;
+        self.in_memory_ranks = new_ranked_accounts;
 
         // Return the result.
         Ok(())

@@ -31,5 +31,6 @@ pub enum ContractRegisteryIncrementCallCounterError {
 pub enum ContractRegisterySaveAllError {
     UnableToGetContractCallCounter(CONTRACT_ID),
     UnableToOpenContractTree(CONTRACT_ID, sled::Error),
+    UnableToInsertRegisteryIndex(CONTRACT_ID, sled::Error),
     UnableToInsertCallCounter(CONTRACT_ID, sled::Error),
 }

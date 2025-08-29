@@ -31,5 +31,6 @@ pub enum AccountRegisteryIncrementCallCounterError {
 pub enum AccountRegisterySaveAllError {
     UnableToGetAccountCallCounter(ACCOUNT_KEY),
     UnableToOpenAccountTree(ACCOUNT_KEY, sled::Error),
+    UnableToInsertRegisteryIndex(ACCOUNT_KEY, sled::Error),
     UnableToInsertCallCounter(ACCOUNT_KEY, sled::Error),
 }
