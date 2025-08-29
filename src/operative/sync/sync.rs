@@ -13,9 +13,13 @@ use crate::{
 };
 use async_trait::async_trait;
 use bitcoin::OutPoint;
+use colored::Colorize;
 use secp::Point;
 use std::time::Duration;
 use tokio::time::sleep;
+
+/// Number of blocks a block needs to be buried to be considered final.
+const BLOCK_DEPTH_FOR_FINALITY: u64 = 2;
 
 type LiftSPK = Vec<u8>;
 
@@ -99,12 +103,54 @@ impl RollupSync for ROLLUP_DIRECTORY {
             Chain::Mainnet => baked::MAINNET_SYNC_START_HEIGHT,
         };
 
+        // Initialize the Bitcoin node's chain tip.
+        let mut bitcoin_node_chain_tip;
+
+        // Retrieve Bitcoin node's chain tip.
         loop {
-            let rollup_bitcoin_sync_height = {
+            match get_chain_tip(rpc_holder) {
+                Ok((tip, is_synced)) => {
+                    // Check if the Bitcoin node is fully synced.
+                    match is_synced {
+                        true => {
+                            bitcoin_node_chain_tip = tip;
+                            break;
+                        }
+                        false => {
+                            // Sleep and retry.
+                            sleep(Duration::from_secs(10)).await;
+                            continue;
+                        }
+                    }
+                }
+                Err(err) => {
+                    eprintln!(
+                        "{}",
+                        format!(
+                            "Error retrieving Bitcoin node's chain tip: {}. Retrying in 5s...",
+                            err
+                        )
+                        .yellow()
+                    );
+
+                    // Sleep and retry.
+                    sleep(Duration::from_secs(5)).await;
+                    continue;
+                }
+            }
+        }
+
+        // Print the Bitcoin node's chain tip.
+        println!("Bitcoin chain tip: #{}", bitcoin_node_chain_tip);
+
+        'outer_sync_iteration: loop {
+            // Retrieve cube node's sync height.
+            let cube_node_sync_height = {
                 let _rollup_dir = rollup_dir.lock().await;
                 _rollup_dir.bitcoin_sync_height()
             };
 
+            // Retrieve self lifts.
             let self_lifts = {
                 match wallet {
                     Some(wallet) => {
@@ -120,35 +166,79 @@ impl RollupSync for ROLLUP_DIRECTORY {
                 }
             };
 
-            // Retrieve chain height.
-            let chain_height = {
-                match get_chain_tip(rpc_holder) {
-                    Ok(tip) => tip,
-                    Err(_) => {
-                        sleep(Duration::from_secs(5)).await;
-                        continue;
-                    }
-                }
-            };
+            // The target sync height is the latest Bitcoin chain tip minus BLOCK_DEPTH_FOR_FINALITY.
+            let target_sync_height = bitcoin_node_chain_tip - BLOCK_DEPTH_FOR_FINALITY;
 
-            match rollup_bitcoin_sync_height == chain_height {
+            // Check if cube node is fully synced.
+            match cube_node_sync_height == target_sync_height {
                 true => {
-                    // Rollup is fully synced.
-                    if !synced {
-                        {
-                            let mut _rollup_dir = rollup_dir.lock().await;
-                            _rollup_dir.set_synced(true);
-                        }
-                        synced = true;
+                    // Check for a new block.
+                    'check_for_a_new_block: loop {
+                        match get_chain_tip(rpc_holder) {
+                            Ok((tip, _)) => {
+                                // Check if the chain tip has changed.
+                                match tip != bitcoin_node_chain_tip {
+                                    // A new block was mined.
+                                    true => {
+                                        // Update the chain tip.
+                                        bitcoin_node_chain_tip = tip;
+
+                                        // Print the new chain tip.
+                                        println!("New Bitcoin chain tip: #{}", tip);
+
+                                        // Stop checking for a new block.
+                                        break 'check_for_a_new_block;
+                                    }
+                                    // No new block was mined.
+                                    false => {
+                                        // Check if the cube node is fully synced.
+                                        if !synced {
+                                            {
+                                                // Set the rollup to synced.
+                                                let mut _rollup_dir = rollup_dir.lock().await;
+                                                _rollup_dir.set_synced(true);
+                                            }
+
+                                            // Set the synced flag.
+                                            synced = true;
+
+                                            // Print the status update.
+                                            println!("{}", "Node is fully synced.".green());
+                                        }
+
+                                        // Sleep for 10s.
+                                        sleep(Duration::from_secs(10)).await;
+
+                                        // Continue checking for a new block.
+                                        continue 'check_for_a_new_block;
+                                    }
+                                }
+                            }
+                            Err(err) => {
+                                eprintln!(
+                                    "{}",
+                                    format!(
+                                        "Error retrieving chain tip: {}. Retrying in 5s...",
+                                        err
+                                    )
+                                    .yellow()
+                                );
+
+                                // Sleep and retry.
+                                sleep(Duration::from_secs(5)).await;
+                                continue 'check_for_a_new_block;
+                            }
+                        };
                     }
 
-                    sleep(Duration::from_secs(10)).await;
+                    // Continue the loop.
+                    continue 'outer_sync_iteration;
                 }
                 false => {
-                    // Rollup is not fully synced.
-                    let height_to_sync = match rollup_bitcoin_sync_height < sync_start_height {
+                    // Cube node is not fully synced.
+                    let height_to_sync = match cube_node_sync_height < sync_start_height {
                         true => sync_start_height,
-                        false => rollup_bitcoin_sync_height + 1,
+                        false => cube_node_sync_height + 1,
                     };
 
                     let block = match retrieve_block(rpc_holder, height_to_sync) {
@@ -266,6 +356,9 @@ impl RollupSync for ROLLUP_DIRECTORY {
                     // TODO set the new rollup sync height.
 
                     println!("Synced height #{}.", height_to_sync);
+
+                    // Continue the loop.
+                    continue 'outer_sync_iteration;
                 }
             }
         }

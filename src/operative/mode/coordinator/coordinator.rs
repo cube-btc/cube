@@ -26,7 +26,7 @@ use crate::operative::mode::coordinator::dkgops::DKGOps;
 use crate::operative::session::ccontext::CContextRunner;
 use crate::operative::session::ccontext::CSessionCtx;
 use crate::operative::session::ccontext::CSESSION_CTX;
-use crate::operative::sync::rollup::RollupSync;
+use crate::operative::sync::sync::RollupSync;
 use crate::operative::Chain;
 use crate::operative::OperatingMode;
 use crate::transmutative::key::KeyHolder;

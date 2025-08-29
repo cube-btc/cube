@@ -20,7 +20,7 @@ use crate::inscriptive::set::set::COIN_SET;
 use crate::inscriptive::wallet::wallet::Wallet;
 use crate::inscriptive::wallet::wallet::WALLET;
 use crate::operative::mode::ncli;
-use crate::operative::sync::rollup::RollupSync;
+use crate::operative::sync::sync::RollupSync;
 use crate::operative::Chain;
 use crate::operative::OperatingMode;
 use crate::transmutative::key::KeyHolder;

@@ -21,7 +21,7 @@ use crate::inscriptive::rollup::dir::ROLLUP_DIRECTORY;
 use crate::inscriptive::set::set::CoinSet;
 use crate::inscriptive::set::set::COIN_SET;
 use crate::operative::mode::ocli;
-use crate::operative::sync::rollup::RollupSync;
+use crate::operative::sync::sync::RollupSync;
 use crate::operative::Chain;
 use crate::operative::OperatingMode;
 use crate::transmutative::key::KeyHolder;

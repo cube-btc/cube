@@ -52,7 +52,9 @@ pub fn validate_rpc(
 }
 
 /// Returns the chain tip (latest block height).
-pub fn get_chain_tip(rpc_holder: &BitcoinRPCHolder) -> Result<u64, BitcoinRPCGetChainTipError> {
+pub fn get_chain_tip(
+    rpc_holder: &BitcoinRPCHolder,
+) -> Result<(u64, bool), BitcoinRPCGetChainTipError> {
     let rpc_url = rpc_holder.url();
     let rpc_user = rpc_holder.user();
     let rpc_password = rpc_holder.password();
@@ -69,11 +71,14 @@ pub fn get_chain_tip(rpc_holder: &BitcoinRPCHolder) -> Result<u64, BitcoinRPCGet
         Err(err) => return Err(BitcoinRPCGetChainTipError::RPCErr(err)),
     };
 
+    // Check if the Bitcoin node is fully synced.
+    let is_synced = !blockchain_info.initial_block_download;
+
     // Get chain height.
     let chain_height = blockchain_info.blocks;
 
     // Return chain height.
-    Ok(chain_height)
+    Ok((chain_height, is_synced))
 }
 
 /// Returns the block at the given height.
