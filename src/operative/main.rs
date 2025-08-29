@@ -1,6 +1,6 @@
 use colored::Colorize;
 use cube::{
-    communicative::rpc::bitcoin::rpcholder::RPCHolder,
+    communicative::rpc::bitcoin_rpc::bitcoin_rpc_holder::BitcoinRPCHolder,
     operative::{
         mode::{coordinator::coordinator, node::node, operator::operator},
         Chain, OperatingMode,
@@ -47,7 +47,8 @@ fn main() {
     };
 
     // RPC args
-    let rpc_holder = RPCHolder::new(args[3].to_owned(), args[4].to_owned(), args[5].to_owned());
+    let rpc_holder =
+        BitcoinRPCHolder::new(args[3].to_owned(), args[4].to_owned(), args[5].to_owned());
 
     // Key holder
     let key_holder = {

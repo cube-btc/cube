@@ -1,14 +1,14 @@
 /// RPC holder.
 #[derive(Clone)]
-pub struct RPCHolder {
+pub struct BitcoinRPCHolder {
     url: String,
     user: String,
     password: String,
 }
 
-impl RPCHolder {
-    pub fn new(url: String, user: String, password: String) -> RPCHolder {
-        RPCHolder {
+impl BitcoinRPCHolder {
+    pub fn new(url: String, user: String, password: String) -> BitcoinRPCHolder {
+        BitcoinRPCHolder {
             url,
             user,
             password,

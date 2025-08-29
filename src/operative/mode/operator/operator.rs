@@ -4,8 +4,8 @@ use crate::communicative::peer::manager::coordinator_key;
 use crate::communicative::peer::peer::Peer;
 use crate::communicative::peer::peer::PeerKind;
 use crate::communicative::peer::peer::PEER;
-use crate::communicative::rpc::bitcoin::rpc::validate_rpc;
-use crate::communicative::rpc::bitcoin::rpcholder::RPCHolder;
+use crate::communicative::rpc::bitcoin_rpc::bitcoin_rpc::validate_rpc;
+use crate::communicative::rpc::bitcoin_rpc::bitcoin_rpc_holder::BitcoinRPCHolder;
 use crate::communicative::tcp;
 use crate::communicative::tcp::tcp::open_port;
 use crate::communicative::tcp::tcp::port_number;
@@ -33,7 +33,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 #[tokio::main]
-pub async fn run(key_holder: KeyHolder, chain: Chain, rpc_holder: RPCHolder) {
+pub async fn run(key_holder: KeyHolder, chain: Chain, rpc_holder: BitcoinRPCHolder) {
     let mode = OperatingMode::Operator;
 
     // #1 Validate Bitcoin RPC.

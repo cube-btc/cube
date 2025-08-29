@@ -1,7 +1,7 @@
 use crate::{
-    communicative::rpc::bitcoin::{
-        rpc::{get_block, get_chain_height},
-        rpcholder::RPCHolder,
+    communicative::rpc::bitcoin_rpc::{
+        bitcoin_rpc::{get_chain_tip, retrieve_block},
+        bitcoin_rpc_holder::BitcoinRPCHolder,
     },
     constructive::{taproot::P2TR, txo::lift::Lift},
     inscriptive::{
@@ -50,7 +50,7 @@ pub trait RollupSync {
     async fn sync(
         &self,
         chain: Chain,
-        rpc_holder: &RPCHolder,
+        rpc_holder: &BitcoinRPCHolder,
         key_holder: &KeyHolder,
         _epoch_dir: &EPOCH_DIRECTORY,
         _lp_dir: &LP_DIRECTORY,
@@ -82,7 +82,7 @@ impl RollupSync for ROLLUP_DIRECTORY {
     async fn sync(
         &self,
         chain: Chain,
-        rpc_holder: &RPCHolder,
+        rpc_holder: &BitcoinRPCHolder,
         key_holder: &KeyHolder,
         epoch_dir: &EPOCH_DIRECTORY,
         _lp_dir: &LP_DIRECTORY,
@@ -122,7 +122,7 @@ impl RollupSync for ROLLUP_DIRECTORY {
 
             // Retrieve chain height.
             let chain_height = {
-                match get_chain_height(rpc_holder) {
+                match get_chain_tip(rpc_holder) {
                     Ok(tip) => tip,
                     Err(_) => {
                         sleep(Duration::from_secs(5)).await;
@@ -151,7 +151,7 @@ impl RollupSync for ROLLUP_DIRECTORY {
                         false => rollup_bitcoin_sync_height + 1,
                     };
 
-                    let block = match get_block(rpc_holder, height_to_sync) {
+                    let block = match retrieve_block(rpc_holder, height_to_sync) {
                         Ok(block) => block,
                         Err(_) => {
                             sleep(Duration::from_secs(5)).await;
