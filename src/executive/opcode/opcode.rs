@@ -57,7 +57,9 @@ use super::opcodes::{
     },
 };
 use crate::executive::opcode::opcodes::{
-    coin::{op_balance::OP_BALANCE, op_transfer::OP_TRANSFER},
+    coin::{
+        op_ext_balance::OP_EXT_BALANCE, op_self_balance::OP_SELF_BALANCE, op_transfer::OP_TRANSFER,
+    },
     shadowing::{
         op_shadow_alloc::OP_SHADOW_ALLOC, op_shadow_alloc_down::OP_SHADOW_ALLOC_DOWN,
         op_shadow_alloc_down_all::OP_SHADOW_ALLOC_DOWN_ALL, op_shadow_alloc_up::OP_SHADOW_ALLOC_UP,
@@ -195,7 +197,8 @@ pub enum Opcode {
     OP_CALL(OP_CALL),
     OP_CALLEXT(OP_CALLEXT),
     // Coin
-    OP_BALANCE(OP_BALANCE),
+    OP_EXT_BALANCE(OP_EXT_BALANCE),
+    OP_SELF_BALANCE(OP_SELF_BALANCE),
     OP_TRANSFER(OP_TRANSFER),
     // Shadow space
     OP_SHADOW_ALLOC(OP_SHADOW_ALLOC),
@@ -341,7 +344,8 @@ impl Display for Opcode {
             Opcode::OP_CALL(_) => write!(f, "OP_CALL"),
             Opcode::OP_CALLEXT(_) => write!(f, "OP_CALLEXT"),
             // Coin
-            Opcode::OP_BALANCE(_) => write!(f, "OP_BALANCE"),
+            Opcode::OP_EXT_BALANCE(_) => write!(f, "OP_EXT_BALANCE"),
+            Opcode::OP_SELF_BALANCE(_) => write!(f, "OP_SELF_BALANCE"),
             Opcode::OP_TRANSFER(_) => write!(f, "OP_TRANSFER"),
             // Shadow space
             Opcode::OP_SHADOW_ALLOC(_) => write!(f, "OP_SHADOW_ALLOC"),

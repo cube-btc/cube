@@ -42,7 +42,8 @@ use crate::executive::opcode::opcodes::callinfo::op_opsbudget::OP_OPSBUDGET;
 use crate::executive::opcode::opcodes::callinfo::op_opscounter::OP_OPSCOUNTER;
 use crate::executive::opcode::opcodes::callinfo::op_opsprice::OP_OPSPRICE;
 use crate::executive::opcode::opcodes::callinfo::op_timestamp::OP_TIMESTAMP;
-use crate::executive::opcode::opcodes::coin::op_balance::OP_BALANCE;
+use crate::executive::opcode::opcodes::coin::op_ext_balance::OP_EXT_BALANCE;
+use crate::executive::opcode::opcodes::coin::op_self_balance::OP_SELF_BALANCE;
 use crate::executive::opcode::opcodes::coin::op_transfer::OP_TRANSFER;
 use crate::executive::opcode::opcodes::digest::op_blake2bvar::OP_BLAKE2BVAR;
 use crate::executive::opcode::opcodes::digest::op_blake2svar::OP_BLAKE2SVAR;
@@ -264,7 +265,8 @@ impl OpcodeCompiler for Opcode {
             Opcode::OP_CALL(_) => Ok(OP_CALL::bytecode()),
             Opcode::OP_CALLEXT(_) => Ok(OP_CALLEXT::bytecode()),
             // Coin
-            Opcode::OP_BALANCE(_) => Ok(OP_BALANCE::bytecode()),
+            Opcode::OP_EXT_BALANCE(_) => Ok(OP_EXT_BALANCE::bytecode()),
+            Opcode::OP_SELF_BALANCE(_) => Ok(OP_SELF_BALANCE::bytecode()),
             Opcode::OP_TRANSFER(_) => Ok(OP_TRANSFER::bytecode()),
             // Shadow space
             Opcode::OP_SHADOW_ALLOC(_) => Ok(OP_SHADOW_ALLOC::bytecode()),
@@ -498,17 +500,18 @@ impl OpcodeCompiler for Opcode {
             0xbe => Ok(Opcode::OP_CALL(OP_CALL)),
             0xbf => Ok(Opcode::OP_CALLEXT(OP_CALLEXT)),
             // Coin
-            0xc0 => Ok(Opcode::OP_BALANCE(OP_BALANCE)),
-            0xc1 => Ok(Opcode::OP_TRANSFER(OP_TRANSFER)),
+            0xc0 => Ok(Opcode::OP_EXT_BALANCE(OP_EXT_BALANCE)),
+            0xc1 => Ok(Opcode::OP_SELF_BALANCE(OP_SELF_BALANCE)),
+            0xc2 => Ok(Opcode::OP_TRANSFER(OP_TRANSFER)),
             // Shadow space
-            0xc2 => Ok(Opcode::OP_SHADOW_ALLOC(OP_SHADOW_ALLOC)),
-            0xc3 => Ok(Opcode::OP_SHADOW_ALLOC_UP(OP_SHADOW_ALLOC_UP)),
-            0xc4 => Ok(Opcode::OP_SHADOW_ALLOC_DOWN(OP_SHADOW_ALLOC_DOWN)),
-            0xc5 => Ok(Opcode::OP_SHADOW_ALLOC_UP_ALL(OP_SHADOW_ALLOC_UP_ALL)),
-            0xc6 => Ok(Opcode::OP_SHADOW_ALLOC_DOWN_ALL(OP_SHADOW_ALLOC_DOWN_ALL)),
+            0xc3 => Ok(Opcode::OP_SHADOW_ALLOC(OP_SHADOW_ALLOC)),
+            0xc4 => Ok(Opcode::OP_SHADOW_ALLOC_UP(OP_SHADOW_ALLOC_UP)),
+            0xc5 => Ok(Opcode::OP_SHADOW_ALLOC_DOWN(OP_SHADOW_ALLOC_DOWN)),
+            0xc6 => Ok(Opcode::OP_SHADOW_ALLOC_UP_ALL(OP_SHADOW_ALLOC_UP_ALL)),
+            0xc7 => Ok(Opcode::OP_SHADOW_ALLOC_DOWN_ALL(OP_SHADOW_ALLOC_DOWN_ALL)),
             // Storage
-            0xc7 => Ok(Opcode::OP_SWRITE(OP_SWRITE)),
-            0xc8 => Ok(Opcode::OP_SREAD(OP_SREAD)),
+            0xc8 => Ok(Opcode::OP_SWRITE(OP_SWRITE)),
+            0xc9 => Ok(Opcode::OP_SREAD(OP_SREAD)),
             // Memory
             0xca => Ok(Opcode::OP_MWRITE(OP_MWRITE)),
             0xcb => Ok(Opcode::OP_MREAD(OP_MREAD)),

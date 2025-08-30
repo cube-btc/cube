@@ -58,8 +58,8 @@ impl OP_SREAD {
         Ok(())
     }
 
-    /// Returns the bytecode for the `OP_SREAD` opcode (0xc8).
+    /// Returns the bytecode for the `OP_SREAD` opcode (0xc9).
     pub fn bytecode() -> Vec<u8> {
-        vec![0xc8]
+        vec![0xc9]
     }
 }

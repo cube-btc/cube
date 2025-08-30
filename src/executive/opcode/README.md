@@ -162,27 +162,28 @@ Cube uses an extended Bitcoin script with splicing, better memory management, an
 
 ## Coin 
 
-| Opcode           | Bytecode | Ops              | Input                   | Output        | Description                                                             |
-|:-----------------|:---------|:-----------------|:------------------------|:--------------|:------------------------------------------------------------------------|
-| OP_BALANCE       | 0xc0     | 1                | kind destination        | out/fail.     | Pops the kind and pushes the contract or account balance into stack.    |
-| OP_TRANSFER      | 0xc1     | 10               | kind destination amount | Nothing/fail. | Pops the kind and transfers sats to the account or the contract.        |
+| Opcode           | Bytecode | Ops              | Input                   | Output        | Description                                                                  |
+|:-----------------|:---------|:-----------------|:------------------------|:--------------|:-----------------------------------------------------------------------------|
+| OP_EXT_BALANCE   | 0xc0     | 1                | kind destination        | out/fail.     | Pops the kind and pushes the contract's or account's balance onto the stack. |
+| OP_SELF_BALANCE  | 0xc1     | 1                | -                       | out/fail.     | Pushes the underlying contract’s balance onto the stack.                     |
+| OP_TRANSFER      | 0xc2     | 10               | kind destination amount | Nothing/fail. | Pops the kind and transfers sats to the account or the contract.             |
 
 ## Shadowing 
 
 | Opcode                    | Bytecode | Ops              | Input                 | Output                 | Description                                             |
 |:--------------------------|:---------|:-----------------|:-----------|:-----------------------|:-------------------------------------------------------------------|
-| OP_SHADOW_ALLOC           | 0xc2     | 1                | key        | Nothing/fail.          | Allocates within the contract shadow space an account.             |
-| OP_SHADOW_ALLOC_UP        | 0xc3     | 1                | key amount | Nothing/fail.          | Increases the shadow space allocation of an account.               |
-| OP_SHADOW_ALLOC_DOWN      | 0xc4     | 10               | key amount | Nothing/fail.          | Decreases the shadow space allocation of an account.               |
-| OP_SHADOW_ALLOC_UP_ALL    | 0xc5     | 10               | amount     | Nothing/fail.          | Proportionally increases shadow space allocations of all accounts. |
-| OP_SHADOW_ALLOC_DOWN_ALL  | 0xc6     | 10               | amount     | Nothing/fail.          | Proportionally decreases shadow space allocations of all accounts. |
+| OP_SHADOW_ALLOC           | 0xc3     | 1                | key        | Nothing/fail.          | Allocates within the contract shadow space an account.             |
+| OP_SHADOW_ALLOC_UP        | 0xc4     | 1                | key amount | Nothing/fail.          | Increases the shadow space allocation of an account.               |
+| OP_SHADOW_ALLOC_DOWN      | 0xc5     | 10               | key amount | Nothing/fail.          | Decreases the shadow space allocation of an account.               |
+| OP_SHADOW_ALLOC_UP_ALL    | 0xc6     | 10               | amount     | Nothing/fail.          | Proportionally increases shadow space allocations of all accounts. |
+| OP_SHADOW_ALLOC_DOWN_ALL  | 0xc7     | 10               | amount     | Nothing/fail.          | Proportionally decreases shadow space allocations of all accounts. |
 
 ## Storage
 
 | Opcode         | Bytecode | Ops | Input                | Output                 | Description                                                                      |
 |:---------------|:---------|:----|:---------------------|:-----------------------|:---------------------------------------------------------------------------------|
-| OP_SWRITE      | 0xc7     | 50  | x1 x2                | x1                     | Pops the storage key and value, and writes the value to the contract's storage.  |
-| OP_SREAD       | 0xc8     | 50  | x1                   | x1                     | Pops the storage key, and reads the value from the contract's storage.           |
+| OP_SWRITE      | 0xc8     | 50  | x1 x2                | x1                     | Pops the storage key and value, and writes the value to the contract's storage.  |
+| OP_SREAD       | 0xc9     | 50  | x1                   | x1                     | Pops the storage key, and reads the value from the contract's storage.           |
 
 ## Memory
 

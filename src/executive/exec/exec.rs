@@ -25,7 +25,10 @@ use crate::{
                     op_caller::OP_CALLER, op_opsbudget::OP_OPSBUDGET, op_opscounter::OP_OPSCOUNTER,
                     op_opsprice::OP_OPSPRICE, op_timestamp::OP_TIMESTAMP,
                 },
-                coin::{op_balance::OP_BALANCE, op_transfer::OP_TRANSFER},
+                coin::{
+                    op_ext_balance::OP_EXT_BALANCE, op_self_balance::OP_SELF_BALANCE,
+                    op_transfer::OP_TRANSFER,
+                },
                 digest::{
                     op_blake2bvar::OP_BLAKE2BVAR, op_blake2svar::OP_BLAKE2SVAR,
                     op_hash160::OP_HASH160, op_hash256::OP_HASH256, op_ripemd160::OP_RIPEMD160,
@@ -767,8 +770,13 @@ pub async fn execute(
                 .await;
             }
             // Coin opcodes.
-            Opcode::OP_BALANCE(OP_BALANCE) => {
-                OP_BALANCE::execute(&mut stack_holder, coin_holder)
+            Opcode::OP_EXT_BALANCE(OP_EXT_BALANCE) => {
+                OP_EXT_BALANCE::execute(&mut stack_holder, coin_holder)
+                    .await
+                    .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
+            }
+            Opcode::OP_SELF_BALANCE(OP_SELF_BALANCE) => {
+                OP_SELF_BALANCE::execute(&mut stack_holder, coin_holder)
                     .await
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }

@@ -10,14 +10,19 @@ pub struct OP_TRANSFER;
 
 impl OP_TRANSFER {
     pub fn execute(
-        _stack_holder: &mut StackHolder,
+        stack_holder: &mut StackHolder,
         _coin_holder: &COIN_HOLDER,
     ) -> Result<(), StackError> {
+        // If this is not the active execution, return immediately.
+        if !stack_holder.active_execution() {
+            return Ok(());
+        }
+
         Ok(())
     }
 
-    /// Returns the bytecode for the `OP_TRANSFER` opcode (0xc1).
+    /// Returns the bytecode for the `OP_TRANSFER` opcode (0xc2).
     pub fn bytecode() -> Vec<u8> {
-        vec![0xc1]
+        vec![0xc2]
     }
 }

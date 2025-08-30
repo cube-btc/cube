@@ -91,9 +91,9 @@ pub enum MandatoryError {
     MandatoryVerifyError,
 }
 
-/// The coin ops error.
+/// The coin balance get error.
 #[derive(Debug, Clone)]
-pub enum CoinOpsError {
+pub enum CoinBalanceGetError {
     /// The kind is invalid.
     InvalidKindBytes(Vec<u8>),
     /// The kind tier is invalid.
@@ -107,6 +107,10 @@ pub enum CoinOpsError {
     /// The unable to get contract balance error.
     UnableToGetContractBalance([u8; 32]),
 }
+
+/// The coin transfer error.
+#[derive(Debug, Clone)]
+pub enum CoinTransferError {}
 
 /// The shadow ops error.
 #[derive(Debug, Clone)]
@@ -159,8 +163,10 @@ pub enum StackError {
     CallError(CallError),
     // Key conversion error.
     Key32BytesConversionError,
-    /// The coin ops error.
-    CoinOpsError(CoinOpsError),
+    /// The coin balance get error.
+    CoinBalanceGetError(CoinBalanceGetError),
+    /// The coin transfer error.
+    CoinTransferError(CoinTransferError),
     /// The shadow ops error.
     ShadowOpsError(ShadowOpsError),
 }
