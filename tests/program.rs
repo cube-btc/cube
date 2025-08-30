@@ -4,14 +4,13 @@ mod program_and_method_tests {
         constructive::calldata::element_type::CallElementType,
         executive::{
             opcode::{
+                opcode::Opcode,
                 opcodes::{
                     flow::{op_returnall::OP_RETURNALL, op_returnerr::OP_RETURNERR},
                     push::{
                         op_2::OP_2, op_false::OP_FALSE, op_pushdata::OP_PUSHDATA, op_true::OP_TRUE,
                     },
-                    reserved::op_reserved_1::OP_RESERVED_1,
                 },
-                opcode::Opcode,
             },
             program::{
                 compiler::compiler::ProgramCompiler,
@@ -89,24 +88,6 @@ mod program_and_method_tests {
                 Opcode::OP_TRUE(OP_TRUE),
                 Opcode::OP_2(OP_2),
                 Opcode::OP_PUSHDATA(OP_PUSHDATA(vec![0xde, 0xad, 0xbe, 0xef])),
-            ];
-
-            let method = ProgramMethod::new(method_name, method_type, call_element_types, script);
-
-            assert!(method.is_err());
-        }
-
-        // Invalid script with reserved opcode.
-        {
-            let method_name = "test_method".to_string();
-            let method_type = MethodType::Callable;
-            let call_element_types = vec![CallElementType::U32, CallElementType::Account];
-            // Push a reserved opcode.
-            let script = vec![
-                Opcode::OP_TRUE(OP_TRUE),
-                Opcode::OP_2(OP_2),
-                Opcode::OP_PUSHDATA(OP_PUSHDATA(vec![0xde, 0xad, 0xbe, 0xef])),
-                Opcode::OP_RESERVED_1(OP_RESERVED_1),
             ];
 
             let method = ProgramMethod::new(method_name, method_type, call_element_types, script);

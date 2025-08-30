@@ -40,8 +40,6 @@ impl fmt::Display for MethodConstructionError {
 /// A section of executable block in the `Contract`.    
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ScriptValidationError {
-    /// Reserved opcode encountered error.
-    ReservedOpcodeEncounteredError,
     /// Non minimal data push error.
     NonMinimalDataPushError,
 }
@@ -49,9 +47,6 @@ pub enum ScriptValidationError {
 impl fmt::Display for ScriptValidationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ScriptValidationError::ReservedOpcodeEncounteredError => {
-                write!(f, "Reserved opcode encountered")
-            }
             ScriptValidationError::NonMinimalDataPushError => {
                 write!(f, "Non-minimal data push encountered")
             }

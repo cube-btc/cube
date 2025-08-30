@@ -36,10 +36,6 @@ use super::opcodes::{
         op_16::OP_16, op_2::OP_2, op_3::OP_3, op_4::OP_4, op_5::OP_5, op_6::OP_6, op_7::OP_7,
         op_8::OP_8, op_9::OP_9, op_false::OP_FALSE, op_pushdata::OP_PUSHDATA, op_true::OP_TRUE,
     },
-    reserved::{
-        op_reserved_1::OP_RESERVED_1, op_reserved_2::OP_RESERVED_2, op_reserved_3::OP_RESERVED_3,
-        op_reserved_4::OP_RESERVED_4, op_reserved_5::OP_RESERVED_5,
-    },
     secp::{
         op_isinfinitesecppoint::OP_ISINFINITESECPPOINT, op_iszerosecpscalar::OP_ISZEROSECPSCALAR,
         op_pushsecpgeneratorpoint::OP_PUSHSECPGENERATORPOINT, op_secppointadd::OP_SECPPOINTADD,
@@ -77,9 +73,6 @@ pub enum Opcode {
     // Push
     OP_FALSE(OP_FALSE),
     OP_PUSHDATA(OP_PUSHDATA),
-    OP_RESERVED_1(OP_RESERVED_1), //0x4e
-    OP_RESERVED_2(OP_RESERVED_2), //0x4f
-    OP_RESERVED_3(OP_RESERVED_3), //0x50
     OP_TRUE(OP_TRUE),
     OP_2(OP_2),
     OP_3(OP_3),
@@ -143,7 +136,6 @@ pub enum Opcode {
     OP_EQUALVERIFY(OP_EQUALVERIFY),
     OP_REVERSE(OP_REVERSE),
     // Arithmetic
-    OP_RESERVED_4(OP_RESERVED_4), //0x89
     OP_1ADD(OP_1ADD),
     OP_1SUB(OP_1SUB),
     OP_2MUL(OP_2MUL),
@@ -156,7 +148,7 @@ pub enum Opcode {
     OP_SUB(OP_SUB),
     OP_MUL(OP_MUL),
     OP_DIV(OP_DIV),
-    OP_RESERVED_5(OP_RESERVED_5), //0x97
+
     OP_LSHIFT(OP_LSHIFT),
     OP_RSHIFT(OP_RSHIFT),
     OP_BOOLAND(OP_BOOLAND),
@@ -228,9 +220,6 @@ impl Display for Opcode {
             Opcode::OP_PUSHDATA(op_pushdata) => {
                 write!(f, "OP_PUSHDATA 0x{}", hex::encode(&op_pushdata.0))
             }
-            Opcode::OP_RESERVED_1(_) => write!(f, "OP_RESERVED_1"),
-            Opcode::OP_RESERVED_2(_) => write!(f, "OP_RESERVED_2"),
-            Opcode::OP_RESERVED_3(_) => write!(f, "OP_RESERVED_3"),
             Opcode::OP_TRUE(_) => write!(f, "OP_TRUE"),
             Opcode::OP_2(_) => write!(f, "OP_2"),
             Opcode::OP_3(_) => write!(f, "OP_3"),
@@ -294,7 +283,6 @@ impl Display for Opcode {
             Opcode::OP_EQUALVERIFY(_) => write!(f, "OP_EQUALVERIFY"),
             Opcode::OP_REVERSE(_) => write!(f, "OP_REVERSE"),
             // Arithmetic
-            Opcode::OP_RESERVED_4(_) => write!(f, "OP_RESERVED_4"),
             Opcode::OP_1ADD(_) => write!(f, "OP_1ADD"),
             Opcode::OP_1SUB(_) => write!(f, "OP_1SUB"),
             Opcode::OP_2MUL(_) => write!(f, "OP_2MUL"),
@@ -307,7 +295,6 @@ impl Display for Opcode {
             Opcode::OP_SUB(_) => write!(f, "OP_SUB"),
             Opcode::OP_MUL(_) => write!(f, "OP_MUL"),
             Opcode::OP_DIV(_) => write!(f, "OP_DIV"),
-            Opcode::OP_RESERVED_5(_) => write!(f, "OP_RESERVED_5"),
             Opcode::OP_LSHIFT(_) => write!(f, "OP_LSHIFT"),
             Opcode::OP_RSHIFT(_) => write!(f, "OP_RSHIFT"),
             Opcode::OP_BOOLAND(_) => write!(f, "OP_BOOLAND"),

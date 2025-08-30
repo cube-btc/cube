@@ -9,13 +9,7 @@ use super::{
 use crate::{
     constructive::calldata::element_type::CallElementType,
     executive::{
-        opcode::{
-            opcodes::{
-                push::op_pushdata::OP_PUSHDATA,
-                reserved::{op_reserved_1::OP_RESERVED_1, op_reserved_2::OP_RESERVED_2},
-            },
-            opcode::Opcode,
-        },
+        opcode::{opcode::Opcode, opcodes::push::op_pushdata::OP_PUSHDATA},
         stack::{
             stack_item::StackItem,
             stack_uint::{SafeConverter, StackItemUintExt},
@@ -107,13 +101,6 @@ impl ProgramMethod {
     pub fn validate_script(&self) -> Result<(), ScriptValidationError> {
         for opcode in self.script.iter() {
             match opcode {
-                // Check for reserved opcodes.
-                Opcode::OP_RESERVED_1(OP_RESERVED_1) => {
-                    return Err(ScriptValidationError::ReservedOpcodeEncounteredError);
-                }
-                Opcode::OP_RESERVED_2(OP_RESERVED_2) => {
-                    return Err(ScriptValidationError::ReservedOpcodeEncounteredError);
-                }
                 // Check for non minimal push data.
                 Opcode::OP_PUSHDATA(op_pushdata) => {
                     if op_pushdata.0.len() == 1 && !OP_PUSHDATA::check_minimal_push(&op_pushdata.0)

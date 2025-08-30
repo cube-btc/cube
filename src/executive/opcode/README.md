@@ -191,13 +191,3 @@ Cube uses an extended Bitcoin script with splicing, better memory management, an
 | OP_MWRITE      | 0xca     | 5   | x1 x2                | x1                     | Pops the memory key and value, and writes the value to the contract's memory.    |
 | OP_MREAD       | 0xcb     | 5   | x1                   | x1                     | Pops the memory key, and reads the value from the contract's memory.             |
 | OP_MFREE       | 0xcc     | 1   | x1                   | x1                     | Pops the memory key, and frees the key/value from the contract's memory.         |
-
-## Reserved
-
-| Opcode         | Bytecode | Ops | Input                | Output                 | Description                                                                     |
-|:---------------|:---------|:----|:---------------------|:-----------------------|:--------------------------------------------------------------------------------|
-| OP_RESERVED1   | 0x4e     | 0   | Nothing.             | Fail.                  | Fails the execution.                                                            |
-| OP_RESERVED2   | 0x4f     | 0   | Nothing.             | Fail.                  | Fails the execution.                                                            |
-| OP_RESERVED3   | 0x50     | 0   | Nothing.             | Fail.                  | Fails the execution.                                                            |
-| OP_RESERVED4   | 0x8a     | 0   | Nothing.             | Fail.                  | Fails the execution.                                                            |
-| OP_RESERVED5   | 0x97     | 0   | Nothing.             | Fail.                  | Fails the execution.                                                            |

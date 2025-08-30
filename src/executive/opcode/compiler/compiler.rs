@@ -83,11 +83,6 @@ use crate::executive::opcode::opcodes::push::op_9::OP_9;
 use crate::executive::opcode::opcodes::push::op_false::OP_FALSE;
 use crate::executive::opcode::opcodes::push::op_pushdata::OP_PUSHDATA;
 use crate::executive::opcode::opcodes::push::op_true::OP_TRUE;
-use crate::executive::opcode::opcodes::reserved::op_reserved_1::OP_RESERVED_1;
-use crate::executive::opcode::opcodes::reserved::op_reserved_2::OP_RESERVED_2;
-use crate::executive::opcode::opcodes::reserved::op_reserved_3::OP_RESERVED_3;
-use crate::executive::opcode::opcodes::reserved::op_reserved_4::OP_RESERVED_4;
-use crate::executive::opcode::opcodes::reserved::op_reserved_5::OP_RESERVED_5;
 use crate::executive::opcode::opcodes::secp::op_isinfinitesecppoint::OP_ISINFINITESECPPOINT;
 use crate::executive::opcode::opcodes::secp::op_iszerosecpscalar::OP_ISZEROSECPSCALAR;
 use crate::executive::opcode::opcodes::secp::op_pushsecpgeneratorpoint::OP_PUSHSECPGENERATORPOINT;
@@ -148,9 +143,6 @@ impl OpcodeCompiler for Opcode {
                 .compiled_bytes()
                 .map(Ok)
                 .unwrap_or_else(|| Err(OpcodeCompileError::InvalidPushDataLength)),
-            Opcode::OP_RESERVED_1(_) => Ok(OP_RESERVED_1::bytecode()),
-            Opcode::OP_RESERVED_2(_) => Ok(OP_RESERVED_2::bytecode()),
-            Opcode::OP_RESERVED_3(_) => Ok(OP_RESERVED_3::bytecode()),
             Opcode::OP_TRUE(_) => Ok(OP_TRUE::bytecode()),
             Opcode::OP_2(_) => Ok(OP_2::bytecode()),
             Opcode::OP_3(_) => Ok(OP_3::bytecode()),
@@ -214,7 +206,6 @@ impl OpcodeCompiler for Opcode {
             Opcode::OP_EQUALVERIFY(_) => Ok(OP_EQUALVERIFY::bytecode()),
             Opcode::OP_REVERSE(_) => Ok(OP_REVERSE::bytecode()),
             // Arithmetic
-            Opcode::OP_RESERVED_4(_) => Ok(OP_RESERVED_4::bytecode()),
             Opcode::OP_1ADD(_) => Ok(OP_1ADD::bytecode()),
             Opcode::OP_1SUB(_) => Ok(OP_1SUB::bytecode()),
             Opcode::OP_2MUL(_) => Ok(OP_2MUL::bytecode()),
@@ -227,7 +218,6 @@ impl OpcodeCompiler for Opcode {
             Opcode::OP_SUB(_) => Ok(OP_SUB::bytecode()),
             Opcode::OP_MUL(_) => Ok(OP_MUL::bytecode()),
             Opcode::OP_DIV(_) => Ok(OP_DIV::bytecode()),
-            Opcode::OP_RESERVED_5(_) => Ok(OP_RESERVED_5::bytecode()),
             Opcode::OP_LSHIFT(_) => Ok(OP_LSHIFT::bytecode()),
             Opcode::OP_RSHIFT(_) => Ok(OP_RSHIFT::bytecode()),
             Opcode::OP_BOOLAND(_) => Ok(OP_BOOLAND::bytecode()),
@@ -387,9 +377,6 @@ impl OpcodeCompiler for Opcode {
                 // Return the opcode.
                 Ok(Opcode::OP_PUSHDATA(OP_PUSHDATA(data)))
             }
-            0x4e => Ok(Opcode::OP_RESERVED_1(OP_RESERVED_1)),
-            0x4f => Ok(Opcode::OP_RESERVED_2(OP_RESERVED_2)),
-            0x50 => Ok(Opcode::OP_RESERVED_3(OP_RESERVED_3)),
             0x51 => Ok(Opcode::OP_TRUE(OP_TRUE)),
             0x52 => Ok(Opcode::OP_2(OP_2)),
             0x53 => Ok(Opcode::OP_3(OP_3)),
@@ -453,7 +440,6 @@ impl OpcodeCompiler for Opcode {
             0x88 => Ok(Opcode::OP_EQUALVERIFY(OP_EQUALVERIFY)),
             0x89 => Ok(Opcode::OP_REVERSE(OP_REVERSE)),
             // Arithmetic
-            0x8a => Ok(Opcode::OP_RESERVED_4(OP_RESERVED_4)),
             0x8b => Ok(Opcode::OP_1ADD(OP_1ADD)),
             0x8c => Ok(Opcode::OP_1SUB(OP_1SUB)),
             0x8d => Ok(Opcode::OP_2MUL(OP_2MUL)),
@@ -466,7 +452,6 @@ impl OpcodeCompiler for Opcode {
             0x94 => Ok(Opcode::OP_SUB(OP_SUB)),
             0x95 => Ok(Opcode::OP_MUL(OP_MUL)),
             0x96 => Ok(Opcode::OP_DIV(OP_DIV)),
-            0x97 => Ok(Opcode::OP_RESERVED_5(OP_RESERVED_5)),
             0x98 => Ok(Opcode::OP_LSHIFT(OP_LSHIFT)),
             0x99 => Ok(Opcode::OP_RSHIFT(OP_RSHIFT)),
             0x9a => Ok(Opcode::OP_BOOLAND(OP_BOOLAND)),

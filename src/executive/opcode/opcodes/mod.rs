@@ -8,7 +8,6 @@ pub mod digest;
 pub mod flow;
 pub mod memory;
 pub mod push;
-pub mod reserved;
 pub mod secp;
 pub mod shadowing;
 pub mod signature;
