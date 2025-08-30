@@ -93,7 +93,20 @@ pub enum MandatoryError {
 
 /// The coin ops error.
 #[derive(Debug, Clone)]
-pub enum CoinOpsError {} // TODO: Implement
+pub enum CoinOpsError {
+    /// The kind is invalid.
+    InvalidKindBytes(Vec<u8>),
+    /// The kind tier is invalid.
+    InvalidKindTier(usize),
+    /// The account key is invalid.
+    InvalidAccountKeyBytes(Vec<u8>),
+    /// The contract id is invalid.
+    InvalidContractIdBytes(Vec<u8>),
+    /// The unable to get account balance error.
+    UnableToGetAccountBalance([u8; 32]),
+    /// The unable to get contract balance error.
+    UnableToGetContractBalance([u8; 32]),
+}
 
 /// The shadow ops error.
 #[derive(Debug, Clone)]

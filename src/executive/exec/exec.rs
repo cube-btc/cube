@@ -769,6 +769,7 @@ pub async fn execute(
             // Coin opcodes.
             Opcode::OP_BALANCE(OP_BALANCE) => {
                 OP_BALANCE::execute(&mut stack_holder, coin_holder)
+                    .await
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
             Opcode::OP_TRANSFER(OP_TRANSFER) => {
