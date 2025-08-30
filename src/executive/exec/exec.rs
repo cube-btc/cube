@@ -803,10 +803,12 @@ pub async fn execute(
             }
             Opcode::OP_SHADOW_ALLOC_UP_ALL(OP_SHADOW_ALLOC_UP_ALL) => {
                 OP_SHADOW_ALLOC_UP_ALL::execute(&mut stack_holder, coin_holder)
+                    .await
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
             Opcode::OP_SHADOW_ALLOC_DOWN_ALL(OP_SHADOW_ALLOC_DOWN_ALL) => {
                 OP_SHADOW_ALLOC_DOWN_ALL::execute(&mut stack_holder, coin_holder)
+                    .await
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
             // Storage opcodes.
