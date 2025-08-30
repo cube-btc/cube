@@ -788,14 +788,17 @@ pub async fn execute(
             // Shadow space opcodes.
             Opcode::OP_SHADOW_ALLOC(OP_SHADOW_ALLOC) => {
                 OP_SHADOW_ALLOC::execute(&mut stack_holder, coin_holder)
+                    .await
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
             Opcode::OP_SHADOW_ALLOC_UP(OP_SHADOW_ALLOC_UP) => {
                 OP_SHADOW_ALLOC_UP::execute(&mut stack_holder, coin_holder)
+                    .await
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
             Opcode::OP_SHADOW_ALLOC_DOWN(OP_SHADOW_ALLOC_DOWN) => {
                 OP_SHADOW_ALLOC_DOWN::execute(&mut stack_holder, coin_holder)
+                    .await
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
             Opcode::OP_SHADOW_ALLOC_UP_ALL(OP_SHADOW_ALLOC_UP_ALL) => {

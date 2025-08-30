@@ -2,7 +2,8 @@ use crate::inscriptive::{
     coin_holder::{
         account_coin_holder::account_coin_holder_error::AccountBalanceUpError,
         contract_coin_holder::contract_coin_holder_error::{
-            ContractBalanceDownError, ContractBalanceUpError,
+            ContractBalanceDownError, ContractBalanceUpError, ShadowAllocDownAllError,
+            ShadowAllocDownError, ShadowAllocError, ShadowAllocUpAllError, ShadowAllocUpError,
         },
     },
     state_holder::state_holder_error::StateHolderInsertUpdateValueError,
@@ -135,7 +136,22 @@ pub enum CoinTransferError {
 
 /// The shadow ops error.
 #[derive(Debug, Clone)]
-pub enum ShadowOpsError {} // TODO: Implement
+pub enum ShadowOpsError {
+    /// The account key is invalid.
+    InvalidAccountKeyBytes(Vec<u8>),
+    /// The amount is invalid.
+    InvalidAmountBytes(Vec<u8>),
+    /// The shadow alloc error.
+    ShadowAllocError(ShadowAllocError),
+    /// The shadow alloc up error.
+    ShadowAllocUpError(ShadowAllocUpError),
+    /// The shadow alloc down error.
+    ShadowAllocDownError(ShadowAllocDownError),
+    /// The shadow alloc up all error.
+    ShadowAllocUpAllError(ShadowAllocUpAllError),
+    /// The shadow alloc down all error.
+    ShadowAllocDownAllError(ShadowAllocDownAllError),
+}
 
 /// The stack error.
 #[derive(Debug, Clone)]
