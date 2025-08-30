@@ -145,13 +145,13 @@ Cube uses an extended Bitcoin script with splicing, better memory management, an
 
 ## Call info
 
-| Opcode         | Bytecode | Ops | Input                | Output                 | Description                                                                     |
-|:---------------|:---------|:----|:---------------------|:-----------------------|:--------------------------------------------------------------------------------|
-| OP_CALLER      | 0xb9     | 1   | -                    | True/false id          | Pushes the caller type and id to the stack.                                     |
-| OP_OPSBUDGET   | 0xba     | 1   | -                    | out                    | Pushes the ops budget into stack.                                               |
-| OP_OPSCOUNTER  | 0xbb     | 1   | -                    | out                    | Pushes the number of ops spent into stack.                                      |
-| OP_OPSPRICE    | 0xbc     | 1   | -                    | out                    | Pushes the ops price into stack.                                                |
-| OP_TIMESTAMP   | 0xbd     | 1   | -                    | out                    | Pushes the call timestamp into stack.                                           |
+| Opcode         | Bytecode | Ops | Input                | Output                 | Description                                                                      |
+|:---------------|:---------|:----|:---------------------|:-----------------------|:---------------------------------------------------------------------------------|
+| OP_CALLER      | 0xb9     | 1   | -                    | True/false id          | Pushes the caller type and id to the stack.                                      |
+| OP_OPSBUDGET   | 0xba     | 1   | -                    | out                    | Pushes the ops budget into stack.                                                |
+| OP_OPSCOUNTER  | 0xbb     | 1   | -                    | out                    | Pushes the number of ops spent into stack.                                       |
+| OP_OPSPRICE    | 0xbc     | 1   | -                    | out                    | Pushes the ops price into stack.                                                 |
+| OP_TIMESTAMP   | 0xbd     | 1   | -                    | out                    | Pushes the call timestamp into stack.                                            |
 
 ## Call 
 
@@ -160,29 +160,37 @@ Cube uses an extended Bitcoin script with splicing, better memory management, an
 | OP_CALL        | 0xbe     | 5   | [args] count index    | Return.                | Calls an internal contract method.                                              |
 | OP_CALLEXT     | 0xbf     | 50  | [args] count index id | Return.                | Calls an external contract method.                                              |
 
-## Payment 
+## Coin 
 
-| Opcode           | Bytecode | Ops              | Input                 | Output                 | Description                                                          |
-|:-----------------|:---------|:-----------------|:-----------|:-----------------------|:--------------------------------------------------------------------------------|
-| OP_PAYABLEALLOC  | 0xc0     | 1                | -          | out                    | Pushes allocated satoshis amount to the stack.                                  |
-| OP_PAYABLESPENT  | 0xc1     | 1                | -          | out                    | Pushes spent satoshis amount to the stack.                                      |
-| OP_PAYABLELEFT   | 0xc2     | 1                | -          | out                    | Pushes left satoshis amount to the stack.                                       |
-| OP_PAY           | 0xc3     | 10               | key amount | Nothing/fail.          | Pays the account the specified amount.                                          |
+| Opcode           | Bytecode | Ops              | Input                   | Output        | Description                                                             |
+|:-----------------|:---------|:-----------------|:------------------------|:--------------|:------------------------------------------------------------------------|
+| OP_BALANCE       | 0xc0     | 1                | kind destination        | out           | Pops the kind and pushes the contract or account balance into stack.    |
+| OP_TRANSFER      | 0xc1     | 10               | kind destination amount | out           | Pops the kind and transfers sats to the account or the contract.        |
 
-## Memory
+## Shadowing 
 
-| Opcode         | Bytecode | Ops | Input                | Output                 | Description                                                                     |
-|:---------------|:---------|:----|:---------------------|:-----------------------|:--------------------------------------------------------------------------------|
-| OP_MWRITE      | 0xc4     | 5   | x1 x2                | x1                     | Pops the memory key and value, and writes the value to the contract's memory.   |
-| OP_MREAD       | 0xc5     | 5   | x1                   | x1                     | Pops the memory key, and reads the value from the contract's memory.            |
-| OP_MFREE       | 0xc6     | 1   | x1                   | x1                     | Pops the memory key, and frees the key/value from the contract's memory.        |
+| Opcode                    | Bytecode | Ops              | Input                 | Output                 | Description                                             |
+|:--------------------------|:---------|:-----------------|:-----------|:-----------------------|:-------------------------------------------------------------------|
+| OP_SHADOW_ALLOC           | 0xc2     | 1                | key        | Nothing/fail.          | Allocates within the contract shadow space an account.             |
+| OP_SHADOW_ALLOC_UP        | 0xc3     | 1                | key amount | Nothing/fail.          | Increases the shadow space allocation of an account.               |
+| OP_SHADOW_ALLOC_DOWN      | 0xc4     | 10               | key amount | Nothing/fail.          | Decreases the shadow space allocation of an account.               |
+| OP_SHADOW_ALLOC_UP_ALL    | 0xc5     | 10               | amount     | Nothing/fail.          | Proportionally increases shadow space allocations of all accounts. |
+| OP_SHADOW_ALLOC_DOWN_ALL  | 0xc6     | 10               | amount     | Nothing/fail.          | Proportionally decreases shadow space allocations of all accounts. |
 
 ## Storage
 
-| Opcode         | Bytecode | Ops | Input                | Output                 | Description                                                                     |
-|:---------------|:---------|:----|:---------------------|:-----------------------|:--------------------------------------------------------------------------------|
-| OP_SWRITE      | 0xc7     | 50  | x1 x2                | x1                     | Pops the storage key and value, and writes the value to the contract's storage. |
-| OP_SREAD       | 0xc8     | 50  | x1                   | x1                     | Pops the storage key, and reads the value from the contract's storage.          |
+| Opcode         | Bytecode | Ops | Input                | Output                 | Description                                                                      |
+|:---------------|:---------|:----|:---------------------|:-----------------------|:---------------------------------------------------------------------------------|
+| OP_SWRITE      | 0xc7     | 50  | x1 x2                | x1                     | Pops the storage key and value, and writes the value to the contract's storage.  |
+| OP_SREAD       | 0xc8     | 50  | x1                   | x1                     | Pops the storage key, and reads the value from the contract's storage.           |
+
+## Memory
+
+| Opcode         | Bytecode | Ops | Input                | Output                 | Description                                                                      |
+|:---------------|:---------|:----|:---------------------|:-----------------------|:---------------------------------------------------------------------------------|
+| OP_MWRITE      | 0xca     | 5   | x1 x2                | x1                     | Pops the memory key and value, and writes the value to the contract's memory.    |
+| OP_MREAD       | 0xcb     | 5   | x1                   | x1                     | Pops the memory key, and reads the value from the contract's memory.             |
+| OP_MFREE       | 0xcc     | 1   | x1                   | x1                     | Pops the memory key, and frees the key/value from the contract's memory.         |
 
 ## Reserved
 

@@ -1,7 +1,4 @@
-use crate::executive::{
-    exec::accountant::accountant_error::InsertAllocError,
-    stack::{stack_error::StackError, stack_item::StackItem},
-};
+use crate::executive::stack::{stack_error::StackError, stack_item::StackItem};
 use std::fmt;
 
 /// A section of executable block in the `Contract`.    
@@ -37,8 +34,6 @@ pub enum ExecutionError {
     PayableAllocationCallerIsNotAnAccountError,
     /// Payable with internal call error.
     PayableWithInternalCallError,
-    /// Payable allocation insertion error.
-    AccountantAllocationInsertionError(InsertAllocError),
     /// Invalid stack ending error.
     InvalidStackEndingError,
     /// Base ops price mismatch error.
@@ -92,9 +87,6 @@ impl fmt::Display for ExecutionError {
             }
             ExecutionError::PayableWithInternalCallError => {
                 write!(f, "Payable with internal call")
-            }
-            ExecutionError::AccountantAllocationInsertionError(error) => {
-                write!(f, "Accountant allocation insertion error: {:?}", error)
             }
             ExecutionError::InvalidStackEndingError => {
                 write!(f, "Invalid stack ending")

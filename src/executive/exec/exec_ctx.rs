@@ -1,17 +1,15 @@
 use crate::{
     constructive::entry::combinator::combinators::call::call::Call,
     executive::{
-        exec::{
-            accountant::{accountant::Accountant, accountant_error::PayListError},
-            caller::Caller,
-            exec::execute,
-            exec_error::ExecutionError,
-        },
+        exec::{caller::Caller, exec::execute, exec_error::ExecutionError},
         stack::stack_item::StackItem,
     },
-    inscriptive::{repo::repo::PROGRAMS_REPO, state_holder::state_holder::STATE_HOLDER},
+    inscriptive::{
+        coin_holder::coin_holder::COIN_HOLDER, repo::repo::PROGRAMS_REPO,
+        state_holder::state_holder::STATE_HOLDER,
+    },
 };
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
 /// The type of the ops spent.
 type OpsSpent = u32;
@@ -23,10 +21,10 @@ type FeesSpent = u32;
 pub struct ExecCtx {
     // The state holder.
     state_holder: STATE_HOLDER,
+    // The coin holder.
+    coin_holder: COIN_HOLDER,
     // The programs repo.
     programs_repo: PROGRAMS_REPO,
-    // The accountant.
-    accountant: Accountant,
     // External ops counter.
     external_ops_counter: u32,
     // The base ops price.
@@ -41,14 +39,15 @@ impl ExecCtx {
     /// Creates a new execution context.
     pub fn new(
         state_holder: &STATE_HOLDER,
+        coin_holder: &COIN_HOLDER,
         programs_repo: &PROGRAMS_REPO,
         base_ops_price: u32,
         timestamp: u64,
     ) -> Self {
         Self {
             state_holder: Arc::clone(state_holder),
+            coin_holder: Arc::clone(coin_holder),
             programs_repo: Arc::clone(programs_repo),
-            accountant: Accountant::new(),
             external_ops_counter: 0,
             base_ops_price,
             timestamp,
@@ -106,14 +105,33 @@ impl ExecCtx {
             _state_holder.pre_execution();
         }
 
+        let coin_holder = &self.coin_holder;
+
+        // Pre-execution coin holder backup.
+        {
+            let contract_coin_holder = {
+                let _coin_holder = coin_holder.lock().await;
+                _coin_holder.contract_coin_holder()
+            };
+
+            {
+                let mut _contract_coin_holder = contract_coin_holder.lock().await;
+                _contract_coin_holder.pre_execution();
+            }
+
+            let account_coin_holder = {
+                let _coin_holder = coin_holder.lock().await;
+                _coin_holder.account_coin_holder()
+            };
+
+            {
+                let mut _account_coin_holder = account_coin_holder.lock().await;
+                _account_coin_holder.pre_execution();
+            }
+        }
+
         // Programs repo.
         let programs_repo = &self.programs_repo;
-
-        // Accountant.
-        let accountant = &mut self.accountant;
-
-        // Backup the accountant.
-        accountant.backup();
 
         // Execution.
         let exectuion_result = execute(
@@ -129,7 +147,6 @@ impl ExecCtx {
             external_ops_counter,
             state_holder,
             programs_repo,
-            accountant,
         )
         .await;
 
@@ -164,14 +181,34 @@ impl ExecCtx {
                 Ok(())
             }
             Err(error) => {
-                // Rollback the state.
+                // Rollback last on state holder.
                 {
                     let mut _state_holder = state_holder.lock().await;
                     _state_holder.rollback_last();
                 }
 
-                // Rollback the accountant.
-                accountant.rollback_last();
+                // Rollback last on coin holder.
+                {
+                    let contract_coin_holder = {
+                        let _coin_holder = coin_holder.lock().await;
+                        _coin_holder.contract_coin_holder()
+                    };
+
+                    {
+                        let mut _contract_coin_holder = contract_coin_holder.lock().await;
+                        _contract_coin_holder.rollback_last();
+                    }
+
+                    let account_coin_holder = {
+                        let _coin_holder = coin_holder.lock().await;
+                        _coin_holder.account_coin_holder()
+                    };
+
+                    {
+                        let mut _account_coin_holder = account_coin_holder.lock().await;
+                        _account_coin_holder.rollback_last();
+                    }
+                }
 
                 // Return the error.
                 return Err(error);
@@ -187,19 +224,38 @@ impl ExecCtx {
             _state_holder.rollback_all();
         }
 
-        // Rollback the accountant.
-        self.accountant.rollback_all();
+        // Rollback the coin holder.
+        {
+            // Get the contract coin holder.
+            let contract_coin_holder = {
+                let _coin_holder = self.coin_holder.lock().await;
+                _coin_holder.contract_coin_holder()
+            };
+
+            // Rollback the contract coin holder.
+            {
+                let mut _contract_coin_holder = contract_coin_holder.lock().await;
+                _contract_coin_holder.rollback_all();
+            }
+
+            // Get the account coin holder.
+            let account_coin_holder = {
+                let _coin_holder = self.coin_holder.lock().await;
+                _coin_holder.account_coin_holder()
+            };
+
+            // Rollback the account coin holder.
+            {
+                let mut _account_coin_holder = account_coin_holder.lock().await;
+                _account_coin_holder.rollback_all();
+            }
+        }
 
         // Set the external ops counter to zero.
         self.external_ops_counter = 0;
 
         // Clear the passed calls.
         self.passed_calls.clear();
-    }
-
-    /// Returns the pay list.
-    pub fn pay_list(&self) -> Result<HashMap<[u8; 32], u32>, PayListError> {
-        self.accountant.pay_list()
     }
 
     /// Returns the passed calls length.

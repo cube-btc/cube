@@ -1,4 +1,5 @@
 use super::compiler_error::{OpcodeCompileError, OpcodeDecompileError};
+use crate::executive::opcode::opcode::Opcode;
 use crate::executive::opcode::opcodes::altstack::op_fromaltstack::OP_FROMALTSTACK;
 use crate::executive::opcode::opcodes::altstack::op_toaltstack::OP_TOALTSTACK;
 use crate::executive::opcode::opcodes::arithmetic::op_0notequal::OP_0NOTEQUAL;
@@ -41,6 +42,8 @@ use crate::executive::opcode::opcodes::callinfo::op_opsbudget::OP_OPSBUDGET;
 use crate::executive::opcode::opcodes::callinfo::op_opscounter::OP_OPSCOUNTER;
 use crate::executive::opcode::opcodes::callinfo::op_opsprice::OP_OPSPRICE;
 use crate::executive::opcode::opcodes::callinfo::op_timestamp::OP_TIMESTAMP;
+use crate::executive::opcode::opcodes::coin::op_balance::OP_BALANCE;
+use crate::executive::opcode::opcodes::coin::op_transfer::OP_TRANSFER;
 use crate::executive::opcode::opcodes::digest::op_blake2bvar::OP_BLAKE2BVAR;
 use crate::executive::opcode::opcodes::digest::op_blake2svar::OP_BLAKE2SVAR;
 use crate::executive::opcode::opcodes::digest::op_hash160::OP_HASH160;
@@ -62,10 +65,6 @@ use crate::executive::opcode::opcodes::flow::op_verify::OP_VERIFY;
 use crate::executive::opcode::opcodes::memory::op_free::OP_MFREE;
 use crate::executive::opcode::opcodes::memory::op_mread::OP_MREAD;
 use crate::executive::opcode::opcodes::memory::op_mwrite::OP_MWRITE;
-use crate::executive::opcode::opcodes::payment::op_pay::OP_PAY;
-use crate::executive::opcode::opcodes::payment::op_payablealloc::OP_PAYABLEALLOC;
-use crate::executive::opcode::opcodes::payment::op_payableleft::OP_PAYABLELEFT;
-use crate::executive::opcode::opcodes::payment::op_payablespent::OP_PAYABLESPENT;
 use crate::executive::opcode::opcodes::push::op_10::OP_10;
 use crate::executive::opcode::opcodes::push::op_11::OP_11;
 use crate::executive::opcode::opcodes::push::op_12::OP_12;
@@ -96,6 +95,11 @@ use crate::executive::opcode::opcodes::secp::op_secppointadd::OP_SECPPOINTADD;
 use crate::executive::opcode::opcodes::secp::op_secppointmul::OP_SECPPOINTMUL;
 use crate::executive::opcode::opcodes::secp::op_secpscalaradd::OP_SECPSCALARADD;
 use crate::executive::opcode::opcodes::secp::op_secpscalarmul::OP_SECPSCALARMUL;
+use crate::executive::opcode::opcodes::shadowing::op_shadow_alloc::OP_SHADOW_ALLOC;
+use crate::executive::opcode::opcodes::shadowing::op_shadow_alloc_down::OP_SHADOW_ALLOC_DOWN;
+use crate::executive::opcode::opcodes::shadowing::op_shadow_alloc_down_all::OP_SHADOW_ALLOC_DOWN_ALL;
+use crate::executive::opcode::opcodes::shadowing::op_shadow_alloc_up::OP_SHADOW_ALLOC_UP;
+use crate::executive::opcode::opcodes::shadowing::op_shadow_alloc_up_all::OP_SHADOW_ALLOC_UP_ALL;
 use crate::executive::opcode::opcodes::signature::op_checkblssig::OP_CHECKBLSSIG;
 use crate::executive::opcode::opcodes::signature::op_checkblssigagg::OP_CHECKBLSSIGAGG;
 use crate::executive::opcode::opcodes::signature::op_checkschnorrsig::OP_CHECKSCHNORRSIG;
@@ -124,7 +128,6 @@ use crate::executive::opcode::opcodes::stack::op_swap::OP_SWAP;
 use crate::executive::opcode::opcodes::stack::op_tuck::OP_TUCK;
 use crate::executive::opcode::opcodes::storage::op_sread::OP_SREAD;
 use crate::executive::opcode::opcodes::storage::op_swrite::OP_SWRITE;
-use crate::executive::opcode::opcode::Opcode;
 
 /// A trait for compiling and decompiling an opcode.
 pub trait OpcodeCompiler {
@@ -270,18 +273,22 @@ impl OpcodeCompiler for Opcode {
             // Call
             Opcode::OP_CALL(_) => Ok(OP_CALL::bytecode()),
             Opcode::OP_CALLEXT(_) => Ok(OP_CALLEXT::bytecode()),
-            // Payment
-            Opcode::OP_PAYABLEALLOC(_) => Ok(OP_PAYABLEALLOC::bytecode()),
-            Opcode::OP_PAYABLESPENT(_) => Ok(OP_PAYABLESPENT::bytecode()),
-            Opcode::OP_PAYABLELEFT(_) => Ok(OP_PAYABLELEFT::bytecode()),
-            Opcode::OP_PAY(_) => Ok(OP_PAY::bytecode()),
+            // Coin
+            Opcode::OP_BALANCE(_) => Ok(OP_BALANCE::bytecode()),
+            Opcode::OP_TRANSFER(_) => Ok(OP_TRANSFER::bytecode()),
+            // Shadow space
+            Opcode::OP_SHADOW_ALLOC(_) => Ok(OP_SHADOW_ALLOC::bytecode()),
+            Opcode::OP_SHADOW_ALLOC_UP(_) => Ok(OP_SHADOW_ALLOC_UP::bytecode()),
+            Opcode::OP_SHADOW_ALLOC_DOWN(_) => Ok(OP_SHADOW_ALLOC_DOWN::bytecode()),
+            Opcode::OP_SHADOW_ALLOC_UP_ALL(_) => Ok(OP_SHADOW_ALLOC_UP_ALL::bytecode()),
+            Opcode::OP_SHADOW_ALLOC_DOWN_ALL(_) => Ok(OP_SHADOW_ALLOC_DOWN_ALL::bytecode()),
+            // Storage
+            Opcode::OP_SWRITE(_) => Ok(OP_SWRITE::bytecode()),
+            Opcode::OP_SREAD(_) => Ok(OP_SREAD::bytecode()),
             // Memory
             Opcode::OP_MWRITE(_) => Ok(OP_MWRITE::bytecode()),
             Opcode::OP_MREAD(_) => Ok(OP_MREAD::bytecode()),
             Opcode::OP_MFREE(_) => Ok(OP_MFREE::bytecode()),
-            // Storage
-            Opcode::OP_SWRITE(_) => Ok(OP_SWRITE::bytecode()),
-            Opcode::OP_SREAD(_) => Ok(OP_SREAD::bytecode()),
         }
     }
 
@@ -505,18 +512,22 @@ impl OpcodeCompiler for Opcode {
             // Call
             0xbe => Ok(Opcode::OP_CALL(OP_CALL)),
             0xbf => Ok(Opcode::OP_CALLEXT(OP_CALLEXT)),
-            // Payment
-            0xc0 => Ok(Opcode::OP_PAYABLEALLOC(OP_PAYABLEALLOC)),
-            0xc1 => Ok(Opcode::OP_PAYABLESPENT(OP_PAYABLESPENT)),
-            0xc2 => Ok(Opcode::OP_PAYABLELEFT(OP_PAYABLELEFT)),
-            0xc3 => Ok(Opcode::OP_PAY(OP_PAY)),
-            // Memory
-            0xc4 => Ok(Opcode::OP_MWRITE(OP_MWRITE)),
-            0xc5 => Ok(Opcode::OP_MREAD(OP_MREAD)),
-            0xc6 => Ok(Opcode::OP_MFREE(OP_MFREE)),
+            // Coin
+            0xc0 => Ok(Opcode::OP_BALANCE(OP_BALANCE)),
+            0xc1 => Ok(Opcode::OP_TRANSFER(OP_TRANSFER)),
+            // Shadow space
+            0xc2 => Ok(Opcode::OP_SHADOW_ALLOC(OP_SHADOW_ALLOC)),
+            0xc3 => Ok(Opcode::OP_SHADOW_ALLOC_UP(OP_SHADOW_ALLOC_UP)),
+            0xc4 => Ok(Opcode::OP_SHADOW_ALLOC_DOWN(OP_SHADOW_ALLOC_DOWN)),
+            0xc5 => Ok(Opcode::OP_SHADOW_ALLOC_UP_ALL(OP_SHADOW_ALLOC_UP_ALL)),
+            0xc6 => Ok(Opcode::OP_SHADOW_ALLOC_DOWN_ALL(OP_SHADOW_ALLOC_DOWN_ALL)),
             // Storage
             0xc7 => Ok(Opcode::OP_SWRITE(OP_SWRITE)),
             0xc8 => Ok(Opcode::OP_SREAD(OP_SREAD)),
+            // Memory
+            0xca => Ok(Opcode::OP_MWRITE(OP_MWRITE)),
+            0xcb => Ok(Opcode::OP_MREAD(OP_MREAD)),
+            0xcc => Ok(Opcode::OP_MFREE(OP_MFREE)),
             // Undefined
             _ => Err(OpcodeDecompileError::UndefinedOpcodeError),
         }

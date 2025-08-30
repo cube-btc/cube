@@ -1,10 +1,4 @@
 #![allow(non_camel_case_types)]
-
-use crate::executive::opcode::opcodes::{
-    payment::op_pay::OP_PAY,
-    storage::{op_sread::OP_SREAD, op_swrite::OP_SWRITE},
-};
-
 use super::opcodes::{
     altstack::{op_fromaltstack::OP_FROMALTSTACK, op_toaltstack::OP_TOALTSTACK},
     arithmetic::{
@@ -37,10 +31,6 @@ use super::opcodes::{
         op_returnsome::OP_RETURNSOME, op_verify::OP_VERIFY,
     },
     memory::{op_free::OP_MFREE, op_mread::OP_MREAD, op_mwrite::OP_MWRITE},
-    payment::{
-        op_payablealloc::OP_PAYABLEALLOC, op_payableleft::OP_PAYABLELEFT,
-        op_payablespent::OP_PAYABLESPENT,
-    },
     push::{
         op_10::OP_10, op_11::OP_11, op_12::OP_12, op_13::OP_13, op_14::OP_14, op_15::OP_15,
         op_16::OP_16, op_2::OP_2, op_3::OP_3, op_4::OP_4, op_5::OP_5, op_6::OP_6, op_7::OP_7,
@@ -69,6 +59,15 @@ use super::opcodes::{
         op_ifdup::OP_IFDUP, op_nip::OP_NIP, op_over::OP_OVER, op_pick::OP_PICK, op_roll::OP_ROLL,
         op_rot::OP_ROT, op_swap::OP_SWAP, op_tuck::OP_TUCK,
     },
+};
+use crate::executive::opcode::opcodes::{
+    coin::{op_balance::OP_BALANCE, op_transfer::OP_TRANSFER},
+    shadowing::{
+        op_shadow_alloc::OP_SHADOW_ALLOC, op_shadow_alloc_down::OP_SHADOW_ALLOC_DOWN,
+        op_shadow_alloc_down_all::OP_SHADOW_ALLOC_DOWN_ALL, op_shadow_alloc_up::OP_SHADOW_ALLOC_UP,
+        op_shadow_alloc_up_all::OP_SHADOW_ALLOC_UP_ALL,
+    },
+    storage::{op_sread::OP_SREAD, op_swrite::OP_SWRITE},
 };
 use std::fmt::{self, Display};
 
@@ -203,18 +202,22 @@ pub enum Opcode {
     // Call
     OP_CALL(OP_CALL),
     OP_CALLEXT(OP_CALLEXT),
-    // Payment
-    OP_PAYABLEALLOC(OP_PAYABLEALLOC),
-    OP_PAYABLESPENT(OP_PAYABLESPENT),
-    OP_PAYABLELEFT(OP_PAYABLELEFT),
-    OP_PAY(OP_PAY),
+    // Coin
+    OP_BALANCE(OP_BALANCE),
+    OP_TRANSFER(OP_TRANSFER),
+    // Shadow space
+    OP_SHADOW_ALLOC(OP_SHADOW_ALLOC),
+    OP_SHADOW_ALLOC_UP(OP_SHADOW_ALLOC_UP),
+    OP_SHADOW_ALLOC_DOWN(OP_SHADOW_ALLOC_DOWN),
+    OP_SHADOW_ALLOC_UP_ALL(OP_SHADOW_ALLOC_UP_ALL),
+    OP_SHADOW_ALLOC_DOWN_ALL(OP_SHADOW_ALLOC_DOWN_ALL),
+    // Storage
+    OP_SWRITE(OP_SWRITE),
+    OP_SREAD(OP_SREAD),
     // Memory
     OP_MWRITE(OP_MWRITE),
     OP_MREAD(OP_MREAD),
     OP_MFREE(OP_MFREE),
-    // Storage
-    OP_SWRITE(OP_SWRITE),
-    OP_SREAD(OP_SREAD),
 }
 
 impl Display for Opcode {
@@ -350,18 +353,22 @@ impl Display for Opcode {
             // Call
             Opcode::OP_CALL(_) => write!(f, "OP_CALL"),
             Opcode::OP_CALLEXT(_) => write!(f, "OP_CALLEXT"),
-            // Payment
-            Opcode::OP_PAYABLEALLOC(_) => write!(f, "OP_PAYABLEALLOC"),
-            Opcode::OP_PAYABLESPENT(_) => write!(f, "OP_PAYABLESPENT"),
-            Opcode::OP_PAYABLELEFT(_) => write!(f, "OP_PAYABLELEFT"),
-            Opcode::OP_PAY(_) => write!(f, "OP_PAY"),
+            // Coin
+            Opcode::OP_BALANCE(_) => write!(f, "OP_BALANCE"),
+            Opcode::OP_TRANSFER(_) => write!(f, "OP_TRANSFER"),
+            // Shadow space
+            Opcode::OP_SHADOW_ALLOC(_) => write!(f, "OP_SHADOW_ALLOC"),
+            Opcode::OP_SHADOW_ALLOC_UP(_) => write!(f, "OP_SHADOW_ALLOC_UP"),
+            Opcode::OP_SHADOW_ALLOC_DOWN(_) => write!(f, "OP_SHADOW_ALLOC_DOWN"),
+            Opcode::OP_SHADOW_ALLOC_UP_ALL(_) => write!(f, "OP_SHADOW_ALLOC_UP_ALL"),
+            Opcode::OP_SHADOW_ALLOC_DOWN_ALL(_) => write!(f, "OP_SHADOW_ALLOC_DOWN_ALL"),
+            // Storage
+            Opcode::OP_SWRITE(_) => write!(f, "OP_SWRITE"),
+            Opcode::OP_SREAD(_) => write!(f, "OP_SREAD"),
             // Memory
             Opcode::OP_MWRITE(_) => write!(f, "OP_MWRITE"),
             Opcode::OP_MREAD(_) => write!(f, "OP_MREAD"),
             Opcode::OP_MFREE(_) => write!(f, "OP_MFREE"),
-            // Storage
-            Opcode::OP_SWRITE(_) => write!(f, "OP_SWRITE"),
-            Opcode::OP_SREAD(_) => write!(f, "OP_SREAD"),
         }
     }
 }

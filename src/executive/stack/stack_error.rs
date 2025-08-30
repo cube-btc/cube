@@ -1,4 +1,4 @@
-use crate::{executive::exec::accountant::accountant_error::InsertPaymentError, inscriptive::state_holder::state_holder_error::StateHolderInsertUpdateValueError};
+use crate::inscriptive::state_holder::state_holder_error::StateHolderInsertUpdateValueError;
 
 /// The call error.
 #[derive(Debug, Clone)]
@@ -91,16 +91,13 @@ pub enum MandatoryError {
     MandatoryVerifyError,
 }
 
-/// The OP_PAY error.
+/// The coin ops error.
 #[derive(Debug, Clone)]
-pub enum PaymentError {
-    /// The caller is not an account.
-    CallerIsNotAnAccount,
-    /// The payable allocation exceeded error.
-    PayableAllocationExceeded,
-    /// The accountant payment insertion error.
-    AccountantPaymentInsertionError(InsertPaymentError),
-}
+pub enum CoinOpsError {} // TODO: Implement
+
+/// The shadow ops error.
+#[derive(Debug, Clone)]
+pub enum ShadowOpsError {} // TODO: Implement
 
 /// The stack error.
 #[derive(Debug, Clone)]
@@ -149,6 +146,8 @@ pub enum StackError {
     CallError(CallError),
     // Key conversion error.
     Key32BytesConversionError,
-    /// The payment error.
-    PaymentError(PaymentError),
+    /// The coin ops error.
+    CoinOpsError(CoinOpsError),
+    /// The shadow ops error.
+    ShadowOpsError(ShadowOpsError),
 }

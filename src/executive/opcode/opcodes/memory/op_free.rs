@@ -50,8 +50,8 @@ impl OP_MFREE {
         Ok(())
     }
 
-    /// Returns the bytecode for the `OP_MFREE` opcode (0xc2).
+    /// Returns the bytecode for the `OP_MFREE` opcode (0xcc).
     pub fn bytecode() -> Vec<u8> {
-        vec![0xc6]
+        vec![0xcc]
     }
 }
