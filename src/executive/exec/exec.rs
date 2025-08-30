@@ -782,6 +782,7 @@ pub async fn execute(
             }
             Opcode::OP_TRANSFER(OP_TRANSFER) => {
                 OP_TRANSFER::execute(&mut stack_holder, coin_holder)
+                    .await
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
             // Shadow space opcodes.

@@ -1,4 +1,12 @@
-use crate::inscriptive::state_holder::state_holder_error::StateHolderInsertUpdateValueError;
+use crate::inscriptive::{
+    coin_holder::{
+        account_coin_holder::account_coin_holder_error::AccountBalanceUpError,
+        contract_coin_holder::contract_coin_holder_error::{
+            ContractBalanceDownError, ContractBalanceUpError,
+        },
+    },
+    state_holder::state_holder_error::StateHolderInsertUpdateValueError,
+};
 
 /// The call error.
 #[derive(Debug, Clone)]
@@ -94,8 +102,6 @@ pub enum MandatoryError {
 /// The coin balance get error.
 #[derive(Debug, Clone)]
 pub enum CoinBalanceGetError {
-    /// The kind is invalid.
-    InvalidKindBytes(Vec<u8>),
     /// The kind tier is invalid.
     InvalidKindTier(usize),
     /// The account key is invalid.
@@ -110,7 +116,22 @@ pub enum CoinBalanceGetError {
 
 /// The coin transfer error.
 #[derive(Debug, Clone)]
-pub enum CoinTransferError {}
+pub enum CoinTransferError {
+    /// The kind tier is invalid.
+    InvalidKindTier(usize),
+    /// The account key is invalid.
+    InvalidAccountKeyBytes(Vec<u8>),
+    /// The contract id is invalid.
+    InvalidContractIdBytes(Vec<u8>),
+    /// The amount is invalid.
+    InvalidAmountBytes(Vec<u8>),
+    /// The contract balance down error.
+    ContractBalanceDownError([u8; 32], ContractBalanceDownError),
+    /// The account balance up error.
+    AccountBalanceUpError([u8; 32], AccountBalanceUpError),
+    /// The contract balance up error.
+    ContractBalanceUpError([u8; 32], ContractBalanceUpError),
+}
 
 /// The shadow ops error.
 #[derive(Debug, Clone)]
