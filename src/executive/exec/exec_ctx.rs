@@ -146,6 +146,7 @@ impl ExecCtx {
             internal_ops_counter,
             external_ops_counter,
             state_holder,
+            coin_holder,
             programs_repo,
         )
         .await;

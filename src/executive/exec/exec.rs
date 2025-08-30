@@ -25,6 +25,7 @@ use crate::{
                     op_caller::OP_CALLER, op_opsbudget::OP_OPSBUDGET, op_opscounter::OP_OPSCOUNTER,
                     op_opsprice::OP_OPSPRICE, op_timestamp::OP_TIMESTAMP,
                 },
+                coin::{op_balance::OP_BALANCE, op_transfer::OP_TRANSFER},
                 digest::{
                     op_blake2bvar::OP_BLAKE2BVAR, op_blake2svar::OP_BLAKE2SVAR,
                     op_hash160::OP_HASH160, op_hash256::OP_HASH256, op_ripemd160::OP_RIPEMD160,
@@ -49,6 +50,12 @@ use crate::{
                     op_secppointadd::OP_SECPPOINTADD, op_secppointmul::OP_SECPPOINTMUL,
                     op_secpscalaradd::OP_SECPSCALARADD, op_secpscalarmul::OP_SECPSCALARMUL,
                 },
+                shadowing::{
+                    op_shadow_alloc::OP_SHADOW_ALLOC, op_shadow_alloc_down::OP_SHADOW_ALLOC_DOWN,
+                    op_shadow_alloc_down_all::OP_SHADOW_ALLOC_DOWN_ALL,
+                    op_shadow_alloc_up::OP_SHADOW_ALLOC_UP,
+                    op_shadow_alloc_up_all::OP_SHADOW_ALLOC_UP_ALL,
+                },
                 signature::{
                     op_checkblssig::OP_CHECKBLSSIG, op_checkblssigagg::OP_CHECKBLSSIGAGG,
                     op_checkschnorrsig::OP_CHECKSCHNORRSIG,
@@ -71,7 +78,10 @@ use crate::{
         program::method::method_type::MethodType,
         stack::{stack_holder::StackHolder, stack_item::StackItem},
     },
-    inscriptive::{repo::repo::PROGRAMS_REPO, state_holder::state_holder::STATE_HOLDER},
+    inscriptive::{
+        coin_holder::coin_holder::COIN_HOLDER, repo::repo::PROGRAMS_REPO,
+        state_holder::state_holder::STATE_HOLDER,
+    },
 };
 
 /// The type of the external ops counter.
@@ -107,6 +117,8 @@ pub async fn execute(
     external_ops_counter: ExternalOpsCounter,
     // The state holder.
     state_holder: &STATE_HOLDER,
+    // The coin holder.
+    coin_holder: &COIN_HOLDER,
     // The programs repo.
     programs_repo: &PROGRAMS_REPO,
 ) -> Result<(Vec<StackItem>, InternalOpsCounter, ExternalOpsCounter), ExecutionError> {
@@ -711,6 +723,7 @@ pub async fn execute(
                     stack_holder.internal_ops_counter(), // Remainder of the internal ops counter passed to the next call.
                     stack_holder.external_ops_counter(), // Remainder of the external ops counter passed to the next call.
                     state_holder,
+                    coin_holder,
                     programs_repo,
                 ))
                 .await;
@@ -748,21 +761,39 @@ pub async fn execute(
                     stack_holder.internal_ops_counter(), // Remainder of the internal ops counter passed to the next call.
                     stack_holder.external_ops_counter(), // Remainder of the external ops counter passed to the next call.
                     state_holder,
+                    coin_holder,
                     programs_repo,
                 ))
                 .await;
             }
-            // Memory opcodes.
-            Opcode::OP_MWRITE(OP_MWRITE) => {
-                OP_MWRITE::execute(&mut stack_holder)
+            // Coin opcodes.
+            Opcode::OP_BALANCE(OP_BALANCE) => {
+                OP_BALANCE::execute(&mut stack_holder, coin_holder)
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
-            Opcode::OP_MREAD(OP_MREAD) => {
-                OP_MREAD::execute(&mut stack_holder)
+            Opcode::OP_TRANSFER(OP_TRANSFER) => {
+                OP_TRANSFER::execute(&mut stack_holder, coin_holder)
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
-            Opcode::OP_MFREE(OP_MFREE) => {
-                OP_MFREE::execute(&mut stack_holder)
+            // Shadow space opcodes.
+            Opcode::OP_SHADOW_ALLOC(OP_SHADOW_ALLOC) => {
+                OP_SHADOW_ALLOC::execute(&mut stack_holder, coin_holder)
+                    .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
+            }
+            Opcode::OP_SHADOW_ALLOC_UP(OP_SHADOW_ALLOC_UP) => {
+                OP_SHADOW_ALLOC_UP::execute(&mut stack_holder, coin_holder)
+                    .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
+            }
+            Opcode::OP_SHADOW_ALLOC_DOWN(OP_SHADOW_ALLOC_DOWN) => {
+                OP_SHADOW_ALLOC_DOWN::execute(&mut stack_holder, coin_holder)
+                    .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
+            }
+            Opcode::OP_SHADOW_ALLOC_UP_ALL(OP_SHADOW_ALLOC_UP_ALL) => {
+                OP_SHADOW_ALLOC_UP_ALL::execute(&mut stack_holder, coin_holder)
+                    .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
+            }
+            Opcode::OP_SHADOW_ALLOC_DOWN_ALL(OP_SHADOW_ALLOC_DOWN_ALL) => {
+                OP_SHADOW_ALLOC_DOWN_ALL::execute(&mut stack_holder, coin_holder)
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
             // Storage opcodes.
@@ -776,8 +807,18 @@ pub async fn execute(
                     .await
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
-            _ => {
-                return Err(ExecutionError::ReservedOpcodeEncounteredError);
+            // Memory opcodes.
+            Opcode::OP_MWRITE(OP_MWRITE) => {
+                OP_MWRITE::execute(&mut stack_holder)
+                    .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
+            }
+            Opcode::OP_MREAD(OP_MREAD) => {
+                OP_MREAD::execute(&mut stack_holder)
+                    .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
+            }
+            Opcode::OP_MFREE(OP_MFREE) => {
+                OP_MFREE::execute(&mut stack_holder)
+                    .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
         }
     }

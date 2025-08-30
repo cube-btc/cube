@@ -24,8 +24,6 @@ pub enum ExecutionError {
     ExternalCallAttemptAsInternalError,
     /// Return error item error.
     ReturnErrorFromStackError(StackItem),
-    /// Reserved opcode encountered error.
-    ReservedOpcodeEncounteredError,
     /// Arg type mismatch error.
     ArgTypeMismatchError,
     /// Min payable allocation error.
@@ -72,9 +70,6 @@ impl fmt::Display for ExecutionError {
             }
             ExecutionError::ReturnErrorFromStackError(error) => {
                 write!(f, "Return error from stack: {:?}", error)
-            }
-            ExecutionError::ReservedOpcodeEncounteredError => {
-                write!(f, "Reserved opcode encountered")
             }
             ExecutionError::ArgTypeMismatchError => {
                 write!(f, "Arg type mismatch")

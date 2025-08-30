@@ -1,4 +1,7 @@
-use crate::executive::stack::{stack_error::StackError, stack_holder::StackHolder};
+use crate::{
+    executive::stack::{stack_error::StackError, stack_holder::StackHolder},
+    inscriptive::coin_holder::coin_holder::COIN_HOLDER,
+};
 
 /// Transfers coins from the contract into an account or to another contract.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -6,7 +9,10 @@ use crate::executive::stack::{stack_error::StackError, stack_holder::StackHolder
 pub struct OP_TRANSFER;
 
 impl OP_TRANSFER {
-    pub fn execute(_stack_holder: &mut StackHolder) -> Result<(), StackError> {
+    pub fn execute(
+        _stack_holder: &mut StackHolder,
+        _coin_holder: &COIN_HOLDER,
+    ) -> Result<(), StackError> {
         Ok(())
     }
 

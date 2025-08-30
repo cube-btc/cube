@@ -1,4 +1,7 @@
-use crate::executive::stack::{stack_error::StackError, stack_holder::StackHolder};
+use crate::{
+    executive::stack::{stack_error::StackError, stack_holder::StackHolder},
+    inscriptive::coin_holder::coin_holder::COIN_HOLDER,
+};
 
 /// Shadow allocation down all.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -6,7 +9,10 @@ use crate::executive::stack::{stack_error::StackError, stack_holder::StackHolder
 pub struct OP_SHADOW_ALLOC_DOWN_ALL;
 
 impl OP_SHADOW_ALLOC_DOWN_ALL {
-    pub fn execute(_stack_holder: &mut StackHolder) -> Result<(), StackError> {
+    pub fn execute(
+        _stack_holder: &mut StackHolder,
+        _coin_holder: &COIN_HOLDER,
+    ) -> Result<(), StackError> {
         Ok(())
     }
 

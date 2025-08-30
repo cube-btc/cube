@@ -1,4 +1,4 @@
-use crate::executive::stack::{stack_error::StackError, stack_holder::StackHolder};
+use crate::{executive::stack::{stack_error::StackError, stack_holder::StackHolder}, inscriptive::coin_holder::coin_holder::COIN_HOLDER};
 
 /// Pushes the account's individual BTC balance into the stack.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -6,7 +6,7 @@ use crate::executive::stack::{stack_error::StackError, stack_holder::StackHolder
 pub struct OP_BALANCE;
 
 impl OP_BALANCE {
-    pub fn execute(_stack_holder: &mut StackHolder) -> Result<(), StackError> {
+    pub fn execute(_stack_holder: &mut StackHolder, _coin_holder: &COIN_HOLDER) -> Result<(), StackError> {
         Ok(())
     }
 
