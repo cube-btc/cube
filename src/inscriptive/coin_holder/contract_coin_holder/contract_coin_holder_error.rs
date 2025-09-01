@@ -57,6 +57,8 @@ pub enum ContractCoinHolderSaveError {
     ShadowSpaceTreeAllocInsertError(CONTRACT_ID, ACCOUNT_KEY, SATI_SATOSHI_AMOUNT, sled::Error),
     ShadowSpaceTreeAllocsSumInsertError(CONTRACT_ID, SATOSHI_AMOUNT, sled::Error),
     ContractBodyNotFound(CONTRACT_ID),
+    InMemoryDeallocSaveError(CONTRACT_ID, ACCOUNT_KEY),
+    OnDiskDeallocSaveError(CONTRACT_ID, ACCOUNT_KEY, sled::Error),
 }
 
 /// The state register error.
@@ -70,6 +72,15 @@ pub enum ContractCoinHolderRegisterError {
 pub enum ShadowAllocError {
     AccountKeyAlreadyAllocated(CONTRACT_ID, ACCOUNT_KEY),
     ShadowSpaceNotFound(CONTRACT_ID),
+}
+
+/// The shadow deallocation error.
+#[derive(Debug, Clone)]
+pub enum ShadowDeallocError {
+    AccountKeyAlreadyEphemerallyDeallocated(CONTRACT_ID, ACCOUNT_KEY),
+    UnableToGetAccountAllocValue(CONTRACT_ID, ACCOUNT_KEY),
+    AlocValueIsNonZero(CONTRACT_ID, ACCOUNT_KEY),
+    UnableToGetDeallocList(CONTRACT_ID),
 }
 
 /// The state save error.   

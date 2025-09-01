@@ -4,7 +4,7 @@ use super::contract_coin_holder_error::{
 use crate::inscriptive::coin_holder::contract_coin_holder::contract_coin_holder_error::{
     ContractBalanceDownError, ContractBalanceUpError, ContractCoinHolderRegisterError,
     ShadowAllocDownAllError, ShadowAllocDownError, ShadowAllocError, ShadowAllocUpAllError,
-    ShadowAllocUpError,
+    ShadowAllocUpError, ShadowDeallocError,
 };
 use crate::operative::Chain;
 use std::collections::HashMap;
@@ -64,12 +64,16 @@ pub struct ContractCoinHolder {
     ephemeral_balances: HashMap<CONTRACT_ID, u64>,
     /// In-memory cache of ephemeral contract shadow spaces.
     ephemeral_shadow_spaces: HashMap<CONTRACT_ID, ContractShadowSpace>,
+    /// In-memory cache of ephemeral deallocs to remove.
+    epheremal_dealloc_list: HashMap<CONTRACT_ID, Vec<ACCOUNT_KEY>>,
 
     // BACKUPS
     /// In-memory cache of ephemeral contract balances backup.
     backup_of_ephemeral_balances: HashMap<CONTRACT_ID, u64>,
     /// In-memory cache of ephemeral contract shadow spaces backup.
     backup_of_ephemeral_shadow_spaces: HashMap<CONTRACT_ID, ContractShadowSpace>,
+    /// In-memory cache of ephemeral deallocs to remove backup.
+    backup_of_ephemeral_dealloc_list: HashMap<CONTRACT_ID, Vec<ACCOUNT_KEY>>,
 }
 
 /// Guarded contract coin holder.
@@ -222,8 +226,10 @@ impl ContractCoinHolder {
             shadow_space_db,
             ephemeral_balances: HashMap::<CONTRACT_ID, u64>::new(),
             ephemeral_shadow_spaces: HashMap::<CONTRACT_ID, ContractShadowSpace>::new(),
+            epheremal_dealloc_list: HashMap::<CONTRACT_ID, Vec<ACCOUNT_KEY>>::new(),
             backup_of_ephemeral_balances: HashMap::<CONTRACT_ID, u64>::new(),
             backup_of_ephemeral_shadow_spaces: HashMap::<CONTRACT_ID, ContractShadowSpace>::new(),
+            backup_of_ephemeral_dealloc_list: HashMap::<CONTRACT_ID, Vec<ACCOUNT_KEY>>::new(),
         };
 
         // Create the guarded contract coin holder.
@@ -237,12 +243,14 @@ impl ContractCoinHolder {
     fn backup_ephemeral_states(&mut self) {
         self.backup_of_ephemeral_balances = self.ephemeral_balances.clone();
         self.backup_of_ephemeral_shadow_spaces = self.ephemeral_shadow_spaces.clone();
+        self.backup_of_ephemeral_dealloc_list = self.epheremal_dealloc_list.clone();
     }
 
     /// Restores ephemeral states from the backup.
     fn restore_ephemeral_states(&mut self) {
         self.ephemeral_balances = self.backup_of_ephemeral_balances.clone();
         self.ephemeral_shadow_spaces = self.backup_of_ephemeral_shadow_spaces.clone();
+        self.epheremal_dealloc_list = self.backup_of_ephemeral_dealloc_list.clone();
     }
 
     /// Prepares the state holder prior to each execution.
@@ -288,6 +296,13 @@ impl ContractCoinHolder {
         contract_id: [u8; 32],
         account_key: ACCOUNT_KEY,
     ) -> Option<u128> {
+        // If this account is JUST deallocated, return none.
+        if let Some(dealloc_list) = self.epheremal_dealloc_list.get(&contract_id) {
+            if dealloc_list.contains(&account_key) {
+                return None;
+            }
+        }
+
         // Try to get from the ephemeral states first.
         if let Some(shadow_space) = self.ephemeral_shadow_spaces.get(&contract_id) {
             return shadow_space.allocs.get(&account_key).cloned();
@@ -516,6 +531,52 @@ impl ContractCoinHolder {
         ephemeral_contract_shadow_space
             .allocs
             .insert(account_key, 0);
+
+        // Return the result.
+        Ok(())
+    }
+
+    /// Deallocates an account in a contract shadow space.
+    ///
+    /// NOTE: These changes are saved with the use of the `save_all` function.
+    pub fn shadow_dealloc(
+        &mut self,
+        contract_id: [u8; 32],
+        account_key: ACCOUNT_KEY,
+    ) -> Result<(), ShadowDeallocError> {
+        // Get the account allocation value.
+        let allocation_value_in_sati_satoshis = self
+            .get_account_shadow_alloc_value_in_sati_satoshis(contract_id, account_key)
+            .ok_or(ShadowDeallocError::UnableToGetAccountAllocValue(
+                contract_id,
+                account_key,
+            ))?;
+
+        // Check if the account allocation value is non-zero.
+        // Deallocation is alloawed only if the allocation value is zero.
+        if allocation_value_in_sati_satoshis != 0 {
+            return Err(ShadowDeallocError::AlocValueIsNonZero(
+                contract_id,
+                account_key,
+            ));
+        }
+
+        // Get the mutable dealloc list.
+        let dealloc_list = self
+            .epheremal_dealloc_list
+            .get_mut(&contract_id)
+            .ok_or(ShadowDeallocError::UnableToGetDeallocList(contract_id))?;
+
+        // Cheack if this account already ephmeral deallocated.
+        if dealloc_list.contains(&account_key) {
+            return Err(ShadowDeallocError::AccountKeyAlreadyEphemerallyDeallocated(
+                contract_id,
+                account_key,
+            ));
+        }
+
+        // Insert the account key into the ephemeral dealloc list.
+        dealloc_list.push(account_key);
 
         // Return the result.
         Ok(())
@@ -763,6 +824,7 @@ impl ContractCoinHolder {
             }
         {
             // shadow_alloc_value_in_sati_satoshis divided by existing_contract_allocs_sum_in_satisatoshis = x divided by up_value_in_sati_satoshis.
+            // NOTE: if the account is ephemerally deallocated, since it's allocation value had to be zero, this will also be zero.
             let individual_up_value_in_sati_satoshis: u128 = (shadow_alloc_value_in_sati_satoshis
                 * up_value_in_sati_satoshis)
                 / existing_contract_allocs_sum_in_satisatoshis;
@@ -902,6 +964,7 @@ impl ContractCoinHolder {
             }
         {
             // shadow_alloc_value_in_sati_satoshis divided by existing_contract_allocs_sum_in_satisatoshis = x divided by down_value_in_sati_satoshis.
+            // NOTE: if the account is ephemerally deallocated, since it's allocation value had to be zero, this will also be zero.
             let individual_down_value_in_sati_satoshis: u128 = (shadow_alloc_value_in_sati_satoshis
                 * down_value_in_sati_satoshis)
                 / existing_contract_allocs_sum_in_satisatoshis;
@@ -1082,14 +1145,67 @@ impl ContractCoinHolder {
                     })?;
             }
         }
+        // #2 Handle deallocs
+        {
+            for (contract_id, ephemeral_dealloc_list) in self.epheremal_dealloc_list.iter() {
+                // In-memory deletion.
+                {
+                    // Get mutable in-memory permanent contract body.
+                    let in_memory_permanent_contract_body =
+                        self.in_memory.get_mut(contract_id).ok_or(
+                            ContractCoinHolderSaveError::ContractBodyNotFound(*contract_id),
+                        )?;
+
+                    // Remove all accounts from the shadow space.
+                    for account_key in ephemeral_dealloc_list.iter() {
+                        if in_memory_permanent_contract_body
+                            .shadow_space
+                            .allocs
+                            .remove(account_key)
+                            .is_none()
+                        {
+                            return Err(ContractCoinHolderSaveError::InMemoryDeallocSaveError(
+                                *contract_id,
+                                *account_key,
+                            ));
+                        };
+                    }
+                }
+
+                // On-disk deletion.
+                {
+                    // Open the contract tree using the contract ID as the tree name.
+                    let on_disk_permanent_shadow_space = self
+                        .shadow_space_db
+                        .open_tree(contract_id)
+                        .map_err(|e| ContractCoinHolderSaveError::OpenTreeError(*contract_id, e))?;
+
+                    // Remove all accounts from the shadow space.
+                    for account_key in ephemeral_dealloc_list.iter() {
+                        match on_disk_permanent_shadow_space.remove(account_key) {
+                            Ok(_) => (),
+                            Err(err) => {
+                                return Err(ContractCoinHolderSaveError::OnDiskDeallocSaveError(
+                                    *contract_id,
+                                    *account_key,
+                                    err,
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         // Clear the ephemeral states.
         self.ephemeral_balances.clear();
         self.ephemeral_shadow_spaces.clear();
+        self.epheremal_dealloc_list.clear();
 
         // Clear the ephemeral states backup.
         self.backup_of_ephemeral_balances.clear();
         self.backup_of_ephemeral_shadow_spaces.clear();
+        self.backup_of_ephemeral_dealloc_list.clear();
 
         Ok(())
     }
