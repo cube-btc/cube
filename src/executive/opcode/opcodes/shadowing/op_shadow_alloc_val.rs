@@ -2,16 +2,18 @@ use crate::{
     executive::stack::{
         stack_error::{ShadowOpsError, StackError},
         stack_holder::StackHolder,
+        stack_item::StackItem,
+        stack_uint::{SafeConverter, StackItemUintExt, StackUint},
     },
     inscriptive::coin_holder::coin_holder::COIN_HOLDER,
 };
 
-/// Allocates within the contract shadow space an account.
+/// Returns the allocation value of an account within the contract shadow space.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[allow(non_camel_case_types)]
-pub struct OP_SHADOW_ALLOC;
+pub struct OP_SHADOW_ALLOC_VAL;
 
-impl OP_SHADOW_ALLOC {
+impl OP_SHADOW_ALLOC_VAL {
     pub async fn execute(
         stack_holder: &mut StackHolder,
         coin_holder: &COIN_HOLDER,
@@ -43,21 +45,39 @@ impl OP_SHADOW_ALLOC {
             _coin_holder.contract_coin_holder()
         };
 
-        // Allocate the account key in the contract shadow space.
+        // Check if the account key has an allocation within the contract shadow space by returning its allocation value.
         {
+            // Get the mutable contract coin holder.
             let mut _contract_coin_holder = contract_coin_holder.lock().await;
-            _contract_coin_holder
-                .shadow_alloc(self_contract_id_bytes, account_key_bytes)
-                .map_err(|error| ShadowOpsError::ShadowAllocError(error))
-                .map_err(StackError::ShadowOpsError)?;
+
+            // Get the result item.
+            let result_item = match _contract_coin_holder
+                .get_account_shadow_alloc_value_in_satoshis(
+                    self_contract_id_bytes,
+                    account_key_bytes,
+                ) {
+                Some(value) => {
+                    let value_as_stack_uint = StackUint::from_u64(value);
+                    StackItem::from_stack_uint(value_as_stack_uint)
+                }
+                None => {
+                    // Return error.
+                    return Err(StackError::ShadowOpsError(
+                        ShadowOpsError::AccountKeyHasNoAllocation(account_key_bytes),
+                    ));
+                }
+            };
+
+            // Push the result item to the stack.
+            stack_holder.push(result_item)?;
         }
 
         // Return the result.
         Ok(())
     }
 
-    /// Returns the bytecode for the `OP_SHADOW_ALLOC` opcode (0xc0).
+    /// Returns the bytecode for the `OP_SHADOW_ALLOC_VAL` opcode (0xc3).
     pub fn bytecode() -> Vec<u8> {
-        vec![0xc0]
+        vec![0xc3]
     }
 }

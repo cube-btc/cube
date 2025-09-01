@@ -58,6 +58,10 @@ use crate::{
                     op_shadow_alloc_down_all::OP_SHADOW_ALLOC_DOWN_ALL,
                     op_shadow_alloc_up::OP_SHADOW_ALLOC_UP,
                     op_shadow_alloc_up_all::OP_SHADOW_ALLOC_UP_ALL,
+                    op_shadow_alloc_val::OP_SHADOW_ALLOC_VAL,
+                    op_shadow_allocs_sum::OP_SHADOW_ALLOCS_SUM,
+                    op_shadow_dealloc::OP_SHADOW_DEALLOC, op_shadow_has_alloc::OP_SHADOW_HAS_ALLOC,
+                    op_shadow_num_allocs::OP_SHADOW_NUM_ALLOCS,
                 },
                 signature::{
                     op_checkblssig::OP_CHECKBLSSIG, op_checkblssigagg::OP_CHECKBLSSIGAGG,
@@ -377,6 +381,7 @@ pub async fn execute(
                 OP_FROMALTSTACK::execute(&mut stack_holder)
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
+
             // Stack operations.
             Opcode::OP_2DROP(OP_2DROP) => {
                 OP_2DROP::execute(&mut stack_holder)
@@ -446,6 +451,7 @@ pub async fn execute(
                 OP_TUCK::execute(&mut stack_holder)
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
+
             // Splice opcodes.
             Opcode::OP_CAT(OP_CAT) => {
                 OP_CAT::execute(&mut stack_holder)
@@ -467,6 +473,7 @@ pub async fn execute(
                 OP_SIZE::execute(&mut stack_holder)
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
+
             // Bitwise opcodes.
             Opcode::OP_INVERT(OP_INVERT) => {
                 OP_INVERT::execute(&mut stack_holder)
@@ -496,6 +503,7 @@ pub async fn execute(
                 OP_REVERSE::execute(&mut stack_holder)
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
+
             // Arithmetic opcodes.
             Opcode::OP_1ADD(OP_1ADD) => {
                 OP_1ADD::execute(&mut stack_holder)
@@ -601,6 +609,7 @@ pub async fn execute(
                 OP_WITHIN::execute(&mut stack_holder)
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
+
             // Digest opcodes.
             Opcode::OP_RIPEMD160(OP_RIPEMD160) => {
                 OP_RIPEMD160::execute(&mut stack_holder)
@@ -634,6 +643,7 @@ pub async fn execute(
                 OP_BLAKE2SVAR::execute(&mut stack_holder)
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
+
             // Secp opcodes.
             Opcode::OP_SECPSCALARADD(OP_SECPSCALARADD) => {
                 OP_SECPSCALARADD::execute(&mut stack_holder)
@@ -680,6 +690,7 @@ pub async fn execute(
                 OP_CHECKBLSSIGAGG::execute(&mut stack_holder)
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
+
             // Call info opcodes.
             Opcode::OP_CALLER(OP_CALLER) => {
                 OP_CALLER::execute(&mut stack_holder)
@@ -769,25 +780,25 @@ pub async fn execute(
                 ))
                 .await;
             }
-            // Coin opcodes.
-            Opcode::OP_EXT_BALANCE(OP_EXT_BALANCE) => {
-                OP_EXT_BALANCE::execute(&mut stack_holder, coin_holder)
-                    .await
-                    .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
-            }
-            Opcode::OP_SELF_BALANCE(OP_SELF_BALANCE) => {
-                OP_SELF_BALANCE::execute(&mut stack_holder, coin_holder)
-                    .await
-                    .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
-            }
-            Opcode::OP_TRANSFER(OP_TRANSFER) => {
-                OP_TRANSFER::execute(&mut stack_holder, coin_holder)
-                    .await
-                    .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
-            }
-            // Shadow space opcodes.
+
+            // Shadowing opcodes.
             Opcode::OP_SHADOW_ALLOC(OP_SHADOW_ALLOC) => {
                 OP_SHADOW_ALLOC::execute(&mut stack_holder, coin_holder)
+                    .await
+                    .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
+            }
+            Opcode::OP_SHADOW_HAS_ALLOC(OP_SHADOW_HAS_ALLOC) => {
+                OP_SHADOW_HAS_ALLOC::execute(&mut stack_holder, coin_holder)
+                    .await
+                    .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
+            }
+            Opcode::OP_SHADOW_DEALLOC(OP_SHADOW_DEALLOC) => {
+                OP_SHADOW_DEALLOC::execute(&mut stack_holder, coin_holder)
+                    .await
+                    .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
+            }
+            Opcode::OP_SHADOW_ALLOC_VAL(OP_SHADOW_ALLOC_VAL) => {
+                OP_SHADOW_ALLOC_VAL::execute(&mut stack_holder, coin_holder)
                     .await
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
@@ -811,6 +822,34 @@ pub async fn execute(
                     .await
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
+            Opcode::OP_SHADOW_NUM_ALLOCS(OP_SHADOW_NUM_ALLOCS) => {
+                OP_SHADOW_NUM_ALLOCS::execute(&mut stack_holder, coin_holder)
+                    .await
+                    .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
+            }
+            Opcode::OP_SHADOW_ALLOCS_SUM(OP_SHADOW_ALLOCS_SUM) => {
+                OP_SHADOW_ALLOCS_SUM::execute(&mut stack_holder, coin_holder)
+                    .await
+                    .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
+            }
+
+            // Coin opcodes.
+            Opcode::OP_EXT_BALANCE(OP_EXT_BALANCE) => {
+                OP_EXT_BALANCE::execute(&mut stack_holder, coin_holder)
+                    .await
+                    .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
+            }
+            Opcode::OP_SELF_BALANCE(OP_SELF_BALANCE) => {
+                OP_SELF_BALANCE::execute(&mut stack_holder, coin_holder)
+                    .await
+                    .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
+            }
+            Opcode::OP_TRANSFER(OP_TRANSFER) => {
+                OP_TRANSFER::execute(&mut stack_holder, coin_holder)
+                    .await
+                    .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
+            }
+
             // Storage opcodes.
             Opcode::OP_SWRITE(OP_SWRITE) => {
                 OP_SWRITE::execute(&mut stack_holder, state_holder)
@@ -822,6 +861,7 @@ pub async fn execute(
                     .await
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
+
             // Memory opcodes.
             Opcode::OP_MWRITE(OP_MWRITE) => {
                 OP_MWRITE::execute(&mut stack_holder)

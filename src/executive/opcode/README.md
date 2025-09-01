@@ -164,9 +164,9 @@ Cube uses an extended Bitcoin script with splicing, better memory management, an
 
 | Opcode                    | Bytecode | Ops         | Input      | Output                 | Description                                                                       |
 |:--------------------------|:---------|:------------|:-----------|:-----------------------|:----------------------------------------------------------------------------------|
-| OP_SHADOW_ALLOC           | 0xc0     | 1000        | key        | Nothing/fail.          | Allocates the account within the contract's shadow space.                         |
+| OP_SHADOW_ALLOC           | 0xc0     | 1000        | key        | Nothing/fail.          | Allocates an account within the contract's shadow space.                          |
 | OP_SHADOW_HAS_ALLOC       | 0xc1     | 1           | key        | out                    | Returns whether the account has an allocation within the contract's shadow space. |
-| OP_SHADOW_DEALLOC         | 0xc2     | +500        | key        | Nothing/fail.          | Deallocates the account within the contract's shadow space.                       |
+| OP_SHADOW_DEALLOC         | 0xc2     | +1000       | key        | Nothing/fail.          | Deallocates the account within the contract's shadow space.                       |
 | OP_SHADOW_ALLOC_VAL       | 0xc3     | 1           | key        | out/fail.              | Returns the allocation value of an account within the contract's shadow space.    |
 | OP_SHADOW_ALLOC_UP        | 0xc4     | 5           | key amount | Nothing/fail.          | Increases the shadow space allocation of an account.                              |
 | OP_SHADOW_ALLOC_DOWN      | 0xc5     | 5           | key amount | Nothing/fail.          | Decreases the shadow space allocation of an account.                              |
@@ -187,13 +187,13 @@ Cube uses an extended Bitcoin script with splicing, better memory management, an
 
 | Opcode         | Bytecode | Ops | Input                | Output                 | Description                                                                      |
 |:---------------|:---------|:----|:---------------------|:-----------------------|:---------------------------------------------------------------------------------|
-| OP_SWRITE      | 0xc8     | 50  | x1 x2                | x1                     | Pops the storage key and value, and writes the value to the contract's storage.  |
-| OP_SREAD       | 0xc9     | 50  | x1                   | x1                     | Pops the storage key, and reads the value from the contract's storage.           |
+| OP_SWRITE      | 0xcd     | 50  | x1 x2                | x1                     | Pops the storage key and value, and writes the value to the contract's storage.  |
+| OP_SREAD       | 0xce     | 50  | x1                   | x1                     | Pops the storage key, and reads the value from the contract's storage.           |
 
 ## Memory
 
 | Opcode         | Bytecode | Ops | Input                | Output                 | Description                                                                      |
 |:---------------|:---------|:----|:---------------------|:-----------------------|:---------------------------------------------------------------------------------|
-| OP_MWRITE      | 0xca     | 5   | x1 x2                | x1                     | Pops the memory key and value, and writes the value to the contract's memory.    |
-| OP_MREAD       | 0xcb     | 5   | x1                   | x1                     | Pops the memory key, and reads the value from the contract's memory.             |
-| OP_MFREE       | 0xcc     | 1   | x1                   | x1                     | Pops the memory key, and frees the key/value from the contract's memory.         |
+| OP_MWRITE      | 0xd0     | 5   | x1 x2                | x1                     | Pops the memory key and value, and writes the value to the contract's memory.    |
+| OP_MREAD       | 0xd1     | 5   | x1                   | x1                     | Pops the memory key, and reads the value from the contract's memory.             |
+| OP_MFREE       | 0xd2     | 1   | x1                   | x1                     | Pops the memory key, and frees the key/value from the contract's memory.         |

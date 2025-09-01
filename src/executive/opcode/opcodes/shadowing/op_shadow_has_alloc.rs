@@ -2,16 +2,17 @@ use crate::{
     executive::stack::{
         stack_error::{ShadowOpsError, StackError},
         stack_holder::StackHolder,
+        stack_item::StackItem,
     },
     inscriptive::coin_holder::coin_holder::COIN_HOLDER,
 };
 
-/// Allocates within the contract shadow space an account.
+/// Checks if an account has an allocation within the contract shadow space.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[allow(non_camel_case_types)]
-pub struct OP_SHADOW_ALLOC;
+pub struct OP_SHADOW_HAS_ALLOC;
 
-impl OP_SHADOW_ALLOC {
+impl OP_SHADOW_HAS_ALLOC {
     pub async fn execute(
         stack_holder: &mut StackHolder,
         coin_holder: &COIN_HOLDER,
@@ -43,21 +44,31 @@ impl OP_SHADOW_ALLOC {
             _coin_holder.contract_coin_holder()
         };
 
-        // Allocate the account key in the contract shadow space.
+        // Check if the account key has an allocation within the contract shadow space by returnin its allocation value.
         {
+            // Get the mutable contract coin holder.
             let mut _contract_coin_holder = contract_coin_holder.lock().await;
-            _contract_coin_holder
-                .shadow_alloc(self_contract_id_bytes, account_key_bytes)
-                .map_err(|error| ShadowOpsError::ShadowAllocError(error))
-                .map_err(StackError::ShadowOpsError)?;
+
+            // Get the result item.
+            let result_item = match _contract_coin_holder
+                .get_account_shadow_alloc_value_in_sati_satoshis(
+                    self_contract_id_bytes,
+                    account_key_bytes,
+                ) {
+                Some(_) => StackItem::true_item(),
+                None => StackItem::false_item(),
+            };
+
+            // Push the result item to the stack.
+            stack_holder.push(result_item)?;
         }
 
         // Return the result.
         Ok(())
     }
 
-    /// Returns the bytecode for the `OP_SHADOW_ALLOC` opcode (0xc0).
+    /// Returns the bytecode for the `OP_SHADOW_HAS_ALLOC` opcode (0xc1).
     pub fn bytecode() -> Vec<u8> {
-        vec![0xc0]
+        vec![0xc1]
     }
 }

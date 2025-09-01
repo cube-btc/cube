@@ -4,6 +4,7 @@ use crate::inscriptive::{
         contract_coin_holder::contract_coin_holder_error::{
             ContractBalanceDownError, ContractBalanceUpError, ShadowAllocDownAllError,
             ShadowAllocDownError, ShadowAllocError, ShadowAllocUpAllError, ShadowAllocUpError,
+            ShadowDeallocError,
         },
     },
     state_holder::state_holder_error::StateHolderInsertUpdateValueError,
@@ -143,6 +144,8 @@ pub enum ShadowOpsError {
     InvalidAmountBytes(Vec<u8>),
     /// The shadow alloc error.
     ShadowAllocError(ShadowAllocError),
+    /// The shadow dealloc error.
+    ShadowDeallocError(ShadowDeallocError),
     /// The shadow alloc up error.
     ShadowAllocUpError(ShadowAllocUpError),
     /// The shadow alloc down error.
@@ -151,6 +154,8 @@ pub enum ShadowOpsError {
     ShadowAllocUpAllError(ShadowAllocUpAllError),
     /// The shadow alloc down all error.
     ShadowAllocDownAllError(ShadowAllocDownAllError),
+    /// The account key has no allocation.
+    AccountKeyHasNoAllocation([u8; 32]),
 }
 
 /// The stack error.

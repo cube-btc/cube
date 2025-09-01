@@ -63,7 +63,9 @@ use crate::executive::opcode::opcodes::{
     shadowing::{
         op_shadow_alloc::OP_SHADOW_ALLOC, op_shadow_alloc_down::OP_SHADOW_ALLOC_DOWN,
         op_shadow_alloc_down_all::OP_SHADOW_ALLOC_DOWN_ALL, op_shadow_alloc_up::OP_SHADOW_ALLOC_UP,
-        op_shadow_alloc_up_all::OP_SHADOW_ALLOC_UP_ALL,
+        op_shadow_alloc_up_all::OP_SHADOW_ALLOC_UP_ALL, op_shadow_alloc_val::OP_SHADOW_ALLOC_VAL,
+        op_shadow_allocs_sum::OP_SHADOW_ALLOCS_SUM, op_shadow_dealloc::OP_SHADOW_DEALLOC,
+        op_shadow_has_alloc::OP_SHADOW_HAS_ALLOC, op_shadow_num_allocs::OP_SHADOW_NUM_ALLOCS,
     },
     storage::{op_sread::OP_SREAD, op_swrite::OP_SWRITE},
 };
@@ -200,12 +202,17 @@ pub enum Opcode {
     OP_EXT_BALANCE(OP_EXT_BALANCE),
     OP_SELF_BALANCE(OP_SELF_BALANCE),
     OP_TRANSFER(OP_TRANSFER),
-    // Shadow space
+    // Shadowing
     OP_SHADOW_ALLOC(OP_SHADOW_ALLOC),
+    OP_SHADOW_HAS_ALLOC(OP_SHADOW_HAS_ALLOC),
+    OP_SHADOW_DEALLOC(OP_SHADOW_DEALLOC),
+    OP_SHADOW_ALLOC_VAL(OP_SHADOW_ALLOC_VAL),
     OP_SHADOW_ALLOC_UP(OP_SHADOW_ALLOC_UP),
     OP_SHADOW_ALLOC_DOWN(OP_SHADOW_ALLOC_DOWN),
     OP_SHADOW_ALLOC_UP_ALL(OP_SHADOW_ALLOC_UP_ALL),
     OP_SHADOW_ALLOC_DOWN_ALL(OP_SHADOW_ALLOC_DOWN_ALL),
+    OP_SHADOW_NUM_ALLOCS(OP_SHADOW_NUM_ALLOCS),
+    OP_SHADOW_ALLOCS_SUM(OP_SHADOW_ALLOCS_SUM),
     // Storage
     OP_SWRITE(OP_SWRITE),
     OP_SREAD(OP_SREAD),
@@ -347,12 +354,17 @@ impl Display for Opcode {
             Opcode::OP_EXT_BALANCE(_) => write!(f, "OP_EXT_BALANCE"),
             Opcode::OP_SELF_BALANCE(_) => write!(f, "OP_SELF_BALANCE"),
             Opcode::OP_TRANSFER(_) => write!(f, "OP_TRANSFER"),
-            // Shadow space
+            // Shadowing
+            Opcode::OP_SHADOW_HAS_ALLOC(_) => write!(f, "OP_SHADOW_HAS_ALLOC"),
+            Opcode::OP_SHADOW_DEALLOC(_) => write!(f, "OP_SHADOW_DEALLOC"),
+            Opcode::OP_SHADOW_ALLOC_VAL(_) => write!(f, "OP_SHADOW_ALLOC_VAL"),
             Opcode::OP_SHADOW_ALLOC(_) => write!(f, "OP_SHADOW_ALLOC"),
             Opcode::OP_SHADOW_ALLOC_UP(_) => write!(f, "OP_SHADOW_ALLOC_UP"),
             Opcode::OP_SHADOW_ALLOC_DOWN(_) => write!(f, "OP_SHADOW_ALLOC_DOWN"),
             Opcode::OP_SHADOW_ALLOC_UP_ALL(_) => write!(f, "OP_SHADOW_ALLOC_UP_ALL"),
             Opcode::OP_SHADOW_ALLOC_DOWN_ALL(_) => write!(f, "OP_SHADOW_ALLOC_DOWN_ALL"),
+            Opcode::OP_SHADOW_NUM_ALLOCS(_) => write!(f, "OP_SHADOW_NUM_ALLOCS"),
+            Opcode::OP_SHADOW_ALLOCS_SUM(_) => write!(f, "OP_SHADOW_ALLOCS_SUM"),
             // Storage
             Opcode::OP_SWRITE(_) => write!(f, "OP_SWRITE"),
             Opcode::OP_SREAD(_) => write!(f, "OP_SREAD"),

@@ -96,6 +96,11 @@ use crate::executive::opcode::opcodes::shadowing::op_shadow_alloc_down::OP_SHADO
 use crate::executive::opcode::opcodes::shadowing::op_shadow_alloc_down_all::OP_SHADOW_ALLOC_DOWN_ALL;
 use crate::executive::opcode::opcodes::shadowing::op_shadow_alloc_up::OP_SHADOW_ALLOC_UP;
 use crate::executive::opcode::opcodes::shadowing::op_shadow_alloc_up_all::OP_SHADOW_ALLOC_UP_ALL;
+use crate::executive::opcode::opcodes::shadowing::op_shadow_alloc_val::OP_SHADOW_ALLOC_VAL;
+use crate::executive::opcode::opcodes::shadowing::op_shadow_allocs_sum::OP_SHADOW_ALLOCS_SUM;
+use crate::executive::opcode::opcodes::shadowing::op_shadow_dealloc::OP_SHADOW_DEALLOC;
+use crate::executive::opcode::opcodes::shadowing::op_shadow_has_alloc::OP_SHADOW_HAS_ALLOC;
+use crate::executive::opcode::opcodes::shadowing::op_shadow_num_allocs::OP_SHADOW_NUM_ALLOCS;
 use crate::executive::opcode::opcodes::signature::op_checkblssig::OP_CHECKBLSSIG;
 use crate::executive::opcode::opcodes::signature::op_checkblssigagg::OP_CHECKBLSSIGAGG;
 use crate::executive::opcode::opcodes::signature::op_checkschnorrsig::OP_CHECKSCHNORRSIG;
@@ -160,6 +165,7 @@ impl OpcodeCompiler for Opcode {
             Opcode::OP_14(_) => Ok(OP_14::bytecode()),
             Opcode::OP_15(_) => Ok(OP_15::bytecode()),
             Opcode::OP_16(_) => Ok(OP_16::bytecode()),
+
             // Flow control
             Opcode::OP_NOP(_) => Ok(OP_NOP::bytecode()),
             Opcode::OP_RETURNERR(_) => Ok(OP_RETURNERR::bytecode()),
@@ -171,9 +177,11 @@ impl OpcodeCompiler for Opcode {
             Opcode::OP_ENDIF(_) => Ok(OP_ENDIF::bytecode()),
             Opcode::OP_VERIFY(_) => Ok(OP_VERIFY::bytecode()),
             Opcode::OP_FAIL(_) => Ok(OP_FAIL::bytecode()),
+
             // Altstack
             Opcode::OP_TOALTSTACK(_) => Ok(OP_TOALTSTACK::bytecode()),
             Opcode::OP_FROMALTSTACK(_) => Ok(OP_FROMALTSTACK::bytecode()),
+
             // Stack
             Opcode::OP_IFDUP(_) => Ok(OP_IFDUP::bytecode()),
             Opcode::OP_DEPTH(_) => Ok(OP_DEPTH::bytecode()),
@@ -192,12 +200,14 @@ impl OpcodeCompiler for Opcode {
             Opcode::OP_2OVER(_) => Ok(OP_2OVER::bytecode()),
             Opcode::OP_2ROT(_) => Ok(OP_2ROT::bytecode()),
             Opcode::OP_2SWAP(_) => Ok(OP_2SWAP::bytecode()),
+
             // Splice
             Opcode::OP_CAT(_) => Ok(OP_CAT::bytecode()),
             Opcode::OP_SPLIT(_) => Ok(OP_SPLIT::bytecode()),
             Opcode::OP_LEFT(_) => Ok(OP_LEFT::bytecode()),
             Opcode::OP_RIGHT(_) => Ok(OP_RIGHT::bytecode()),
             Opcode::OP_SIZE(_) => Ok(OP_SIZE::bytecode()),
+
             // Bitwise
             Opcode::OP_INVERT(_) => Ok(OP_INVERT::bytecode()),
             Opcode::OP_AND(_) => Ok(OP_AND::bytecode()),
@@ -206,6 +216,7 @@ impl OpcodeCompiler for Opcode {
             Opcode::OP_EQUAL(_) => Ok(OP_EQUAL::bytecode()),
             Opcode::OP_EQUALVERIFY(_) => Ok(OP_EQUALVERIFY::bytecode()),
             Opcode::OP_REVERSE(_) => Ok(OP_REVERSE::bytecode()),
+
             // Arithmetic
             Opcode::OP_1ADD(_) => Ok(OP_1ADD::bytecode()),
             Opcode::OP_1SUB(_) => Ok(OP_1SUB::bytecode()),
@@ -233,6 +244,7 @@ impl OpcodeCompiler for Opcode {
             Opcode::OP_MIN(_) => Ok(OP_MIN::bytecode()),
             Opcode::OP_MAX(_) => Ok(OP_MAX::bytecode()),
             Opcode::OP_WITHIN(_) => Ok(OP_WITHIN::bytecode()),
+
             // Hashing
             Opcode::OP_RIPEMD160(_) => Ok(OP_RIPEMD160::bytecode()),
             Opcode::OP_SHA1(_) => Ok(OP_SHA1::bytecode()),
@@ -242,6 +254,7 @@ impl OpcodeCompiler for Opcode {
             Opcode::OP_TAGGEDHASH(_) => Ok(OP_TAGGEDHASH::bytecode()),
             Opcode::OP_BLAKE2BVAR(_) => Ok(OP_BLAKE2BVAR::bytecode()),
             Opcode::OP_BLAKE2SVAR(_) => Ok(OP_BLAKE2SVAR::bytecode()),
+
             // Secp
             Opcode::OP_SECPSCALARADD(_) => Ok(OP_SECPSCALARADD::bytecode()),
             Opcode::OP_SECPSCALARMUL(_) => Ok(OP_SECPSCALARMUL::bytecode()),
@@ -250,33 +263,45 @@ impl OpcodeCompiler for Opcode {
             Opcode::OP_PUSHSECPGENERATORPOINT(_) => Ok(OP_PUSHSECPGENERATORPOINT::bytecode()),
             Opcode::OP_ISZEROSECPSCALAR(_) => Ok(OP_ISZEROSECPSCALAR::bytecode()),
             Opcode::OP_ISINFINITESECPPOINT(_) => Ok(OP_ISINFINITESECPPOINT::bytecode()),
+
             // Digital signatures
             Opcode::OP_CHECKSCHNORRSIG(_) => Ok(OP_CHECKSCHNORRSIG::bytecode()),
             Opcode::OP_CHECKSCHNORRSIGBIP340(_) => Ok(OP_CHECKSCHNORRSIGBIP340::bytecode()),
             Opcode::OP_CHECKBLSSIG(_) => Ok(OP_CHECKBLSSIG::bytecode()),
             Opcode::OP_CHECKBLSSIGAGG(_) => Ok(OP_CHECKBLSSIGAGG::bytecode()),
+
             // Call info
             Opcode::OP_CALLER(_) => Ok(OP_CALLER::bytecode()),
             Opcode::OP_OPSBUDGET(_) => Ok(OP_OPSBUDGET::bytecode()),
             Opcode::OP_OPSCOUNTER(_) => Ok(OP_OPSCOUNTER::bytecode()),
             Opcode::OP_OPSPRICE(_) => Ok(OP_OPSPRICE::bytecode()),
             Opcode::OP_TIMESTAMP(_) => Ok(OP_TIMESTAMP::bytecode()),
+
             // Call
             Opcode::OP_CALL(_) => Ok(OP_CALL::bytecode()),
             Opcode::OP_CALLEXT(_) => Ok(OP_CALLEXT::bytecode()),
-            // Coin
-            Opcode::OP_EXT_BALANCE(_) => Ok(OP_EXT_BALANCE::bytecode()),
-            Opcode::OP_SELF_BALANCE(_) => Ok(OP_SELF_BALANCE::bytecode()),
-            Opcode::OP_TRANSFER(_) => Ok(OP_TRANSFER::bytecode()),
-            // Shadow space
+
+            // Shadowing
+            Opcode::OP_SHADOW_HAS_ALLOC(_) => Ok(OP_SHADOW_HAS_ALLOC::bytecode()),
+            Opcode::OP_SHADOW_DEALLOC(_) => Ok(OP_SHADOW_DEALLOC::bytecode()),
+            Opcode::OP_SHADOW_ALLOC_VAL(_) => Ok(OP_SHADOW_ALLOC_VAL::bytecode()),
             Opcode::OP_SHADOW_ALLOC(_) => Ok(OP_SHADOW_ALLOC::bytecode()),
             Opcode::OP_SHADOW_ALLOC_UP(_) => Ok(OP_SHADOW_ALLOC_UP::bytecode()),
             Opcode::OP_SHADOW_ALLOC_DOWN(_) => Ok(OP_SHADOW_ALLOC_DOWN::bytecode()),
             Opcode::OP_SHADOW_ALLOC_UP_ALL(_) => Ok(OP_SHADOW_ALLOC_UP_ALL::bytecode()),
             Opcode::OP_SHADOW_ALLOC_DOWN_ALL(_) => Ok(OP_SHADOW_ALLOC_DOWN_ALL::bytecode()),
+            Opcode::OP_SHADOW_NUM_ALLOCS(_) => Ok(OP_SHADOW_NUM_ALLOCS::bytecode()),
+            Opcode::OP_SHADOW_ALLOCS_SUM(_) => Ok(OP_SHADOW_ALLOCS_SUM::bytecode()),
+
+            // Coin
+            Opcode::OP_EXT_BALANCE(_) => Ok(OP_EXT_BALANCE::bytecode()),
+            Opcode::OP_SELF_BALANCE(_) => Ok(OP_SELF_BALANCE::bytecode()),
+            Opcode::OP_TRANSFER(_) => Ok(OP_TRANSFER::bytecode()),
+
             // Storage
             Opcode::OP_SWRITE(_) => Ok(OP_SWRITE::bytecode()),
             Opcode::OP_SREAD(_) => Ok(OP_SREAD::bytecode()),
+
             // Memory
             Opcode::OP_MWRITE(_) => Ok(OP_MWRITE::bytecode()),
             Opcode::OP_MREAD(_) => Ok(OP_MREAD::bytecode()),
@@ -395,6 +420,7 @@ impl OpcodeCompiler for Opcode {
             0x5e => Ok(Opcode::OP_14(OP_14)),
             0x5f => Ok(Opcode::OP_15(OP_15)),
             0x60 => Ok(Opcode::OP_16(OP_16)),
+
             // Flow control
             0x61 => Ok(Opcode::OP_NOP(OP_NOP)),
             0x62 => Ok(Opcode::OP_RETURNERR(OP_RETURNERR)),
@@ -406,9 +432,11 @@ impl OpcodeCompiler for Opcode {
             0x68 => Ok(Opcode::OP_ENDIF(OP_ENDIF)),
             0x69 => Ok(Opcode::OP_VERIFY(OP_VERIFY)),
             0x6a => Ok(Opcode::OP_FAIL(OP_FAIL)),
+
             // Altstack
             0x6b => Ok(Opcode::OP_TOALTSTACK(OP_TOALTSTACK)),
             0x6c => Ok(Opcode::OP_FROMALTSTACK(OP_FROMALTSTACK)),
+
             // Stack
             0x6d => Ok(Opcode::OP_2DROP(OP_2DROP)),
             0x6e => Ok(Opcode::OP_2DUP(OP_2DUP)),
@@ -427,12 +455,14 @@ impl OpcodeCompiler for Opcode {
             0x7b => Ok(Opcode::OP_ROT(OP_ROT)),
             0x7c => Ok(Opcode::OP_SWAP(OP_SWAP)),
             0x7d => Ok(Opcode::OP_TUCK(OP_TUCK)),
+
             // Splice
             0x7e => Ok(Opcode::OP_CAT(OP_CAT)),
             0x7f => Ok(Opcode::OP_SPLIT(OP_SPLIT)),
             0x80 => Ok(Opcode::OP_LEFT(OP_LEFT)),
             0x81 => Ok(Opcode::OP_RIGHT(OP_RIGHT)),
             0x82 => Ok(Opcode::OP_SIZE(OP_SIZE)),
+
             // Bitwise
             0x83 => Ok(Opcode::OP_INVERT(OP_INVERT)),
             0x84 => Ok(Opcode::OP_AND(OP_AND)),
@@ -441,6 +471,7 @@ impl OpcodeCompiler for Opcode {
             0x87 => Ok(Opcode::OP_EQUAL(OP_EQUAL)),
             0x88 => Ok(Opcode::OP_EQUALVERIFY(OP_EQUALVERIFY)),
             0x89 => Ok(Opcode::OP_REVERSE(OP_REVERSE)),
+
             // Arithmetic
             0x8b => Ok(Opcode::OP_1ADD(OP_1ADD)),
             0x8c => Ok(Opcode::OP_1SUB(OP_1SUB)),
@@ -468,6 +499,7 @@ impl OpcodeCompiler for Opcode {
             0xa3 => Ok(Opcode::OP_MIN(OP_MIN)),
             0xa4 => Ok(Opcode::OP_MAX(OP_MAX)),
             0xa5 => Ok(Opcode::OP_WITHIN(OP_WITHIN)),
+
             // Hashing
             0xa6 => Ok(Opcode::OP_RIPEMD160(OP_RIPEMD160)),
             0xa7 => Ok(Opcode::OP_SHA1(OP_SHA1)),
@@ -477,6 +509,7 @@ impl OpcodeCompiler for Opcode {
             0xab => Ok(Opcode::OP_TAGGEDHASH(OP_TAGGEDHASH)),
             0xac => Ok(Opcode::OP_BLAKE2BVAR(OP_BLAKE2BVAR)),
             0xad => Ok(Opcode::OP_BLAKE2SVAR(OP_BLAKE2SVAR)),
+
             // Secp
             0xae => Ok(Opcode::OP_SECPSCALARADD(OP_SECPSCALARADD)),
             0xaf => Ok(Opcode::OP_SECPSCALARMUL(OP_SECPSCALARMUL)),
@@ -485,37 +518,50 @@ impl OpcodeCompiler for Opcode {
             0xb2 => Ok(Opcode::OP_PUSHSECPGENERATORPOINT(OP_PUSHSECPGENERATORPOINT)),
             0xb3 => Ok(Opcode::OP_ISZEROSECPSCALAR(OP_ISZEROSECPSCALAR)),
             0xb4 => Ok(Opcode::OP_ISINFINITESECPPOINT(OP_ISINFINITESECPPOINT)),
+
             // Digital signatures
             0xb5 => Ok(Opcode::OP_CHECKSCHNORRSIG(OP_CHECKSCHNORRSIG)),
             0xb6 => Ok(Opcode::OP_CHECKSCHNORRSIGBIP340(OP_CHECKSCHNORRSIGBIP340)),
             0xb7 => Ok(Opcode::OP_CHECKBLSSIG(OP_CHECKBLSSIG)),
             0xb8 => Ok(Opcode::OP_CHECKBLSSIGAGG(OP_CHECKBLSSIGAGG)),
+
             // Call info
             0xb9 => Ok(Opcode::OP_CALLER(OP_CALLER)),
             0xba => Ok(Opcode::OP_OPSBUDGET(OP_OPSBUDGET)),
             0xbb => Ok(Opcode::OP_OPSCOUNTER(OP_OPSCOUNTER)),
             0xbc => Ok(Opcode::OP_OPSPRICE(OP_OPSPRICE)),
             0xbd => Ok(Opcode::OP_TIMESTAMP(OP_TIMESTAMP)),
+
             // Call
             0xbe => Ok(Opcode::OP_CALL(OP_CALL)),
             0xbf => Ok(Opcode::OP_CALLEXT(OP_CALLEXT)),
-            // Coin
-            0xc0 => Ok(Opcode::OP_EXT_BALANCE(OP_EXT_BALANCE)),
-            0xc1 => Ok(Opcode::OP_SELF_BALANCE(OP_SELF_BALANCE)),
-            0xc2 => Ok(Opcode::OP_TRANSFER(OP_TRANSFER)),
-            // Shadow space
+
+            // Shadowing
+            0xc0 => Ok(Opcode::OP_SHADOW_HAS_ALLOC(OP_SHADOW_HAS_ALLOC)),
+            0xc1 => Ok(Opcode::OP_SHADOW_DEALLOC(OP_SHADOW_DEALLOC)),
+            0xc2 => Ok(Opcode::OP_SHADOW_ALLOC_VAL(OP_SHADOW_ALLOC_VAL)),
             0xc3 => Ok(Opcode::OP_SHADOW_ALLOC(OP_SHADOW_ALLOC)),
             0xc4 => Ok(Opcode::OP_SHADOW_ALLOC_UP(OP_SHADOW_ALLOC_UP)),
             0xc5 => Ok(Opcode::OP_SHADOW_ALLOC_DOWN(OP_SHADOW_ALLOC_DOWN)),
             0xc6 => Ok(Opcode::OP_SHADOW_ALLOC_UP_ALL(OP_SHADOW_ALLOC_UP_ALL)),
             0xc7 => Ok(Opcode::OP_SHADOW_ALLOC_DOWN_ALL(OP_SHADOW_ALLOC_DOWN_ALL)),
+            0xc8 => Ok(Opcode::OP_SHADOW_NUM_ALLOCS(OP_SHADOW_NUM_ALLOCS)),
+            0xc9 => Ok(Opcode::OP_SHADOW_ALLOCS_SUM(OP_SHADOW_ALLOCS_SUM)),
+
+            // Coin
+            0xca => Ok(Opcode::OP_EXT_BALANCE(OP_EXT_BALANCE)),
+            0xcb => Ok(Opcode::OP_SELF_BALANCE(OP_SELF_BALANCE)),
+            0xcc => Ok(Opcode::OP_TRANSFER(OP_TRANSFER)),
+
             // Storage
-            0xc8 => Ok(Opcode::OP_SWRITE(OP_SWRITE)),
-            0xc9 => Ok(Opcode::OP_SREAD(OP_SREAD)),
+            0xcd => Ok(Opcode::OP_SWRITE(OP_SWRITE)),
+            0xce => Ok(Opcode::OP_SREAD(OP_SREAD)),
+
             // Memory
-            0xca => Ok(Opcode::OP_MWRITE(OP_MWRITE)),
-            0xcb => Ok(Opcode::OP_MREAD(OP_MREAD)),
-            0xcc => Ok(Opcode::OP_MFREE(OP_MFREE)),
+            0xd0 => Ok(Opcode::OP_MWRITE(OP_MWRITE)),
+            0xd1 => Ok(Opcode::OP_MREAD(OP_MREAD)),
+            0xd2 => Ok(Opcode::OP_MFREE(OP_MFREE)),
+
             // Undefined
             _ => Err(OpcodeDecompileError::UndefinedOpcodeError),
         }

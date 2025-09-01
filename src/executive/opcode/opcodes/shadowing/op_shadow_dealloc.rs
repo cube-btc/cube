@@ -6,12 +6,12 @@ use crate::{
     inscriptive::coin_holder::coin_holder::COIN_HOLDER,
 };
 
-/// Allocates within the contract shadow space an account.
+/// Deallocates within the contract shadow space an account.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[allow(non_camel_case_types)]
-pub struct OP_SHADOW_ALLOC;
+pub struct OP_SHADOW_DEALLOC;
 
-impl OP_SHADOW_ALLOC {
+impl OP_SHADOW_DEALLOC {
     pub async fn execute(
         stack_holder: &mut StackHolder,
         coin_holder: &COIN_HOLDER,
@@ -43,12 +43,12 @@ impl OP_SHADOW_ALLOC {
             _coin_holder.contract_coin_holder()
         };
 
-        // Allocate the account key in the contract shadow space.
+        // Deallocate the account key in the contract shadow space.
         {
             let mut _contract_coin_holder = contract_coin_holder.lock().await;
             _contract_coin_holder
-                .shadow_alloc(self_contract_id_bytes, account_key_bytes)
-                .map_err(|error| ShadowOpsError::ShadowAllocError(error))
+                .shadow_dealloc(self_contract_id_bytes, account_key_bytes)
+                .map_err(|error| ShadowOpsError::ShadowDeallocError(error))
                 .map_err(StackError::ShadowOpsError)?;
         }
 
@@ -56,8 +56,8 @@ impl OP_SHADOW_ALLOC {
         Ok(())
     }
 
-    /// Returns the bytecode for the `OP_SHADOW_ALLOC` opcode (0xc0).
+    /// Returns the bytecode for the `OP_SHADOW_DEALLOC` opcode (0xc2).
     pub fn bytecode() -> Vec<u8> {
-        vec![0xc0]
+        vec![0xc2]
     }
 }

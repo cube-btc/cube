@@ -290,6 +290,19 @@ impl ContractCoinHolder {
             .map(|body| body.shadow_space.allocs_sum)
     }
 
+    /// Get the number of total shadow allocations of the contract.
+    pub fn get_contract_num_allocs(&self, contract_id: [u8; 32]) -> Option<u64> {
+        // Try to get from the ephemeral states first.
+        if let Some(shadow_space) = self.ephemeral_shadow_spaces.get(&contract_id) {
+            return Some(shadow_space.allocs.len() as u64);
+        }
+
+        // And then try to get from the in-memory states.
+        self.in_memory
+            .get(&contract_id)
+            .map(|body| body.shadow_space.allocs.len() as u64)
+    }
+
     /// Get the shadow allocation value of an account for a specific contract ID.
     pub fn get_account_shadow_alloc_value_in_sati_satoshis(
         &self,
