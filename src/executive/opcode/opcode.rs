@@ -26,8 +26,8 @@ use super::opcodes::{
         op_taggedhash::OP_TAGGEDHASH,
     },
     flow::{
-        op_else::OP_ELSE, op_endif::OP_ENDIF, op_fail::OP_FAIL, op_if::OP_IF, op_nop::OP_NOP,
-        op_notif::OP_NOTIF, op_returnall::OP_RETURNALL, op_returnerr::OP_RETURNERR,
+        op_else::OP_ELSE, op_endif::OP_ENDIF, op_fail::OP_FAIL, op_if::OP_IF, op_jump::OP_JUMP,
+        op_nop::OP_NOP, op_notif::OP_NOTIF, op_returnall::OP_RETURNALL,
         op_returnsome::OP_RETURNSOME, op_verify::OP_VERIFY,
     },
     memory::{op_free::OP_MFREE, op_mread::OP_MREAD, op_mwrite::OP_MWRITE},
@@ -95,7 +95,7 @@ pub enum Opcode {
     OP_16(OP_16),
     // Flow
     OP_NOP(OP_NOP),
-    OP_RETURNERR(OP_RETURNERR),
+    OP_JUMP(OP_JUMP),
     OP_IF(OP_IF),
     OP_NOTIF(OP_NOTIF),
     OP_ELSE(OP_ELSE),
@@ -248,7 +248,7 @@ impl Display for Opcode {
             Opcode::OP_16(_) => write!(f, "OP_16"),
             // Flow
             Opcode::OP_NOP(_) => write!(f, "OP_NOP"),
-            Opcode::OP_RETURNERR(_) => write!(f, "OP_RETURNERR"),
+            Opcode::OP_JUMP(_) => write!(f, "OP_JUMP"),
             Opcode::OP_IF(_) => write!(f, "OP_IF"),
             Opcode::OP_NOTIF(_) => write!(f, "OP_NOTIF"),
             Opcode::OP_ELSE(_) => write!(f, "OP_ELSE"),

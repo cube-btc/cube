@@ -57,10 +57,10 @@ use crate::executive::opcode::opcodes::flow::op_else::OP_ELSE;
 use crate::executive::opcode::opcodes::flow::op_endif::OP_ENDIF;
 use crate::executive::opcode::opcodes::flow::op_fail::OP_FAIL;
 use crate::executive::opcode::opcodes::flow::op_if::OP_IF;
+use crate::executive::opcode::opcodes::flow::op_jump::OP_JUMP;
 use crate::executive::opcode::opcodes::flow::op_nop::OP_NOP;
 use crate::executive::opcode::opcodes::flow::op_notif::OP_NOTIF;
 use crate::executive::opcode::opcodes::flow::op_returnall::OP_RETURNALL;
-use crate::executive::opcode::opcodes::flow::op_returnerr::OP_RETURNERR;
 use crate::executive::opcode::opcodes::flow::op_returnsome::OP_RETURNSOME;
 use crate::executive::opcode::opcodes::flow::op_verify::OP_VERIFY;
 use crate::executive::opcode::opcodes::memory::op_free::OP_MFREE;
@@ -168,7 +168,7 @@ impl OpcodeCompiler for Opcode {
 
             // Flow control
             Opcode::OP_NOP(_) => Ok(OP_NOP::bytecode()),
-            Opcode::OP_RETURNERR(_) => Ok(OP_RETURNERR::bytecode()),
+            Opcode::OP_JUMP(_) => Ok(OP_JUMP::bytecode()),
             Opcode::OP_IF(_) => Ok(OP_IF::bytecode()),
             Opcode::OP_NOTIF(_) => Ok(OP_NOTIF::bytecode()),
             Opcode::OP_RETURNALL(_) => Ok(OP_RETURNALL::bytecode()),
@@ -423,7 +423,7 @@ impl OpcodeCompiler for Opcode {
 
             // Flow control
             0x61 => Ok(Opcode::OP_NOP(OP_NOP)),
-            0x62 => Ok(Opcode::OP_RETURNERR(OP_RETURNERR)),
+            0x62 => Ok(Opcode::OP_JUMP(OP_JUMP)),
             0x63 => Ok(Opcode::OP_IF(OP_IF)),
             0x64 => Ok(Opcode::OP_NOTIF(OP_NOTIF)),
             0x65 => Ok(Opcode::OP_RETURNALL(OP_RETURNALL)),

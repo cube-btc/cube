@@ -7,7 +7,7 @@ mod stack_tests {
             arithmetic::op_add::OP_ADD,
             bitwise::op_equalverify::OP_EQUALVERIFY,
             flow::{
-                op_else::OP_ELSE, op_endif::OP_ENDIF, op_if::OP_IF, op_returnerr::OP_RETURNERR,
+                op_else::OP_ELSE, op_endif::OP_ENDIF, op_fail::OP_FAIL, op_if::OP_IF,
                 op_verify::OP_VERIFY,
             },
             push::{
@@ -595,16 +595,16 @@ mod stack_tests {
         OP_IF::execute(&mut stack_holder)?;
         OP_5::execute(&mut stack_holder)?;
         OP_ELSE::execute(&mut stack_holder)?;
-        OP_RETURNERR::execute(&mut stack_holder)?;
+        OP_FAIL::execute(&mut stack_holder)?;
         OP_ENDIF::execute(&mut stack_holder)?;
         OP_ELSE::execute(&mut stack_holder)?;
-        OP_RETURNERR::execute(&mut stack_holder)?;
+        OP_FAIL::execute(&mut stack_holder)?;
         OP_ENDIF::execute(&mut stack_holder)?;
         OP_ELSE::execute(&mut stack_holder)?;
-        OP_RETURNERR::execute(&mut stack_holder)?;
+        OP_FAIL::execute(&mut stack_holder)?;
         OP_ENDIF::execute(&mut stack_holder)?;
         OP_ELSE::execute(&mut stack_holder)?;
-        OP_RETURNERR::execute(&mut stack_holder)?;
+        OP_FAIL::execute(&mut stack_holder)?;
         OP_ENDIF::execute(&mut stack_holder)?;
 
         let expected_stack =
@@ -648,21 +648,21 @@ mod stack_tests {
         OP_IF::execute(&mut stack_holder)?;
         OP_FALSE::execute(&mut stack_holder)?;
         OP_IF::execute(&mut stack_holder)?;
-        OP_RETURNERR::execute(&mut stack_holder)?;
+        OP_FAIL::execute(&mut stack_holder)?;
         OP_ELSE::execute(&mut stack_holder)?;
         OP_6::execute(&mut stack_holder)?;
         OP_ENDIF::execute(&mut stack_holder)?;
         OP_ELSE::execute(&mut stack_holder)?;
-        OP_RETURNERR::execute(&mut stack_holder)?;
+        OP_FAIL::execute(&mut stack_holder)?;
         OP_ENDIF::execute(&mut stack_holder)?;
         OP_ELSE::execute(&mut stack_holder)?;
-        OP_RETURNERR::execute(&mut stack_holder)?;
+        OP_FAIL::execute(&mut stack_holder)?;
         OP_ENDIF::execute(&mut stack_holder)?;
         OP_ELSE::execute(&mut stack_holder)?;
-        OP_RETURNERR::execute(&mut stack_holder)?;
+        OP_FAIL::execute(&mut stack_holder)?;
         OP_ENDIF::execute(&mut stack_holder)?;
         OP_ELSE::execute(&mut stack_holder)?;
-        OP_RETURNERR::execute(&mut stack_holder)?;
+        OP_FAIL::execute(&mut stack_holder)?;
         OP_ENDIF::execute(&mut stack_holder)?;
 
         let expected_stack =
@@ -737,15 +737,15 @@ mod stack_tests {
         )?;
 
         OP_IF::execute(&mut stack_holder)?;
-        OP_RETURNERR::execute(&mut stack_holder)?;
+        OP_FAIL::execute(&mut stack_holder)?;
         OP_ELSE::execute(&mut stack_holder)?;
         OP_FALSE::execute(&mut stack_holder)?;
         OP_IF::execute(&mut stack_holder)?;
-        OP_RETURNERR::execute(&mut stack_holder)?;
+        OP_FAIL::execute(&mut stack_holder)?;
         OP_ELSE::execute(&mut stack_holder)?;
         OP_FALSE::execute(&mut stack_holder)?;
         OP_IF::execute(&mut stack_holder)?;
-        OP_RETURNERR::execute(&mut stack_holder)?;
+        OP_FAIL::execute(&mut stack_holder)?;
         OP_ELSE::execute(&mut stack_holder)?;
         OP_FALSE::execute(&mut stack_holder)?;
         OP_IF::execute(&mut stack_holder)?;
@@ -789,15 +789,15 @@ mod stack_tests {
         )?;
 
         OP_IF::execute(&mut stack_holder)?;
-        OP_RETURNERR::execute(&mut stack_holder)?;
+        OP_FAIL::execute(&mut stack_holder)?;
         OP_ELSE::execute(&mut stack_holder)?;
         OP_FALSE::execute(&mut stack_holder)?;
         OP_IF::execute(&mut stack_holder)?;
-        OP_RETURNERR::execute(&mut stack_holder)?;
+        OP_FAIL::execute(&mut stack_holder)?;
         OP_ELSE::execute(&mut stack_holder)?;
         OP_FALSE::execute(&mut stack_holder)?;
         OP_IF::execute(&mut stack_holder)?;
-        OP_RETURNERR::execute(&mut stack_holder)?;
+        OP_FAIL::execute(&mut stack_holder)?;
         OP_ELSE::execute(&mut stack_holder)?;
         OP_FALSE::execute(&mut stack_holder)?;
         OP_IF::execute(&mut stack_holder)?;
@@ -808,15 +808,15 @@ mod stack_tests {
         OP_IF::execute(&mut stack_holder)?;
         OP_FALSE::execute(&mut stack_holder)?;
         OP_IF::execute(&mut stack_holder)?;
-        OP_RETURNERR::execute(&mut stack_holder)?;
+        OP_FAIL::execute(&mut stack_holder)?;
         OP_ELSE::execute(&mut stack_holder)?;
         OP_2::execute(&mut stack_holder)?;
         OP_ENDIF::execute(&mut stack_holder)?;
         OP_ELSE::execute(&mut stack_holder)?;
-        OP_RETURNERR::execute(&mut stack_holder)?;
+        OP_FAIL::execute(&mut stack_holder)?;
         OP_ENDIF::execute(&mut stack_holder)?;
         OP_ELSE::execute(&mut stack_holder)?;
-        OP_RETURNERR::execute(&mut stack_holder)?;
+        OP_FAIL::execute(&mut stack_holder)?;
         OP_ENDIF::execute(&mut stack_holder)?;
         OP_ENDIF::execute(&mut stack_holder)?;
         OP_ENDIF::execute(&mut stack_holder)?;

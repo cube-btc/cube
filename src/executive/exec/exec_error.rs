@@ -36,6 +36,8 @@ pub enum ExecutionError {
     InvalidStackEndingError,
     /// Base ops price mismatch error.
     BaseOpsPriceMismatchError,
+    /// Opcode index out of bounds error.
+    OpcodeIndexOutOfBoundsError,
 }
 
 impl fmt::Display for ExecutionError {
@@ -75,7 +77,7 @@ impl fmt::Display for ExecutionError {
                 write!(f, "Arg type mismatch")
             }
             ExecutionError::MinPayableAllocationError => {
-                write!(f, "Min payable allocation error")
+                write!(f, "Min payable   allocation error")
             }
             ExecutionError::PayableAllocationCallerIsNotAnAccountError => {
                 write!(f, "Payable allocation caller is not an account")
@@ -88,6 +90,9 @@ impl fmt::Display for ExecutionError {
             }
             ExecutionError::BaseOpsPriceMismatchError => {
                 write!(f, "Base ops price mismatch")
+            }
+            ExecutionError::OpcodeIndexOutOfBoundsError => {
+                write!(f, "Opcode index out of bounds")
             }
         }
     }

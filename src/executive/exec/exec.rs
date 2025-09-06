@@ -36,8 +36,8 @@ use crate::{
                 },
                 flow::{
                     op_else::OP_ELSE, op_endif::OP_ENDIF, op_fail::OP_FAIL, op_if::OP_IF,
-                    op_nop::OP_NOP, op_notif::OP_NOTIF, op_returnall::OP_RETURNALL,
-                    op_returnerr::OP_RETURNERR, op_returnsome::OP_RETURNSOME, op_verify::OP_VERIFY,
+                    op_jump::OP_JUMP, op_nop::OP_NOP, op_notif::OP_NOTIF,
+                    op_returnall::OP_RETURNALL, op_returnsome::OP_RETURNSOME, op_verify::OP_VERIFY,
                 },
                 memory::{op_free::OP_MFREE, op_mread::OP_MREAD, op_mwrite::OP_MWRITE},
                 push::{
@@ -221,9 +221,21 @@ pub async fn execute(
         Err(error) => return Err(ExecutionError::StackHolderInitializationError(error)),
     };
 
+    let opcodes = program_method.script();
+    let opcodes_length = opcodes.len();
+
+    let mut opcode_index = 0;
+
     // Execute the program method.
-    for opcode in program_method.script().iter() {
-        match opcode {
+    while opcode_index < opcodes_length {
+        // Get the current opcode.
+        let current_opcode = &opcodes[opcode_index];
+
+        // Increment the opcode index.
+        opcode_index += 1;
+
+        // Execute the current opcode.
+        match current_opcode {
             // Data push opcodes.
             Opcode::OP_FALSE(OP_FALSE) => {
                 OP_FALSE::execute(&mut stack_holder)
@@ -303,12 +315,17 @@ pub async fn execute(
                 OP_NOP::execute(&mut stack_holder)
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
-            Opcode::OP_RETURNERR(_) => {
-                let error_item = OP_RETURNERR::execute(&mut stack_holder)
+            Opcode::OP_JUMP(_) => {
+                // Retrieve the new opcode index.
+                let new_opcode_index = OP_JUMP::execute(&mut stack_holder)
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
 
-                // Return the error item.
-                return Err(ExecutionError::ReturnErrorFromStackError(error_item));
+                // If the new opcode index is within the bounds of the opcodes, set the new opcode index.
+                // Otherwise, return an error.
+                match new_opcode_index < opcodes_length {
+                    true => opcode_index = new_opcode_index,
+                    false => return Err(ExecutionError::OpcodeIndexOutOfBoundsError),
+                }
             }
             Opcode::OP_IF(_) => {
                 OP_IF::execute(&mut stack_holder)

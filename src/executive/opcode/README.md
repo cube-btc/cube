@@ -17,7 +17,7 @@ Cube uses an extended Bitcoin script with splicing, better memory management, an
 | Opcode        | Bytecode  | Ops | Input       | Output         | Description                                                                                        |
 |:--------------|:----------|:----|:------------|:---------------|:---------------------------------------------------------------------------------------------------|
 | OP_NOP        | 0x61      | 1   | Nothing.    | Nothing.       | Does nothing.                                                                                      |
-| OP_RETURNERR  | 0x62      | 1   | Nothing.    | Return.        | Pops the top stack item and returns it as error message.                                           |
+| OP_JUMP       | 0x62      | 1   | index       | Nothing/Fail   | Pops the iterator index and jumps to the respective opcode execution.                              |
 | OP_IF         | 0x63      | 1   | True/false  | Nothing.       | If the top stack value is not False, the statements are executed. The top stack value is removed.  |
 | OP_NOTIF      | 0x64      | 1   | True/false  | Nothing.       | If the top stack value is False, the statements are executed. The top stack value is removed.      |
 | OP_RETURNALL  | 0x65      | 1   | x1..xn      | Return.        | All stack items are popped and returned.                                                           |

@@ -6,7 +6,7 @@ mod program_and_method_tests {
             opcode::{
                 opcode::Opcode,
                 opcodes::{
-                    flow::{op_returnall::OP_RETURNALL, op_returnerr::OP_RETURNERR},
+                    flow::{op_fail::OP_FAIL, op_returnall::OP_RETURNALL},
                     push::{
                         op_2::OP_2, op_false::OP_FALSE, op_pushdata::OP_PUSHDATA, op_true::OP_TRUE,
                     },
@@ -34,7 +34,7 @@ mod program_and_method_tests {
                 Opcode::OP_TRUE(OP_TRUE),
                 Opcode::OP_2(OP_2),
                 Opcode::OP_PUSHDATA(OP_PUSHDATA(vec![0xde, 0xad, 0xbe, 0xef])),
-                Opcode::OP_RETURNERR(OP_RETURNERR),
+                Opcode::OP_FAIL(OP_FAIL),
             ];
 
             let method = ProgramMethod::new(method_name, method_type, call_element_types, script);
@@ -70,7 +70,7 @@ mod program_and_method_tests {
                 Opcode::OP_TRUE(OP_TRUE),
                 Opcode::OP_2(OP_2),
                 Opcode::OP_PUSHDATA(OP_PUSHDATA(vec![0xde, 0xad, 0xbe, 0xef])),
-                Opcode::OP_RETURNERR(OP_RETURNERR),
+                Opcode::OP_FAIL(OP_FAIL),
             ];
 
             let method = ProgramMethod::new(method_name, method_type, call_element_types, script);
@@ -141,7 +141,7 @@ mod program_and_method_tests {
             Opcode::OP_TRUE(OP_TRUE),
             Opcode::OP_2(OP_2),
             Opcode::OP_PUSHDATA(OP_PUSHDATA(vec![0xde, 0xad, 0xbe, 0xef])),
-            Opcode::OP_RETURNERR(OP_RETURNERR),
+            Opcode::OP_FAIL(OP_FAIL),
         ];
 
         let method =
