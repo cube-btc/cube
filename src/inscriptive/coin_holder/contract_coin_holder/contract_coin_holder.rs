@@ -500,6 +500,16 @@ impl ContractCoinHolder {
         contract_id: [u8; 32],
         account_key: ACCOUNT_KEY,
     ) -> Result<(), ShadowAllocError> {
+        // If an account is already ephemerally deallocated, we do not allow it to be allocated again in the same execution.
+        if let Some(dealloc_list) = self.epheremal_dealloc_list.get(&contract_id) {
+            if dealloc_list.contains(&account_key) {
+                return Err(ShadowAllocError::AccountKeyJustDeallocated(
+                    contract_id,
+                    account_key,
+                ));
+            }
+        }
+
         // Check if the account key is already allocated.
         if self
             .get_account_shadow_alloc_value_in_sati_satoshis(contract_id, account_key)

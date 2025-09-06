@@ -166,7 +166,7 @@ Cube uses an extended Bitcoin script with splicing, better memory management, an
 |:--------------------------|:---------|:------------|:-----------|:-----------------------|:----------------------------------------------------------------------------------|
 | OP_SHADOW_ALLOC           | 0xc0     | 1000        | key        | Nothing/fail.          | Allocates an account within the contract's shadow space.                          |
 | OP_SHADOW_HAS_ALLOC       | 0xc1     | 1           | key        | out                    | Returns whether the account has an allocation within the contract's shadow space. |
-| OP_SHADOW_DEALLOC         | 0xc2     | +1000       | key        | Nothing/fail.          | Deallocates the account within the contract's shadow space.                       |
+| OP_SHADOW_DEALLOC         | 0xc2     | +900        | key        | Nothing/fail.          | Deallocates the account within the contract's shadow space.                       |
 | OP_SHADOW_ALLOC_VAL       | 0xc3     | 1           | key        | out/fail.              | Returns the allocation value of an account within the contract's shadow space.    |
 | OP_SHADOW_ALLOC_UP        | 0xc4     | 5           | key amount | Nothing/fail.          | Increases the shadow space allocation of an account.                              |
 | OP_SHADOW_ALLOC_DOWN      | 0xc5     | 5           | key amount | Nothing/fail.          | Decreases the shadow space allocation of an account.                              |

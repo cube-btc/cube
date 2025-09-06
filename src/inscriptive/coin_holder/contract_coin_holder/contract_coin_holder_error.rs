@@ -72,6 +72,7 @@ pub enum ContractCoinHolderRegisterError {
 pub enum ShadowAllocError {
     AccountKeyAlreadyAllocated(CONTRACT_ID, ACCOUNT_KEY),
     ShadowSpaceNotFound(CONTRACT_ID),
+    AccountKeyJustDeallocated(CONTRACT_ID, ACCOUNT_KEY),
 }
 
 /// The shadow deallocation error.
