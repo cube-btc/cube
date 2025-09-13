@@ -26,7 +26,7 @@ type SATI_SATOSHI_AMOUNT = u128;
 /// The state construction error.
 #[derive(Debug, Clone)]
 pub enum ContractCoinHolderConstructionError {
-    // Main DB open error.
+    // Main DB open at construction error.
     BalancesDBOpenError(sled::Error),
     // Key deserialize at index error.
     ContractIDDeserializeErrorAtIndex(usize),
@@ -38,9 +38,13 @@ pub enum ContractCoinHolderConstructionError {
     ShadowSpaceTreeOpenError(CONTRACT_ID, sled::Error),
     InvalidContractIDBytes(Vec<u8>),
     ContractShadowIterError(sled::Error),
-    InvalidShadowAccountKey(Vec<u8>),
-    InvalidShadowAllocValueBytes(Vec<u8>),
-    InvalidShadowAllocsSumBytes(Vec<u8>),
+
+    //
+    UnableToDeserializeKeyBytes(Vec<u8>),
+    UnableToDeserializeAllocsSumBytes(Vec<u8>),
+    UnableToDeserializeContractBalanceBytes(Vec<u8>),
+    UnableToDeserializeAllocValueBytes(Vec<u8>),
+
     //InvalidShadowAllocation(Vec<u8>),
     UnableToGetContractBalance(CONTRACT_ID, Option<sled::Error>),
     InvalidBalanceBytesError(Vec<u8>),
@@ -81,6 +85,7 @@ pub enum ShadowDeallocError {
     AccountKeyAlreadyEphemerallyDeallocated(CONTRACT_ID, ACCOUNT_KEY),
     UnableToGetAccountAllocValue(CONTRACT_ID, ACCOUNT_KEY),
     AlocValueIsNonZero(CONTRACT_ID, ACCOUNT_KEY),
+    AccountKeyJustAllocated(CONTRACT_ID, ACCOUNT_KEY),
     UnableToGetDeallocList(CONTRACT_ID),
 }
 
