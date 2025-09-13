@@ -1122,9 +1122,52 @@ impl ContractCoinHolder {
 
     /// Saves all epheremal changes in-memory and on-disk.
     pub fn save_all(&mut self) -> Result<(), ContractCoinHolderSaveError> {
-        // #0 Save contract balances.
+        // 0. Register new contracts.
+        for contract_id in self.ephemeral_updates.new_contracts_to_register.iter() {
+            // In-memory insertion.
+            {
+                let fresh_new_contract_body = ContractBody {
+                    balance: 0,
+                    shadow_space: ShadowSpace {
+                        allocs_sum: 0,
+                        allocs: HashMap::new(),
+                    },
+                };
+
+                // Insert the contract body into the in-memory list.
+                // Register the contract in-memory.
+                self.in_memory.insert(*contract_id, fresh_new_contract_body);
+            }
+
+            // On-disk insertion.
+            {
+                // Open tree
+                let tree = self
+                    .on_disk
+                    .open_tree(contract_id)
+                    .map_err(|e| ContractCoinHolderSaveError::OpenTreeError(*contract_id, e))?;
+
+                // Insert the contract body into the on-disk list.
+                tree.insert(CONTRACT_BALANCES_SPECIAL_KEY, 0u64.to_le_bytes().to_vec())
+                    .map_err(|e| {
+                        ContractCoinHolderSaveError::BalanceValueInsertError(*contract_id, 0, e)
+                    })?;
+
+                // Insert the shadow space into the on-disk list.
+                tree.insert(ALLOCS_SUM_SPECIAL_KEY, 0u64.to_le_bytes().to_vec())
+                    .map_err(|e| {
+                        ContractCoinHolderSaveError::ShadowSpaceTreeAllocsSumInsertError(
+                            *contract_id,
+                            0,
+                            e,
+                        )
+                    })?;
+            }
+        }
+
+        // 1. Save contract balances.
         for (contract_id, ephemeral_contract_balance) in self.ephemeral_updates.balances.iter() {
-            // #0.0 In-memory insertion.
+            // 1.0 In-memory insertion.
             {
                 // Get mutable in-memory permanent contract body.
                 let in_memory_permanent_contract_body = self.in_memory.get_mut(contract_id).ok_or(
@@ -1135,7 +1178,7 @@ impl ContractCoinHolder {
                 in_memory_permanent_contract_body.balance = *ephemeral_contract_balance;
             }
 
-            // #0.1 On-disk insertion.
+            // 1.1 On-disk insertion.
             {
                 // Open tree
                 let tree = self
@@ -1158,9 +1201,9 @@ impl ContractCoinHolder {
             }
         }
 
-        // #1 Save ephemeral shadow spaces.
+        // 2. Save ephemeral shadow spaces.
         for (contract_id, ephemeral_shadow_space) in self.ephemeral_updates.shadow_spaces.iter() {
-            // #1.0 In-memory insertion.
+            // 2.0 In-memory insertion.
             {
                 // Get mutable in-memory permanent contract body.
                 let in_memory_permanent_contract_body = self.in_memory.get_mut(contract_id).ok_or(
@@ -1171,7 +1214,7 @@ impl ContractCoinHolder {
                 in_memory_permanent_contract_body.shadow_space = ephemeral_shadow_space.clone();
             }
 
-            // #1.1 On-disk insertion.
+            // 2.1 On-disk insertion.
             {
                 // Open the contract tree using the contract ID as the tree name.
                 let tree = self
@@ -1211,10 +1254,11 @@ impl ContractCoinHolder {
                 })?;
             }
         }
-        // #2 Handle deallocs
+
+        // 3. Handle deallocs
         {
             for (contract_id, ephemeral_dealloc_list) in self.ephemeral_updates.deallocs.iter() {
-                // In-memory deletion.
+                // 3.0 In-memory deletion.
                 {
                     // Get mutable in-memory permanent contract body.
                     let in_memory_permanent_contract_body =
@@ -1238,7 +1282,7 @@ impl ContractCoinHolder {
                     }
                 }
 
-                // On-disk deletion.
+                // 3.1 On-disk deletion.
                 {
                     // Open the contract tree using the contract ID as the tree name.
                     let on_disk_permanent_shadow_space = self
