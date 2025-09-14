@@ -1,10 +1,10 @@
 pub mod op_shadow_alloc;
-pub mod op_shadow_alloc_down;
-pub mod op_shadow_alloc_down_all;
-pub mod op_shadow_alloc_up;
-pub mod op_shadow_alloc_up_all;
 pub mod op_shadow_alloc_val;
 pub mod op_shadow_allocs_sum;
 pub mod op_shadow_dealloc;
+pub mod op_shadow_down;
+pub mod op_shadow_down_all;
 pub mod op_shadow_has_alloc;
 pub mod op_shadow_num_allocs;
+pub mod op_shadow_up;
+pub mod op_shadow_up_all;

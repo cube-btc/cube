@@ -92,15 +92,15 @@ use crate::executive::opcode::opcodes::secp::op_secppointmul::OP_SECPPOINTMUL;
 use crate::executive::opcode::opcodes::secp::op_secpscalaradd::OP_SECPSCALARADD;
 use crate::executive::opcode::opcodes::secp::op_secpscalarmul::OP_SECPSCALARMUL;
 use crate::executive::opcode::opcodes::shadowing::op_shadow_alloc::OP_SHADOW_ALLOC;
-use crate::executive::opcode::opcodes::shadowing::op_shadow_alloc_down::OP_SHADOW_ALLOC_DOWN;
-use crate::executive::opcode::opcodes::shadowing::op_shadow_alloc_down_all::OP_SHADOW_ALLOC_DOWN_ALL;
-use crate::executive::opcode::opcodes::shadowing::op_shadow_alloc_up::OP_SHADOW_ALLOC_UP;
-use crate::executive::opcode::opcodes::shadowing::op_shadow_alloc_up_all::OP_SHADOW_ALLOC_UP_ALL;
 use crate::executive::opcode::opcodes::shadowing::op_shadow_alloc_val::OP_SHADOW_ALLOC_VAL;
 use crate::executive::opcode::opcodes::shadowing::op_shadow_allocs_sum::OP_SHADOW_ALLOCS_SUM;
 use crate::executive::opcode::opcodes::shadowing::op_shadow_dealloc::OP_SHADOW_DEALLOC;
+use crate::executive::opcode::opcodes::shadowing::op_shadow_down::OP_SHADOW_DOWN;
+use crate::executive::opcode::opcodes::shadowing::op_shadow_down_all::OP_SHADOW_DOWN_ALL;
 use crate::executive::opcode::opcodes::shadowing::op_shadow_has_alloc::OP_SHADOW_HAS_ALLOC;
 use crate::executive::opcode::opcodes::shadowing::op_shadow_num_allocs::OP_SHADOW_NUM_ALLOCS;
+use crate::executive::opcode::opcodes::shadowing::op_shadow_up::OP_SHADOW_UP;
+use crate::executive::opcode::opcodes::shadowing::op_shadow_up_all::OP_SHADOW_UP_ALL;
 use crate::executive::opcode::opcodes::signature::op_checkblssig::OP_CHECKBLSSIG;
 use crate::executive::opcode::opcodes::signature::op_checkblssigagg::OP_CHECKBLSSIGAGG;
 use crate::executive::opcode::opcodes::signature::op_checkschnorrsig::OP_CHECKSCHNORRSIG;
@@ -286,10 +286,10 @@ impl OpcodeCompiler for Opcode {
             Opcode::OP_SHADOW_DEALLOC(_) => Ok(OP_SHADOW_DEALLOC::bytecode()),
             Opcode::OP_SHADOW_ALLOC_VAL(_) => Ok(OP_SHADOW_ALLOC_VAL::bytecode()),
             Opcode::OP_SHADOW_ALLOC(_) => Ok(OP_SHADOW_ALLOC::bytecode()),
-            Opcode::OP_SHADOW_ALLOC_UP(_) => Ok(OP_SHADOW_ALLOC_UP::bytecode()),
-            Opcode::OP_SHADOW_ALLOC_DOWN(_) => Ok(OP_SHADOW_ALLOC_DOWN::bytecode()),
-            Opcode::OP_SHADOW_ALLOC_UP_ALL(_) => Ok(OP_SHADOW_ALLOC_UP_ALL::bytecode()),
-            Opcode::OP_SHADOW_ALLOC_DOWN_ALL(_) => Ok(OP_SHADOW_ALLOC_DOWN_ALL::bytecode()),
+            Opcode::OP_SHADOW_UP(_) => Ok(OP_SHADOW_UP::bytecode()),
+            Opcode::OP_SHADOW_DOWN(_) => Ok(OP_SHADOW_DOWN::bytecode()),
+            Opcode::OP_SHADOW_UP_ALL(_) => Ok(OP_SHADOW_UP_ALL::bytecode()),
+            Opcode::OP_SHADOW_DOWN_ALL(_) => Ok(OP_SHADOW_DOWN_ALL::bytecode()),
             Opcode::OP_SHADOW_NUM_ALLOCS(_) => Ok(OP_SHADOW_NUM_ALLOCS::bytecode()),
             Opcode::OP_SHADOW_ALLOCS_SUM(_) => Ok(OP_SHADOW_ALLOCS_SUM::bytecode()),
 
@@ -541,10 +541,10 @@ impl OpcodeCompiler for Opcode {
             0xc1 => Ok(Opcode::OP_SHADOW_DEALLOC(OP_SHADOW_DEALLOC)),
             0xc2 => Ok(Opcode::OP_SHADOW_ALLOC_VAL(OP_SHADOW_ALLOC_VAL)),
             0xc3 => Ok(Opcode::OP_SHADOW_ALLOC(OP_SHADOW_ALLOC)),
-            0xc4 => Ok(Opcode::OP_SHADOW_ALLOC_UP(OP_SHADOW_ALLOC_UP)),
-            0xc5 => Ok(Opcode::OP_SHADOW_ALLOC_DOWN(OP_SHADOW_ALLOC_DOWN)),
-            0xc6 => Ok(Opcode::OP_SHADOW_ALLOC_UP_ALL(OP_SHADOW_ALLOC_UP_ALL)),
-            0xc7 => Ok(Opcode::OP_SHADOW_ALLOC_DOWN_ALL(OP_SHADOW_ALLOC_DOWN_ALL)),
+            0xc4 => Ok(Opcode::OP_SHADOW_UP(OP_SHADOW_UP)),
+            0xc5 => Ok(Opcode::OP_SHADOW_DOWN(OP_SHADOW_DOWN)),
+            0xc6 => Ok(Opcode::OP_SHADOW_UP_ALL(OP_SHADOW_UP_ALL)),
+            0xc7 => Ok(Opcode::OP_SHADOW_DOWN_ALL(OP_SHADOW_DOWN_ALL)),
             0xc8 => Ok(Opcode::OP_SHADOW_NUM_ALLOCS(OP_SHADOW_NUM_ALLOCS)),
             0xc9 => Ok(Opcode::OP_SHADOW_ALLOCS_SUM(OP_SHADOW_ALLOCS_SUM)),
 

@@ -7,12 +7,12 @@ use crate::{
     inscriptive::coin_holder::coin_holder::COIN_HOLDER,
 };
 
-/// Shadow allocation down all.
+/// Decreases the shadow space allocation of an account.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[allow(non_camel_case_types)]
-pub struct OP_SHADOW_ALLOC_DOWN_ALL;
+pub struct OP_SHADOW_DOWN;
 
-impl OP_SHADOW_ALLOC_DOWN_ALL {
+impl OP_SHADOW_DOWN {
     pub async fn execute(
         stack_holder: &mut StackHolder,
         coin_holder: &COIN_HOLDER,
@@ -24,6 +24,19 @@ impl OP_SHADOW_ALLOC_DOWN_ALL {
 
         // Get the self contract id bytes.
         let self_contract_id_bytes = stack_holder.contract_id();
+
+        // Pop the account key.
+        let account_key = stack_holder.pop()?;
+
+        // Convert the account key to bytes.
+        let account_key_bytes: [u8; 32] = match account_key.bytes().try_into() {
+            Ok(bytes) => bytes,
+            Err(_) => {
+                return Err(StackError::ShadowOpsError(
+                    ShadowOpsError::InvalidAccountKeyBytes(account_key.bytes().to_vec()),
+                ));
+            }
+        };
 
         // Pop the amount.
         let amount = stack_holder.pop()?;
@@ -50,15 +63,17 @@ impl OP_SHADOW_ALLOC_DOWN_ALL {
         {
             let mut _contract_coin_holder = contract_coin_holder.lock().await;
             _contract_coin_holder
-                .shadow_alloc_down_all(self_contract_id_bytes, amount_as_u64)
-                .map_err(|error| ShadowOpsError::ShadowAllocDownAllError(error))
+                .shadow_down(self_contract_id_bytes, account_key_bytes, amount_as_u64)
+                .map_err(|error| ShadowOpsError::ShadowAllocDownError(error))
                 .map_err(StackError::ShadowOpsError)?;
         }
+
+        // Return the result.
         Ok(())
     }
 
-    /// Returns the bytecode for the `OP_SHADOW_ALLOC_DOWN_ALL` opcode (0xc7).
+    /// Returns the bytecode for the `OP_SHADOW_DOWN` opcode (0xc5).
     pub fn bytecode() -> Vec<u8> {
-        vec![0xc7]
+        vec![0xc5]
     }
 }

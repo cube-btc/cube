@@ -54,14 +54,13 @@ use crate::{
                     op_secpscalaradd::OP_SECPSCALARADD, op_secpscalarmul::OP_SECPSCALARMUL,
                 },
                 shadowing::{
-                    op_shadow_alloc::OP_SHADOW_ALLOC, op_shadow_alloc_down::OP_SHADOW_ALLOC_DOWN,
-                    op_shadow_alloc_down_all::OP_SHADOW_ALLOC_DOWN_ALL,
-                    op_shadow_alloc_up::OP_SHADOW_ALLOC_UP,
-                    op_shadow_alloc_up_all::OP_SHADOW_ALLOC_UP_ALL,
-                    op_shadow_alloc_val::OP_SHADOW_ALLOC_VAL,
+                    op_shadow_alloc::OP_SHADOW_ALLOC, op_shadow_alloc_val::OP_SHADOW_ALLOC_VAL,
                     op_shadow_allocs_sum::OP_SHADOW_ALLOCS_SUM,
-                    op_shadow_dealloc::OP_SHADOW_DEALLOC, op_shadow_has_alloc::OP_SHADOW_HAS_ALLOC,
-                    op_shadow_num_allocs::OP_SHADOW_NUM_ALLOCS,
+                    op_shadow_dealloc::OP_SHADOW_DEALLOC, op_shadow_down::OP_SHADOW_DOWN,
+                    op_shadow_down_all::OP_SHADOW_DOWN_ALL,
+                    op_shadow_has_alloc::OP_SHADOW_HAS_ALLOC,
+                    op_shadow_num_allocs::OP_SHADOW_NUM_ALLOCS, op_shadow_up::OP_SHADOW_UP,
+                    op_shadow_up_all::OP_SHADOW_UP_ALL,
                 },
                 signature::{
                     op_checkblssig::OP_CHECKBLSSIG, op_checkblssigagg::OP_CHECKBLSSIGAGG,
@@ -819,23 +818,23 @@ pub async fn execute(
                     .await
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
-            Opcode::OP_SHADOW_ALLOC_UP(OP_SHADOW_ALLOC_UP) => {
-                OP_SHADOW_ALLOC_UP::execute(&mut stack_holder, coin_holder)
+            Opcode::OP_SHADOW_UP(OP_SHADOW_UP) => {
+                OP_SHADOW_UP::execute(&mut stack_holder, coin_holder)
                     .await
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
-            Opcode::OP_SHADOW_ALLOC_DOWN(OP_SHADOW_ALLOC_DOWN) => {
-                OP_SHADOW_ALLOC_DOWN::execute(&mut stack_holder, coin_holder)
+            Opcode::OP_SHADOW_DOWN(OP_SHADOW_DOWN) => {
+                OP_SHADOW_DOWN::execute(&mut stack_holder, coin_holder)
                     .await
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
-            Opcode::OP_SHADOW_ALLOC_UP_ALL(OP_SHADOW_ALLOC_UP_ALL) => {
-                OP_SHADOW_ALLOC_UP_ALL::execute(&mut stack_holder, coin_holder)
+            Opcode::OP_SHADOW_UP_ALL(OP_SHADOW_UP_ALL) => {
+                OP_SHADOW_UP_ALL::execute(&mut stack_holder, coin_holder)
                     .await
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
-            Opcode::OP_SHADOW_ALLOC_DOWN_ALL(OP_SHADOW_ALLOC_DOWN_ALL) => {
-                OP_SHADOW_ALLOC_DOWN_ALL::execute(&mut stack_holder, coin_holder)
+            Opcode::OP_SHADOW_DOWN_ALL(OP_SHADOW_DOWN_ALL) => {
+                OP_SHADOW_DOWN_ALL::execute(&mut stack_holder, coin_holder)
                     .await
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }

@@ -10,9 +10,9 @@ use crate::{
 /// Increases the shadow space allocation of an account.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[allow(non_camel_case_types)]
-pub struct OP_SHADOW_ALLOC_UP;
+pub struct OP_SHADOW_UP;
 
-impl OP_SHADOW_ALLOC_UP {
+impl OP_SHADOW_UP {
     pub async fn execute(
         stack_holder: &mut StackHolder,
         coin_holder: &COIN_HOLDER,
@@ -63,7 +63,7 @@ impl OP_SHADOW_ALLOC_UP {
         {
             let mut _contract_coin_holder = contract_coin_holder.lock().await;
             _contract_coin_holder
-                .shadow_alloc_up(self_contract_id_bytes, account_key_bytes, amount_as_u64)
+                .shadow_up(self_contract_id_bytes, account_key_bytes, amount_as_u64)
                 .map_err(|error| ShadowOpsError::ShadowAllocUpError(error))
                 .map_err(StackError::ShadowOpsError)?;
         }
@@ -72,7 +72,7 @@ impl OP_SHADOW_ALLOC_UP {
         Ok(())
     }
 
-    /// Returns the bytecode for the `OP_SHADOW_ALLOC_UP` opcode (0xc4).
+    /// Returns the bytecode for the `OP_SHADOW_UP` opcode (0xc4).
     pub fn bytecode() -> Vec<u8> {
         vec![0xc4]
     }

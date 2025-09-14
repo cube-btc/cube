@@ -29,10 +29,10 @@ type SATOSHI_AMOUNT = u64;
 type SATI_SATOSHI_AMOUNT = u128;
 
 /// Special db key for the contract balance (0x00..).
-const CONTRACT_BALANCES_SPECIAL_KEY: [u8; 32] = [0x00; 32];
+const CONTRACT_BALANCE_SPECIAL_KEY: [u8; 32] = [0x00; 32];
 
 /// Special db key for the allocs sum (0x01..).
-const ALLOCS_SUM_SPECIAL_KEY: [u8; 32] = [0x01; 32];
+const CONTRACT_ALLOCS_SUM_SPECIAL_KEY: [u8; 32] = [0x01; 32];
 
 /// A struct for representing a shadow space of a contract.
 #[derive(Clone)]
@@ -52,19 +52,19 @@ struct ContractBody {
     pub shadow_space: ShadowSpace,
 }
 
-/// A struct for containing updates to a contract.
+/// A struct for containing state differences to be applied.
 #[derive(Clone)]
-struct UpdatesContainer {
+struct Delta {
     // New contracts to register.
     pub new_contracts_to_register: Vec<CONTRACT_ID>,
-    // New balances to update for a given contract.
-    pub balances: HashMap<CONTRACT_ID, SATOSHI_AMOUNT>,
     // New accounts to allocate for a given contract.
-    pub new_allocs: HashMap<CONTRACT_ID, Vec<ACCOUNT_KEY>>,
-    // Allocations to update for a given contract.
-    pub shadow_spaces: HashMap<CONTRACT_ID, ShadowSpace>,
-    // Accounts to deallocate for a given contract.
-    pub deallocs: HashMap<CONTRACT_ID, Vec<ACCOUNT_KEY>>,
+    pub allocs_list: HashMap<CONTRACT_ID, Vec<ACCOUNT_KEY>>,
+    // Existing accounts to deallocate for a given contract.
+    pub deallocs_list: HashMap<CONTRACT_ID, Vec<ACCOUNT_KEY>>,
+    // Updated contract balances for a given contract.
+    pub updated_contract_balances: HashMap<CONTRACT_ID, SATOSHI_AMOUNT>,
+    // Updated shadow spaces for a given contract.
+    pub updated_shadow_spaces: HashMap<CONTRACT_ID, ShadowSpace>,
 }
 
 /// A database manager for handling contract balances and shadow spaces.
@@ -76,9 +76,9 @@ pub struct ContractCoinHolder {
     // ON-DISK STATES
     on_disk: sled::Db,
 
-    // EPHEMERAL UPDATES
-    ephemeral_updates: UpdatesContainer,
-    backup_of_ephemeral_updates: UpdatesContainer,
+    // DELTA STATES TO BE APPLIED
+    delta: Delta,
+    delta_backup: Delta,
 }
 
 /// Guarded contract coin holder.
@@ -140,7 +140,7 @@ impl ContractCoinHolder {
                 // Match the key bytes.
                 match key_bytes {
                     // If the key is (0x00..), it is a special key that corresponds to the contract balance value.
-                    CONTRACT_BALANCES_SPECIAL_KEY => {
+                    CONTRACT_BALANCE_SPECIAL_KEY => {
                         // Deserialize the value bytes.
                         let contract_balance_value_in_satoshis: u64 =
                             u64::from_le_bytes(value.as_ref().try_into().map_err(|_| {
@@ -153,7 +153,7 @@ impl ContractCoinHolder {
                         contract_balance = contract_balance_value_in_satoshis;
                     }
                     // If the key is (0x01..), it is a special key that corresponds to the allocs sum value.
-                    ALLOCS_SUM_SPECIAL_KEY => {
+                    CONTRACT_ALLOCS_SUM_SPECIAL_KEY => {
                         // Deserialize the value bytes.
                         let allocs_sum_value_in_satoshis: u64 =
                             u64::from_le_bytes(value.as_ref().try_into().map_err(|_| {
@@ -203,21 +203,21 @@ impl ContractCoinHolder {
             in_memory.insert(contract_id, contract_body);
         }
 
-        // Create a fresh new updates container.
-        let fresh_new_updates_container = UpdatesContainer {
+        // Create a fresh new delta.
+        let fresh_new_delta = Delta {
             new_contracts_to_register: Vec::new(),
-            balances: HashMap::new(),
-            new_allocs: HashMap::new(),
-            shadow_spaces: HashMap::new(),
-            deallocs: HashMap::new(),
+            allocs_list: HashMap::new(),
+            deallocs_list: HashMap::new(),
+            updated_contract_balances: HashMap::new(),
+            updated_shadow_spaces: HashMap::new(),
         };
 
         // Create the contract coin holder.
         let contract_coin_holder = ContractCoinHolder {
             in_memory,
             on_disk: db,
-            ephemeral_updates: fresh_new_updates_container.clone(),
-            backup_of_ephemeral_updates: fresh_new_updates_container,
+            delta: fresh_new_delta.clone(),
+            delta_backup: fresh_new_delta,
         };
 
         // Create the guarded contract coin holder.
@@ -228,32 +228,32 @@ impl ContractCoinHolder {
     }
 
     /// Clones ephemeral states into the backup.
-    fn backup_ephemeral_updates(&mut self) {
-        self.backup_of_ephemeral_updates = self.ephemeral_updates.clone();
+    fn backup_delta(&mut self) {
+        self.delta_backup = self.delta.clone();
     }
 
     /// Restores ephemeral states from the backup.
-    fn restore_ephemeral_updates(&mut self) {
-        self.ephemeral_updates = self.backup_of_ephemeral_updates.clone();
+    fn restore_delta(&mut self) {
+        self.delta = self.delta_backup.clone();
     }
 
     /// Prepares the state holder prior to each execution.
     ///
     /// NOTE: Used by the Engine coordinator.
     pub fn pre_execution(&mut self) {
-        // Backup the ephemeral states.
-        self.backup_ephemeral_updates();
+        // Backup the delta.
+        self.backup_delta();
     }
 
     /// Checks if a contract is registered.
-    pub fn in_contract_registered(&self, contract_id: [u8; 32]) -> bool {
+    pub fn is_contract_registered(&self, contract_id: [u8; 32]) -> bool {
         self.in_memory.contains_key(&contract_id)
     }
 
     /// Get the contract coin balance for a contract ID.
     pub fn get_contract_balance(&self, contract_id: [u8; 32]) -> Option<u64> {
-        // Try to get from the ephemeral states first.
-        if let Some(balance) = self.ephemeral_updates.balances.get(&contract_id) {
+        // Try to get from the delta first.
+        if let Some(balance) = self.delta.updated_contract_balances.get(&contract_id) {
             return Some(*balance);
         }
 
@@ -263,8 +263,8 @@ impl ContractCoinHolder {
 
     /// Get the contract shadow allocation for a contract ID.
     pub fn get_contract_allocs_sum(&self, contract_id: [u8; 32]) -> Option<u64> {
-        // Try to read from the ephemeral states first.
-        if let Some(allocs_sum) = self.ephemeral_updates.shadow_spaces.get(&contract_id) {
+        // Try to read from the delta first.
+        if let Some(allocs_sum) = self.delta.updated_shadow_spaces.get(&contract_id) {
             return Some(allocs_sum.allocs_sum);
         }
 
@@ -276,8 +276,8 @@ impl ContractCoinHolder {
 
     /// Get the number of total shadow allocations of the contract.
     pub fn get_contract_num_allocs(&self, contract_id: [u8; 32]) -> Option<u64> {
-        // Try to get from the ephemeral states first.
-        if let Some(shadow_space) = self.ephemeral_updates.shadow_spaces.get(&contract_id) {
+        // Try to get from the delta first.
+        if let Some(shadow_space) = self.delta.updated_shadow_spaces.get(&contract_id) {
             return Some(shadow_space.allocs.len() as u64);
         }
 
@@ -293,19 +293,19 @@ impl ContractCoinHolder {
         contract_id: [u8; 32],
         account_key: ACCOUNT_KEY,
     ) -> Option<u128> {
-        // If this account is JUST deallocated, return none.
-        if let Some(dealloc_list) = self.ephemeral_updates.deallocs.get(&contract_id) {
+        // Check if the account is epheremally deallocated in the delta.
+        if let Some(dealloc_list) = self.delta.deallocs_list.get(&contract_id) {
             if dealloc_list.contains(&account_key) {
                 return None;
             }
         }
 
-        // Try to get from the ephemeral states first.
-        if let Some(shadow_space) = self.ephemeral_updates.shadow_spaces.get(&contract_id) {
+        // Try to read from the delta first.
+        if let Some(shadow_space) = self.delta.updated_shadow_spaces.get(&contract_id) {
             return shadow_space.allocs.get(&account_key).cloned();
         }
 
-        // And then try to get from the in-memory states.
+        // And then try to read from the permanent states.
         self.in_memory
             .get(&contract_id)
             .and_then(|body| body.shadow_space.allocs.get(&account_key).cloned())
@@ -330,138 +330,141 @@ impl ContractCoinHolder {
 
     /// Registers a contract if it is not already registered.
     ///
-    /// NOTE: These changes are saved with the use of the `save_all` function.
+    /// NOTE: These changes are saved with the use of the `apply_changes` function.
     pub fn register_contract(
         &mut self,
         contract_id: [u8; 32],
     ) -> Result<(), ContractCoinHolderRegisterError> {
-        // Check if the contract ID is already registered.
-        if self.in_memory.contains_key(&contract_id) {
-            return Err(ContractCoinHolderRegisterError::ContractAlreadyRegistered(
-                contract_id,
-            ));
+        // Check if the contract is already epheremally registered in the delta.
+        if self.delta.new_contracts_to_register.contains(&contract_id) {
+            return Err(
+                ContractCoinHolderRegisterError::ContractAlreadyEphemerallyRegistered(contract_id),
+            );
         }
 
-        // Insert into the epheremal balances with zero balance.
-        self.ephemeral_updates
-            .new_contracts_to_register
-            .push(contract_id);
+        // Check if the contract is already permanently registered.
+        if self.in_memory.contains_key(&contract_id) {
+            return Err(
+                ContractCoinHolderRegisterError::ContractAlreadyPermanentlyRegistered(contract_id),
+            );
+        }
+
+        // Insert into the new contracts to register list in the delta.
+        self.delta.new_contracts_to_register.push(contract_id);
 
         // Return the result.
         Ok(())
     }
 
-    // Creates an allocation space for an account in a contract shadow space.
+    // Creates an allocation space for an account in the contract's shadow space.
     ///
-    /// NOTE: These changes are saved with the use of the `save_all` function.
-    pub fn shadow_alloc(
+    /// NOTE: These changes are saved with the use of the `apply_changes` function.
+    pub fn alloc_account(
         &mut self,
         contract_id: [u8; 32],
         account_key: ACCOUNT_KEY,
     ) -> Result<(), ShadowAllocError> {
-        // Check if the account is already ephemerally allocated.
-        if self
-            .ephemeral_updates
-            .new_allocs
-            .get(&contract_id)
-            .unwrap_or(&Vec::new())
-            .contains(&account_key)
-        {
-            return Err(ShadowAllocError::AccountKeyAlreadyAllocated(
-                contract_id,
-                account_key,
-            ));
-        }
-
-        // If an account is already ephemerally deallocated, we do not allow it to be allocated again in the same execution.
-        if let Some(dealloc_list) = self.ephemeral_updates.deallocs.get(&contract_id) {
-            if dealloc_list.contains(&account_key) {
-                return Err(ShadowAllocError::AccountKeyJustDeallocated(
+        // Check if the account has just been epheremally allocated in the delta.
+        // We do not allow it to be allocated again in the same execution.
+        if let Some(allocs_list) = self.delta.allocs_list.get(&contract_id) {
+            if allocs_list.contains(&account_key) {
+                return Err(ShadowAllocError::AccountIsJustEphemerallyAllocated(
                     contract_id,
                     account_key,
                 ));
             }
         }
 
-        // Check if the account key is already allocated.
+        // Check if the account has just been epheremally deallocated in the delta.
+        // We do not allow it to be allocated after being deallocated in the same execution.
+        if let Some(deallocs_list) = self.delta.deallocs_list.get(&contract_id) {
+            if deallocs_list.contains(&account_key) {
+                return Err(ShadowAllocError::AccountIsJustEphemerallyDeallocated(
+                    contract_id,
+                    account_key,
+                ));
+            }
+        }
+
+        // Check if the account key is already permanently allocated.
+        // We do not allow it to be allocated again.
         if self
             .get_account_shadow_alloc_value_in_sati_satoshis(contract_id, account_key)
             .is_some()
         {
-            return Err(ShadowAllocError::AccountKeyAlreadyAllocated(
+            return Err(ShadowAllocError::AccountIsAlreadyPermanentlyAllocated(
                 contract_id,
                 account_key,
             ));
         }
 
-        // Try to get the shadow space from ephemeral states first.
-        let ephemeral_contract_shadow_space =
-            match self.ephemeral_updates.shadow_spaces.get_mut(&contract_id) {
-                Some(shadow_space) => shadow_space,
-                None => {
-                    // Otherwise, from the permanent in-memory states.
-                    let contract_body = self
-                        .in_memory
-                        .get_mut(&contract_id)
-                        .ok_or(ShadowAllocError::ShadowSpaceNotFound(contract_id))?;
+        // Retrieve the mutable shadow space from the delta.
+        let epheremal_shadow_space = match self.delta.updated_shadow_spaces.get_mut(&contract_id) {
+            Some(shadow_space) => shadow_space,
+            None => {
+                // Otherwise, from the permanent states.
+                let contract_body = self
+                    .in_memory
+                    .get(&contract_id)
+                    .ok_or(ShadowAllocError::ShadowSpaceNotFound(contract_id))?;
 
-                    // Get the mutable shadow space.
-                    let shadow_space = contract_body.shadow_space.clone();
+                // Clone the shadow space from permanent states.
+                let shadow_space = contract_body.shadow_space.clone();
 
-                    // Insert the shadow space into the ephemeral states.
-                    self.ephemeral_updates
-                        .shadow_spaces
-                        .insert(contract_id, shadow_space);
+                // Insert the shadow space into the delta.
+                self.delta
+                    .updated_shadow_spaces
+                    .insert(contract_id, shadow_space);
 
-                    // Get the mutable shadow space from the epheremal that we just inserted.
-                    let ephemeral_shadow_space = self
-                        .ephemeral_updates
-                        .shadow_spaces
-                        .get_mut(&contract_id)
-                        .expect("This cannot happen because we just inserted it.");
+                // Get the mutable shadow space from the delta that we just inserted.
+                let delta_shadow_space = self
+                    .delta
+                    .updated_shadow_spaces
+                    .get_mut(&contract_id)
+                    .expect("This cannot happen because we just inserted it.");
 
-                    // Return the shadow space.
-                    ephemeral_shadow_space
-                }
-            };
+                // Return the mutable shadow space.
+                delta_shadow_space
+            }
+        };
 
-        // Insert the account key into the ephemeral shadow space.
-        ephemeral_contract_shadow_space
-            .allocs
-            .insert(account_key, 0);
+        // Insert the account key into the shadow space in the delta with the value initalliy set to zero.
+        epheremal_shadow_space.allocs.insert(account_key, 0);
 
-        // Insert the account key into the ephemeral new allocs.
-        self.ephemeral_updates
-            .new_allocs
+        // Insert the account key into the allocs list in the delta.
+        self.delta
+            .allocs_list
             .insert(contract_id, vec![account_key]);
 
         // Return the result.
         Ok(())
     }
 
-    /// Deallocates an account in a contract shadow space.
+    /// Deallocates an account in the contract's shadow space.
     ///
-    /// NOTE: These changes are saved with the use of the `save_all` function.
-    pub fn shadow_dealloc(
+    /// NOTE: These changes are saved with the use of the `apply_changes` function.
+    pub fn dealloc_account(
         &mut self,
         contract_id: [u8; 32],
         account_key: ACCOUNT_KEY,
     ) -> Result<(), ShadowDeallocError> {
-        // Return an error if the account is JUST empheremally allocated.
+        // Check if the account has just been epheremally allocated in the delta.
+        // We do not allow it to be deallocated if it is just allocated in the same execution.
         if self
-            .ephemeral_updates
-            .new_allocs
+            .delta
+            .allocs_list
             .get(&contract_id)
             .unwrap_or(&Vec::new())
             .contains(&account_key)
         {
-            return Err(ShadowDeallocError::AccountKeyJustAllocated(
+            return Err(ShadowDeallocError::AccountIsJustEphemerallyAllocated(
                 contract_id,
                 account_key,
             ));
         }
 
         // Get the account allocation value.
+        // This also checks if the account is acutally permanently allocated.
         let allocation_value_in_sati_satoshis = self
             .get_account_shadow_alloc_value_in_sati_satoshis(contract_id, account_key)
             .ok_or(ShadowDeallocError::UnableToGetAccountAllocValue(
@@ -470,39 +473,63 @@ impl ContractCoinHolder {
             ))?;
 
         // Check if the account allocation value is non-zero.
-        // Deallocation is alloawed only if the allocation value is zero.
+        // Deallocation is allowed only if the allocation value is zero.
         if allocation_value_in_sati_satoshis != 0 {
-            return Err(ShadowDeallocError::AlocValueIsNonZero(
+            return Err(ShadowDeallocError::AllocValueIsNonZero(
                 contract_id,
                 account_key,
             ));
         }
 
-        // Get the mutable dealloc list.
-        let dealloc_list = self
-            .ephemeral_updates
-            .deallocs
-            .get_mut(&contract_id)
-            .ok_or(ShadowDeallocError::UnableToGetDeallocList(contract_id))?;
+        // Get the mutable dealloc list in the delta.
+        let dealloc_list_delta = self.delta.deallocs_list.get_mut(&contract_id).ok_or(
+            ShadowDeallocError::UnableToGetEpheremalDeallocList(contract_id),
+        )?;
 
-        // Cheack if this account already ephmeral deallocated.
-        if dealloc_list.contains(&account_key) {
-            return Err(ShadowDeallocError::AccountKeyAlreadyEphemerallyDeallocated(
+        // Check if the account has just been epheremally deallocated in the delta.
+        // We do not allow it to be deallocated if it is just deallocated in the same execution.
+        if dealloc_list_delta.contains(&account_key) {
+            return Err(ShadowDeallocError::AccountIsJustEphemerallyDeallocated(
                 contract_id,
                 account_key,
             ));
         }
 
-        // Insert the account key into the ephemeral dealloc list.
-        dealloc_list.push(account_key);
+        // Insert the account key into the dealloc list in the delta.
+        dealloc_list_delta.push(account_key);
 
-        // Remove from the epheremal shadow space.
-        self.ephemeral_updates
-            .shadow_spaces
-            .get_mut(&contract_id)
-            .expect("This cannot happen.")
-            .allocs
-            .remove(&account_key);
+        // Retrieve the mutable shadow space from the delta.
+        let epheremal_shadow_space = match self.delta.updated_shadow_spaces.get_mut(&contract_id) {
+            Some(shadow_space) => shadow_space,
+            None => {
+                // Otherwise, from the permanent states.
+                let contract_body = self
+                    .in_memory
+                    .get(&contract_id)
+                    .ok_or(ShadowDeallocError::ShadowSpaceNotFound(contract_id))?;
+
+                // Clone the shadow space from permanent states.
+                let shadow_space = contract_body.shadow_space.clone();
+
+                // Insert the shadow space into the delta.
+                self.delta
+                    .updated_shadow_spaces
+                    .insert(contract_id, shadow_space);
+
+                // Get the mutable shadow space from the delta that we just inserted.
+                let delta_shadow_space = self
+                    .delta
+                    .updated_shadow_spaces
+                    .get_mut(&contract_id)
+                    .expect("This cannot happen because we just inserted it.");
+
+                // Return the mutable shadow space.
+                delta_shadow_space
+            }
+        };
+
+        // Remove the account key from the shadow space in the delta.
+        epheremal_shadow_space.allocs.remove(&account_key);
 
         // Return the result.
         Ok(())
@@ -510,7 +537,7 @@ impl ContractCoinHolder {
 
     /// Increases a contract balance by a given value.
     ///
-    /// NOTE: These changes are saved with the use of the `save_all` function.
+    /// NOTE: These changes are saved with the use of the `apply_changes` function.
     pub fn contract_balance_up(
         &mut self,
         contract_id: [u8; 32],
@@ -527,35 +554,37 @@ impl ContractCoinHolder {
             existing_contract_balance_in_satoshis + up_value_in_satoshis;
 
         // Retrieve the mutable balance from the ephemeral states.
-        let ephemeral_contract_balance = match self.ephemeral_updates.balances.get_mut(&contract_id)
-        {
-            // If the balance is already in the ephemeral states, return it.
-            Some(balance) => balance,
-            // Otherwise, from the permanent in-memory states.
-            None => {
-                // Get the mutable balance from the permanent in-memory states.
-                let contract_body = self
-                    .in_memory
-                    .get_mut(&contract_id)
-                    .ok_or(ContractBalanceUpError::ContractBodyNotFound(contract_id))?;
+        let ephemeral_contract_balance =
+            match self.delta.updated_contract_balances.get_mut(&contract_id) {
+                // If the balance is already in the ephemeral states, return it.
+                Some(balance) => balance,
+                // Otherwise, from the permanent in-memory states.
+                None => {
+                    // Get the mutable balance from the permanent in-memory states.
+                    let contract_body = self
+                        .in_memory
+                        .get_mut(&contract_id)
+                        .ok_or(ContractBalanceUpError::ContractBodyNotFound(contract_id))?;
 
-                // Get the mutable balance.
-                let balance = contract_body.balance;
+                    // Get the mutable balance.
+                    let balance = contract_body.balance;
 
-                // Insert the balance into the ephemeral states.
-                self.ephemeral_updates.balances.insert(contract_id, balance);
+                    // Insert the balance into the ephemeral states.
+                    self.delta
+                        .updated_contract_balances
+                        .insert(contract_id, balance);
 
-                // Get the mutable balance from the ephemeral that we just inserted.
-                let ephemeral_balance = self
-                    .ephemeral_updates
-                    .balances
-                    .get_mut(&contract_id)
-                    .expect("This cannot happen because we just inserted it.");
+                    // Get the mutable balance from the ephemeral that we just inserted.
+                    let ephemeral_balance = self
+                        .delta
+                        .updated_contract_balances
+                        .get_mut(&contract_id)
+                        .expect("This cannot happen because we just inserted it.");
 
-                // Return the balance.
-                ephemeral_balance
-            }
-        };
+                    // Return the balance.
+                    ephemeral_balance
+                }
+            };
 
         // Update the contract balance.
         *ephemeral_contract_balance = new_contract_balance_in_satoshis;
@@ -566,7 +595,7 @@ impl ContractCoinHolder {
 
     /// Decreases a contract balance by a given value.
     ///
-    /// NOTE: These changes are saved with the use of the `save_all` function.
+    /// NOTE: These changes are saved with the use of the `apply_changes` function.
     pub fn contract_balance_down(
         &mut self,
         contract_id: [u8; 32],
@@ -591,36 +620,38 @@ impl ContractCoinHolder {
         let new_contract_balance_in_satoshis: u64 =
             existing_contract_balance_in_satoshis - down_value_in_satoshis;
 
-        // Retrieve the mutable balance from the ephemeral states.
-        let ephemeral_contract_balance = match self.ephemeral_updates.balances.get_mut(&contract_id)
-        {
-            // If the balance is already in the ephemeral states, return it.
-            Some(balance) => balance,
-            // Otherwise, from the permanent in-memory states.
-            None => {
-                // Get the mutable balance from the permanent in-memory states.
-                let contract_body = self
-                    .in_memory
-                    .get_mut(&contract_id)
-                    .ok_or(ContractBalanceDownError::ContractBodyNotFound(contract_id))?;
+        // Retrieve the mutable balance from the delta.
+        let ephemeral_contract_balance =
+            match self.delta.updated_contract_balances.get_mut(&contract_id) {
+                // If the balance is already in the delta, return it.
+                Some(balance) => balance,
+                // Otherwise, from the permanent in-memory states.
+                None => {
+                    // Get the mutable balance from the permanent in-memory states.
+                    let contract_body = self
+                        .in_memory
+                        .get_mut(&contract_id)
+                        .ok_or(ContractBalanceDownError::ContractBodyNotFound(contract_id))?;
 
-                // Get the mutable balance.
-                let balance = contract_body.balance;
+                    // Get the mutable balance.
+                    let balance = contract_body.balance;
 
-                // Insert the balance into the ephemeral states.
-                self.ephemeral_updates.balances.insert(contract_id, balance);
+                    // Insert the balance into the delta.
+                    self.delta
+                        .updated_contract_balances
+                        .insert(contract_id, balance);
 
-                // Get the mutable balance from the ephemeral that we just inserted.
-                let ephemeral_balance = self
-                    .ephemeral_updates
-                    .balances
-                    .get_mut(&contract_id)
-                    .expect("This cannot happen because we just inserted it.");
+                    // Get the mutable balance from the delta that we just inserted.
+                    let ephemeral_balance = self
+                        .delta
+                        .updated_contract_balances
+                        .get_mut(&contract_id)
+                        .expect("This cannot happen because we just inserted it.");
 
-                // Return the balance.
-                ephemeral_balance
-            }
-        };
+                    // Return the balance.
+                    ephemeral_balance
+                }
+            };
 
         // Update the contract balance.
         *ephemeral_contract_balance = new_contract_balance_in_satoshis;
@@ -631,8 +662,8 @@ impl ContractCoinHolder {
 
     /// Inserts or updates a shadow allocation value by key and contract ID ephemerally.    
     ///
-    /// NOTE: These changes are saved with the use of the `save_all` function.
-    pub fn shadow_alloc_up(
+    /// NOTE: These changes are saved with the use of the `apply_changes` function.
+    pub fn shadow_up(
         &mut self,
         contract_id: [u8; 32],
         account_key: ACCOUNT_KEY,
@@ -653,37 +684,36 @@ impl ContractCoinHolder {
             .get_contract_balance(contract_id)
             .ok_or(ShadowAllocUpError::UnableToGetContractBalance(contract_id))?;
 
-        // Retrieve the mutable shadow space from the ephemeral states.
-        let ephemeral_contract_shadow_space =
-            match self.ephemeral_updates.shadow_spaces.get_mut(&contract_id) {
-                // If the shadow space is already in the ephemeral states, return it.
-                Some(shadow_space) => shadow_space,
-                // Otherwise, from the permanent in-memory states.
-                None => {
-                    let contract_body = self
-                        .in_memory
-                        .get_mut(&contract_id)
-                        .ok_or(ShadowAllocUpError::ShadowSpaceNotFound(contract_id))?;
+        // Retrieve the mutable shadow space from the delta.
+        let epheremal_shadow_space = match self.delta.updated_shadow_spaces.get_mut(&contract_id) {
+            // If the shadow space is already in the ephemeral states, return it.
+            Some(shadow_space) => shadow_space,
+            // Otherwise, from the permanent in-memory states.
+            None => {
+                let contract_body = self
+                    .in_memory
+                    .get_mut(&contract_id)
+                    .ok_or(ShadowAllocUpError::ShadowSpaceNotFound(contract_id))?;
 
-                    // Get the mutable shadow space.
-                    let shadow_space = contract_body.shadow_space.clone();
+                // Get the mutable shadow space.
+                let shadow_space = contract_body.shadow_space.clone();
 
-                    // Insert the shadow space into the ephemeral states.
-                    self.ephemeral_updates
-                        .shadow_spaces
-                        .insert(contract_id, shadow_space);
+                // Insert the shadow space into the ephemeral states.
+                self.delta
+                    .updated_shadow_spaces
+                    .insert(contract_id, shadow_space);
 
-                    // Get the mutable shadow space from the epheremal that we just inserted.
-                    let ephemeral_shadow_space = self
-                        .ephemeral_updates
-                        .shadow_spaces
-                        .get_mut(&contract_id)
-                        .expect("This cannot happen because we just inserted it.");
+                // Get the mutable shadow space from the epheremal that we just inserted.
+                let epheremal_shadow_space = self
+                    .delta
+                    .updated_shadow_spaces
+                    .get_mut(&contract_id)
+                    .expect("This cannot happen because we just inserted it.");
 
-                    // Return the shadow space.
-                    ephemeral_shadow_space
-                }
-            };
+                // Return the shadow space.
+                epheremal_shadow_space
+            }
+        };
 
         // Calculate the new allocation value.
         let new_account_shadow_alloc_value_in_sati_satoshis: u128 =
@@ -691,7 +721,7 @@ impl ContractCoinHolder {
 
         // Calculate the new allocation sum value.
         let new_contract_allocs_sum_value_in_satoshis: u64 =
-            ephemeral_contract_shadow_space.allocs_sum + up_value_in_satoshis;
+            epheremal_shadow_space.allocs_sum + up_value_in_satoshis;
 
         // Check if the new contract alloc sum value exceeds the contract balance.
         if new_contract_allocs_sum_value_in_satoshis > existing_contract_balance_in_satoshis {
@@ -703,12 +733,12 @@ impl ContractCoinHolder {
         }
 
         // Insert (or update) the account shadow allocation value into the ephemeral states.
-        ephemeral_contract_shadow_space
+        epheremal_shadow_space
             .allocs
             .insert(account_key, new_account_shadow_alloc_value_in_sati_satoshis);
 
         // Update the contract shadow allocation sum value.
-        ephemeral_contract_shadow_space.allocs_sum = new_contract_allocs_sum_value_in_satoshis;
+        epheremal_shadow_space.allocs_sum = new_contract_allocs_sum_value_in_satoshis;
 
         // Return the result.
         Ok(())
@@ -716,8 +746,8 @@ impl ContractCoinHolder {
 
     /// Decreases a shadow allocation value by key and contract ID ephemerally.
     ///
-    /// NOTE: These changes are saved with the use of the `save_all` function.
-    pub fn shadow_alloc_down(
+    /// NOTE: These changes are saved with the use of the `apply_changes` function.
+    pub fn shadow_down(
         &mut self,
         contract_id: [u8; 32],
         account_key: ACCOUNT_KEY,
@@ -749,37 +779,36 @@ impl ContractCoinHolder {
             ));
         }
 
-        // Retrieve the mutable shadow space from the ephemeral states.
-        let ephemeral_contract_shadow_space =
-            match self.ephemeral_updates.shadow_spaces.get_mut(&contract_id) {
-                // If the shadow space is already in the ephemeral states, return it.
-                Some(shadow_space) => shadow_space,
-                // Otherwise, from the permanent in-memory states.
-                None => {
-                    let contract_body = self
-                        .in_memory
-                        .get_mut(&contract_id)
-                        .ok_or(ShadowAllocDownError::ShadowSpaceNotFound(contract_id))?;
+        // Retrieve the mutable shadow space from the delta.
+        let epheremal_shadow_space = match self.delta.updated_shadow_spaces.get_mut(&contract_id) {
+            // If the shadow space is already in the delta, return it.
+            Some(shadow_space) => shadow_space,
+            // Otherwise, from the permanent in-memory states.
+            None => {
+                let contract_body = self
+                    .in_memory
+                    .get_mut(&contract_id)
+                    .ok_or(ShadowAllocDownError::ShadowSpaceNotFound(contract_id))?;
 
-                    // Get the mutable shadow space.
-                    let shadow_space = contract_body.shadow_space.clone();
+                // Get the mutable shadow space.
+                let shadow_space = contract_body.shadow_space.clone();
 
-                    // Insert the shadow space into the ephemeral states.
-                    self.ephemeral_updates
-                        .shadow_spaces
-                        .insert(contract_id, shadow_space);
+                // Insert the shadow space into the delta.
+                self.delta
+                    .updated_shadow_spaces
+                    .insert(contract_id, shadow_space);
 
-                    // Get the mutable shadow space from the epheremal that we just inserted.
-                    let ephemeral_shadow_space = self
-                        .ephemeral_updates
-                        .shadow_spaces
-                        .get_mut(&contract_id)
-                        .expect("This cannot happen because we just inserted it.");
+                // Get the mutable shadow space from the epheremal that we just inserted.
+                let epheremal_shadow_space = self
+                    .delta
+                    .updated_shadow_spaces
+                    .get_mut(&contract_id)
+                    .expect("This cannot happen because we just inserted it.");
 
-                    // Return the shadow space.
-                    ephemeral_shadow_space
-                }
-            };
+                // Return the shadow space.
+                epheremal_shadow_space
+            }
+        };
 
         // Calculate the new allocation value.
         let new_account_shadow_alloc_value_in_sati_satoshis: u128 =
@@ -787,7 +816,7 @@ impl ContractCoinHolder {
 
         // Calculate the new allocation sum value.
         let new_contract_allocs_sum_value_in_satoshis: u64 =
-            ephemeral_contract_shadow_space.allocs_sum - down_value_in_satoshis;
+            epheremal_shadow_space.allocs_sum - down_value_in_satoshis;
 
         // Check if the new contract alloc sum value exceeds the contract balance.
         if new_contract_allocs_sum_value_in_satoshis > existing_contract_balance_in_satoshis {
@@ -799,12 +828,12 @@ impl ContractCoinHolder {
         }
 
         // Insert (or update) the account shadow allocation value into the ephemeral states.
-        ephemeral_contract_shadow_space
+        epheremal_shadow_space
             .allocs
             .insert(account_key, new_account_shadow_alloc_value_in_sati_satoshis);
 
         // Update the contract shadow allocation sum value.
-        ephemeral_contract_shadow_space.allocs_sum = new_contract_allocs_sum_value_in_satoshis;
+        epheremal_shadow_space.allocs_sum = new_contract_allocs_sum_value_in_satoshis;
 
         // Return the result.
         Ok(())
@@ -812,8 +841,8 @@ impl ContractCoinHolder {
 
     /// Proportionaly increases the shadow allocation value of all accounts in a contract shadow space by a given value.
     ///
-    /// NOTE: These changes are saved with the use of the `save_all` function.
-    pub fn shadow_alloc_up_all(
+    /// NOTE: These changes are saved with the use of the `apply_changes` function.
+    pub fn shadow_up_all(
         &mut self,
         contract_id: [u8; 32],
         up_value_in_satoshis: u64,
@@ -861,7 +890,7 @@ impl ContractCoinHolder {
 
         // Iterate over all all account in the shadow space.
         for (account_key, shadow_alloc_value_in_sati_satoshis) in
-            match self.ephemeral_updates.shadow_spaces.get_mut(&contract_id) {
+            match self.delta.updated_shadow_spaces.get_mut(&contract_id) {
                 // First try the ephemeral shadow space.
                 Some(shadow_space) => shadow_space.allocs.iter(),
                 // Otherwise from the in-memory shadow space.
@@ -892,50 +921,49 @@ impl ContractCoinHolder {
             }
         }
 
-        // Retrieve the mutable shadow space from the ephemeral states.
-        let ephemeral_contract_shadow_space =
-            match self.ephemeral_updates.shadow_spaces.get_mut(&contract_id) {
-                // If the shadow space is already in the ephemeral states, return it.
-                Some(shadow_space) => shadow_space,
-                // Otherwise, from the permanent in-memory states.
-                None => {
-                    let contract_body = self
-                        .in_memory
-                        .get_mut(&contract_id)
-                        .ok_or(ShadowAllocUpAllError::ShadowSpaceNotFound(contract_id))?;
+        // Retrieve the mutable shadow space from the delta.
+        let epheremal_shadow_space = match self.delta.updated_shadow_spaces.get_mut(&contract_id) {
+            // If the shadow space is already in the delta, return it.
+            Some(shadow_space) => shadow_space,
+            // Otherwise, from the permanent in-memory states.
+            None => {
+                let contract_body = self
+                    .in_memory
+                    .get_mut(&contract_id)
+                    .ok_or(ShadowAllocUpAllError::ShadowSpaceNotFound(contract_id))?;
 
-                    // Get the mutable shadow space.
-                    let shadow_space = contract_body.shadow_space.clone();
+                // Get the mutable shadow space.
+                let shadow_space = contract_body.shadow_space.clone();
 
-                    // Insert the shadow space into the ephemeral states.
-                    self.ephemeral_updates
-                        .shadow_spaces
-                        .insert(contract_id, shadow_space);
+                // Insert the shadow space into the delta.
+                self.delta
+                    .updated_shadow_spaces
+                    .insert(contract_id, shadow_space);
 
-                    // Get the mutable shadow space from the epheremal that we just inserted.
-                    let ephemeral_shadow_space = self
-                        .ephemeral_updates
-                        .shadow_spaces
-                        .get_mut(&contract_id)
-                        .expect("This cannot happen because we just inserted it.");
+                // Get the mutable shadow space from the epheremal that we just inserted.
+                let epheremal_shadow_space = self
+                    .delta
+                    .updated_shadow_spaces
+                    .get_mut(&contract_id)
+                    .expect("This cannot happen because we just inserted it.");
 
-                    // Return the shadow space.
-                    ephemeral_shadow_space
-                }
-            };
+                // Return the shadow space.
+                epheremal_shadow_space
+            }
+        };
 
         // Insert the individual up values into the ephemeral shadow space.
         for (account_key, individual_update_value_in_sati_satoshis) in
             individual_update_values_in_sati_satoshis.iter()
         {
             // Insert the new value into the ephemeral shadow space.
-            ephemeral_contract_shadow_space
+            epheremal_shadow_space
                 .allocs
                 .insert(*account_key, *individual_update_value_in_sati_satoshis);
         }
 
         // Update the allocs sum value in the ephemeral shadow space.
-        ephemeral_contract_shadow_space.allocs_sum = new_contract_allocs_sum_value_in_satoshis;
+        epheremal_shadow_space.allocs_sum = new_contract_allocs_sum_value_in_satoshis;
 
         // Return the number of updated accounts.
         Ok(individual_update_values_in_sati_satoshis.len() as u64)
@@ -943,8 +971,8 @@ impl ContractCoinHolder {
 
     /// Proportionaly decreases the shadow allocation value of all accounts in a contract shadow space by a given value.
     ///
-    /// NOTE: These changes are saved with the use of the `save_all` function.
-    pub fn shadow_alloc_down_all(
+    /// NOTE: These changes are saved with the use of the `apply_changes` function.
+    pub fn shadow_down_all(
         &mut self,
         contract_id: [u8; 32],
         down_value_in_satoshis: u64,
@@ -1003,7 +1031,7 @@ impl ContractCoinHolder {
 
         // Iterate over all all account in the shadow space.
         for (account_key, shadow_alloc_value_in_sati_satoshis) in
-            match self.ephemeral_updates.shadow_spaces.get_mut(&contract_id) {
+            match self.delta.updated_shadow_spaces.get_mut(&contract_id) {
                 // First try the ephemeral shadow space.
                 Some(shadow_space) => shadow_space.allocs.iter(),
                 // Otherwise from the in-memory shadow space.
@@ -1046,50 +1074,49 @@ impl ContractCoinHolder {
             }
         }
 
-        // Retrieve the mutable shadow space from the ephemeral states.
-        let ephemeral_contract_shadow_space =
-            match self.ephemeral_updates.shadow_spaces.get_mut(&contract_id) {
-                // If the shadow space is already in the ephemeral states, return it.
-                Some(shadow_space) => shadow_space,
-                // Otherwise, from the permanent in-memory states.
-                None => {
-                    let contract_body = self
-                        .in_memory
-                        .get_mut(&contract_id)
-                        .ok_or(ShadowAllocDownAllError::ShadowSpaceNotFound(contract_id))?;
+        // Retrieve the mutable shadow space from the delta.
+        let epheremal_shadow_space = match self.delta.updated_shadow_spaces.get_mut(&contract_id) {
+            // If the shadow space is already in the delta, return it.
+            Some(shadow_space) => shadow_space,
+            // Otherwise, from the permanent in-memory states.
+            None => {
+                let contract_body = self
+                    .in_memory
+                    .get_mut(&contract_id)
+                    .ok_or(ShadowAllocDownAllError::ShadowSpaceNotFound(contract_id))?;
 
-                    // Get the mutable shadow space.
-                    let shadow_space = contract_body.shadow_space.clone();
+                // Get the mutable shadow space.
+                let shadow_space = contract_body.shadow_space.clone();
 
-                    // Insert the shadow space into the ephemeral states.
-                    self.ephemeral_updates
-                        .shadow_spaces
-                        .insert(contract_id, shadow_space);
+                // Insert the shadow space into the delta.
+                self.delta
+                    .updated_shadow_spaces
+                    .insert(contract_id, shadow_space);
 
-                    // Get the mutable shadow space from the epheremal that we just inserted.
-                    let ephemeral_shadow_space = self
-                        .ephemeral_updates
-                        .shadow_spaces
-                        .get_mut(&contract_id)
-                        .expect("This cannot happen because we just inserted it.");
+                // Get the mutable shadow space from the epheremal that we just inserted.
+                let epheremal_shadow_space = self
+                    .delta
+                    .updated_shadow_spaces
+                    .get_mut(&contract_id)
+                    .expect("This cannot happen because we just inserted it.");
 
-                    // Return the shadow space.
-                    ephemeral_shadow_space
-                }
-            };
+                // Return the shadow space.
+                epheremal_shadow_space
+            }
+        };
 
         // Insert the individual up values into the ephemeral shadow space.
         for (account_key, individual_update_value_in_sati_satoshis) in
             individual_update_values_in_sati_satoshis.iter()
         {
             // Insert the new value into the ephemeral shadow space.
-            ephemeral_contract_shadow_space
+            epheremal_shadow_space
                 .allocs
                 .insert(*account_key, *individual_update_value_in_sati_satoshis);
         }
 
         // Update the allocs sum value in the ephemeral shadow space.
-        ephemeral_contract_shadow_space.allocs_sum = new_contract_allocs_sum_value_in_satoshis;
+        epheremal_shadow_space.allocs_sum = new_contract_allocs_sum_value_in_satoshis;
 
         // Return the number of updated accounts.
         Ok(individual_update_values_in_sati_satoshis.len() as u64)
@@ -1098,32 +1125,30 @@ impl ContractCoinHolder {
     /// Reverts the epheremal changes associated with the last execution.
     pub fn rollback_last(&mut self) {
         // Restore the ephemeral states from the backup.
-        self.restore_ephemeral_updates();
+        self.restore_delta();
     }
 
-    /// Clears all epheremal changes.
-    pub fn rollback_all(&mut self) {
+    /// Clears all epheremal changes from the delta.
+    pub fn flush_delta(&mut self) {
         // Clear the ephemeral states.
-        self.ephemeral_updates.new_contracts_to_register.clear();
-        self.ephemeral_updates.balances.clear();
-        self.ephemeral_updates.new_allocs.clear();
-        self.ephemeral_updates.shadow_spaces.clear();
-        self.ephemeral_updates.deallocs.clear();
+        self.delta.new_contracts_to_register.clear();
+        self.delta.allocs_list.clear();
+        self.delta.deallocs_list.clear();
+        self.delta.updated_contract_balances.clear();
+        self.delta.updated_shadow_spaces.clear();
 
         // Clear the ephemeral states backup.
-        self.backup_of_ephemeral_updates
-            .new_contracts_to_register
-            .clear();
-        self.backup_of_ephemeral_updates.balances.clear();
-        self.backup_of_ephemeral_updates.new_allocs.clear();
-        self.backup_of_ephemeral_updates.shadow_spaces.clear();
-        self.backup_of_ephemeral_updates.deallocs.clear();
+        self.delta_backup.new_contracts_to_register.clear();
+        self.delta_backup.allocs_list.clear();
+        self.delta_backup.deallocs_list.clear();
+        self.delta_backup.updated_contract_balances.clear();
+        self.delta_backup.updated_shadow_spaces.clear();
     }
 
-    /// Saves all epheremal changes in-memory and on-disk.
-    pub fn save_all(&mut self) -> Result<(), ContractCoinHolderSaveError> {
+    /// Applies all epheremal changes from the delta into the in-memory and on-disk.
+    pub fn apply_changes(&mut self) -> Result<(), ContractCoinHolderSaveError> {
         // 0. Register new contracts.
-        for contract_id in self.ephemeral_updates.new_contracts_to_register.iter() {
+        for contract_id in self.delta.new_contracts_to_register.iter() {
             // In-memory insertion.
             {
                 let fresh_new_contract_body = ContractBody {
@@ -1148,13 +1173,13 @@ impl ContractCoinHolder {
                     .map_err(|e| ContractCoinHolderSaveError::OpenTreeError(*contract_id, e))?;
 
                 // Insert the contract body into the on-disk list.
-                tree.insert(CONTRACT_BALANCES_SPECIAL_KEY, 0u64.to_le_bytes().to_vec())
+                tree.insert(CONTRACT_BALANCE_SPECIAL_KEY, 0u64.to_le_bytes().to_vec())
                     .map_err(|e| {
                         ContractCoinHolderSaveError::BalanceValueInsertError(*contract_id, 0, e)
                     })?;
 
                 // Insert the shadow space into the on-disk list.
-                tree.insert(ALLOCS_SUM_SPECIAL_KEY, 0u64.to_le_bytes().to_vec())
+                tree.insert(CONTRACT_ALLOCS_SUM_SPECIAL_KEY, 0u64.to_le_bytes().to_vec())
                     .map_err(|e| {
                         ContractCoinHolderSaveError::ShadowSpaceTreeAllocsSumInsertError(
                             *contract_id,
@@ -1166,7 +1191,8 @@ impl ContractCoinHolder {
         }
 
         // 1. Save contract balances.
-        for (contract_id, ephemeral_contract_balance) in self.ephemeral_updates.balances.iter() {
+        for (contract_id, ephemeral_contract_balance) in self.delta.updated_contract_balances.iter()
+        {
             // 1.0 In-memory insertion.
             {
                 // Get mutable in-memory permanent contract body.
@@ -1188,7 +1214,7 @@ impl ContractCoinHolder {
 
                 // Save the balance to the balances db.
                 tree.insert(
-                    CONTRACT_BALANCES_SPECIAL_KEY,
+                    CONTRACT_BALANCE_SPECIAL_KEY,
                     ephemeral_contract_balance.to_le_bytes().to_vec(),
                 )
                 .map_err(|e| {
@@ -1202,7 +1228,7 @@ impl ContractCoinHolder {
         }
 
         // 2. Save ephemeral shadow spaces.
-        for (contract_id, ephemeral_shadow_space) in self.ephemeral_updates.shadow_spaces.iter() {
+        for (contract_id, ephemeral_shadow_space) in self.delta.updated_shadow_spaces.iter() {
             // 2.0 In-memory insertion.
             {
                 // Get mutable in-memory permanent contract body.
@@ -1242,7 +1268,7 @@ impl ContractCoinHolder {
 
                 // Also save the allocs sum with the special key (0xff..).
                 tree.insert(
-                    ALLOCS_SUM_SPECIAL_KEY,
+                    CONTRACT_ALLOCS_SUM_SPECIAL_KEY,
                     ephemeral_shadow_space.allocs_sum.to_le_bytes().to_vec(),
                 )
                 .map_err(|e| {
@@ -1255,9 +1281,9 @@ impl ContractCoinHolder {
             }
         }
 
-        // 3. Handle deallocs
+        // 3. Handle deallocations.
         {
-            for (contract_id, ephemeral_dealloc_list) in self.ephemeral_updates.deallocs.iter() {
+            for (contract_id, ephemeral_dealloc_list) in self.delta.deallocs_list.iter() {
                 // 3.0 In-memory deletion.
                 {
                     // Get mutable in-memory permanent contract body.
@@ -1307,21 +1333,8 @@ impl ContractCoinHolder {
             }
         }
 
-        // Clear the ephemeral states.
-        self.ephemeral_updates.new_contracts_to_register.clear();
-        self.ephemeral_updates.balances.clear();
-        self.ephemeral_updates.new_allocs.clear();
-        self.ephemeral_updates.shadow_spaces.clear();
-        self.ephemeral_updates.deallocs.clear();
-
-        // Clear the ephemeral states backup.
-        self.backup_of_ephemeral_updates
-            .new_contracts_to_register
-            .clear();
-        self.backup_of_ephemeral_updates.balances.clear();
-        self.backup_of_ephemeral_updates.new_allocs.clear();
-        self.backup_of_ephemeral_updates.shadow_spaces.clear();
-        self.backup_of_ephemeral_updates.deallocs.clear();
+        // Clear the delta.
+        self.flush_delta();
 
         Ok(())
     }

@@ -68,25 +68,28 @@ pub enum ContractCoinHolderSaveError {
 /// The state register error.
 #[derive(Debug, Clone)]
 pub enum ContractCoinHolderRegisterError {
-    ContractAlreadyRegistered(CONTRACT_ID),
+    ContractAlreadyEphemerallyRegistered(CONTRACT_ID),
+    ContractAlreadyPermanentlyRegistered(CONTRACT_ID),
 }
 
 /// The shadow allocation error.
 #[derive(Debug, Clone)]
 pub enum ShadowAllocError {
-    AccountKeyAlreadyAllocated(CONTRACT_ID, ACCOUNT_KEY),
+    AccountIsJustEphemerallyAllocated(CONTRACT_ID, ACCOUNT_KEY),
+    AccountIsJustEphemerallyDeallocated(CONTRACT_ID, ACCOUNT_KEY),
+    AccountIsAlreadyPermanentlyAllocated(CONTRACT_ID, ACCOUNT_KEY),
     ShadowSpaceNotFound(CONTRACT_ID),
-    AccountKeyJustDeallocated(CONTRACT_ID, ACCOUNT_KEY),
 }
 
 /// The shadow deallocation error.
 #[derive(Debug, Clone)]
 pub enum ShadowDeallocError {
-    AccountKeyAlreadyEphemerallyDeallocated(CONTRACT_ID, ACCOUNT_KEY),
+    AccountIsJustEphemerallyAllocated(CONTRACT_ID, ACCOUNT_KEY),
     UnableToGetAccountAllocValue(CONTRACT_ID, ACCOUNT_KEY),
-    AlocValueIsNonZero(CONTRACT_ID, ACCOUNT_KEY),
-    AccountKeyJustAllocated(CONTRACT_ID, ACCOUNT_KEY),
-    UnableToGetDeallocList(CONTRACT_ID),
+    AllocValueIsNonZero(CONTRACT_ID, ACCOUNT_KEY),
+    UnableToGetEpheremalDeallocList(CONTRACT_ID),
+    AccountIsJustEphemerallyDeallocated(CONTRACT_ID, ACCOUNT_KEY),
+    ShadowSpaceNotFound(CONTRACT_ID),
 }
 
 /// The state save error.   

@@ -236,7 +236,7 @@ impl ExecCtx {
             // Rollback the contract coin holder.
             {
                 let mut _contract_coin_holder = contract_coin_holder.lock().await;
-                _contract_coin_holder.rollback_all();
+                _contract_coin_holder.flush_delta();
             }
 
             // Get the account coin holder.

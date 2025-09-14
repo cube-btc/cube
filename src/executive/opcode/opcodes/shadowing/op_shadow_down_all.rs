@@ -7,12 +7,12 @@ use crate::{
     inscriptive::coin_holder::coin_holder::COIN_HOLDER,
 };
 
-/// Shadow allocation up all.
+/// Shadow allocation down all.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[allow(non_camel_case_types)]
-pub struct OP_SHADOW_ALLOC_UP_ALL;
+pub struct OP_SHADOW_DOWN_ALL;
 
-impl OP_SHADOW_ALLOC_UP_ALL {
+impl OP_SHADOW_DOWN_ALL {
     pub async fn execute(
         stack_holder: &mut StackHolder,
         coin_holder: &COIN_HOLDER,
@@ -50,17 +50,15 @@ impl OP_SHADOW_ALLOC_UP_ALL {
         {
             let mut _contract_coin_holder = contract_coin_holder.lock().await;
             _contract_coin_holder
-                .shadow_alloc_up_all(self_contract_id_bytes, amount_as_u64)
-                .map_err(|error| ShadowOpsError::ShadowAllocUpAllError(error))
+                .shadow_down_all(self_contract_id_bytes, amount_as_u64)
+                .map_err(|error| ShadowOpsError::ShadowAllocDownAllError(error))
                 .map_err(StackError::ShadowOpsError)?;
         }
-
-        // Return the result.
         Ok(())
     }
 
-    /// Returns the bytecode for the `OP_SHADOW_ALLOC_UP_ALL` opcode (0xc6).
+    /// Returns the bytecode for the `OP_SHADOW_DOWN_ALL` opcode (0xc7).
     pub fn bytecode() -> Vec<u8> {
-        vec![0xc6]
+        vec![0xc7]
     }
 }

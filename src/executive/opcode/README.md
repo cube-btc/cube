@@ -168,10 +168,10 @@ Cube uses an extended Bitcoin script with splicing, better memory management, an
 | OP_SHADOW_HAS_ALLOC       | 0xc1     | 1           | key        | out                    | Returns whether the account has an allocation within the contract's shadow space. |
 | OP_SHADOW_DEALLOC         | 0xc2     | +900        | key        | Nothing/fail.          | Deallocates the account within the contract's shadow space.                       |
 | OP_SHADOW_ALLOC_VAL       | 0xc3     | 1           | key        | out/fail.              | Returns the allocation value of an account within the contract's shadow space.    |
-| OP_SHADOW_ALLOC_UP        | 0xc4     | 5           | key amount | Nothing/fail.          | Increases the shadow space allocation of an account.                              |
-| OP_SHADOW_ALLOC_DOWN      | 0xc5     | 5           | key amount | Nothing/fail.          | Decreases the shadow space allocation of an account.                              |
-| OP_SHADOW_ALLOC_UP_ALL    | 0xc6     | 50          | amount     | Nothing/fail.          | Proportionally increases shadow space allocations of all accounts.                |
-| OP_SHADOW_ALLOC_DOWN_ALL  | 0xc7     | 50          | amount     | Nothing/fail.          | Proportionally decreases shadow space allocations of all accounts.                |
+| OP_SHADOW_UP              | 0xc4     | 5           | key amount | Nothing/fail.          | Increases the shadow space allocation of an account.                              |
+| OP_SHADOW_DOWN            | 0xc5     | 5           | key amount | Nothing/fail.          | Decreases the shadow space allocation of an account.                              |
+| OP_SHADOW_UP_ALL          | 0xc6     | 50          | amount     | Nothing/fail.          | Proportionally increases shadow space allocations of all accounts.                |
+| OP_SHADOW_DOWN_ALL        | 0xc7     | 50          | amount     | Nothing/fail.          | Proportionally decreases shadow space allocations of all accounts.                |
 | OP_SHADOW_NUM_ALLOCS      | 0xc8     | 1           | -          | out                    | Returns the number of total shadow allocations of the contract.                   |
 | OP_SHADOW_ALLOCS_SUM      | 0xc9     | 1           | -          | out                    | Returns the sum of all shadow allocation values of the contract.                  |
 
