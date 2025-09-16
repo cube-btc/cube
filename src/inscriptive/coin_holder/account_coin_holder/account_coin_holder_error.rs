@@ -2,44 +2,53 @@
 #[allow(non_camel_case_types)]
 type ACCOUNT_KEY = [u8; 32];
 
-/// Account balance.
-#[allow(non_camel_case_types)]
-type ACCOUNT_BALANCE = u64;
-
 /// Satoshi amount.
 #[allow(non_camel_case_types)]
 type SATOSHI_AMOUNT = u64;
 
-/// The account coin holder construction error.
+/// Sati-satoshi amount.
+#[allow(non_camel_case_types)]
+type SATI_SATOSHI_AMOUNT = u128;
+
+/// Errors associated with constructing the `AccountCoinHolder` struct.
 #[derive(Debug, Clone)]
 pub enum AccountCoinHolderConstructionError {
-    BalancesDBOpenError(sled::Error),
-    AccountBalanceIterError(sled::Error),
-    InvalidAccountKeyBytes(Vec<u8>),
-    InvalidAccountBalance(Vec<u8>),
+    DBOpenError(sled::Error),
+    UnableToDeserializeAccountKeyBytesFromTreeName(Vec<u8>),
+    TreeOpenError(ACCOUNT_KEY, sled::Error),
+    TreeIterError(usize, sled::Error),
+    UnableToDeserializeKeyBytesFromTreeKey(ACCOUNT_KEY, usize, Vec<u8>),
+    UnableToDeserializeAccountBalanceFromTreeValue(ACCOUNT_KEY, usize, [u8; 1], Vec<u8>),
+    UnableToDeserializeAccountShadowAllocsSumFromTreeValue(ACCOUNT_KEY, usize, [u8; 1], Vec<u8>),
+    InvalidTreeKeyEncountered(ACCOUNT_KEY, Vec<u8>),
 }
 
-/// The account coin holder save error.
-#[derive(Debug, Clone)]
-pub enum AccountCoinHolderSaveError {
-    TreeValueInsertError(ACCOUNT_KEY, ACCOUNT_BALANCE, sled::Error),
-}
-
-/// The account coin holder register error.
+/// Errors associated with registering a new account.
 #[derive(Debug, Clone)]
 pub enum AccountCoinHolderRegisterError {
-    AccountAlreadyRegistered(ACCOUNT_KEY),
+    AccountHasJustBeenEphemerallyRegistered(ACCOUNT_KEY),
+    AccountIsAlreadyPermanentlyRegistered(ACCOUNT_KEY),
 }
 
-/// The account balance increase error.
+/// Errors associated with increasing the account's balance.
 #[derive(Debug, Clone)]
 pub enum AccountBalanceUpError {
     UnableToGetAccountBalance(ACCOUNT_KEY),
 }
 
-/// The account balance decrease error.
+/// Errors associated with decreasing the account's balance.
 #[derive(Debug, Clone)]
 pub enum AccountBalanceDownError {
     UnableToGetAccountBalance(ACCOUNT_KEY),
-    AccountBalanceWouldGoBelowZero(ACCOUNT_KEY, ACCOUNT_BALANCE, SATOSHI_AMOUNT),
+    AccountBalanceWouldGoBelowZero(ACCOUNT_KEY, SATOSHI_AMOUNT, SATOSHI_AMOUNT),
+}
+
+/// Errors associated with saving the account coin holder.
+#[derive(Debug, Clone)]
+pub enum AccountCoinHolderApplyChangesError {
+    TreeValueInsertError(ACCOUNT_KEY, SATOSHI_AMOUNT, sled::Error),
+    UnableToGetAccountBody(ACCOUNT_KEY),
+    OpenTreeError(ACCOUNT_KEY, sled::Error),
+    AccountBalanceValueOnDiskInsertionError(ACCOUNT_KEY, SATOSHI_AMOUNT, sled::Error),
+    AccountShadowAllocsSumValueOnDiskInsertionError(ACCOUNT_KEY, SATI_SATOSHI_AMOUNT, sled::Error),
 }

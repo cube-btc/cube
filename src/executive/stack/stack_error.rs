@@ -2,9 +2,9 @@ use crate::inscriptive::{
     coin_holder::{
         account_coin_holder::account_coin_holder_error::AccountBalanceUpError,
         contract_coin_holder::contract_coin_holder_error::{
-            ContractBalanceDownError, ContractBalanceUpError, ShadowAllocDownAllError,
-            ShadowAllocDownError, ShadowAllocError, ShadowAllocUpAllError, ShadowAllocUpError,
-            ShadowDeallocError,
+            ContractBalanceDownError, ContractBalanceUpError, ShadowAllocAccountError,
+            ShadowAllocDownAllError, ShadowAllocDownError, ShadowAllocUpAllError,
+            ShadowAllocUpError, ShadowDeallocAccountError,
         },
     },
     state_holder::state_holder_error::StateHolderInsertUpdateValueError,
@@ -143,9 +143,9 @@ pub enum ShadowOpsError {
     /// The amount is invalid.
     InvalidAmountBytes(Vec<u8>),
     /// The shadow alloc error.
-    ShadowAllocError(ShadowAllocError),
+    ShadowAllocError(ShadowAllocAccountError),
     /// The shadow dealloc error.
-    ShadowDeallocError(ShadowDeallocError),
+    ShadowDeallocError(ShadowDeallocAccountError),
     /// The shadow alloc up error.
     ShadowAllocUpError(ShadowAllocUpError),
     /// The shadow alloc down error.

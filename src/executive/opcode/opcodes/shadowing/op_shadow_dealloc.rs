@@ -47,7 +47,7 @@ impl OP_SHADOW_DEALLOC {
         {
             let mut _contract_coin_holder = contract_coin_holder.lock().await;
             _contract_coin_holder
-                .dealloc_account(self_contract_id_bytes, account_key_bytes)
+                .shadow_dealloc_account(self_contract_id_bytes, account_key_bytes)
                 .map_err(|error| ShadowOpsError::ShadowDeallocError(error))
                 .map_err(StackError::ShadowOpsError)?;
         }

@@ -371,7 +371,7 @@ impl ContractCoinHolder {
         }
 
         // Check if the contract is already permanently registered.
-        if self.in_memory.contains_key(&contract_id) {
+        if self.is_contract_registered(contract_id) {
             return Err(
                 ContractCoinHolderRegisterContractError::ContractIsAlreadyPermanentlyRegistered(
                     contract_id,
