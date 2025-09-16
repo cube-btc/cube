@@ -6,14 +6,6 @@ type CONTRACT_ID = [u8; 32];
 #[allow(non_camel_case_types)]
 type ACCOUNT_KEY = [u8; 32];
 
-/// State value.
-#[allow(non_camel_case_types)]
-type ALLOCS_SUM = u64;
-
-/// State value.
-#[allow(non_camel_case_types)]
-type CONTRACT_BALANCE = u64;
-
 /// Satoshi amount.
 #[allow(non_camel_case_types)]
 type SATOSHI_AMOUNT = u64;
@@ -23,120 +15,107 @@ type SATOSHI_AMOUNT = u64;
 #[allow(non_camel_case_types)]
 type SATI_SATOSHI_AMOUNT = u128;
 
-/// The state construction error.
+/// Errors associated with constructing the `ContractCoinHolder` struct.
 #[derive(Debug, Clone)]
 pub enum ContractCoinHolderConstructionError {
-    // Main DB open at construction error.
-    BalancesDBOpenError(sled::Error),
-    // Key deserialize at index error.
-    ContractIDDeserializeErrorAtIndex(usize),
-    // Value deserialize at index error.
-    CoinBalanceDeserializeErrorAtIndex(usize),
-    // Sub DB open error.
-    ShadowAllocDBOpenError(sled::Error),
-    ShadowSpaceDBOpenError(sled::Error),
-    ShadowSpaceTreeOpenError(CONTRACT_ID, sled::Error),
-    InvalidContractIDBytes(Vec<u8>),
-    ContractShadowIterError(sled::Error),
-
-    //
-    UnableToDeserializeKeyBytes(Vec<u8>),
-    UnableToDeserializeAllocsSumBytes(Vec<u8>),
-    UnableToDeserializeContractBalanceBytes(Vec<u8>),
-    UnableToDeserializeAllocValueBytes(Vec<u8>),
-
-    //InvalidShadowAllocation(Vec<u8>),
-    UnableToGetContractBalance(CONTRACT_ID, Option<sled::Error>),
-    InvalidBalanceBytesError(Vec<u8>),
-    //
-    AllocsSumExceedsTheContractBalance(CONTRACT_ID, ALLOCS_SUM, CONTRACT_BALANCE),
-    ShadowAllocationGetError(CONTRACT_ID, sled::Error),
+    DBOpenError(sled::Error),
+    UnableToDeserializeContractIDBytesFromTreeName(Vec<u8>),
+    TreeOpenError(CONTRACT_ID, sled::Error),
+    TreeIterError(CONTRACT_ID, usize, sled::Error),
+    UnableToDeserializeKeyBytesFromTreeKey(CONTRACT_ID, usize, Vec<u8>),
+    UnableToDeserializeContractBalanceFromTreeValue(CONTRACT_ID, usize, [u8; 32], Vec<u8>),
+    UnableToDeserializeAllocsSumFromTreeValue(CONTRACT_ID, usize, [u8; 32], Vec<u8>),
+    UnableToDeserializeAllocValueFromTreeValue(CONTRACT_ID, usize, [u8; 32], Vec<u8>),
+    AllocsSumExceedsTheContractBalance(CONTRACT_ID, SATOSHI_AMOUNT, SATOSHI_AMOUNT),
 }
 
-/// The state save error.
+/// Errors associated with registering a new contract.
 #[derive(Debug, Clone)]
-pub enum ContractCoinHolderSaveError {
-    OpenTreeError(CONTRACT_ID, sled::Error),
-    BalanceValueInsertError(CONTRACT_ID, SATOSHI_AMOUNT, sled::Error),
-    ShadowSpaceTreeAllocInsertError(CONTRACT_ID, ACCOUNT_KEY, SATI_SATOSHI_AMOUNT, sled::Error),
-    ShadowSpaceTreeAllocsSumInsertError(CONTRACT_ID, SATOSHI_AMOUNT, sled::Error),
-    ContractBodyNotFound(CONTRACT_ID),
-    InMemoryDeallocSaveError(CONTRACT_ID, ACCOUNT_KEY),
-    OnDiskDeallocSaveError(CONTRACT_ID, ACCOUNT_KEY, sled::Error),
+pub enum ContractCoinHolderRegisterContractError {
+    ContractHasJustBeenEphemerallyRegistered(CONTRACT_ID),
+    ContractIsAlreadyPermanentlyRegistered(CONTRACT_ID),
 }
 
-/// The state register error.
+/// Errors associated with allocating a new account to the contract's shadow space.
 #[derive(Debug, Clone)]
-pub enum ContractCoinHolderRegisterError {
-    ContractAlreadyEphemerallyRegistered(CONTRACT_ID),
-    ContractAlreadyPermanentlyRegistered(CONTRACT_ID),
+pub enum ShadowAllocAccountError {
+    AccountHasJustBeenEphemerallyAllocated(CONTRACT_ID, ACCOUNT_KEY),
+    AccountHasJustBeenEphemerallyDeallocated(CONTRACT_ID, ACCOUNT_KEY),
+    UnableToGetAccountAllocValue(CONTRACT_ID, ACCOUNT_KEY),
+    UnableToGetContractBody(CONTRACT_ID),
 }
 
-/// The shadow allocation error.
+/// Errors associated with deallocating an account from the contract's shadow space.
 #[derive(Debug, Clone)]
-pub enum ShadowAllocError {
-    AccountIsJustEphemerallyAllocated(CONTRACT_ID, ACCOUNT_KEY),
-    AccountIsJustEphemerallyDeallocated(CONTRACT_ID, ACCOUNT_KEY),
-    AccountIsAlreadyPermanentlyAllocated(CONTRACT_ID, ACCOUNT_KEY),
-    ShadowSpaceNotFound(CONTRACT_ID),
-}
-
-/// The shadow deallocation error.
-#[derive(Debug, Clone)]
-pub enum ShadowDeallocError {
-    AccountIsJustEphemerallyAllocated(CONTRACT_ID, ACCOUNT_KEY),
+pub enum ShadowDeallocAccountError {
+    AccountHasJustBeenEphemerallyAllocated(CONTRACT_ID, ACCOUNT_KEY),
     UnableToGetAccountAllocValue(CONTRACT_ID, ACCOUNT_KEY),
     AllocValueIsNonZero(CONTRACT_ID, ACCOUNT_KEY),
     UnableToGetEpheremalDeallocList(CONTRACT_ID),
-    AccountIsJustEphemerallyDeallocated(CONTRACT_ID, ACCOUNT_KEY),
-    ShadowSpaceNotFound(CONTRACT_ID),
+    AccountHasJustBeenEphemerallyDeallocated(CONTRACT_ID, ACCOUNT_KEY),
+    UnableToGetContractBody(CONTRACT_ID),
 }
 
-/// The state save error.   
+/// Errors associated with increasing contract's balance.
+#[derive(Debug, Clone)]
+pub enum ContractBalanceUpError {
+    UnableToGetContractBalance(CONTRACT_ID),
+    UnableToGetContractBody(CONTRACT_ID),
+}
+
+/// Errors associated with decreasing contract's balance.
+#[derive(Debug, Clone)]
+pub enum ContractBalanceDownError {
+    UnableToGetContractBalance(CONTRACT_ID),
+    ContractBalanceWouldGoBelowZero(CONTRACT_ID, SATOSHI_AMOUNT, SATOSHI_AMOUNT),
+    UnableToGetContractBody(CONTRACT_ID),
+}
+
+/// Errors associated with increasing an account's shadow allocation value in the contract's shadow space.   
 #[derive(Debug, Clone)]
 pub enum ShadowAllocUpError {
-    ShadowSpaceNotFound(CONTRACT_ID),
-    UnableToGetOldAccountAllocValue(CONTRACT_ID, ACCOUNT_KEY),
+    UnableToGetAccountShadowAllocValue(CONTRACT_ID, ACCOUNT_KEY),
     UnableToGetContractBalance(CONTRACT_ID),
-    AllocsSumExceedsTheContractBalance(CONTRACT_ID, ALLOCS_SUM, CONTRACT_BALANCE),
+    UnableToGetContractBody(CONTRACT_ID),
+    AllocsSumExceedsTheContractBalance(CONTRACT_ID, SATOSHI_AMOUNT, SATOSHI_AMOUNT),
 }
 
-/// The shadow allocation decrease error.
+/// Errors associated with decreasing an account's shadow allocation value in the contract's shadow space.
 #[derive(Debug, Clone)]
 pub enum ShadowAllocDownError {
-    ShadowSpaceNotFound(CONTRACT_ID),
-    UnableToGetOldAccountAllocValue(CONTRACT_ID, ACCOUNT_KEY),
+    UnableToGetAccountShadowAllocValue(CONTRACT_ID, ACCOUNT_KEY),
     UnableToGetContractBalance(CONTRACT_ID),
-    AllocsSumExceedsTheContractBalance(CONTRACT_ID, ALLOCS_SUM, CONTRACT_BALANCE),
-    AllocValueWouldGoBelowZero(
+    AccountShadowAllocValueWouldGoBelowZero(
         CONTRACT_ID,
         ACCOUNT_KEY,
         SATI_SATOSHI_AMOUNT,
         SATI_SATOSHI_AMOUNT,
     ),
+    UnableToGetContractBody(CONTRACT_ID),
+    AllocsSumExceedsTheContractBalance(CONTRACT_ID, SATOSHI_AMOUNT, SATOSHI_AMOUNT),
 }
 
-/// The shadow allocation increase error.
+/// Errors associated with increasing an account's shadow allocation value in the contract's shadow space.
 #[derive(Debug, Clone)]
 pub enum ShadowAllocUpAllError {
     UnableToGetContractBalance(CONTRACT_ID),
     UnableToGetContractAllocsSum(CONTRACT_ID),
-    AllocsSumExceedsTheContractBalance(CONTRACT_ID, ALLOCS_SUM, CONTRACT_BALANCE),
-    ShadowSpaceNotFound(CONTRACT_ID),
     OperationNotPossibleWithZeroAllocsSum(CONTRACT_ID),
+    AllocsSumExceedsTheContractBalance(CONTRACT_ID, SATOSHI_AMOUNT, SATOSHI_AMOUNT),
+    UnableToGetContractBody(CONTRACT_ID),
 }
 
-/// The shadow allocation decrease error.
+/// Errors associated with decreasing an account's shadow allocation value in the contract's shadow space.
 
 #[derive(Debug, Clone)]
 pub enum ShadowAllocDownAllError {
     UnableToGetContractBalance(CONTRACT_ID),
     UnableToGetContractAllocsSum(CONTRACT_ID),
-    AllocsSumExceedsTheContractBalance(CONTRACT_ID, ALLOCS_SUM, CONTRACT_BALANCE),
-    ShadowSpaceNotFound(CONTRACT_ID),
     OperationNotPossibleWithZeroAllocsSum(CONTRACT_ID),
-    AllocsSumWouldGoBelowZero(CONTRACT_ID, ALLOCS_SUM, SATOSHI_AMOUNT),
-    IndividualAllocationWouldGoBelowZero(
+    AllocsSumWouldGoBelowZero(CONTRACT_ID, SATOSHI_AMOUNT, SATOSHI_AMOUNT),
+    AllocsSumExceedsTheContractBalance(CONTRACT_ID, SATOSHI_AMOUNT, SATOSHI_AMOUNT),
+    UnableToGetContractBody(CONTRACT_ID),
+    AccountShadowAllocValueWouldGoBelowZero(
         CONTRACT_ID,
         ACCOUNT_KEY,
         SATI_SATOSHI_AMOUNT,
@@ -144,17 +123,19 @@ pub enum ShadowAllocDownAllError {
     ),
 }
 
-/// The contract balance increase error.
+/// Errors associated with applying changes to the `ContractCoinHolder`.
 #[derive(Debug, Clone)]
-pub enum ContractBalanceUpError {
-    UnableToGetContractBalance(CONTRACT_ID),
-    ContractBodyNotFound(CONTRACT_ID),
-}
-
-/// The contract balance decrease error.
-#[derive(Debug, Clone)]
-pub enum ContractBalanceDownError {
-    UnableToGetContractBalance(CONTRACT_ID),
-    ContractBodyNotFound(CONTRACT_ID),
-    ContractBalanceWouldGoBelowZero(CONTRACT_ID, CONTRACT_BALANCE, SATOSHI_AMOUNT),
+pub enum ContractCoinHolderApplyChangesError {
+    OpenTreeError(CONTRACT_ID, sled::Error),
+    BalanceValueOnDiskInsertionError(CONTRACT_ID, SATOSHI_AMOUNT, sled::Error),
+    AllocsSumValueOnDiskInsertionError(CONTRACT_ID, SATOSHI_AMOUNT, sled::Error),
+    UnableToGetContractBody(CONTRACT_ID),
+    ShadowAllocValueOnDiskInsertionError(
+        CONTRACT_ID,
+        ACCOUNT_KEY,
+        SATI_SATOSHI_AMOUNT,
+        sled::Error,
+    ),
+    InMemoryDeallocAccountError(CONTRACT_ID, ACCOUNT_KEY),
+    OnDiskDeallocAccountError(CONTRACT_ID, ACCOUNT_KEY, sled::Error),
 }

@@ -1,10 +1,10 @@
 use super::contract_coin_holder_error::{
-    ContractCoinHolderConstructionError, ContractCoinHolderSaveError,
+    ContractCoinHolderApplyChangesError, ContractCoinHolderConstructionError,
 };
 use crate::inscriptive::coin_holder::contract_coin_holder::contract_coin_holder_error::{
-    ContractBalanceDownError, ContractBalanceUpError, ContractCoinHolderRegisterError,
-    ShadowAllocDownAllError, ShadowAllocDownError, ShadowAllocError, ShadowAllocUpAllError,
-    ShadowAllocUpError, ShadowDeallocError,
+    ContractBalanceDownError, ContractBalanceUpError, ContractCoinHolderRegisterContractError,
+    ShadowAllocAccountError, ShadowAllocDownAllError, ShadowAllocDownError, ShadowAllocUpAllError,
+    ShadowAllocUpError, ShadowDeallocAccountError,
 };
 use crate::operative::Chain;
 use std::collections::HashMap;
@@ -39,6 +39,7 @@ const CONTRACT_ALLOCS_SUM_SPECIAL_KEY: [u8; 32] = [0x01; 32];
 struct ShadowSpace {
     // Total allocated BTC value of the entire shadow space.
     pub allocs_sum: SATOSHI_AMOUNT,
+
     // Allocated BTC values of each account.
     pub allocs: HashMap<ACCOUNT_KEY, SATI_SATOSHI_AMOUNT>,
 }
@@ -48,6 +49,7 @@ struct ShadowSpace {
 struct ContractBody {
     // Contract's BTC balance.
     pub balance: SATOSHI_AMOUNT,
+
     // Contract's shadow space.
     pub shadow_space: ShadowSpace,
 }
@@ -57,18 +59,23 @@ struct ContractBody {
 struct Delta {
     // New contracts to register.
     pub new_contracts_to_register: Vec<CONTRACT_ID>,
+
     // New accounts to allocate for a given contract.
     pub allocs_list: HashMap<CONTRACT_ID, Vec<ACCOUNT_KEY>>,
+
     // Existing accounts to deallocate for a given contract.
     pub deallocs_list: HashMap<CONTRACT_ID, Vec<ACCOUNT_KEY>>,
+
     // Updated contract balances for a given contract.
     pub updated_contract_balances: HashMap<CONTRACT_ID, SATOSHI_AMOUNT>,
+
     // Updated shadow spaces for a given contract.
     pub updated_shadow_spaces: HashMap<CONTRACT_ID, ShadowSpace>,
 }
 
 /// A database manager for handling contract balances and shadow spaces.
-/// For now, we are caching everything in memory.
+///
+/// NOTE: For now, we are caching *everything* in memory.
 pub struct ContractCoinHolder {
     // IN-MEMORY STATES
     in_memory: HashMap<CONTRACT_ID, ContractBody>,
@@ -76,12 +83,14 @@ pub struct ContractCoinHolder {
     // ON-DISK STATES
     on_disk: sled::Db,
 
-    // DELTA STATES TO BE APPLIED
+    // STATE DIFFERENCES TO BE APPLIED
     delta: Delta,
+
+    // BACKUP OF STATE DIFFERENCES IN CASE OF ROLLBACK
     delta_backup: Delta,
 }
 
-/// Guarded contract coin holder.
+/// Guarded `ContractCoinHolder`.
 #[allow(non_camel_case_types)]
 pub type CONTRACT_COIN_HOLDER = Arc<Mutex<ContractCoinHolder>>;
 
@@ -90,28 +99,28 @@ pub type CONTRACT_COIN_HOLDER = Arc<Mutex<ContractCoinHolder>>;
 impl ContractCoinHolder {
     /// Initialize the state for the given chain
     pub fn new(chain: Chain) -> Result<CONTRACT_COIN_HOLDER, ContractCoinHolderConstructionError> {
-        // Database path.
-        let db_path = format!("db/{}/coins/contracts", chain.to_string());
+        // Open the respective database.
+        let db_path = format!("db/{}/coin/contract", chain.to_string());
+        let db = sled::open(db_path).map_err(ContractCoinHolderConstructionError::DBOpenError)?;
 
-        // Open database.
-        let db = sled::open(db_path)
-            .map_err(ContractCoinHolderConstructionError::BalancesDBOpenError)?;
-
-        // Initialize the in-memory list of contract bodies.
+        // Initialize the in-memory list.
         let mut in_memory = HashMap::<CONTRACT_ID, ContractBody>::new();
 
-        // Iterate over all contract shadow spaces in the shadow space db.
+        // Iterate over all trees in the database.
         for tree_name in db.tree_names() {
+            // Deserialize contract id bytes from tree name.
             let contract_id: [u8; 32] = tree_name.as_ref().try_into().map_err(|_| {
-                ContractCoinHolderConstructionError::InvalidContractIDBytes(tree_name.to_vec())
+                ContractCoinHolderConstructionError::UnableToDeserializeContractIDBytesFromTreeName(
+                    tree_name.to_vec(),
+                )
             })?;
 
-            // Open the contract shadow space tree.
-            let tree = db.open_tree(&tree_name).map_err(|e| {
-                ContractCoinHolderConstructionError::ShadowSpaceTreeOpenError(contract_id, e)
-            })?;
+            // Open the tree.
+            let tree = db
+                .open_tree(&tree_name)
+                .map_err(|e| ContractCoinHolderConstructionError::TreeOpenError(contract_id, e))?;
 
-            // Initialize the in-memory cache of contract shadow space.
+            // Initialize the in-memory cache of shadow space allocations.
             let mut allocs = HashMap::<ACCOUNT_KEY, SATI_SATOSHI_AMOUNT>::new();
 
             // Initialize the allocs sum to zero.
@@ -120,31 +129,40 @@ impl ContractCoinHolder {
             // Initialize the contract balance to zero.
             let mut contract_balance: u64 = 0;
 
-            // Iterate over all items in the contract tree.
-            for item in tree.iter() {
+            // Iterate over all items in the tree.
+            for (index, item) in tree.iter().enumerate() {
                 // Get the key and value.
                 let (key, value) = match item {
                     Ok((k, v)) => (k, v),
                     Err(e) => {
-                        return Err(
-                            ContractCoinHolderConstructionError::ContractShadowIterError(e),
-                        );
+                        return Err(ContractCoinHolderConstructionError::TreeIterError(
+                            contract_id,
+                            index,
+                            e,
+                        ));
                     }
                 };
 
                 // Deserialize the key bytes.
-                let key_bytes: [u8; 32] = key.as_ref().try_into().map_err(|_| {
-                    ContractCoinHolderConstructionError::UnableToDeserializeKeyBytes(key.to_vec())
+                let tree_key_bytes: [u8; 32] = key.as_ref().try_into().map_err(|_| {
+                    ContractCoinHolderConstructionError::UnableToDeserializeKeyBytesFromTreeKey(
+                        contract_id,
+                        index,
+                        key.to_vec(),
+                    )
                 })?;
 
-                // Match the key bytes.
-                match key_bytes {
+                // Match the tree key bytes.
+                match tree_key_bytes {
                     // If the key is (0x00..), it is a special key that corresponds to the contract balance value.
                     CONTRACT_BALANCE_SPECIAL_KEY => {
                         // Deserialize the value bytes.
                         let contract_balance_value_in_satoshis: u64 =
                             u64::from_le_bytes(value.as_ref().try_into().map_err(|_| {
-                                ContractCoinHolderConstructionError::UnableToDeserializeContractBalanceBytes(
+                                ContractCoinHolderConstructionError::UnableToDeserializeContractBalanceFromTreeValue(
+                                    contract_id,
+                                    index,
+                                    tree_key_bytes,
                                     value.to_vec(),
                                 )
                             })?);
@@ -157,7 +175,10 @@ impl ContractCoinHolder {
                         // Deserialize the value bytes.
                         let allocs_sum_value_in_satoshis: u64 =
                             u64::from_le_bytes(value.as_ref().try_into().map_err(|_| {
-                                ContractCoinHolderConstructionError::UnableToDeserializeAllocsSumBytes(
+                                ContractCoinHolderConstructionError::UnableToDeserializeAllocsSumFromTreeValue(
+                                    contract_id,
+                                    index,
+                                    tree_key_bytes,
                                     value.to_vec(),
                                 )
                             })?);
@@ -171,13 +192,16 @@ impl ContractCoinHolder {
                         // Deserialize the value bytes.
                         let alloc_value_in_sati_satoshis: u128 =
                             u128::from_le_bytes(value.as_ref().try_into().map_err(|_| {
-                                ContractCoinHolderConstructionError::UnableToDeserializeAllocValueBytes(
+                                ContractCoinHolderConstructionError::UnableToDeserializeAllocValueFromTreeValue(
+                                    contract_id,
+                                    index,
+                                    tree_key_bytes,
                                     value.to_vec(),
                                 )
                             })?);
 
                         // Update the shadow space allocations.
-                        allocs.insert(key_bytes, alloc_value_in_sati_satoshis);
+                        allocs.insert(tree_key_bytes, alloc_value_in_sati_satoshis);
                     }
                 }
             }
@@ -246,6 +270,8 @@ impl ContractCoinHolder {
     }
 
     /// Checks if a contract is registered.
+    ///
+    /// NOTE: Permanant registrations only. Epheremal in-Delta registrations are out of scope.
     pub fn is_contract_registered(&self, contract_id: [u8; 32]) -> bool {
         self.in_memory.contains_key(&contract_id)
     }
@@ -334,18 +360,22 @@ impl ContractCoinHolder {
     pub fn register_contract(
         &mut self,
         contract_id: [u8; 32],
-    ) -> Result<(), ContractCoinHolderRegisterError> {
-        // Check if the contract is already epheremally registered in the delta.
+    ) -> Result<(), ContractCoinHolderRegisterContractError> {
+        // Check if the contract has just been epheremally registered in the delta.
         if self.delta.new_contracts_to_register.contains(&contract_id) {
             return Err(
-                ContractCoinHolderRegisterError::ContractAlreadyEphemerallyRegistered(contract_id),
+                ContractCoinHolderRegisterContractError::ContractHasJustBeenEphemerallyRegistered(
+                    contract_id,
+                ),
             );
         }
 
         // Check if the contract is already permanently registered.
         if self.in_memory.contains_key(&contract_id) {
             return Err(
-                ContractCoinHolderRegisterError::ContractAlreadyPermanentlyRegistered(contract_id),
+                ContractCoinHolderRegisterContractError::ContractIsAlreadyPermanentlyRegistered(
+                    contract_id,
+                ),
             );
         }
 
@@ -356,22 +386,24 @@ impl ContractCoinHolder {
         Ok(())
     }
 
-    // Creates an allocation space for an account in the contract's shadow space.
+    /// Allocates a new account in the contract's shadow space.
     ///
     /// NOTE: These changes are saved with the use of the `apply_changes` function.
-    pub fn alloc_account(
+    pub fn shadow_alloc_account(
         &mut self,
         contract_id: [u8; 32],
         account_key: ACCOUNT_KEY,
-    ) -> Result<(), ShadowAllocError> {
+    ) -> Result<(), ShadowAllocAccountError> {
         // Check if the account has just been epheremally allocated in the delta.
         // We do not allow it to be allocated again in the same execution.
         if let Some(allocs_list) = self.delta.allocs_list.get(&contract_id) {
             if allocs_list.contains(&account_key) {
-                return Err(ShadowAllocError::AccountIsJustEphemerallyAllocated(
-                    contract_id,
-                    account_key,
-                ));
+                return Err(
+                    ShadowAllocAccountError::AccountHasJustBeenEphemerallyAllocated(
+                        contract_id,
+                        account_key,
+                    ),
+                );
             }
         }
 
@@ -379,20 +411,22 @@ impl ContractCoinHolder {
         // We do not allow it to be allocated after being deallocated in the same execution.
         if let Some(deallocs_list) = self.delta.deallocs_list.get(&contract_id) {
             if deallocs_list.contains(&account_key) {
-                return Err(ShadowAllocError::AccountIsJustEphemerallyDeallocated(
-                    contract_id,
-                    account_key,
-                ));
+                return Err(
+                    ShadowAllocAccountError::AccountHasJustBeenEphemerallyDeallocated(
+                        contract_id,
+                        account_key,
+                    ),
+                );
             }
         }
 
-        // Check if the account key is already permanently allocated.
-        // We do not allow it to be allocated again.
+        // Check if the account key is already permanently allocated by reading its allocation value.
+        // We do not allow it to be allocated again if already permanently allocated.
         if self
             .get_account_shadow_alloc_value_in_sati_satoshis(contract_id, account_key)
             .is_some()
         {
-            return Err(ShadowAllocError::AccountIsAlreadyPermanentlyAllocated(
+            return Err(ShadowAllocAccountError::UnableToGetAccountAllocValue(
                 contract_id,
                 account_key,
             ));
@@ -403,10 +437,9 @@ impl ContractCoinHolder {
             Some(shadow_space) => shadow_space,
             None => {
                 // Otherwise, from the permanent states.
-                let contract_body = self
-                    .in_memory
-                    .get(&contract_id)
-                    .ok_or(ShadowAllocError::ShadowSpaceNotFound(contract_id))?;
+                let contract_body = self.in_memory.get(&contract_id).ok_or(
+                    ShadowAllocAccountError::UnableToGetContractBody(contract_id),
+                )?;
 
                 // Clone the shadow space from permanent states.
                 let shadow_space = contract_body.shadow_space.clone();
@@ -440,14 +473,14 @@ impl ContractCoinHolder {
         Ok(())
     }
 
-    /// Deallocates an account in the contract's shadow space.
+    /// Deallocates an account from the contract's shadow space.
     ///
     /// NOTE: These changes are saved with the use of the `apply_changes` function.
-    pub fn dealloc_account(
+    pub fn shadow_dealloc_account(
         &mut self,
         contract_id: [u8; 32],
         account_key: ACCOUNT_KEY,
-    ) -> Result<(), ShadowDeallocError> {
+    ) -> Result<(), ShadowDeallocAccountError> {
         // Check if the account has just been epheremally allocated in the delta.
         // We do not allow it to be deallocated if it is just allocated in the same execution.
         if self
@@ -457,17 +490,19 @@ impl ContractCoinHolder {
             .unwrap_or(&Vec::new())
             .contains(&account_key)
         {
-            return Err(ShadowDeallocError::AccountIsJustEphemerallyAllocated(
-                contract_id,
-                account_key,
-            ));
+            return Err(
+                ShadowDeallocAccountError::AccountHasJustBeenEphemerallyAllocated(
+                    contract_id,
+                    account_key,
+                ),
+            );
         }
 
-        // Get the account allocation value.
+        // Get the account's allocation value in sati-satoshis.
         // This also checks if the account is acutally permanently allocated.
         let allocation_value_in_sati_satoshis = self
             .get_account_shadow_alloc_value_in_sati_satoshis(contract_id, account_key)
-            .ok_or(ShadowDeallocError::UnableToGetAccountAllocValue(
+            .ok_or(ShadowDeallocAccountError::UnableToGetAccountAllocValue(
                 contract_id,
                 account_key,
             ))?;
@@ -475,38 +510,39 @@ impl ContractCoinHolder {
         // Check if the account allocation value is non-zero.
         // Deallocation is allowed only if the allocation value is zero.
         if allocation_value_in_sati_satoshis != 0 {
-            return Err(ShadowDeallocError::AllocValueIsNonZero(
+            return Err(ShadowDeallocAccountError::AllocValueIsNonZero(
                 contract_id,
                 account_key,
             ));
         }
 
-        // Get the mutable dealloc list in the delta.
-        let dealloc_list_delta = self.delta.deallocs_list.get_mut(&contract_id).ok_or(
-            ShadowDeallocError::UnableToGetEpheremalDeallocList(contract_id),
+        // Get the mutable epheremal dealloc list from the delta.
+        let epheremal_dealloc_list = self.delta.deallocs_list.get_mut(&contract_id).ok_or(
+            ShadowDeallocAccountError::UnableToGetEpheremalDeallocList(contract_id),
         )?;
 
         // Check if the account has just been epheremally deallocated in the delta.
         // We do not allow it to be deallocated if it is just deallocated in the same execution.
-        if dealloc_list_delta.contains(&account_key) {
-            return Err(ShadowDeallocError::AccountIsJustEphemerallyDeallocated(
-                contract_id,
-                account_key,
-            ));
+        if epheremal_dealloc_list.contains(&account_key) {
+            return Err(
+                ShadowDeallocAccountError::AccountHasJustBeenEphemerallyDeallocated(
+                    contract_id,
+                    account_key,
+                ),
+            );
         }
 
-        // Insert the account key into the dealloc list in the delta.
-        dealloc_list_delta.push(account_key);
+        // Insert the account key into the epheremal dealloc list.
+        epheremal_dealloc_list.push(account_key);
 
-        // Retrieve the mutable shadow space from the delta.
+        // Get the mutable epheremal shadow space from the delta.
         let epheremal_shadow_space = match self.delta.updated_shadow_spaces.get_mut(&contract_id) {
             Some(shadow_space) => shadow_space,
             None => {
                 // Otherwise, from the permanent states.
-                let contract_body = self
-                    .in_memory
-                    .get(&contract_id)
-                    .ok_or(ShadowDeallocError::ShadowSpaceNotFound(contract_id))?;
+                let contract_body = self.in_memory.get(&contract_id).ok_or(
+                    ShadowDeallocAccountError::UnableToGetContractBody(contract_id),
+                )?;
 
                 // Clone the shadow space from permanent states.
                 let shadow_space = contract_body.shadow_space.clone();
@@ -535,7 +571,7 @@ impl ContractCoinHolder {
         Ok(())
     }
 
-    /// Increases a contract balance by a given value.
+    /// Increases contract's balance.
     ///
     /// NOTE: These changes are saved with the use of the `apply_changes` function.
     pub fn contract_balance_up(
@@ -564,7 +600,7 @@ impl ContractCoinHolder {
                     let contract_body = self
                         .in_memory
                         .get_mut(&contract_id)
-                        .ok_or(ContractBalanceUpError::ContractBodyNotFound(contract_id))?;
+                        .ok_or(ContractBalanceUpError::UnableToGetContractBody(contract_id))?;
 
                     // Get the mutable balance.
                     let balance = contract_body.balance;
@@ -593,7 +629,7 @@ impl ContractCoinHolder {
         Ok(())
     }
 
-    /// Decreases a contract balance by a given value.
+    /// Decreases contract's balance.
     ///
     /// NOTE: These changes are saved with the use of the `apply_changes` function.
     pub fn contract_balance_down(
@@ -628,10 +664,9 @@ impl ContractCoinHolder {
                 // Otherwise, from the permanent in-memory states.
                 None => {
                     // Get the mutable balance from the permanent in-memory states.
-                    let contract_body = self
-                        .in_memory
-                        .get_mut(&contract_id)
-                        .ok_or(ContractBalanceDownError::ContractBodyNotFound(contract_id))?;
+                    let contract_body = self.in_memory.get_mut(&contract_id).ok_or(
+                        ContractBalanceDownError::UnableToGetContractBody(contract_id),
+                    )?;
 
                     // Get the mutable balance.
                     let balance = contract_body.balance;
@@ -660,7 +695,7 @@ impl ContractCoinHolder {
         Ok(())
     }
 
-    /// Inserts or updates a shadow allocation value by key and contract ID ephemerally.    
+    /// Increases an account's shadow allocation value in the contract's shadow space.    
     ///
     /// NOTE: These changes are saved with the use of the `apply_changes` function.
     pub fn shadow_up(
@@ -675,7 +710,7 @@ impl ContractCoinHolder {
         // Get the old account allocation value and contract balance before any mutable borrows.
         let existing_account_shadow_alloc_value_in_sati_satoshis: u128 = self
             .get_account_shadow_alloc_value_in_sati_satoshis(contract_id, account_key)
-            .ok_or(ShadowAllocUpError::UnableToGetOldAccountAllocValue(
+            .ok_or(ShadowAllocUpError::UnableToGetAccountShadowAllocValue(
                 contract_id,
                 account_key,
             ))?;
@@ -693,7 +728,7 @@ impl ContractCoinHolder {
                 let contract_body = self
                     .in_memory
                     .get_mut(&contract_id)
-                    .ok_or(ShadowAllocUpError::ShadowSpaceNotFound(contract_id))?;
+                    .ok_or(ShadowAllocUpError::UnableToGetContractBody(contract_id))?;
 
                 // Get the mutable shadow space.
                 let shadow_space = contract_body.shadow_space.clone();
@@ -759,7 +794,7 @@ impl ContractCoinHolder {
         // Get the old account allocation value and contract balance before any mutable borrows.
         let existing_account_shadow_alloc_value_in_sati_satoshis: u128 = self
             .get_account_shadow_alloc_value_in_sati_satoshis(contract_id, account_key)
-            .ok_or(ShadowAllocDownError::UnableToGetOldAccountAllocValue(
+            .ok_or(ShadowAllocDownError::UnableToGetAccountShadowAllocValue(
                 contract_id,
                 account_key,
             ))?;
@@ -771,12 +806,14 @@ impl ContractCoinHolder {
 
         // Check if the decrease would make the allocation value go below zero.
         if down_value_in_sati_satoshis > existing_account_shadow_alloc_value_in_sati_satoshis {
-            return Err(ShadowAllocDownError::AllocValueWouldGoBelowZero(
-                contract_id,
-                account_key,
-                existing_account_shadow_alloc_value_in_sati_satoshis,
-                down_value_in_sati_satoshis,
-            ));
+            return Err(
+                ShadowAllocDownError::AccountShadowAllocValueWouldGoBelowZero(
+                    contract_id,
+                    account_key,
+                    existing_account_shadow_alloc_value_in_sati_satoshis,
+                    down_value_in_sati_satoshis,
+                ),
+            );
         }
 
         // Retrieve the mutable shadow space from the delta.
@@ -788,7 +825,7 @@ impl ContractCoinHolder {
                 let contract_body = self
                     .in_memory
                     .get_mut(&contract_id)
-                    .ok_or(ShadowAllocDownError::ShadowSpaceNotFound(contract_id))?;
+                    .ok_or(ShadowAllocDownError::UnableToGetContractBody(contract_id))?;
 
                 // Get the mutable shadow space.
                 let shadow_space = contract_body.shadow_space.clone();
@@ -897,7 +934,7 @@ impl ContractCoinHolder {
                 None => self
                     .in_memory
                     .get_mut(&contract_id)
-                    .ok_or(ShadowAllocUpAllError::ShadowSpaceNotFound(contract_id))?
+                    .ok_or(ShadowAllocUpAllError::UnableToGetContractBody(contract_id))?
                     .shadow_space
                     .allocs
                     .iter(),
@@ -930,7 +967,7 @@ impl ContractCoinHolder {
                 let contract_body = self
                     .in_memory
                     .get_mut(&contract_id)
-                    .ok_or(ShadowAllocUpAllError::ShadowSpaceNotFound(contract_id))?;
+                    .ok_or(ShadowAllocUpAllError::UnableToGetContractBody(contract_id))?;
 
                 // Get the mutable shadow space.
                 let shadow_space = contract_body.shadow_space.clone();
@@ -1038,7 +1075,9 @@ impl ContractCoinHolder {
                 None => self
                     .in_memory
                     .get_mut(&contract_id)
-                    .ok_or(ShadowAllocDownAllError::ShadowSpaceNotFound(contract_id))?
+                    .ok_or(ShadowAllocDownAllError::UnableToGetContractBody(
+                        contract_id,
+                    ))?
                     .shadow_space
                     .allocs
                     .iter(),
@@ -1053,7 +1092,7 @@ impl ContractCoinHolder {
             // Check if the individual down value would go below zero.
             if individual_down_value_in_sati_satoshis > *shadow_alloc_value_in_sati_satoshis {
                 return Err(
-                    ShadowAllocDownAllError::IndividualAllocationWouldGoBelowZero(
+                    ShadowAllocDownAllError::AccountShadowAllocValueWouldGoBelowZero(
                         contract_id,
                         *account_key,
                         *shadow_alloc_value_in_sati_satoshis,
@@ -1080,10 +1119,9 @@ impl ContractCoinHolder {
             Some(shadow_space) => shadow_space,
             // Otherwise, from the permanent in-memory states.
             None => {
-                let contract_body = self
-                    .in_memory
-                    .get_mut(&contract_id)
-                    .ok_or(ShadowAllocDownAllError::ShadowSpaceNotFound(contract_id))?;
+                let contract_body = self.in_memory.get_mut(&contract_id).ok_or(
+                    ShadowAllocDownAllError::UnableToGetContractBody(contract_id),
+                )?;
 
                 // Get the mutable shadow space.
                 let shadow_space = contract_body.shadow_space.clone();
@@ -1146,7 +1184,7 @@ impl ContractCoinHolder {
     }
 
     /// Applies all epheremal changes from the delta into the in-memory and on-disk.
-    pub fn apply_changes(&mut self) -> Result<(), ContractCoinHolderSaveError> {
+    pub fn apply_changes(&mut self) -> Result<(), ContractCoinHolderApplyChangesError> {
         // 0. Register new contracts.
         for contract_id in self.delta.new_contracts_to_register.iter() {
             // In-memory insertion.
@@ -1167,21 +1205,24 @@ impl ContractCoinHolder {
             // On-disk insertion.
             {
                 // Open tree
-                let tree = self
-                    .on_disk
-                    .open_tree(contract_id)
-                    .map_err(|e| ContractCoinHolderSaveError::OpenTreeError(*contract_id, e))?;
+                let tree = self.on_disk.open_tree(contract_id).map_err(|e| {
+                    ContractCoinHolderApplyChangesError::OpenTreeError(*contract_id, e)
+                })?;
 
                 // Insert the contract body into the on-disk list.
                 tree.insert(CONTRACT_BALANCE_SPECIAL_KEY, 0u64.to_le_bytes().to_vec())
                     .map_err(|e| {
-                        ContractCoinHolderSaveError::BalanceValueInsertError(*contract_id, 0, e)
+                        ContractCoinHolderApplyChangesError::BalanceValueOnDiskInsertionError(
+                            *contract_id,
+                            0,
+                            e,
+                        )
                     })?;
 
                 // Insert the shadow space into the on-disk list.
                 tree.insert(CONTRACT_ALLOCS_SUM_SPECIAL_KEY, 0u64.to_le_bytes().to_vec())
                     .map_err(|e| {
-                        ContractCoinHolderSaveError::ShadowSpaceTreeAllocsSumInsertError(
+                        ContractCoinHolderApplyChangesError::AllocsSumValueOnDiskInsertionError(
                             *contract_id,
                             0,
                             e,
@@ -1197,7 +1238,7 @@ impl ContractCoinHolder {
             {
                 // Get mutable in-memory permanent contract body.
                 let in_memory_permanent_contract_body = self.in_memory.get_mut(contract_id).ok_or(
-                    ContractCoinHolderSaveError::ContractBodyNotFound(*contract_id),
+                    ContractCoinHolderApplyChangesError::UnableToGetContractBody(*contract_id),
                 )?;
 
                 // Update the balance in the in-memory states.
@@ -1207,10 +1248,9 @@ impl ContractCoinHolder {
             // 1.1 On-disk insertion.
             {
                 // Open tree
-                let tree = self
-                    .on_disk
-                    .open_tree(contract_id)
-                    .map_err(|e| ContractCoinHolderSaveError::OpenTreeError(*contract_id, e))?;
+                let tree = self.on_disk.open_tree(contract_id).map_err(|e| {
+                    ContractCoinHolderApplyChangesError::OpenTreeError(*contract_id, e)
+                })?;
 
                 // Save the balance to the balances db.
                 tree.insert(
@@ -1218,7 +1258,7 @@ impl ContractCoinHolder {
                     ephemeral_contract_balance.to_le_bytes().to_vec(),
                 )
                 .map_err(|e| {
-                    ContractCoinHolderSaveError::BalanceValueInsertError(
+                    ContractCoinHolderApplyChangesError::BalanceValueOnDiskInsertionError(
                         *contract_id,
                         *ephemeral_contract_balance,
                         e,
@@ -1233,7 +1273,7 @@ impl ContractCoinHolder {
             {
                 // Get mutable in-memory permanent contract body.
                 let in_memory_permanent_contract_body = self.in_memory.get_mut(contract_id).ok_or(
-                    ContractCoinHolderSaveError::ContractBodyNotFound(*contract_id),
+                    ContractCoinHolderApplyChangesError::UnableToGetContractBody(*contract_id),
                 )?;
 
                 // Update the shadow space in the in-memory permanent states.
@@ -1243,10 +1283,9 @@ impl ContractCoinHolder {
             // 2.1 On-disk insertion.
             {
                 // Open the contract tree using the contract ID as the tree name.
-                let tree = self
-                    .on_disk
-                    .open_tree(contract_id)
-                    .map_err(|e| ContractCoinHolderSaveError::OpenTreeError(*contract_id, e))?;
+                let tree = self.on_disk.open_tree(contract_id).map_err(|e| {
+                    ContractCoinHolderApplyChangesError::OpenTreeError(*contract_id, e)
+                })?;
 
                 // Insert all shadows into the on-disk contract tree.
                 for (ephemeral_shadow_account_key, ephemeral_shadow_alloc_value) in
@@ -1257,7 +1296,7 @@ impl ContractCoinHolder {
                         ephemeral_shadow_alloc_value.to_le_bytes().to_vec(),
                     )
                     .map_err(|e| {
-                        ContractCoinHolderSaveError::ShadowSpaceTreeAllocInsertError(
+                        ContractCoinHolderApplyChangesError::ShadowAllocValueOnDiskInsertionError(
                             *contract_id,
                             *ephemeral_shadow_account_key,
                             *ephemeral_shadow_alloc_value,
@@ -1272,7 +1311,7 @@ impl ContractCoinHolder {
                     ephemeral_shadow_space.allocs_sum.to_le_bytes().to_vec(),
                 )
                 .map_err(|e| {
-                    ContractCoinHolderSaveError::ShadowSpaceTreeAllocsSumInsertError(
+                    ContractCoinHolderApplyChangesError::AllocsSumValueOnDiskInsertionError(
                         *contract_id,
                         ephemeral_shadow_space.allocs_sum,
                         e,
@@ -1289,7 +1328,9 @@ impl ContractCoinHolder {
                     // Get mutable in-memory permanent contract body.
                     let in_memory_permanent_contract_body =
                         self.in_memory.get_mut(contract_id).ok_or(
-                            ContractCoinHolderSaveError::ContractBodyNotFound(*contract_id),
+                            ContractCoinHolderApplyChangesError::UnableToGetContractBody(
+                                *contract_id,
+                            ),
                         )?;
 
                     // Remove all accounts from the shadow space.
@@ -1300,10 +1341,12 @@ impl ContractCoinHolder {
                             .remove(account_key)
                             .is_none()
                         {
-                            return Err(ContractCoinHolderSaveError::InMemoryDeallocSaveError(
-                                *contract_id,
-                                *account_key,
-                            ));
+                            return Err(
+                                ContractCoinHolderApplyChangesError::InMemoryDeallocAccountError(
+                                    *contract_id,
+                                    *account_key,
+                                ),
+                            );
                         };
                     }
                 }
@@ -1311,21 +1354,23 @@ impl ContractCoinHolder {
                 // 3.1 On-disk deletion.
                 {
                     // Open the contract tree using the contract ID as the tree name.
-                    let on_disk_permanent_shadow_space = self
-                        .on_disk
-                        .open_tree(contract_id)
-                        .map_err(|e| ContractCoinHolderSaveError::OpenTreeError(*contract_id, e))?;
+                    let on_disk_permanent_shadow_space =
+                        self.on_disk.open_tree(contract_id).map_err(|e| {
+                            ContractCoinHolderApplyChangesError::OpenTreeError(*contract_id, e)
+                        })?;
 
                     // Remove all accounts from the shadow space.
                     for account_key in ephemeral_dealloc_list.iter() {
                         match on_disk_permanent_shadow_space.remove(account_key) {
                             Ok(_) => (),
                             Err(err) => {
-                                return Err(ContractCoinHolderSaveError::OnDiskDeallocSaveError(
-                                    *contract_id,
-                                    *account_key,
-                                    err,
-                                ));
+                                return Err(
+                                    ContractCoinHolderApplyChangesError::OnDiskDeallocAccountError(
+                                        *contract_id,
+                                        *account_key,
+                                        err,
+                                    ),
+                                );
                             }
                         }
                     }
