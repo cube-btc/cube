@@ -1,3 +1,7 @@
+use crate::inscriptive::coin_holder::account_coin_holder::account_coin_holder_error::{
+    AccountShadowAllocsSumDownError, AccountShadowAllocsSumUpError,
+};
+
 /// Contract ID.
 #[allow(non_camel_case_types)]
 type CONTRACT_ID = [u8; 32];
@@ -78,6 +82,11 @@ pub enum ShadowAllocUpError {
     UnableToGetContractBalance(CONTRACT_ID),
     UnableToGetContractBody(CONTRACT_ID),
     AllocsSumExceedsTheContractBalance(CONTRACT_ID, SATOSHI_AMOUNT, SATOSHI_AMOUNT),
+    AccountCoinHolderShadowAllocsSumUpError(
+        CONTRACT_ID,
+        ACCOUNT_KEY,
+        AccountShadowAllocsSumUpError,
+    ),
 }
 
 /// Errors associated with decreasing an account's shadow allocation value in the contract's shadow space.
@@ -93,6 +102,11 @@ pub enum ShadowAllocDownError {
     ),
     UnableToGetContractBody(CONTRACT_ID),
     AllocsSumExceedsTheContractBalance(CONTRACT_ID, SATOSHI_AMOUNT, SATOSHI_AMOUNT),
+    AccountCoinHolderShadowAllocsSumDownError(
+        CONTRACT_ID,
+        ACCOUNT_KEY,
+        AccountShadowAllocsSumDownError,
+    ),
 }
 
 /// Errors associated with increasing an account's shadow allocation value in the contract's shadow space.
@@ -103,6 +117,11 @@ pub enum ShadowAllocUpAllError {
     OperationNotPossibleWithZeroAllocsSum(CONTRACT_ID),
     AllocsSumExceedsTheContractBalance(CONTRACT_ID, SATOSHI_AMOUNT, SATOSHI_AMOUNT),
     UnableToGetContractBody(CONTRACT_ID),
+    AccountCoinHolderShadowAllocsSumUpError(
+        CONTRACT_ID,
+        ACCOUNT_KEY,
+        AccountShadowAllocsSumUpError,
+    ),
 }
 
 /// Errors associated with decreasing an account's shadow allocation value in the contract's shadow space.
@@ -120,6 +139,11 @@ pub enum ShadowAllocDownAllError {
         ACCOUNT_KEY,
         SATI_SATOSHI_AMOUNT,
         SATI_SATOSHI_AMOUNT,
+    ),
+    AccountCoinHolderShadowAllocsSumDownError(
+        CONTRACT_ID,
+        ACCOUNT_KEY,
+        AccountShadowAllocsSumDownError,
     ),
 }
 

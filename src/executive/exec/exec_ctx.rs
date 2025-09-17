@@ -5,7 +5,12 @@ use crate::{
         stack::stack_item::StackItem,
     },
     inscriptive::{
-        coin_holder::coin_holder::COIN_HOLDER, repo::repo::PROGRAMS_REPO,
+        coin_holder::{
+            account_coin_holder::account_coin_holder::ACCOUNT_COIN_HOLDER,
+            coin_holder::COIN_HOLDER,
+            contract_coin_holder::contract_coin_holder::CONTRACT_COIN_HOLDER,
+        },
+        repo::repo::PROGRAMS_REPO,
         state_holder::state_holder::STATE_HOLDER,
     },
 };
@@ -190,7 +195,7 @@ impl ExecCtx {
 
                 // Rollback last on coin holder.
                 {
-                    let contract_coin_holder = {
+                    let contract_coin_holder: CONTRACT_COIN_HOLDER = {
                         let _coin_holder = coin_holder.lock().await;
                         _coin_holder.contract_coin_holder()
                     };
@@ -200,7 +205,7 @@ impl ExecCtx {
                         _contract_coin_holder.rollback_last();
                     }
 
-                    let account_coin_holder = {
+                    let account_coin_holder: ACCOUNT_COIN_HOLDER = {
                         let _coin_holder = coin_holder.lock().await;
                         _coin_holder.account_coin_holder()
                     };
@@ -228,7 +233,7 @@ impl ExecCtx {
         // Rollback the coin holder.
         {
             // Get the contract coin holder.
-            let contract_coin_holder = {
+            let contract_coin_holder: CONTRACT_COIN_HOLDER = {
                 let _coin_holder = self.coin_holder.lock().await;
                 _coin_holder.contract_coin_holder()
             };
@@ -240,7 +245,7 @@ impl ExecCtx {
             }
 
             // Get the account coin holder.
-            let account_coin_holder = {
+            let account_coin_holder: ACCOUNT_COIN_HOLDER = {
                 let _coin_holder = self.coin_holder.lock().await;
                 _coin_holder.account_coin_holder()
             };

@@ -25,7 +25,7 @@ impl CoinHolder {
             .map_err(CoinHolderConstructionError::AccountCoinHolderConstructionError)?;
 
         // Initialize the contract coin holder.
-        let contract_coin_holder = ContractCoinHolder::new(chain)
+        let contract_coin_holder = ContractCoinHolder::new(chain, &account_coin_holder)
             .map_err(CoinHolderConstructionError::ContractCoinHolderConstructionError)?;
 
         // Create the coin holder.

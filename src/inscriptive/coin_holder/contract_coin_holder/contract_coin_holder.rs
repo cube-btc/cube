@@ -1,6 +1,7 @@
 use super::contract_coin_holder_error::{
     ContractCoinHolderApplyChangesError, ContractCoinHolderConstructionError,
 };
+use crate::inscriptive::coin_holder::account_coin_holder::account_coin_holder::ACCOUNT_COIN_HOLDER;
 use crate::inscriptive::coin_holder::contract_coin_holder::contract_coin_holder_error::{
     ContractBalanceDownError, ContractBalanceUpError, ContractCoinHolderRegisterContractError,
     ShadowAllocAccountError, ShadowAllocDownAllError, ShadowAllocDownError, ShadowAllocUpAllError,
@@ -88,6 +89,9 @@ pub struct ContractCoinHolder {
 
     // BACKUP OF STATE DIFFERENCES IN CASE OF ROLLBACK
     delta_backup: Delta,
+
+    // ACCOUNT COIN HOLDER
+    account_coin_holder: ACCOUNT_COIN_HOLDER,
 }
 
 /// Guarded `ContractCoinHolder`.
@@ -98,7 +102,10 @@ pub type CONTRACT_COIN_HOLDER = Arc<Mutex<ContractCoinHolder>>;
 // Right now, we are caching *ALL* contract states in memory.
 impl ContractCoinHolder {
     /// Initialize the state for the given chain
-    pub fn new(chain: Chain) -> Result<CONTRACT_COIN_HOLDER, ContractCoinHolderConstructionError> {
+    pub fn new(
+        chain: Chain,
+        account_coin_holder: &ACCOUNT_COIN_HOLDER,
+    ) -> Result<CONTRACT_COIN_HOLDER, ContractCoinHolderConstructionError> {
         // Open the respective database.
         let db_path = format!("db/{}/coin/contract", chain.to_string());
         let db = sled::open(db_path).map_err(ContractCoinHolderConstructionError::DBOpenError)?;
@@ -242,6 +249,7 @@ impl ContractCoinHolder {
             on_disk: db,
             delta: fresh_new_delta.clone(),
             delta_backup: fresh_new_delta,
+            account_coin_holder: Arc::clone(account_coin_holder),
         };
 
         // Create the guarded contract coin holder.
@@ -698,7 +706,7 @@ impl ContractCoinHolder {
     /// Increases an account's shadow allocation value in the contract's shadow space.    
     ///
     /// NOTE: These changes are saved with the use of the `apply_changes` function.
-    pub fn shadow_up(
+    pub async fn shadow_up(
         &mut self,
         contract_id: [u8; 32],
         account_key: ACCOUNT_KEY,
@@ -715,6 +723,7 @@ impl ContractCoinHolder {
                 account_key,
             ))?;
 
+        // Get existing contract balance.
         let existing_contract_balance_in_satoshis: u64 = self
             .get_contract_balance(contract_id)
             .ok_or(ShadowAllocUpError::UnableToGetContractBalance(contract_id))?;
@@ -767,12 +776,27 @@ impl ContractCoinHolder {
             ));
         }
 
-        // Insert (or update) the account shadow allocation value into the ephemeral states.
+        // Update in the account coin holder.
+        {
+            let mut _account_coin_holder = self.account_coin_holder.lock().await;
+
+            _account_coin_holder
+                .account_shadow_allocs_sum_up(account_key, up_value_in_sati_satoshis)
+                .map_err(|error| {
+                    ShadowAllocUpError::AccountCoinHolderShadowAllocsSumUpError(
+                        contract_id,
+                        account_key,
+                        error,
+                    )
+                })?;
+        }
+
+        // Epheremally update the account shadow allocation value.
         epheremal_shadow_space
             .allocs
             .insert(account_key, new_account_shadow_alloc_value_in_sati_satoshis);
 
-        // Update the contract shadow allocation sum value.
+        // Epheremally update the contract shadow allocation sum value.
         epheremal_shadow_space.allocs_sum = new_contract_allocs_sum_value_in_satoshis;
 
         // Return the result.
@@ -782,7 +806,7 @@ impl ContractCoinHolder {
     /// Decreases a shadow allocation value by key and contract ID ephemerally.
     ///
     /// NOTE: These changes are saved with the use of the `apply_changes` function.
-    pub fn shadow_down(
+    pub async fn shadow_down(
         &mut self,
         contract_id: [u8; 32],
         account_key: ACCOUNT_KEY,
@@ -799,6 +823,7 @@ impl ContractCoinHolder {
                 account_key,
             ))?;
 
+        // Get existing contract balance.
         let existing_contract_balance_in_satoshis: u64 =
             self.get_contract_balance(contract_id).ok_or(
                 ShadowAllocDownError::UnableToGetContractBalance(contract_id),
@@ -864,12 +889,27 @@ impl ContractCoinHolder {
             ));
         }
 
-        // Insert (or update) the account shadow allocation value into the ephemeral states.
+        // Update in the account coin holder.
+        {
+            let mut _account_coin_holder = self.account_coin_holder.lock().await;
+
+            _account_coin_holder
+                .account_shadow_allocs_sum_down(account_key, down_value_in_sati_satoshis)
+                .map_err(|error| {
+                    ShadowAllocDownError::AccountCoinHolderShadowAllocsSumDownError(
+                        contract_id,
+                        account_key,
+                        error,
+                    )
+                })?;
+        }
+
+        // Epheremally update the account shadow allocation value.
         epheremal_shadow_space
             .allocs
             .insert(account_key, new_account_shadow_alloc_value_in_sati_satoshis);
 
-        // Update the contract shadow allocation sum value.
+        // Epheremally update the contract shadow allocation sum value.
         epheremal_shadow_space.allocs_sum = new_contract_allocs_sum_value_in_satoshis;
 
         // Return the result.
@@ -879,7 +919,7 @@ impl ContractCoinHolder {
     /// Proportionaly increases the shadow allocation value of all accounts in a contract shadow space by a given value.
     ///
     /// NOTE: These changes are saved with the use of the `apply_changes` function.
-    pub fn shadow_up_all(
+    pub async fn shadow_up_all(
         &mut self,
         contract_id: [u8; 32],
         up_value_in_satoshis: u64,
@@ -922,7 +962,8 @@ impl ContractCoinHolder {
             (existing_contract_allocs_sum_in_satoshis as u128) * 100_000_000;
 
         // Initialize a list of update values of individual accounts.
-        let mut individual_update_values_in_sati_satoshis: HashMap<ACCOUNT_KEY, u128> =
+        // (up value, updated value)
+        let mut individual_update_values_in_sati_satoshis: HashMap<ACCOUNT_KEY, (u128, u128)> =
             HashMap::new();
 
         // Iterate over all all account in the shadow space.
@@ -953,8 +994,13 @@ impl ContractCoinHolder {
                     shadow_alloc_value_in_sati_satoshis + individual_up_value_in_sati_satoshis;
 
                 // Insert the new value into the list of update values.
-                individual_update_values_in_sati_satoshis
-                    .insert(*account_key, individual_new_value_in_sati_satoshis);
+                individual_update_values_in_sati_satoshis.insert(
+                    *account_key,
+                    (
+                        individual_up_value_in_sati_satoshis,
+                        individual_new_value_in_sati_satoshis,
+                    ),
+                );
             }
         }
 
@@ -990,13 +1036,33 @@ impl ContractCoinHolder {
         };
 
         // Insert the individual up values into the ephemeral shadow space.
-        for (account_key, individual_update_value_in_sati_satoshis) in
-            individual_update_values_in_sati_satoshis.iter()
+        for (
+            account_key,
+            (individual_up_value_in_sati_satoshis, individual_new_value_in_sati_satoshis),
+        ) in individual_update_values_in_sati_satoshis.iter()
         {
+            // Update in the account coin holder.
+            {
+                let mut _account_coin_holder = self.account_coin_holder.lock().await;
+
+                _account_coin_holder
+                    .account_shadow_allocs_sum_up(
+                        *account_key,
+                        *individual_up_value_in_sati_satoshis,
+                    )
+                    .map_err(|error| {
+                        ShadowAllocUpAllError::AccountCoinHolderShadowAllocsSumUpError(
+                            contract_id,
+                            *account_key,
+                            error,
+                        )
+                    })?;
+            }
+
             // Insert the new value into the ephemeral shadow space.
             epheremal_shadow_space
                 .allocs
-                .insert(*account_key, *individual_update_value_in_sati_satoshis);
+                .insert(*account_key, *individual_new_value_in_sati_satoshis);
         }
 
         // Update the allocs sum value in the ephemeral shadow space.
@@ -1009,7 +1075,7 @@ impl ContractCoinHolder {
     /// Proportionaly decreases the shadow allocation value of all accounts in a contract shadow space by a given value.
     ///
     /// NOTE: These changes are saved with the use of the `apply_changes` function.
-    pub fn shadow_down_all(
+    pub async fn shadow_down_all(
         &mut self,
         contract_id: [u8; 32],
         down_value_in_satoshis: u64,
@@ -1063,7 +1129,8 @@ impl ContractCoinHolder {
             (existing_contract_allocs_sum_in_satoshis as u128) * 100_000_000;
 
         // Initialize a list of update values of individual accounts.
-        let mut individual_update_values_in_sati_satoshis: HashMap<ACCOUNT_KEY, u128> =
+        // (down value, updated value)
+        let mut individual_update_values_in_sati_satoshis: HashMap<ACCOUNT_KEY, (u128, u128)> =
             HashMap::new();
 
         // Iterate over all all account in the shadow space.
@@ -1108,8 +1175,13 @@ impl ContractCoinHolder {
                     shadow_alloc_value_in_sati_satoshis - individual_down_value_in_sati_satoshis;
 
                 // Insert the new value into the list of update values.
-                individual_update_values_in_sati_satoshis
-                    .insert(*account_key, individual_new_value_in_sati_satoshis);
+                individual_update_values_in_sati_satoshis.insert(
+                    *account_key,
+                    (
+                        individual_down_value_in_sati_satoshis,
+                        individual_new_value_in_sati_satoshis,
+                    ),
+                );
             }
         }
 
@@ -1144,13 +1216,33 @@ impl ContractCoinHolder {
         };
 
         // Insert the individual up values into the ephemeral shadow space.
-        for (account_key, individual_update_value_in_sati_satoshis) in
-            individual_update_values_in_sati_satoshis.iter()
+        for (
+            account_key,
+            (individual_down_value_in_sati_satoshis, individual_new_value_in_sati_satoshis),
+        ) in individual_update_values_in_sati_satoshis.iter()
         {
+            // Update in the account coin holder.
+            {
+                let mut _account_coin_holder = self.account_coin_holder.lock().await;
+
+                _account_coin_holder
+                    .account_shadow_allocs_sum_down(
+                        *account_key,
+                        *individual_down_value_in_sati_satoshis,
+                    )
+                    .map_err(|error| {
+                        ShadowAllocDownAllError::AccountCoinHolderShadowAllocsSumDownError(
+                            contract_id,
+                            *account_key,
+                            error,
+                        )
+                    })?;
+            }
+
             // Insert the new value into the ephemeral shadow space.
             epheremal_shadow_space
                 .allocs
-                .insert(*account_key, *individual_update_value_in_sati_satoshis);
+                .insert(*account_key, *individual_new_value_in_sati_satoshis);
         }
 
         // Update the allocs sum value in the ephemeral shadow space.

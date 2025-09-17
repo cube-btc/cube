@@ -64,6 +64,7 @@ impl OP_SHADOW_DOWN {
             let mut _contract_coin_holder = contract_coin_holder.lock().await;
             _contract_coin_holder
                 .shadow_down(self_contract_id_bytes, account_key_bytes, amount_as_u64)
+                .await
                 .map_err(|error| ShadowOpsError::ShadowAllocDownError(error))
                 .map_err(StackError::ShadowOpsError)?;
         }
