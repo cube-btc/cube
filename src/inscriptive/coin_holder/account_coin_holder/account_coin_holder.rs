@@ -2,7 +2,8 @@ use super::account_coin_holder_error::{
     AccountBalanceDownError, AccountCoinHolderApplyChangesError, AccountCoinHolderConstructionError,
 };
 use crate::inscriptive::coin_holder::account_coin_holder::account_coin_holder_error::{
-    AccountBalanceUpError, AccountCoinHolderRegisterError,
+    AccountBalanceUpError, AccountCoinHolderRegisterError, AccountShadowAllocsSumDownError,
+    AccountShadowAllocsSumUpError,
 };
 use crate::operative::Chain;
 use std::collections::HashMap;
@@ -405,6 +406,125 @@ impl AccountCoinHolder {
 
         // Update the ephemeral account balance.
         *ephemeral_account_balance = new_account_balance_in_satoshis;
+
+        // Return the result.
+        Ok(())
+    }
+
+    /// Increases the account's individual shadow allocs sum value.
+    ///
+    /// NOTE: These changes are saved with the use of the `apply_changes` function.
+    pub fn account_shadow_allocs_sum_up(
+        &mut self,
+        account_key: ACCOUNT_KEY,
+        up_value_in_sati_satoshis: u128,
+    ) -> Result<(), AccountShadowAllocsSumUpError> {
+        // Get the old ephemeral account shadow allocs sum before any mutable borrows.
+        let existing_account_shadow_allocs_sum_in_sati_satoshis: u128 = self
+            .get_account_shadow_allocs_sum_in_sati_satoshis(account_key)
+            .ok_or(AccountShadowAllocsSumUpError::UnableToGetAccountShadowAllocsSum(account_key))?;
+
+        // Calculate the new ephemeral account shadow allocs sum.
+        let new_account_shadow_allocs_sum_in_sati_satoshis: u128 =
+            existing_account_shadow_allocs_sum_in_sati_satoshis + up_value_in_sati_satoshis;
+
+        // Retrieve the mutable ephemeral account shadow allocs sum from the delta.
+        let ephemeral_account_shadow_allocs_sum =
+            match self.delta.updated_shadow_allocs_sums.get_mut(&account_key) {
+                // If the ephemeral account shadow allocs sum is already in the delta, return it.
+                Some(value) => value,
+                // Otherwise, from the permanent in-memory states.
+                None => {
+                    // Get the mutable account body from the permanent states.
+                    let account_body = self.in_memory.get(&account_key).ok_or(
+                        AccountShadowAllocsSumUpError::UnableToGetAccountBody(account_key),
+                    )?;
+
+                    // Insert the account shadow allocs sum into the delta.
+                    self.delta
+                        .updated_shadow_allocs_sums
+                        .insert(account_key, account_body.shadow_allocs_sum);
+
+                    // Get the mutable ephemeral account shadow allocs sum from the delta that we just inserted.
+                    let ephemeral_account_shadow_allocs_sum = self
+                        .delta
+                        .updated_shadow_allocs_sums
+                        .get_mut(&account_key)
+                        .expect("This cannot happen because we just inserted it.");
+
+                    // Return the ephemeral account shadow allocs sum.
+                    ephemeral_account_shadow_allocs_sum
+                }
+            };
+
+        // Update the ephemeral account shadow allocs sum.
+        *ephemeral_account_shadow_allocs_sum = new_account_shadow_allocs_sum_in_sati_satoshis;
+
+        // Return the result.
+        Ok(())
+    }
+
+    /// Decreases the account's individual shadow allocs sum value.
+    ///
+    /// NOTE: These changes are saved with the use of the `apply_changes` function.
+    pub fn account_shadow_allocs_sum_down(
+        &mut self,
+        account_key: ACCOUNT_KEY,
+        down_value_in_sati_satoshis: u128,
+    ) -> Result<(), AccountShadowAllocsSumDownError> {
+        // Get the old ephemeral account shadow allocs sum before any mutable borrows.
+        let existing_account_shadow_allocs_sum_in_sati_satoshis: u128 = self
+            .get_account_shadow_allocs_sum_in_sati_satoshis(account_key)
+            .ok_or(
+                AccountShadowAllocsSumDownError::UnableToGetAccountShadowAllocsSum(account_key),
+            )?;
+
+        // Check if the decrease would make the account shadow allocs sum go below zero.
+        if down_value_in_sati_satoshis > existing_account_shadow_allocs_sum_in_sati_satoshis {
+            return Err(
+                AccountShadowAllocsSumDownError::AccountShadowAllocsSumWouldGoBelowZero(
+                    account_key,
+                    existing_account_shadow_allocs_sum_in_sati_satoshis,
+                    down_value_in_sati_satoshis,
+                ),
+            );
+        }
+
+        // Calculate the new ephemeral account shadow allocs sum.
+        let new_account_shadow_allocs_sum_in_sati_satoshis: u128 =
+            existing_account_shadow_allocs_sum_in_sati_satoshis - down_value_in_sati_satoshis;
+
+        // Retrieve the mutable ephemeral account shadow allocs sum from the delta.
+        let ephemeral_account_shadow_allocs_sum =
+            match self.delta.updated_shadow_allocs_sums.get_mut(&account_key) {
+                // If the ephemeral account shadow allocs sum is already in the delta, return it.
+                Some(value) => value,
+                // Otherwise, from the permanent in-memory states.
+                None => {
+                    // Get the mutable account body from the permanent states.
+                    let account_body = self.in_memory.get(&account_key).ok_or(
+                        AccountShadowAllocsSumDownError::UnableToGetAccountBody(account_key),
+                    )?;
+
+                    // Insert the account shadow allocs sum into the delta.
+                    self.delta
+                        .updated_shadow_allocs_sums
+                        .insert(account_key, account_body.shadow_allocs_sum);
+
+                    // Get the mutable ephemeral account shadow allocs sum from the delta that we just inserted.
+                    let ephemeral_account_shadow_allocs_sum = self
+                        .delta
+                        .updated_shadow_allocs_sums
+                        .get_mut(&account_key)
+                        .expect("This cannot happen because we just inserted it.");
+
+                    // Return the ephemeral account shadow allocs sum.
+                    ephemeral_account_shadow_allocs_sum
+                }
+            };
+
+        // Update the ephemeral account shadow allocs sum.
+        *ephemeral_account_shadow_allocs_sum = new_account_shadow_allocs_sum_in_sati_satoshis;
 
         // Return the result.
         Ok(())
