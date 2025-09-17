@@ -43,6 +43,21 @@ pub enum AccountBalanceDownError {
     AccountBalanceWouldGoBelowZero(ACCOUNT_KEY, SATOSHI_AMOUNT, SATOSHI_AMOUNT),
 }
 
+/// Errors associated with increasing the account's shadow allocs sum.
+#[derive(Debug, Clone)]
+pub enum AccountShadowAllocsSumUpError {
+    UnableToGetAccountShadowAllocsSum(ACCOUNT_KEY),
+    UnableToGetAccountBody(ACCOUNT_KEY),
+}
+
+/// Errors associated with decreasing the account's shadow allocs sum.
+#[derive(Debug, Clone)]
+pub enum AccountShadowAllocsSumDownError {
+    UnableToGetAccountShadowAllocsSum(ACCOUNT_KEY),
+    AccountShadowAllocsSumWouldGoBelowZero(ACCOUNT_KEY, SATI_SATOSHI_AMOUNT, SATI_SATOSHI_AMOUNT),
+    UnableToGetAccountBody(ACCOUNT_KEY),
+}
+
 /// Errors associated with saving the account coin holder.
 #[derive(Debug, Clone)]
 pub enum AccountCoinHolderApplyChangesError {
