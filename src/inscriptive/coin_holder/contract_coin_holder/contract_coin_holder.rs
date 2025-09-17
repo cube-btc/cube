@@ -1281,12 +1281,16 @@ impl ContractCoinHolder {
         for contract_id in self.delta.new_contracts_to_register.iter() {
             // In-memory insertion.
             {
+                // Construct the fresh new shadow space.
+                let fresh_new_shadow_space = ShadowSpace {
+                    allocs_sum: 0,
+                    allocs: HashMap::new(),
+                };
+
+                // Construct the fresh new contract body.
                 let fresh_new_contract_body = ContractBody {
                     balance: 0,
-                    shadow_space: ShadowSpace {
-                        allocs_sum: 0,
-                        allocs: HashMap::new(),
-                    },
+                    shadow_space: fresh_new_shadow_space,
                 };
 
                 // Insert the contract body into the in-memory list.
