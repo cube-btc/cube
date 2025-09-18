@@ -972,8 +972,7 @@ impl CoinHolder {
             ));
         }
 
-        // Get the mutable epheremal allocs list from the delta.
-
+        // Get the mutable epheremal dealloc list from the delta.
         let epheremal_dealloc_list = match self.delta_contracts.deallocs_list.get_mut(&contract_id)
         {
             Some(dealloc_list) => dealloc_list,
@@ -986,7 +985,7 @@ impl CoinHolder {
                     .deallocs_list
                     .insert(contract_id, fresh_dealloc_list);
 
-                // Get the mutable shadow space from the delta that we just inserted.
+                // Get the mutable dealloc list from the delta that we just inserted.
                 let delta_dealloc_list = self
                     .delta_contracts
                     .deallocs_list
