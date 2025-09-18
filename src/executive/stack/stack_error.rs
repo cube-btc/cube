@@ -1,11 +1,12 @@
 use crate::inscriptive::{
-    coin_holder::{
-        account_coin_holder::account_coin_holder_error::AccountBalanceUpError,
-        contract_coin_holder::contract_coin_holder_error::{
-            ContractBalanceDownError, ContractBalanceUpError, ShadowAllocAccountError,
-            ShadowAllocDownAllError, ShadowAllocDownError, ShadowAllocUpAllError,
-            ShadowAllocUpError, ShadowDeallocAccountError,
-        },
+    coin_holder::errors::balance_update_errors::{
+        CHAccountBalanceUpError, CHContractBalanceDownError, CHContractBalanceUpError,
+    },
+    coin_holder::errors::shadow_alloc_errors::{
+        CHContractShadowAllocAccountError, CHContractShadowDeallocAccountError,
+    },
+    coin_holder::errors::shadow_update_errors::{
+        CHShadowDownAllError, CHShadowDownError, CHShadowUpAllError, CHShadowUpError,
     },
     state_holder::state_holder_error::StateHolderInsertUpdateValueError,
 };
@@ -128,11 +129,11 @@ pub enum CoinTransferError {
     /// The amount is invalid.
     InvalidAmountBytes(Vec<u8>),
     /// The contract balance down error.
-    ContractBalanceDownError([u8; 32], ContractBalanceDownError),
+    ContractBalanceDownError([u8; 32], CHContractBalanceDownError),
     /// The account balance up error.
-    AccountBalanceUpError([u8; 32], AccountBalanceUpError),
+    AccountBalanceUpError([u8; 32], CHAccountBalanceUpError),
     /// The contract balance up error.
-    ContractBalanceUpError([u8; 32], ContractBalanceUpError),
+    ContractBalanceUpError([u8; 32], CHContractBalanceUpError),
 }
 
 /// The shadow ops error.
@@ -143,17 +144,17 @@ pub enum ShadowOpsError {
     /// The amount is invalid.
     InvalidAmountBytes(Vec<u8>),
     /// The shadow alloc error.
-    ShadowAllocError(ShadowAllocAccountError),
+    ShadowAllocError(CHContractShadowAllocAccountError),
     /// The shadow dealloc error.
-    ShadowDeallocError(ShadowDeallocAccountError),
+    ShadowDeallocError(CHContractShadowDeallocAccountError),
     /// The shadow alloc up error.
-    ShadowAllocUpError(ShadowAllocUpError),
+    ShadowAllocUpError(CHShadowUpError),
     /// The shadow alloc down error.
-    ShadowAllocDownError(ShadowAllocDownError),
+    ShadowAllocDownError(CHShadowDownError),
     /// The shadow alloc up all error.
-    ShadowAllocUpAllError(ShadowAllocUpAllError),
+    ShadowAllocUpAllError(CHShadowUpAllError),
     /// The shadow alloc down all error.
-    ShadowAllocDownAllError(ShadowAllocDownAllError),
+    ShadowAllocDownAllError(CHShadowDownAllError),
     /// The account key has no allocation.
     AccountKeyHasNoAllocation([u8; 32]),
 }

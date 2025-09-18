@@ -26,16 +26,10 @@ impl OP_SELF_BALANCE {
         // Get the self contract id.
         let self_contract_id_bytes = stack_holder.contract_id();
 
-        // Get the contract coin holder.
-        let contract_coin_holder = {
-            let _coin_holder = coin_holder.lock().await;
-            _coin_holder.contract_coin_holder()
-        };
-
         // Get the contract balance.
         let contract_balance = {
-            let _contract_coin_holder = contract_coin_holder.lock().await;
-            _contract_coin_holder
+            let _coin_holder = coin_holder.lock().await;
+            _coin_holder
                 .get_contract_balance(self_contract_id_bytes)
                 .ok_or(StackError::CoinBalanceGetError(
                     CoinBalanceGetError::UnableToGetContractBalance(self_contract_id_bytes),

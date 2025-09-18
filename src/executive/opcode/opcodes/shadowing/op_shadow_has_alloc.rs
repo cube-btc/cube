@@ -38,20 +38,14 @@ impl OP_SHADOW_HAS_ALLOC {
             }
         };
 
-        // Get the contract coin holder.
-        let contract_coin_holder = {
-            let _coin_holder = coin_holder.lock().await;
-            _coin_holder.contract_coin_holder()
-        };
-
         // Check if the account key has an allocation within the contract shadow space by returnin its allocation value.
         {
-            // Get the mutable contract coin holder.
-            let mut _contract_coin_holder = contract_coin_holder.lock().await;
+            // Get the mutable coin holder.
+            let mut _coin_holder = coin_holder.lock().await;
 
             // Get the result item.
-            let result_item = match _contract_coin_holder
-                .get_account_shadow_alloc_value_in_sati_satoshis(
+            let result_item = match _coin_holder
+                .get_account_shadow_alloc_value_of_a_contract_in_sati_satoshis(
                     self_contract_id_bytes,
                     account_key_bytes,
                 ) {

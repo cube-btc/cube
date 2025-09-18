@@ -26,20 +26,14 @@ impl OP_SHADOW_ALLOCS_SUM {
         // Get the self contract id bytes.
         let self_contract_id_bytes = stack_holder.contract_id();
 
-        // Get the contract coin holder.
-        let contract_coin_holder = {
-            let _coin_holder = coin_holder.lock().await;
-            _coin_holder.contract_coin_holder()
-        };
-
         //
         {
             // Get the mutable contract coin holder.
-            let mut _contract_coin_holder = contract_coin_holder.lock().await;
+            let mut _coin_holder = coin_holder.lock().await;
 
             // Get the result item.
             let result_item =
-                match _contract_coin_holder.get_contract_allocs_sum(self_contract_id_bytes) {
+                match _coin_holder.get_contract_allocs_sum_in_satoshis(self_contract_id_bytes) {
                     Some(allocs_sum) => {
                         // Convert the number of allocations to a stack uint.
                         let allocs_sum_as_stack_uint = StackUint::from_u64(allocs_sum);

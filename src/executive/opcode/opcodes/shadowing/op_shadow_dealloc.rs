@@ -37,16 +37,10 @@ impl OP_SHADOW_DEALLOC {
             }
         };
 
-        // Get the contract coin holder.
-        let contract_coin_holder = {
-            let _coin_holder = coin_holder.lock().await;
-            _coin_holder.contract_coin_holder()
-        };
-
         // Deallocate the account key in the contract shadow space.
         {
-            let mut _contract_coin_holder = contract_coin_holder.lock().await;
-            _contract_coin_holder
+            let mut _coin_holder = coin_holder.lock().await;
+            _coin_holder
                 .shadow_dealloc_account(self_contract_id_bytes, account_key_bytes)
                 .map_err(|error| ShadowOpsError::ShadowDeallocError(error))
                 .map_err(StackError::ShadowOpsError)?;

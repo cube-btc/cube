@@ -40,18 +40,11 @@ impl OP_SHADOW_UP_ALL {
                 ShadowOpsError::InvalidAmountBytes(amount.bytes().to_vec()),
             ))?;
 
-        // Get the contract coin holder.
-        let contract_coin_holder = {
-            let _coin_holder = coin_holder.lock().await;
-            _coin_holder.contract_coin_holder()
-        };
-
         // Allocate the account key in the contract shadow space.
         {
-            let mut _contract_coin_holder = contract_coin_holder.lock().await;
-            _contract_coin_holder
+            let mut _coin_holder = coin_holder.lock().await;
+            _coin_holder
                 .shadow_up_all(self_contract_id_bytes, amount_as_u64)
-                .await
                 .map_err(|error| ShadowOpsError::ShadowAllocUpAllError(error))
                 .map_err(StackError::ShadowOpsError)?;
         }

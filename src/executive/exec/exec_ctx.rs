@@ -5,12 +5,7 @@ use crate::{
         stack::stack_item::StackItem,
     },
     inscriptive::{
-        coin_holder::{
-            account_coin_holder::account_coin_holder::ACCOUNT_COIN_HOLDER,
-            coin_holder::COIN_HOLDER,
-            contract_coin_holder::contract_coin_holder::CONTRACT_COIN_HOLDER,
-        },
-        repo::repo::PROGRAMS_REPO,
+        coin_holder::coin_holder::COIN_HOLDER, repo::repo::PROGRAMS_REPO,
         state_holder::state_holder::STATE_HOLDER,
     },
 };
@@ -114,25 +109,8 @@ impl ExecCtx {
 
         // Pre-execution coin holder backup.
         {
-            let contract_coin_holder = {
-                let _coin_holder = coin_holder.lock().await;
-                _coin_holder.contract_coin_holder()
-            };
-
-            {
-                let mut _contract_coin_holder = contract_coin_holder.lock().await;
-                _contract_coin_holder.pre_execution();
-            }
-
-            let account_coin_holder = {
-                let _coin_holder = coin_holder.lock().await;
-                _coin_holder.account_coin_holder()
-            };
-
-            {
-                let mut _account_coin_holder = account_coin_holder.lock().await;
-                _account_coin_holder.pre_execution();
-            }
+            let mut _coin_holder = coin_holder.lock().await;
+            _coin_holder.pre_execution();
         }
 
         // Programs repo.
@@ -195,25 +173,8 @@ impl ExecCtx {
 
                 // Rollback last on coin holder.
                 {
-                    let contract_coin_holder: CONTRACT_COIN_HOLDER = {
-                        let _coin_holder = coin_holder.lock().await;
-                        _coin_holder.contract_coin_holder()
-                    };
-
-                    {
-                        let mut _contract_coin_holder = contract_coin_holder.lock().await;
-                        _contract_coin_holder.rollback_last();
-                    }
-
-                    let account_coin_holder: ACCOUNT_COIN_HOLDER = {
-                        let _coin_holder = coin_holder.lock().await;
-                        _coin_holder.account_coin_holder()
-                    };
-
-                    {
-                        let mut _account_coin_holder = account_coin_holder.lock().await;
-                        _account_coin_holder.rollback_last();
-                    }
+                    let mut _coin_holder = coin_holder.lock().await;
+                    _coin_holder.rollback_last();
                 }
 
                 // Return the error.
@@ -232,29 +193,8 @@ impl ExecCtx {
 
         // Rollback the coin holder.
         {
-            // Get the contract coin holder.
-            let contract_coin_holder: CONTRACT_COIN_HOLDER = {
-                let _coin_holder = self.coin_holder.lock().await;
-                _coin_holder.contract_coin_holder()
-            };
-
-            // Rollback the contract coin holder.
-            {
-                let mut _contract_coin_holder = contract_coin_holder.lock().await;
-                _contract_coin_holder.flush_delta();
-            }
-
-            // Get the account coin holder.
-            let account_coin_holder: ACCOUNT_COIN_HOLDER = {
-                let _coin_holder = self.coin_holder.lock().await;
-                _coin_holder.account_coin_holder()
-            };
-
-            // Rollback the account coin holder.
-            {
-                let mut _account_coin_holder = account_coin_holder.lock().await;
-                _account_coin_holder.flush_delta();
-            }
+            let mut _coin_holder = self.coin_holder.lock().await;
+            _coin_holder.flush_delta();
         }
 
         // Set the external ops counter to zero.

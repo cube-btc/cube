@@ -45,20 +45,14 @@ impl OP_EXT_BALANCE {
                     }
                 };
 
-                // Get the account coin holder.
-                let account_coin_holder = {
-                    let _coin_holder = coin_holder.lock().await;
-                    _coin_holder.account_coin_holder()
-                };
-
                 // Get the account balance.
                 let account_balance = {
-                    let _account_coin_holder = account_coin_holder.lock().await;
-                    _account_coin_holder
-                        .get_account_balance(account_key_bytes)
-                        .ok_or(StackError::CoinBalanceGetError(
+                    let _coin_holder = coin_holder.lock().await;
+                    _coin_holder.get_account_balance(account_key_bytes).ok_or(
+                        StackError::CoinBalanceGetError(
                             CoinBalanceGetError::UnableToGetAccountBalance(account_key_bytes),
-                        ))?
+                        ),
+                    )?
                 };
 
                 // Convert the account balance to a stack uint.
@@ -88,20 +82,14 @@ impl OP_EXT_BALANCE {
                     }
                 };
 
-                // Get the contract coin holder.
-                let contract_coin_holder = {
-                    let _coin_holder = coin_holder.lock().await;
-                    _coin_holder.contract_coin_holder()
-                };
-
                 // Get the contract balance.
                 let contract_balance = {
-                    let _contract_coin_holder = contract_coin_holder.lock().await;
-                    _contract_coin_holder
-                        .get_contract_balance(contract_id_bytes)
-                        .ok_or(StackError::CoinBalanceGetError(
+                    let _coin_holder = coin_holder.lock().await;
+                    _coin_holder.get_contract_balance(contract_id_bytes).ok_or(
+                        StackError::CoinBalanceGetError(
                             CoinBalanceGetError::UnableToGetContractBalance(contract_id_bytes),
-                        ))?
+                        ),
+                    )?
                 };
                 // Convert the contract balance to a stack uint.
                 let contract_balance_as_stack_uint = StackUint::from(contract_balance);
