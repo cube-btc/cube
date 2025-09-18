@@ -343,14 +343,6 @@ impl CoinHolder {
         Ok(guarded_coin_holder)
     }
 
-    /// Prepares the state holder prior to each execution.
-    ///
-    /// NOTE: Used by the Engine coordinator.
-    pub fn pre_execution(&mut self) {
-        // Backup the delta.
-        self.backup_delta();
-    }
-
     /// Clones ephemeral states into the backup.
     fn backup_delta(&mut self) {
         self.backup_of_delta_accounts = self.delta_accounts.clone();
@@ -361,6 +353,14 @@ impl CoinHolder {
     fn restore_delta(&mut self) {
         self.delta_accounts = self.backup_of_delta_accounts.clone();
         self.delta_contracts = self.backup_of_delta_contracts.clone();
+    }
+
+    /// Prepares the state holder prior to each execution.
+    ///
+    /// NOTE: Used by the Engine coordinator.
+    pub fn pre_execution(&mut self) {
+        // Backup the delta.
+        self.backup_delta();
     }
 
     /// Checks if an account is registered.
@@ -919,7 +919,9 @@ impl CoinHolder {
         // Insert the account key into the allocs list in the delta.
         self.delta_contracts
             .allocs_list
-            .insert(contract_id, vec![account_key]);
+            .entry(contract_id)
+            .or_insert_with(Vec::new)
+            .push(account_key);
 
         // Return the result.
         Ok(())
@@ -970,14 +972,31 @@ impl CoinHolder {
             ));
         }
 
-        // Get the mutable epheremal dealloc list from the delta.
-        let epheremal_dealloc_list = self
-            .delta_contracts
-            .deallocs_list
-            .get_mut(&contract_id)
-            .ok_or(
-                CHContractShadowDeallocAccountError::UnableToGetEpheremalDeallocList(contract_id),
-            )?;
+        // Get the mutable epheremal allocs list from the delta.
+
+        let epheremal_dealloc_list = match self.delta_contracts.deallocs_list.get_mut(&contract_id)
+        {
+            Some(dealloc_list) => dealloc_list,
+            None => {
+                // Create a fresh dealloc list.
+                let fresh_dealloc_list = Vec::new();
+
+                // Insert the dealloc list into the delta.
+                self.delta_contracts
+                    .deallocs_list
+                    .insert(contract_id, fresh_dealloc_list);
+
+                // Get the mutable shadow space from the delta that we just inserted.
+                let delta_dealloc_list = self
+                    .delta_contracts
+                    .deallocs_list
+                    .get_mut(&contract_id)
+                    .expect("This cannot happen because we just inserted it.");
+
+                // Return the mutable dealloc list.
+                delta_dealloc_list
+            }
+        };
 
         // Check if the account has just been epheremally deallocated in the delta.
         // We do not allow it to be deallocated if it is just deallocated in the same execution.
