@@ -16,7 +16,7 @@ type SATI_SATOSHI_AMOUNT = u128;
 #[derive(Clone)]
 pub struct CHAccountDelta {
     // New accounts to register.
-    pub new_accounts_to_register: Vec<ACCOUNT_KEY>,
+    pub new_accounts_to_register: HashMap<ACCOUNT_KEY, SATOSHI_AMOUNT>,
 
     // Updated account balances for a given account.
     pub updated_account_balances: HashMap<ACCOUNT_KEY, SATOSHI_AMOUNT>,
@@ -29,7 +29,7 @@ impl CHAccountDelta {
     /// Constructs a fresh new account delta.
     pub fn new() -> Self {
         Self {
-            new_accounts_to_register: Vec::new(),
+            new_accounts_to_register: HashMap::new(),
             updated_account_balances: HashMap::new(),
             updated_shadow_allocs_sums: HashMap::new(),
         }

@@ -17,11 +17,12 @@ type SATI_SATOSHI_AMOUNT = u128;
 /// Errors associated with saving account delta changes to the `CoinHolder`.
 #[derive(Debug, Clone)]
 pub enum CHAccountApplyChangesError {
-    TreeValueInsertError(ACCOUNT_KEY, SATOSHI_AMOUNT, sled::Error),
-    UnableToGetAccountBody(ACCOUNT_KEY),
     OpenTreeError(ACCOUNT_KEY, sled::Error),
-    AccountBalanceValueOnDiskInsertionError(ACCOUNT_KEY, SATOSHI_AMOUNT, sled::Error),
-    AccountShadowAllocsSumValueOnDiskInsertionError(ACCOUNT_KEY, SATI_SATOSHI_AMOUNT, sled::Error),
+    BalanceValueOnDiskInsertionError(ACCOUNT_KEY, SATOSHI_AMOUNT, sled::Error),
+    ShadowAllocsSumValueOnDiskInsertionError(ACCOUNT_KEY, SATI_SATOSHI_AMOUNT, sled::Error),
+    UnableToGetPermanentAccountBody(ACCOUNT_KEY),
+    //TreeValueInsertError(ACCOUNT_KEY, SATOSHI_AMOUNT, sled::Error),
+    //UnableToGetAccountBody(ACCOUNT_KEY),
 }
 
 /// Errors associated with applying contract delta changes to the `CoinHolder`.
@@ -30,7 +31,7 @@ pub enum CHContractApplyChangesError {
     OpenTreeError(CONTRACT_ID, sled::Error),
     BalanceValueOnDiskInsertionError(CONTRACT_ID, SATOSHI_AMOUNT, sled::Error),
     AllocsSumValueOnDiskInsertionError(CONTRACT_ID, SATOSHI_AMOUNT, sled::Error),
-    UnableToGetContractBody(CONTRACT_ID),
+    UnableToGetPermanentContractBody(CONTRACT_ID),
     ShadowAllocValueOnDiskInsertionError(
         CONTRACT_ID,
         ACCOUNT_KEY,

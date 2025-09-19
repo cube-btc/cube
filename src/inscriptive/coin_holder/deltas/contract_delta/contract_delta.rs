@@ -17,7 +17,7 @@ type SATOSHI_AMOUNT = u64;
 #[derive(Clone)]
 pub struct CHContractDelta {
     // New contracts to register.
-    pub new_contracts_to_register: Vec<CONTRACT_ID>,
+    pub new_contracts_to_register: HashMap<CONTRACT_ID, SATOSHI_AMOUNT>,
 
     // New accounts to allocate for a given contract.
     pub allocs_list: HashMap<CONTRACT_ID, Vec<ACCOUNT_KEY>>,
@@ -36,7 +36,7 @@ impl CHContractDelta {
     /// Constructs a fresh new contract delta.
     pub fn new() -> Self {
         Self {
-            new_contracts_to_register: Vec::new(),
+            new_contracts_to_register: HashMap::new(),
             allocs_list: HashMap::new(),
             deallocs_list: HashMap::new(),
             updated_contract_balances: HashMap::new(),
