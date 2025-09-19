@@ -792,7 +792,26 @@ impl CoinHolder {
         let new_contract_balance_in_satoshis: u64 =
             existing_contract_balance_in_satoshis - down_value_in_satoshis;
 
-        // Retrieve the mutable balance from the delta.
+        // Get shadow allocs sum.
+        let existing_contract_shadow_allocs_sum_in_satoshis: u64 = self
+            .get_contract_allocs_sum_in_satoshis(contract_id)
+            .ok_or(CHContractBalanceDownError::UnableToGetContractAllocsSum(
+                contract_id,
+            ))?;
+
+        // Check if the contract balance would go below the allocs sum.
+        // Shadow allocs sum is bound by the contract's balance.
+        if new_contract_balance_in_satoshis < existing_contract_shadow_allocs_sum_in_satoshis {
+            return Err(
+                CHContractBalanceDownError::ContractBalanceWouldGoBelowAllocsSum(
+                    contract_id,
+                    new_contract_balance_in_satoshis,
+                    existing_contract_shadow_allocs_sum_in_satoshis,
+                ),
+            );
+        }
+
+        // Retrieve the mutable ephemeral contract balance from the delta.
         let ephemeral_contract_balance = match self
             .delta_contracts
             .updated_contract_balances
@@ -802,28 +821,28 @@ impl CoinHolder {
             Some(balance) => balance,
             // Otherwise, from the permanent in-memory states.
             None => {
-                // Get the mutable balance from the permanent in-memory states.
+                // Get the mutable contract body from the permanent in-memory states.
                 let contract_body = self.in_memory_contracts.get_mut(&contract_id).ok_or(
                     CHContractBalanceDownError::UnableToGetContractBody(contract_id),
                 )?;
 
-                // Get the mutable balance.
+                // Get the contract balance.
                 let balance = contract_body.balance;
 
-                // Insert the balance into the delta.
+                // Insert the contract balance into the delta.
                 self.delta_contracts
                     .updated_contract_balances
                     .insert(contract_id, balance);
 
-                // Get the mutable balance from the delta that we just inserted.
-                let ephemeral_balance = self
+                // Get the mutable ephemeral contract balance from the delta that we just inserted.
+                let ephemeral_contract_balance = self
                     .delta_contracts
                     .updated_contract_balances
                     .get_mut(&contract_id)
                     .expect("This cannot happen because we just inserted it.");
 
                 // Return the balance.
-                ephemeral_balance
+                ephemeral_contract_balance
             }
         };
 

@@ -35,5 +35,7 @@ pub enum CHContractBalanceUpError {
 pub enum CHContractBalanceDownError {
     UnableToGetContractBalance(CONTRACT_ID),
     ContractBalanceWouldGoBelowZero(CONTRACT_ID, SATOSHI_AMOUNT, SATOSHI_AMOUNT),
+    UnableToGetContractAllocsSum(CONTRACT_ID),
+    ContractBalanceWouldGoBelowAllocsSum(CONTRACT_ID, SATOSHI_AMOUNT, SATOSHI_AMOUNT),
     UnableToGetContractBody(CONTRACT_ID),
 }
