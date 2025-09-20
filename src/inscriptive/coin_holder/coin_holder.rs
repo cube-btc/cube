@@ -24,6 +24,10 @@ use crate::inscriptive::coin_holder::errors::shadow_update_errors::{
     CHShadowDownError, CHShadowUpAllError, CHShadowUpError,
 };
 use crate::operative::Chain;
+use crate::transmutative::hash::{Hash, HashTag};
+use sparse_merkle_tree::{
+    blake2b::Blake2bHasher, default_store::DefaultStore, SparseMerkleTree, H256,
+};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -55,6 +59,10 @@ pub struct CoinHolder {
     // IN-MEMORY STATES
     in_memory_accounts: HashMap<ACCOUNT_KEY, CHAccountBody>,
     in_memory_contracts: HashMap<CONTRACT_ID, CHContractBody>,
+
+    // TREES
+    accounts_sparse_tree: SparseMerkleTree<Blake2bHasher, H256, DefaultStore<H256>>,
+    contracts_sparse_tree: SparseMerkleTree<Blake2bHasher, H256, DefaultStore<H256>>,
 
     // ON-DISK STATES
     on_disk_accounts: sled::Db,
@@ -90,6 +98,12 @@ impl CoinHolder {
                 CHConstructionContractError::DBOpenError(e),
             )
         })?;
+
+        // Initialize sparse trees.
+        let mut accounts_sparse_tree =
+            SparseMerkleTree::<Blake2bHasher, H256, DefaultStore<H256>>::default();
+        let mut contracts_sparse_tree =
+            SparseMerkleTree::<Blake2bHasher, H256, DefaultStore<H256>>::default();
 
         // 3. Initialize the in-memory lists of account and contract bodies.
         let mut account_bodies = HashMap::<ACCOUNT_KEY, CHAccountBody>::new();
@@ -186,10 +200,19 @@ impl CoinHolder {
                 }
 
                 // Construct the account body.
-                let account_body = CHAccountBody {
-                    balance: account_balance,
-                    shadow_allocs_sum: account_shadow_allocs_sum,
-                };
+                let account_body = CHAccountBody::new(account_balance, account_shadow_allocs_sum);
+
+                // Insert the account into the sparse tree.
+                accounts_sparse_tree
+                    .update(
+                        H256::from(account_key),
+                        H256::from(account_body.tagged_hash()),
+                    )
+                    .map_err(|e| {
+                        CHConstructionError::AccountConstructionError(
+                            CHConstructionAccountError::SparseTreeInsertError(account_key, e),
+                        )
+                    })?;
 
                 // Insert the account body into the account bodies list.
                 account_bodies.insert(account_key, account_body);
@@ -312,13 +335,22 @@ impl CoinHolder {
             }
 
             // Construct the shadow space.
-            let shadow_space = ShadowSpace { allocs_sum, allocs };
+            let shadow_space = ShadowSpace::new(allocs_sum, allocs);
 
             // Construct the contract body.
-            let contract_body = CHContractBody {
-                balance: contract_balance,
-                shadow_space,
-            };
+            let contract_body = CHContractBody::new(contract_balance, shadow_space);
+
+            // Insert the account into the sparse tree.
+            contracts_sparse_tree
+                .update(
+                    H256::from(contract_id),
+                    H256::from(contract_body.tagged_hash()),
+                )
+                .map_err(|e| {
+                    CHConstructionError::ContractConstructionError(
+                        CHConstructionContractError::SparseTreeInsertError(contract_id, e),
+                    )
+                })?;
 
             // Insert the contract body into the contract bodies list.
             contract_bodies.insert(contract_id, contract_body);
@@ -328,6 +360,8 @@ impl CoinHolder {
         let coin_holder = CoinHolder {
             in_memory_accounts: account_bodies,
             in_memory_contracts: contract_bodies,
+            accounts_sparse_tree: accounts_sparse_tree,
+            contracts_sparse_tree: contracts_sparse_tree,
             on_disk_accounts: account_db,
             on_disk_contracts: contract_db,
             delta_accounts: CHAccountDelta::new(),
@@ -388,7 +422,7 @@ impl CoinHolder {
         self.in_memory_accounts
             .get(&account_key)
             .cloned()
-            .map(|account_body| account_body.balance)
+            .map(|account_body| account_body.balance())
     }
 
     /// Returns the contract balance for a contract ID in satoshis.
@@ -405,7 +439,7 @@ impl CoinHolder {
         // And then try to get from the permanent in-memory states.
         self.in_memory_contracts
             .get(&contract_id)
-            .map(|contract_body| contract_body.balance)
+            .map(|contract_body| contract_body.balance())
     }
 
     /// Returns the account shadow allocs sum for an account key in sati-satoshis.
@@ -425,7 +459,7 @@ impl CoinHolder {
         // And then try to get from the permanent in-memory states.
         self.in_memory_accounts
             .get(&account_key)
-            .map(|account_body| account_body.shadow_allocs_sum)
+            .map(|account_body| account_body.shadow_allocs_sum())
     }
 
     /// Returns the account shadow allocs sum for an account key in satoshis.
@@ -448,26 +482,26 @@ impl CoinHolder {
     pub fn get_contract_allocs_sum_in_satoshis(&self, contract_id: [u8; 32]) -> Option<u64> {
         // Try to read from the delta first.
         if let Some(allocs_sum) = self.delta_contracts.updated_shadow_spaces.get(&contract_id) {
-            return Some(allocs_sum.allocs_sum);
+            return Some(allocs_sum.allocs_sum());
         }
 
         // And then try to get from the in-memory states.
         self.in_memory_contracts
             .get(&contract_id)
-            .map(|body| body.shadow_space.allocs_sum)
+            .map(|body| body.shadow_space().allocs_sum())
     }
 
     /// Get the number of total shadow allocations of the contract.
     pub fn get_contract_num_allocs(&self, contract_id: [u8; 32]) -> Option<u64> {
         // Try to get from the delta first.
         if let Some(shadow_space) = self.delta_contracts.updated_shadow_spaces.get(&contract_id) {
-            return Some(shadow_space.allocs.len() as u64);
+            return Some(shadow_space.allocs_len() as u64);
         }
 
         // And then try to get from the in-memory states.
         self.in_memory_contracts
             .get(&contract_id)
-            .map(|body| body.shadow_space.allocs.len() as u64)
+            .map(|body| body.shadow_space().allocs_len() as u64)
     }
 
     /// Get the shadow allocation value of an account for a specific contract ID.
@@ -485,13 +519,13 @@ impl CoinHolder {
 
         // Try to read from the delta first.
         if let Some(shadow_space) = self.delta_contracts.updated_shadow_spaces.get(&contract_id) {
-            return shadow_space.allocs.get(&account_key).cloned();
+            return shadow_space.allocs().get(&account_key).cloned();
         }
 
         // And then try to read from the permanent states.
         self.in_memory_contracts
             .get(&contract_id)
-            .and_then(|body| body.shadow_space.allocs.get(&account_key).cloned())
+            .and_then(|body| body.shadow_space().allocs().get(&account_key).cloned())
     }
 
     /// Get the shadow allocation value of an account for a specific contract ID in satoshis.
@@ -512,6 +546,39 @@ impl CoinHolder {
 
         // Return the result.
         Some(satoshi_value as u64)
+    }
+
+    /// Returns the root hash of the accounts sparse tree.
+    pub fn get_accounts_sparse_root_hash(&self) -> [u8; 32] {
+        self.accounts_sparse_tree
+            .root()
+            .as_slice()
+            .try_into()
+            .expect("This cannot happen.")
+    }
+
+    /// Returns the root hash of the contracts sparse tree.
+    pub fn get_contracts_sparse_root_hash(&self) -> [u8; 32] {
+        self.contracts_sparse_tree
+            .root()
+            .as_slice()
+            .try_into()
+            .expect("This cannot happen.")
+    }
+
+    /// Returns the root hash of the overall sparse tree.
+    pub fn get_overall_sparse_root_hash(&self) -> [u8; 32] {
+        // Construct the preimage.
+        let mut preimage: Vec<u8> = Vec::<u8>::with_capacity(64);
+
+        // Extend the preimage with the accounts sparse tree root hash.
+        preimage.extend(self.accounts_sparse_tree.root().as_slice());
+
+        // Extend the preimage with the contracts sparse tree root hash.
+        preimage.extend(self.contracts_sparse_tree.root().as_slice());
+
+        // Hash the preimage.
+        preimage.hash(Some(HashTag::CoinHolder))
     }
 
     /// Registers an account.
@@ -618,7 +685,7 @@ impl CoinHolder {
                 // Insert the account balance into the delta.
                 self.delta_accounts
                     .updated_account_balances
-                    .insert(account_key, account_body.balance);
+                    .insert(account_key, account_body.balance());
 
                 // Get the mutable ephemeral account balance from the delta that we just inserted.
                 let ephemeral_account_balance = self
@@ -684,7 +751,7 @@ impl CoinHolder {
                 // Insert the account balance into the delta.
                 self.delta_accounts
                     .updated_account_balances
-                    .insert(account_key, account_body.balance);
+                    .insert(account_key, account_body.balance());
 
                 // Get the mutable ephemeral account balance from the delta that we just inserted.
                 let ephemeral_account_balance = self
@@ -739,7 +806,7 @@ impl CoinHolder {
                 )?;
 
                 // Get the mutable balance.
-                let balance = contract_body.balance;
+                let balance = contract_body.balance();
 
                 // Insert the balance into the ephemeral states.
                 self.delta_contracts
@@ -827,7 +894,7 @@ impl CoinHolder {
                 )?;
 
                 // Get the contract balance.
-                let balance = contract_body.balance;
+                let balance = contract_body.balance();
 
                 // Insert the contract balance into the delta.
                 self.delta_contracts
@@ -915,7 +982,7 @@ impl CoinHolder {
                 )?;
 
                 // Clone the shadow space from permanent states.
-                let shadow_space = contract_body.shadow_space.clone();
+                let shadow_space = contract_body.shadow_space().clone();
 
                 // Insert the shadow space into the delta.
                 self.delta_contracts
@@ -935,7 +1002,7 @@ impl CoinHolder {
         };
 
         // Insert the account key into the shadow space in the delta with the value initalliy set to zero.
-        epheremal_shadow_space.allocs.insert(account_key, 0);
+        epheremal_shadow_space.insert_alloc(account_key, 0);
 
         // Insert the account key into the allocs list in the delta.
         self.delta_contracts
@@ -1046,7 +1113,7 @@ impl CoinHolder {
                 )?;
 
                 // Clone the shadow space from permanent states.
-                let shadow_space = contract_body.shadow_space.clone();
+                let shadow_space = contract_body.shadow_space().clone();
 
                 // Insert the shadow space into the delta.
                 self.delta_contracts
@@ -1066,7 +1133,7 @@ impl CoinHolder {
         };
 
         // Remove the account key from the shadow space in the delta.
-        epheremal_shadow_space.allocs.remove(&account_key);
+        epheremal_shadow_space.remove_alloc(account_key);
 
         // Return the result.
         Ok(())
@@ -1109,7 +1176,7 @@ impl CoinHolder {
                 // Insert the account shadow allocs sum into the delta.
                 self.delta_accounts
                     .updated_shadow_allocs_sums
-                    .insert(account_key, account_body.shadow_allocs_sum);
+                    .insert(account_key, account_body.shadow_allocs_sum());
 
                 // Get the mutable ephemeral account shadow allocs sum from the delta that we just inserted.
                 let ephemeral_account_shadow_allocs_sum = self
@@ -1178,7 +1245,7 @@ impl CoinHolder {
                 // Insert the account shadow allocs sum into the delta.
                 self.delta_accounts
                     .updated_shadow_allocs_sums
-                    .insert(account_key, account_body.shadow_allocs_sum);
+                    .insert(account_key, account_body.shadow_allocs_sum());
 
                 // Get the mutable ephemeral account shadow allocs sum from the delta that we just inserted.
                 let ephemeral_account_shadow_allocs_sum = self
@@ -1240,7 +1307,7 @@ impl CoinHolder {
                     .ok_or(CHShadowUpError::UnableToGetContractBody(contract_id))?;
 
                 // Get the mutable shadow space.
-                let shadow_space = contract_body.shadow_space.clone();
+                let shadow_space = contract_body.shadow_space().clone();
 
                 // Insert the shadow space into the ephemeral states.
                 self.delta_contracts
@@ -1265,7 +1332,7 @@ impl CoinHolder {
 
         // Calculate the new allocation sum value.
         let new_contract_allocs_sum_value_in_satoshis: u64 =
-            epheremal_shadow_space.allocs_sum + up_value_in_satoshis;
+            epheremal_shadow_space.allocs_sum() + up_value_in_satoshis;
 
         // Check if the new contract alloc sum value exceeds the contract balance.
         if new_contract_allocs_sum_value_in_satoshis > existing_contract_balance_in_satoshis {
@@ -1278,11 +1345,10 @@ impl CoinHolder {
 
         // Epheremally update the account shadow allocation value.
         epheremal_shadow_space
-            .allocs
-            .insert(account_key, new_account_shadow_alloc_value_in_sati_satoshis);
+            .insert_alloc(account_key, new_account_shadow_alloc_value_in_sati_satoshis);
 
         // Epheremally update the contract shadow allocation sum value.
-        epheremal_shadow_space.allocs_sum = new_contract_allocs_sum_value_in_satoshis;
+        epheremal_shadow_space.update_allocs_sum(new_contract_allocs_sum_value_in_satoshis);
 
         // Update the account shadow allocs sum value.
         {
@@ -1347,7 +1413,7 @@ impl CoinHolder {
                     .ok_or(CHShadowDownError::UnableToGetContractBody(contract_id))?;
 
                 // Get the mutable shadow space.
-                let shadow_space = contract_body.shadow_space.clone();
+                let shadow_space = contract_body.shadow_space().clone();
 
                 // Insert the shadow space into the delta.
                 self.delta_contracts
@@ -1372,7 +1438,7 @@ impl CoinHolder {
 
         // Calculate the new allocation sum value.
         let new_contract_allocs_sum_value_in_satoshis: u64 =
-            epheremal_shadow_space.allocs_sum - down_value_in_satoshis;
+            epheremal_shadow_space.allocs_sum() - down_value_in_satoshis;
 
         // Check if the new contract alloc sum value exceeds the contract balance.
         if new_contract_allocs_sum_value_in_satoshis > existing_contract_balance_in_satoshis {
@@ -1385,11 +1451,10 @@ impl CoinHolder {
 
         // Epheremally update the account shadow allocation value.
         epheremal_shadow_space
-            .allocs
-            .insert(account_key, new_account_shadow_alloc_value_in_sati_satoshis);
+            .insert_alloc(account_key, new_account_shadow_alloc_value_in_sati_satoshis);
 
         // Epheremally update the contract shadow allocation sum value.
-        epheremal_shadow_space.allocs_sum = new_contract_allocs_sum_value_in_satoshis;
+        epheremal_shadow_space.update_allocs_sum(new_contract_allocs_sum_value_in_satoshis);
 
         // Update the account shadow allocs sum value.
         {
@@ -1467,14 +1532,14 @@ impl CoinHolder {
             .get_mut(&contract_id)
         {
             // First try the ephemeral shadow space.
-            Some(shadow_space) => shadow_space.allocs.iter(),
+            Some(shadow_space) => shadow_space.allocs().iter(),
             // Otherwise from the in-memory shadow space.
             None => self
                 .in_memory_contracts
                 .get_mut(&contract_id)
                 .ok_or(CHShadowUpAllError::UnableToGetContractBody(contract_id))?
-                .shadow_space
-                .allocs
+                .shadow_space()
+                .allocs()
                 .iter(),
         } {
             // shadow_alloc_value_in_sati_satoshis divided by existing_contract_allocs_sum_in_satisatoshis = x divided by up_value_in_sati_satoshis.
@@ -1516,7 +1581,7 @@ impl CoinHolder {
                     .ok_or(CHShadowUpAllError::UnableToGetContractBody(contract_id))?;
 
                 // Get the mutable shadow space.
-                let shadow_space = contract_body.shadow_space.clone();
+                let shadow_space = contract_body.shadow_space().clone();
 
                 // Insert the shadow space into the delta.
                 self.delta_contracts
@@ -1540,12 +1605,11 @@ impl CoinHolder {
             individual_update_values_in_sati_satoshis.iter()
         {
             epheremal_shadow_space
-                .allocs
-                .insert(*account_key, *individual_new_value_in_sati_satoshis);
+                .insert_alloc(*account_key, *individual_new_value_in_sati_satoshis);
         }
 
         // Update the allocs sum value in the ephemeral shadow space.
-        epheremal_shadow_space.allocs_sum = new_contract_allocs_sum_value_in_satoshis;
+        epheremal_shadow_space.update_allocs_sum(new_contract_allocs_sum_value_in_satoshis);
 
         // Update the account shadow allocs sum value.
         for (account_key, (individual_up_value_in_sati_satoshis, _)) in
@@ -1634,14 +1698,14 @@ impl CoinHolder {
             .get_mut(&contract_id)
         {
             // First try the ephemeral shadow space.
-            Some(shadow_space) => shadow_space.allocs.iter(),
+            Some(shadow_space) => shadow_space.allocs().iter(),
             // Otherwise from the in-memory shadow space.
             None => self
                 .in_memory_contracts
                 .get_mut(&contract_id)
                 .ok_or(CHShadowDownAllError::UnableToGetContractBody(contract_id))?
-                .shadow_space
-                .allocs
+                .shadow_space()
+                .allocs()
                 .iter(),
         } {
             // shadow_alloc_value_in_sati_satoshis divided by existing_contract_allocs_sum_in_satisatoshis = x divided by down_value_in_sati_satoshis.
@@ -1695,7 +1759,7 @@ impl CoinHolder {
                     .ok_or(CHShadowDownAllError::UnableToGetContractBody(contract_id))?;
 
                 // Get the mutable shadow space.
-                let shadow_space = contract_body.shadow_space.clone();
+                let shadow_space = contract_body.shadow_space().clone();
 
                 // Insert the shadow space into the delta.
                 self.delta_contracts
@@ -1719,12 +1783,11 @@ impl CoinHolder {
             individual_update_values_in_sati_satoshis.iter()
         {
             epheremal_shadow_space
-                .allocs
-                .insert(*account_key, *individual_new_value_in_sati_satoshis);
+                .insert_alloc(*account_key, *individual_new_value_in_sati_satoshis);
         }
 
         // Update the allocs sum value in the ephemeral shadow space.
-        epheremal_shadow_space.allocs_sum = new_contract_allocs_sum_value_in_satoshis;
+        epheremal_shadow_space.update_allocs_sum(new_contract_allocs_sum_value_in_satoshis);
 
         // Update the account shadow allocs sum value.
         for (account_key, (individual_down_value_in_sati_satoshis, _)) in
@@ -1776,10 +1839,16 @@ impl CoinHolder {
             // 1.1 In-memory insertion.
             {
                 // Construct the fresh new account body.
-                let fresh_new_account_body = CHAccountBody {
-                    balance: *initial_account_balance,
-                    shadow_allocs_sum: initial_account_allocs_sum_value_in_sati_satoshis,
-                };
+                let fresh_new_account_body = CHAccountBody::new(
+                    *initial_account_balance,
+                    initial_account_allocs_sum_value_in_sati_satoshis,
+                );
+
+                // Insert the account into the sparse tree.
+                let _ = self.accounts_sparse_tree.update(
+                    H256::from(*account_key),
+                    H256::from(fresh_new_account_body.tagged_hash()),
+                );
 
                 // Insert the account balance into the in-memory list.
                 // Register the account in-memory with zero balance.
@@ -1840,16 +1909,17 @@ impl CoinHolder {
             // 2.1 In-memory insertion.
             {
                 // Construct the fresh new shadow space.
-                let fresh_new_shadow_space = ShadowSpace {
-                    allocs_sum: initial_contract_allocs_sum_value_in_satoshis,
-                    allocs: HashMap::new(),
-                };
+                let fresh_new_shadow_space = ShadowSpace::fresh_new();
 
                 // Construct the fresh new contract body.
-                let fresh_new_contract_body = CHContractBody {
-                    balance: *initial_contract_balance,
-                    shadow_space: fresh_new_shadow_space,
-                };
+                let fresh_new_contract_body =
+                    CHContractBody::new(*initial_contract_balance, fresh_new_shadow_space);
+
+                // Insert the contract into the sparse tree.
+                let _ = self.contracts_sparse_tree.update(
+                    H256::from(*contract_id),
+                    H256::from(fresh_new_contract_body.tagged_hash()),
+                );
 
                 // Insert the contract body into the in-memory list.
                 // Register the contract in-memory.
@@ -1914,7 +1984,13 @@ impl CoinHolder {
                 )?;
 
                 // Update the account balance in-memory.
-                permanent_account_body.balance = *ephemeral_account_balance;
+                permanent_account_body.update_balance(*ephemeral_account_balance);
+
+                // Update the accounts sparse tree.
+                let _ = self.accounts_sparse_tree.update(
+                    H256::from(*account_key),
+                    H256::from(permanent_account_body.tagged_hash()),
+                );
             }
 
             // 3.2 On-disk insertion.
@@ -1957,7 +2033,13 @@ impl CoinHolder {
                 )?;
 
                 // Update the contract balance in-memory.
-                permanent_contract_body.balance = *ephemeral_contract_balance;
+                permanent_contract_body.update_balance(*ephemeral_contract_balance);
+
+                // Update the contracts sparse tree.
+                let _ = self.contracts_sparse_tree.update(
+                    H256::from(*contract_id),
+                    H256::from(permanent_contract_body.tagged_hash()),
+                );
             }
 
             // 4.2 On-disk insertion.
@@ -2000,7 +2082,14 @@ impl CoinHolder {
                 )?;
 
                 // Update the shadow allocs sum in-memory.
-                permanent_account_body.shadow_allocs_sum = *ephemeral_account_shadow_allocs_sum;
+                permanent_account_body
+                    .update_shadow_allocs_sum(*ephemeral_account_shadow_allocs_sum);
+
+                // Update the account sparse hash.
+                let _ = self.accounts_sparse_tree.update(
+                    H256::from(*account_key),
+                    H256::from(permanent_account_body.tagged_hash()),
+                );
             }
 
             // 5.2 On-disk insertion.
@@ -2034,7 +2123,7 @@ impl CoinHolder {
             self.delta_contracts.updated_shadow_spaces.iter()
         {
             // Get the contract's ephemeral shadow allocs sum value.
-            let epheremal_shadow_allocs_sum_value = ephemeral_shadow_space.allocs_sum;
+            let epheremal_shadow_allocs_sum_value = ephemeral_shadow_space.allocs_sum();
 
             // 6.1 In-memory insertion.
             {
@@ -2046,7 +2135,13 @@ impl CoinHolder {
                 )?;
 
                 // Update the shadow space in-memory.
-                permanent_contract_body.shadow_space = ephemeral_shadow_space.clone();
+                permanent_contract_body.update_shadow_space(ephemeral_shadow_space.clone());
+
+                // Update the contracts sparse tree.
+                let _ = self.contracts_sparse_tree.update(
+                    H256::from(*contract_id),
+                    H256::from(permanent_contract_body.tagged_hash()),
+                );
             }
 
             // 6.2 On-disk insertion.
@@ -2060,7 +2155,7 @@ impl CoinHolder {
 
                 // Iterate over all shadow alloc values.
                 for (shadow_account_key, ephemeral_shadow_alloc_value) in
-                    ephemeral_shadow_space.allocs.iter()
+                    ephemeral_shadow_space.allocs().iter()
                 {
                     // Update the shadow alloc value on-disk.
                     tree.insert(
@@ -2113,11 +2208,9 @@ impl CoinHolder {
 
                     // Remove all accounts from the shadow space.
                     for account_key in ephemeral_dealloc_list.iter() {
-                        if permanent_contract_body
-                            .shadow_space
-                            .allocs
-                            .remove(account_key)
-                            .is_none()
+                        if !permanent_contract_body
+                            .shadow_space_mut()
+                            .remove_alloc(*account_key)
                         {
                             return Err(CHApplyChangesError::ContractApplyChangesError(
                                 CHContractApplyChangesError::InMemoryDeallocAccountError(
@@ -2126,6 +2219,12 @@ impl CoinHolder {
                                 ),
                             ));
                         };
+
+                        // Update the contracts sparse tree.
+                        let _ = self.contracts_sparse_tree.update(
+                            H256::from(*contract_id),
+                            H256::from(permanent_contract_body.tagged_hash()),
+                        );
                     }
                 }
 

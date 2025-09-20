@@ -30,6 +30,12 @@ pub enum HashTag {
     CustomBytes(Vec<u8>),
     // Method ID
     ContractID,
+    // Account Body
+    AccountBody,
+    ShadowAllocValue,
+    ShadowSpace,
+    ContractBody,
+    CoinHolder,
 }
 
 impl HashTag {
@@ -68,6 +74,11 @@ impl HashTag {
             HashTag::CustomString(tag) => tag.clone(),
             HashTag::CustomBytes(tag) => tag.clone().into_iter().map(|b| b as char).collect(),
             HashTag::ContractID => format!("{}/{}", baked::PROJECT_TAG, "contractid"),
+            HashTag::AccountBody => format!("{}/{}", baked::PROJECT_TAG, "accountbody"),
+            HashTag::ShadowAllocValue => format!("{}/{}", baked::PROJECT_TAG, "shadowallocvalue"),
+            HashTag::ShadowSpace => format!("{}/{}", baked::PROJECT_TAG, "shadowspace"),
+            HashTag::ContractBody => format!("{}/{}", baked::PROJECT_TAG, "contractbody"),
+            HashTag::CoinHolder => format!("{}/{}", baked::PROJECT_TAG, "coinholder"),
         }
     }
 }
