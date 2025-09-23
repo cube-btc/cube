@@ -44,26 +44,26 @@ impl OP_SHADOW_ALLOC_VAL {
             // Get the mutable coin holder.
             let mut _coin_manager = coin_manager.lock().await;
 
-            // Get the result item.
-            let result_item = match _coin_manager
-                .get_account_shadow_alloc_value_of_a_contract_in_satoshis(
-                    self_contract_id_bytes,
-                    account_key_bytes,
-                ) {
+            // Match the allocation value.
+            match _coin_manager.get_account_shadow_alloc_value_of_a_contract_in_satoshis(
+                self_contract_id_bytes,
+                account_key_bytes,
+            ) {
                 Some(value) => {
                     let value_as_stack_uint = StackUint::from_u64(value);
-                    StackItem::from_stack_uint(value_as_stack_uint)
+                    let value_as_stack_item = StackItem::from_stack_uint(value_as_stack_uint);
+
+                    // Push the value to the main stack.
+                    stack_holder.push(value_as_stack_item)?;
+
+                    // Push true to the main stack.
+                    stack_holder.push(StackItem::true_item())?;
                 }
                 None => {
-                    // Return error.
-                    return Err(StackError::ShadowOpsError(
-                        ShadowOpsError::AccountKeyHasNoAllocation(account_key_bytes),
-                    ));
+                    // Push false to the main stack.
+                    stack_holder.push(StackItem::false_item())?;
                 }
             };
-
-            // Push the result item to the stack.
-            stack_holder.push(result_item)?;
         }
 
         // Return the result.
