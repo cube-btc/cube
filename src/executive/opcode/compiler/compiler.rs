@@ -282,10 +282,10 @@ impl OpcodeCompiler for Opcode {
             Opcode::OP_CALLEXT(_) => Ok(OP_CALLEXT::bytecode()),
 
             // Shadowing
-            Opcode::OP_SHADOW_HAS_ALLOC(_) => Ok(OP_SHADOW_HAS_ALLOC::bytecode()),
-            Opcode::OP_SHADOW_DEALLOC(_) => Ok(OP_SHADOW_DEALLOC::bytecode()),
-            Opcode::OP_SHADOW_ALLOC_VAL(_) => Ok(OP_SHADOW_ALLOC_VAL::bytecode()),
             Opcode::OP_SHADOW_ALLOC(_) => Ok(OP_SHADOW_ALLOC::bytecode()),
+            Opcode::OP_SHADOW_DEALLOC(_) => Ok(OP_SHADOW_DEALLOC::bytecode()),
+            Opcode::OP_SHADOW_HAS_ALLOC(_) => Ok(OP_SHADOW_HAS_ALLOC::bytecode()),
+            Opcode::OP_SHADOW_ALLOC_VAL(_) => Ok(OP_SHADOW_ALLOC_VAL::bytecode()),
             Opcode::OP_SHADOW_UP(_) => Ok(OP_SHADOW_UP::bytecode()),
             Opcode::OP_SHADOW_DOWN(_) => Ok(OP_SHADOW_DOWN::bytecode()),
             Opcode::OP_SHADOW_UP_ALL(_) => Ok(OP_SHADOW_UP_ALL::bytecode()),
@@ -537,10 +537,10 @@ impl OpcodeCompiler for Opcode {
             0xbf => Ok(Opcode::OP_CALLEXT(OP_CALLEXT)),
 
             // Shadowing
-            0xc0 => Ok(Opcode::OP_SHADOW_HAS_ALLOC(OP_SHADOW_HAS_ALLOC)),
+            0xc0 => Ok(Opcode::OP_SHADOW_ALLOC(OP_SHADOW_ALLOC)),
             0xc1 => Ok(Opcode::OP_SHADOW_DEALLOC(OP_SHADOW_DEALLOC)),
-            0xc2 => Ok(Opcode::OP_SHADOW_ALLOC_VAL(OP_SHADOW_ALLOC_VAL)),
-            0xc3 => Ok(Opcode::OP_SHADOW_ALLOC(OP_SHADOW_ALLOC)),
+            0xc2 => Ok(Opcode::OP_SHADOW_HAS_ALLOC(OP_SHADOW_HAS_ALLOC)),
+            0xc3 => Ok(Opcode::OP_SHADOW_ALLOC_VAL(OP_SHADOW_ALLOC_VAL)),
             0xc4 => Ok(Opcode::OP_SHADOW_UP(OP_SHADOW_UP)),
             0xc5 => Ok(Opcode::OP_SHADOW_DOWN(OP_SHADOW_DOWN)),
             0xc6 => Ok(Opcode::OP_SHADOW_UP_ALL(OP_SHADOW_UP_ALL)),

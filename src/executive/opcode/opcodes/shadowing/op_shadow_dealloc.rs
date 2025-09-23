@@ -50,8 +50,8 @@ impl OP_SHADOW_DEALLOC {
         Ok(())
     }
 
-    /// Returns the bytecode for the `OP_SHADOW_DEALLOC` opcode (0xc2).
+    /// Returns the bytecode for the `OP_SHADOW_DEALLOC` opcode (0xc1).
     pub fn bytecode() -> Vec<u8> {
-        vec![0xc2]
+        vec![0xc1]
     }
 }

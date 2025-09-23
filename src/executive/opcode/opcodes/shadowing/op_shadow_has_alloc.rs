@@ -61,8 +61,8 @@ impl OP_SHADOW_HAS_ALLOC {
         Ok(())
     }
 
-    /// Returns the bytecode for the `OP_SHADOW_HAS_ALLOC` opcode (0xc1).
+    /// Returns the bytecode for the `OP_SHADOW_HAS_ALLOC` opcode (0xc2).
     pub fn bytecode() -> Vec<u8> {
-        vec![0xc1]
+        vec![0xc2]
     }
 }

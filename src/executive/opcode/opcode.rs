@@ -204,8 +204,8 @@ pub enum Opcode {
     OP_TRANSFER(OP_TRANSFER),
     // Shadowing
     OP_SHADOW_ALLOC(OP_SHADOW_ALLOC),
-    OP_SHADOW_HAS_ALLOC(OP_SHADOW_HAS_ALLOC),
     OP_SHADOW_DEALLOC(OP_SHADOW_DEALLOC),
+    OP_SHADOW_HAS_ALLOC(OP_SHADOW_HAS_ALLOC),
     OP_SHADOW_ALLOC_VAL(OP_SHADOW_ALLOC_VAL),
     OP_SHADOW_UP(OP_SHADOW_UP),
     OP_SHADOW_DOWN(OP_SHADOW_DOWN),
@@ -355,10 +355,10 @@ impl Display for Opcode {
             Opcode::OP_SELF_BALANCE(_) => write!(f, "OP_SELF_BALANCE"),
             Opcode::OP_TRANSFER(_) => write!(f, "OP_TRANSFER"),
             // Shadowing
-            Opcode::OP_SHADOW_HAS_ALLOC(_) => write!(f, "OP_SHADOW_HAS_ALLOC"),
-            Opcode::OP_SHADOW_DEALLOC(_) => write!(f, "OP_SHADOW_DEALLOC"),
-            Opcode::OP_SHADOW_ALLOC_VAL(_) => write!(f, "OP_SHADOW_ALLOC_VAL"),
             Opcode::OP_SHADOW_ALLOC(_) => write!(f, "OP_SHADOW_ALLOC"),
+            Opcode::OP_SHADOW_DEALLOC(_) => write!(f, "OP_SHADOW_DEALLOC"),
+            Opcode::OP_SHADOW_HAS_ALLOC(_) => write!(f, "OP_SHADOW_HAS_ALLOC"),
+            Opcode::OP_SHADOW_ALLOC_VAL(_) => write!(f, "OP_SHADOW_ALLOC_VAL"),
             Opcode::OP_SHADOW_UP(_) => write!(f, "OP_SHADOW_UP"),
             Opcode::OP_SHADOW_DOWN(_) => write!(f, "OP_SHADOW_DOWN"),
             Opcode::OP_SHADOW_UP_ALL(_) => write!(f, "OP_SHADOW_UP_ALL"),
