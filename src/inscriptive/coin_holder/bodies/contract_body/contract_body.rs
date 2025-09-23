@@ -1,5 +1,4 @@
 use crate::inscriptive::coin_holder::bodies::contract_body::shadow_space::shadow_space::ShadowSpace;
-use crate::transmutative::hash::{Hash, HashTag};
 
 /// Satoshi amount.
 #[allow(non_camel_case_types)]
@@ -47,15 +46,5 @@ impl CHContractBody {
     /// Updates the contract shadow space.
     pub fn update_shadow_space(&mut self, shadow_space: ShadowSpace) {
         self.shadow_space = shadow_space;
-    }
-
-    /// Hashes the contract body with the `ContractBody` tag.
-    pub fn tagged_hash(&self) -> [u8; 32] {
-        let mut preimage: Vec<u8> = Vec::<u8>::new();
-
-        preimage.extend(self.balance.to_le_bytes());
-        preimage.extend(self.shadow_space.tagged_hash());
-
-        preimage.hash(Some(HashTag::ContractBody))
     }
 }

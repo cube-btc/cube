@@ -1,5 +1,3 @@
-use crate::transmutative::hash::{Hash, HashTag};
-
 /// Satoshi amount.
 #[allow(non_camel_case_types)]
 type SATOSHI_AMOUNT = u64;
@@ -45,15 +43,5 @@ impl CHAccountBody {
     /// Updates the account shadow allocs sum.
     pub fn update_shadow_allocs_sum(&mut self, shadow_allocs_sum: SATI_SATOSHI_AMOUNT) {
         self.shadow_allocs_sum = shadow_allocs_sum;
-    }
-
-    /// Hashes the account body with the `AccountBody` tag.
-    pub fn tagged_hash(&self) -> [u8; 32] {
-        let mut preimage: Vec<u8> = Vec::<u8>::new();
-
-        preimage.extend(self.balance.to_le_bytes());
-        preimage.extend(self.shadow_allocs_sum.to_le_bytes());
-
-        preimage.hash(Some(HashTag::AccountBody))
     }
 }

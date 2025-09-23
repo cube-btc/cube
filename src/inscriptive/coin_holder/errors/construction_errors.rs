@@ -21,7 +21,6 @@ pub enum CHConstructionAccountError {
     UnableToDeserializeAccountBalanceFromTreeValue(ACCOUNT_KEY, usize, [u8; 1], Vec<u8>),
     UnableToDeserializeAccountShadowAllocsSumFromTreeValue(ACCOUNT_KEY, usize, [u8; 1], Vec<u8>),
     InvalidTreeKeyEncountered(ACCOUNT_KEY, Vec<u8>),
-    SparseTreeInsertError(ACCOUNT_KEY, sparse_merkle_tree::error::Error),
 }
 
 /// Errors associated with constructing the `CoinHolder` struct for contracts.
@@ -36,7 +35,6 @@ pub enum CHConstructionContractError {
     UnableToDeserializeAllocsSumFromTreeValue(CONTRACT_ID, usize, [u8; 32], Vec<u8>),
     UnableToDeserializeAllocValueFromTreeValue(CONTRACT_ID, usize, [u8; 32], Vec<u8>),
     AllocsSumExceedsTheContractBalance(CONTRACT_ID, SATOSHI_AMOUNT, SATOSHI_AMOUNT),
-    SparseTreeInsertError(CONTRACT_ID, sparse_merkle_tree::error::Error),
 }
 
 /// Errors associated with constructing the `CoinHolder` struct.

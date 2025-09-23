@@ -24,10 +24,6 @@ use crate::inscriptive::coin_holder::errors::shadow_update_errors::{
     CHShadowDownError, CHShadowUpAllError, CHShadowUpError,
 };
 use crate::operative::Chain;
-use crate::transmutative::hash::{Hash, HashTag};
-use sparse_merkle_tree::{
-    blake2b::Blake2bHasher, default_store::DefaultStore, SparseMerkleTree, H256,
-};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -59,10 +55,6 @@ pub struct CoinHolder {
     // IN-MEMORY STATES
     in_memory_accounts: HashMap<ACCOUNT_KEY, CHAccountBody>,
     in_memory_contracts: HashMap<CONTRACT_ID, CHContractBody>,
-
-    // TREES
-    accounts_sparse_tree: SparseMerkleTree<Blake2bHasher, H256, DefaultStore<H256>>,
-    contracts_sparse_tree: SparseMerkleTree<Blake2bHasher, H256, DefaultStore<H256>>,
 
     // ON-DISK STATES
     on_disk_accounts: sled::Db,
@@ -98,12 +90,6 @@ impl CoinHolder {
                 CHConstructionContractError::DBOpenError(e),
             )
         })?;
-
-        // Initialize sparse trees.
-        let mut accounts_sparse_tree =
-            SparseMerkleTree::<Blake2bHasher, H256, DefaultStore<H256>>::default();
-        let mut contracts_sparse_tree =
-            SparseMerkleTree::<Blake2bHasher, H256, DefaultStore<H256>>::default();
 
         // 3. Initialize the in-memory lists of account and contract bodies.
         let mut account_bodies = HashMap::<ACCOUNT_KEY, CHAccountBody>::new();
@@ -201,18 +187,6 @@ impl CoinHolder {
 
                 // Construct the account body.
                 let account_body = CHAccountBody::new(account_balance, account_shadow_allocs_sum);
-
-                // Insert the account into the sparse tree.
-                accounts_sparse_tree
-                    .update(
-                        H256::from(account_key),
-                        H256::from(account_body.tagged_hash()),
-                    )
-                    .map_err(|e| {
-                        CHConstructionError::AccountConstructionError(
-                            CHConstructionAccountError::SparseTreeInsertError(account_key, e),
-                        )
-                    })?;
 
                 // Insert the account body into the account bodies list.
                 account_bodies.insert(account_key, account_body);
@@ -340,18 +314,6 @@ impl CoinHolder {
             // Construct the contract body.
             let contract_body = CHContractBody::new(contract_balance, shadow_space);
 
-            // Insert the account into the sparse tree.
-            contracts_sparse_tree
-                .update(
-                    H256::from(contract_id),
-                    H256::from(contract_body.tagged_hash()),
-                )
-                .map_err(|e| {
-                    CHConstructionError::ContractConstructionError(
-                        CHConstructionContractError::SparseTreeInsertError(contract_id, e),
-                    )
-                })?;
-
             // Insert the contract body into the contract bodies list.
             contract_bodies.insert(contract_id, contract_body);
         }
@@ -360,8 +322,6 @@ impl CoinHolder {
         let coin_holder = CoinHolder {
             in_memory_accounts: account_bodies,
             in_memory_contracts: contract_bodies,
-            accounts_sparse_tree: accounts_sparse_tree,
-            contracts_sparse_tree: contracts_sparse_tree,
             on_disk_accounts: account_db,
             on_disk_contracts: contract_db,
             delta_accounts: CHAccountDelta::new(),
@@ -546,39 +506,6 @@ impl CoinHolder {
 
         // Return the result.
         Some(satoshi_value as u64)
-    }
-
-    /// Returns the root hash of the accounts sparse tree.
-    pub fn get_accounts_sparse_root_hash(&self) -> [u8; 32] {
-        self.accounts_sparse_tree
-            .root()
-            .as_slice()
-            .try_into()
-            .expect("This cannot happen.")
-    }
-
-    /// Returns the root hash of the contracts sparse tree.
-    pub fn get_contracts_sparse_root_hash(&self) -> [u8; 32] {
-        self.contracts_sparse_tree
-            .root()
-            .as_slice()
-            .try_into()
-            .expect("This cannot happen.")
-    }
-
-    /// Returns the root hash of the overall sparse tree.
-    pub fn get_overall_sparse_root_hash(&self) -> [u8; 32] {
-        // Construct the preimage.
-        let mut preimage: Vec<u8> = Vec::<u8>::with_capacity(64);
-
-        // Extend the preimage with the accounts sparse tree root hash.
-        preimage.extend(self.accounts_sparse_tree.root().as_slice());
-
-        // Extend the preimage with the contracts sparse tree root hash.
-        preimage.extend(self.contracts_sparse_tree.root().as_slice());
-
-        // Hash the preimage.
-        preimage.hash(Some(HashTag::CoinHolder))
     }
 
     /// Registers an account.
@@ -1844,12 +1771,6 @@ impl CoinHolder {
                     initial_account_allocs_sum_value_in_sati_satoshis,
                 );
 
-                // Insert the account into the sparse tree.
-                let _ = self.accounts_sparse_tree.update(
-                    H256::from(*account_key),
-                    H256::from(fresh_new_account_body.tagged_hash()),
-                );
-
                 // Insert the account balance into the in-memory list.
                 // Register the account in-memory with zero balance.
                 self.in_memory_accounts
@@ -1915,12 +1836,6 @@ impl CoinHolder {
                 let fresh_new_contract_body =
                     CHContractBody::new(*initial_contract_balance, fresh_new_shadow_space);
 
-                // Insert the contract into the sparse tree.
-                let _ = self.contracts_sparse_tree.update(
-                    H256::from(*contract_id),
-                    H256::from(fresh_new_contract_body.tagged_hash()),
-                );
-
                 // Insert the contract body into the in-memory list.
                 // Register the contract in-memory.
                 self.in_memory_contracts
@@ -1985,12 +1900,6 @@ impl CoinHolder {
 
                 // Update the account balance in-memory.
                 permanent_account_body.update_balance(*ephemeral_account_balance);
-
-                // Update the accounts sparse tree.
-                let _ = self.accounts_sparse_tree.update(
-                    H256::from(*account_key),
-                    H256::from(permanent_account_body.tagged_hash()),
-                );
             }
 
             // 3.2 On-disk insertion.
@@ -2034,12 +1943,6 @@ impl CoinHolder {
 
                 // Update the contract balance in-memory.
                 permanent_contract_body.update_balance(*ephemeral_contract_balance);
-
-                // Update the contracts sparse tree.
-                let _ = self.contracts_sparse_tree.update(
-                    H256::from(*contract_id),
-                    H256::from(permanent_contract_body.tagged_hash()),
-                );
             }
 
             // 4.2 On-disk insertion.
@@ -2084,12 +1987,6 @@ impl CoinHolder {
                 // Update the shadow allocs sum in-memory.
                 permanent_account_body
                     .update_shadow_allocs_sum(*ephemeral_account_shadow_allocs_sum);
-
-                // Update the account sparse hash.
-                let _ = self.accounts_sparse_tree.update(
-                    H256::from(*account_key),
-                    H256::from(permanent_account_body.tagged_hash()),
-                );
             }
 
             // 5.2 On-disk insertion.
@@ -2136,12 +2033,6 @@ impl CoinHolder {
 
                 // Update the shadow space in-memory.
                 permanent_contract_body.update_shadow_space(ephemeral_shadow_space.clone());
-
-                // Update the contracts sparse tree.
-                let _ = self.contracts_sparse_tree.update(
-                    H256::from(*contract_id),
-                    H256::from(permanent_contract_body.tagged_hash()),
-                );
             }
 
             // 6.2 On-disk insertion.
@@ -2219,12 +2110,6 @@ impl CoinHolder {
                                 ),
                             ));
                         };
-
-                        // Update the contracts sparse tree.
-                        let _ = self.contracts_sparse_tree.update(
-                            H256::from(*contract_id),
-                            H256::from(permanent_contract_body.tagged_hash()),
-                        );
                     }
                 }
 
