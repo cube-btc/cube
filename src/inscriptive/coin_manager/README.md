@@ -1,2 +1,2 @@
-# Coin Holder
-Local storage manager for storing and modifying (1) account BTC balances, (2) contract BTC balances, and (3) contract BTC allocations mapped to accounts.
+# Coin Manager
+Local storage manager for storing and modifying account & contract (1) BTC balances, and (2) shadow space allocations.
