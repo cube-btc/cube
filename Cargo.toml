@@ -1,7 +1,7 @@
 [package]
 name = "cube"
 version = "0.1.0"
-authors = ["Brock <brock@bits.app>"]
+authors = ["Brock Aegean <brock@bits.app>"]
 edition = "2021"
 
 [dependencies]
