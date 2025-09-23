@@ -3,7 +3,7 @@ use crate::{
         stack_error::{ShadowOpsError, StackError},
         stack_holder::StackHolder,
     },
-    inscriptive::coin_holder::coin_holder::COIN_HOLDER,
+    inscriptive::coin_manager::coin_manager::COIN_MANAGER,
 };
 
 /// Allocates within the contract shadow space an account.
@@ -14,7 +14,7 @@ pub struct OP_SHADOW_ALLOC;
 impl OP_SHADOW_ALLOC {
     pub async fn execute(
         stack_holder: &mut StackHolder,
-        coin_holder: &COIN_HOLDER,
+        coin_manager: &COIN_MANAGER,
     ) -> Result<(), StackError> {
         // If this is not the active execution, return immediately.
         if !stack_holder.active_execution() {
@@ -39,8 +39,8 @@ impl OP_SHADOW_ALLOC {
 
         // Allocate the account key in the contract shadow space.
         {
-            let mut _coin_holder = coin_holder.lock().await;
-            _coin_holder
+            let mut _coin_manager = coin_manager.lock().await;
+            _coin_manager
                 .shadow_alloc_account(self_contract_id_bytes, account_key_bytes)
                 .map_err(|error| ShadowOpsError::ShadowAllocError(error))
                 .map_err(StackError::ShadowOpsError)?;

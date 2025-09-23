@@ -1,4 +1,5 @@
-use crate::inscriptive::coin_holder::bodies::contract_body::shadow_space::shadow_space::ShadowSpace;
+use crate::inscriptive::coin_manager::bodies::contract_body::shadow_space::shadow_space::ShadowSpace;
+use serde_json::{Map, Value};
 
 /// Satoshi amount.
 #[allow(non_camel_case_types)]
@@ -46,5 +47,23 @@ impl CHContractBody {
     /// Updates the contract shadow space.
     pub fn update_shadow_space(&mut self, shadow_space: ShadowSpace) {
         self.shadow_space = shadow_space;
+    }
+
+    /// Returns the contract body as a JSON object.
+    pub fn json(&self) -> Value {
+        // Construct the contract body JSON object.
+        let mut obj = Map::new();
+
+        // Insert the balance.
+        obj.insert(
+            "balance".to_string(),
+            Value::String(self.balance().to_string()),
+        );
+
+        // Insert the shadow space.
+        obj.insert("shadow_space".to_string(), self.shadow_space().json());
+
+        // Return the JSON object.
+        Value::Object(obj)
     }
 }

@@ -8,7 +8,7 @@ type ACCOUNT_KEY = [u8; 32];
 
 /// Errors associated with allocating a new account to the contract's shadow space.
 #[derive(Debug, Clone)]
-pub enum CHContractShadowAllocAccountError {
+pub enum CMContractShadowAllocAccountError {
     AccountHasJustBeenEphemerallyAllocated(CONTRACT_ID, ACCOUNT_KEY),
     AccountHasJustBeenEphemerallyDeallocated(CONTRACT_ID, ACCOUNT_KEY),
     UnableToGetAccountAllocValue(CONTRACT_ID, ACCOUNT_KEY),
@@ -17,7 +17,7 @@ pub enum CHContractShadowAllocAccountError {
 
 /// Errors associated with deallocating an account from the contract's shadow space.
 #[derive(Debug, Clone)]
-pub enum CHContractShadowDeallocAccountError {
+pub enum CMContractShadowDeallocAccountError {
     AccountHasJustBeenEphemerallyAllocated(CONTRACT_ID, ACCOUNT_KEY),
     UnableToGetAccountAllocValue(CONTRACT_ID, ACCOUNT_KEY),
     AllocValueIsNonZero(CONTRACT_ID, ACCOUNT_KEY),

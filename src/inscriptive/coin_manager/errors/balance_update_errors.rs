@@ -12,27 +12,27 @@ type CONTRACT_ID = [u8; 32];
 
 /// Errors associated with increasing the account's balance.
 #[derive(Debug, Clone)]
-pub enum CHAccountBalanceUpError {
+pub enum CMAccountBalanceUpError {
     UnableToGetAccountBalance(ACCOUNT_KEY),
 }
 
 /// Errors associated with decreasing the account's balance.
 #[derive(Debug, Clone)]
-pub enum CHAccountBalanceDownError {
+pub enum CMAccountBalanceDownError {
     UnableToGetAccountBalance(ACCOUNT_KEY),
     AccountBalanceWouldGoBelowZero(ACCOUNT_KEY, SATOSHI_AMOUNT, SATOSHI_AMOUNT),
 }
 
 /// Errors associated with increasing contract's balance.
 #[derive(Debug, Clone)]
-pub enum CHContractBalanceUpError {
+pub enum CMContractBalanceUpError {
     UnableToGetContractBalance(CONTRACT_ID),
     UnableToGetContractBody(CONTRACT_ID),
 }
 
 /// Errors associated with decreasing contract's balance.
 #[derive(Debug, Clone)]
-pub enum CHContractBalanceDownError {
+pub enum CMContractBalanceDownError {
     UnableToGetContractBalance(CONTRACT_ID),
     ContractBalanceWouldGoBelowZero(CONTRACT_ID, SATOSHI_AMOUNT, SATOSHI_AMOUNT),
     UnableToGetContractAllocsSum(CONTRACT_ID),

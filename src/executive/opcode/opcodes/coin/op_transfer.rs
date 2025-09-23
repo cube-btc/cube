@@ -4,7 +4,7 @@ use crate::{
         stack_holder::StackHolder,
         stack_uint::{SafeConverter, StackItemUintExt},
     },
-    inscriptive::coin_holder::coin_holder::COIN_HOLDER,
+    inscriptive::coin_manager::coin_manager::COIN_MANAGER,
 };
 
 /// Transfers coins from the contract into an account or to another contract.
@@ -15,7 +15,7 @@ pub struct OP_TRANSFER;
 impl OP_TRANSFER {
     pub async fn execute(
         stack_holder: &mut StackHolder,
-        coin_holder: &COIN_HOLDER,
+        coin_manager: &COIN_MANAGER,
     ) -> Result<(), StackError> {
         // If this is not the active execution, return immediately.
         if !stack_holder.active_execution() {
@@ -62,10 +62,12 @@ impl OP_TRANSFER {
                             CoinTransferError::InvalidAmountBytes(amount.bytes().to_vec()),
                         ))?;
 
-                // Deduct from the self contract balance.
                 {
-                    let mut _coin_holder = coin_holder.lock().await;
-                    _coin_holder
+                    // Lock the coin manager.
+                    let mut _coin_manager = coin_manager.lock().await;
+
+                    // Deduct from the self contract balance.
+                    _coin_manager
                         .contract_balance_down(self_contract_id_bytes, amount_as_u64)
                         .map_err(|error| {
                             CoinTransferError::ContractBalanceDownError(
@@ -74,12 +76,9 @@ impl OP_TRANSFER {
                             )
                         })
                         .map_err(StackError::CoinTransferError)?;
-                }
 
-                // Add to the destination account balance.
-                {
-                    let mut _coin_holder = coin_holder.lock().await;
-                    _coin_holder
+                    // Add to the destination account balance.
+                    _coin_manager
                         .account_balance_up(destination_account_key_bytes, amount_as_u64)
                         .map_err(|error| {
                             CoinTransferError::AccountBalanceUpError(
@@ -122,10 +121,12 @@ impl OP_TRANSFER {
                             CoinTransferError::InvalidAmountBytes(amount.bytes().to_vec()),
                         ))?;
 
-                // Deduct from the self contract balance.
                 {
-                    let mut _coin_holder = coin_holder.lock().await;
-                    _coin_holder
+                    // Lock the coin manager.
+                    let mut _coin_manager = coin_manager.lock().await;
+
+                    // Deduct from the self contract balance.
+                    _coin_manager
                         .contract_balance_down(self_contract_id_bytes, amount_as_u64)
                         .map_err(|error| {
                             CoinTransferError::ContractBalanceDownError(
@@ -134,12 +135,9 @@ impl OP_TRANSFER {
                             )
                         })
                         .map_err(StackError::CoinTransferError)?;
-                }
 
-                // Add to the destination contract balance.
-                {
-                    let mut _coin_holder = coin_holder.lock().await;
-                    _coin_holder
+                    // Add to the destination contract balance.
+                    _coin_manager
                         .contract_balance_up(destination_contract_id_bytes, amount_as_u64)
                         .map_err(|error| {
                             CoinTransferError::ContractBalanceUpError(

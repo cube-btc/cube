@@ -12,7 +12,7 @@ type SATOSHI_AMOUNT = u64;
 
 /// Errors associated with constructing the `CoinHolder` struct for accounts.
 #[derive(Debug, Clone)]
-pub enum CHConstructionAccountError {
+pub enum CMConstructionAccountError {
     DBOpenError(sled::Error),
     UnableToDeserializeAccountKeyBytesFromTreeName(Vec<u8>),
     TreeOpenError(ACCOUNT_KEY, sled::Error),
@@ -25,7 +25,7 @@ pub enum CHConstructionAccountError {
 
 /// Errors associated with constructing the `CoinHolder` struct for contracts.
 #[derive(Debug, Clone)]
-pub enum CHConstructionContractError {
+pub enum CMConstructionContractError {
     DBOpenError(sled::Error),
     UnableToDeserializeContractIDBytesFromTreeName(Vec<u8>),
     TreeOpenError(CONTRACT_ID, sled::Error),
@@ -39,7 +39,7 @@ pub enum CHConstructionContractError {
 
 /// Errors associated with constructing the `CoinHolder` struct.
 #[derive(Debug, Clone)]
-pub enum CHConstructionError {
-    AccountConstructionError(CHConstructionAccountError),
-    ContractConstructionError(CHConstructionContractError),
+pub enum CMConstructionError {
+    AccountConstructionError(CMConstructionAccountError),
+    ContractConstructionError(CMConstructionContractError),
 }

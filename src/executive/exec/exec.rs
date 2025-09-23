@@ -85,7 +85,7 @@ use crate::{
         stack::{stack_holder::StackHolder, stack_item::StackItem},
     },
     inscriptive::{
-        coin_holder::coin_holder::COIN_HOLDER, repo::repo::PROGRAMS_REPO,
+        coin_manager::coin_manager::COIN_MANAGER, repo::repo::PROGRAMS_REPO,
         state_holder::state_holder::STATE_HOLDER,
     },
 };
@@ -123,8 +123,8 @@ pub async fn execute(
     external_ops_counter: ExternalOpsCounter,
     // The state holder.
     state_holder: &STATE_HOLDER,
-    // The coin holder.
-    coin_holder: &COIN_HOLDER,
+    // The coin manager.
+    coin_manager: &COIN_MANAGER,
     // The programs repo.
     programs_repo: &PROGRAMS_REPO,
 ) -> Result<(Vec<StackItem>, InternalOpsCounter, ExternalOpsCounter), ExecutionError> {
@@ -753,7 +753,7 @@ pub async fn execute(
                     stack_holder.internal_ops_counter(), // Remainder of the internal ops counter passed to the next call.
                     stack_holder.external_ops_counter(), // Remainder of the external ops counter passed to the next call.
                     state_holder,
-                    coin_holder,
+                    coin_manager,
                     programs_repo,
                 ))
                 .await;
@@ -791,7 +791,7 @@ pub async fn execute(
                     stack_holder.internal_ops_counter(), // Remainder of the internal ops counter passed to the next call.
                     stack_holder.external_ops_counter(), // Remainder of the external ops counter passed to the next call.
                     state_holder,
-                    coin_holder,
+                    coin_manager,
                     programs_repo,
                 ))
                 .await;
@@ -799,69 +799,69 @@ pub async fn execute(
 
             // Shadowing opcodes.
             Opcode::OP_SHADOW_ALLOC(OP_SHADOW_ALLOC) => {
-                OP_SHADOW_ALLOC::execute(&mut stack_holder, coin_holder)
+                OP_SHADOW_ALLOC::execute(&mut stack_holder, coin_manager)
                     .await
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
             Opcode::OP_SHADOW_HAS_ALLOC(OP_SHADOW_HAS_ALLOC) => {
-                OP_SHADOW_HAS_ALLOC::execute(&mut stack_holder, coin_holder)
+                OP_SHADOW_HAS_ALLOC::execute(&mut stack_holder, coin_manager)
                     .await
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
             Opcode::OP_SHADOW_DEALLOC(OP_SHADOW_DEALLOC) => {
-                OP_SHADOW_DEALLOC::execute(&mut stack_holder, coin_holder)
+                OP_SHADOW_DEALLOC::execute(&mut stack_holder, coin_manager)
                     .await
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
             Opcode::OP_SHADOW_ALLOC_VAL(OP_SHADOW_ALLOC_VAL) => {
-                OP_SHADOW_ALLOC_VAL::execute(&mut stack_holder, coin_holder)
+                OP_SHADOW_ALLOC_VAL::execute(&mut stack_holder, coin_manager)
                     .await
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
             Opcode::OP_SHADOW_UP(OP_SHADOW_UP) => {
-                OP_SHADOW_UP::execute(&mut stack_holder, coin_holder)
+                OP_SHADOW_UP::execute(&mut stack_holder, coin_manager)
                     .await
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
             Opcode::OP_SHADOW_DOWN(OP_SHADOW_DOWN) => {
-                OP_SHADOW_DOWN::execute(&mut stack_holder, coin_holder)
+                OP_SHADOW_DOWN::execute(&mut stack_holder, coin_manager)
                     .await
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
             Opcode::OP_SHADOW_UP_ALL(OP_SHADOW_UP_ALL) => {
-                OP_SHADOW_UP_ALL::execute(&mut stack_holder, coin_holder)
+                OP_SHADOW_UP_ALL::execute(&mut stack_holder, coin_manager)
                     .await
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
             Opcode::OP_SHADOW_DOWN_ALL(OP_SHADOW_DOWN_ALL) => {
-                OP_SHADOW_DOWN_ALL::execute(&mut stack_holder, coin_holder)
+                OP_SHADOW_DOWN_ALL::execute(&mut stack_holder, coin_manager)
                     .await
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
             Opcode::OP_SHADOW_NUM_ALLOCS(OP_SHADOW_NUM_ALLOCS) => {
-                OP_SHADOW_NUM_ALLOCS::execute(&mut stack_holder, coin_holder)
+                OP_SHADOW_NUM_ALLOCS::execute(&mut stack_holder, coin_manager)
                     .await
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
             Opcode::OP_SHADOW_ALLOCS_SUM(OP_SHADOW_ALLOCS_SUM) => {
-                OP_SHADOW_ALLOCS_SUM::execute(&mut stack_holder, coin_holder)
+                OP_SHADOW_ALLOCS_SUM::execute(&mut stack_holder, coin_manager)
                     .await
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
 
             // Coin opcodes.
             Opcode::OP_EXT_BALANCE(OP_EXT_BALANCE) => {
-                OP_EXT_BALANCE::execute(&mut stack_holder, coin_holder)
+                OP_EXT_BALANCE::execute(&mut stack_holder, coin_manager)
                     .await
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
             Opcode::OP_SELF_BALANCE(OP_SELF_BALANCE) => {
-                OP_SELF_BALANCE::execute(&mut stack_holder, coin_holder)
+                OP_SELF_BALANCE::execute(&mut stack_holder, coin_manager)
                     .await
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
             Opcode::OP_TRANSFER(OP_TRANSFER) => {
-                OP_TRANSFER::execute(&mut stack_holder, coin_holder)
+                OP_TRANSFER::execute(&mut stack_holder, coin_manager)
                     .await
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }

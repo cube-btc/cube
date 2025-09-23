@@ -5,7 +5,7 @@ use crate::{
         stack_item::StackItem,
         stack_uint::{StackItemUintExt, StackUint},
     },
-    inscriptive::coin_holder::coin_holder::COIN_HOLDER,
+    inscriptive::coin_manager::coin_manager::COIN_MANAGER,
 };
 
 /// Pushes the account's individual BTC balance into the stack.
@@ -16,7 +16,7 @@ pub struct OP_EXT_BALANCE;
 impl OP_EXT_BALANCE {
     pub async fn execute(
         stack_holder: &mut StackHolder,
-        coin_holder: &COIN_HOLDER,
+        coin_manager: &COIN_MANAGER,
     ) -> Result<(), StackError> {
         // If this is not the active execution, return immediately.
         if !stack_holder.active_execution() {
@@ -47,8 +47,8 @@ impl OP_EXT_BALANCE {
 
                 // Get the account balance.
                 let account_balance = {
-                    let _coin_holder = coin_holder.lock().await;
-                    _coin_holder.get_account_balance(account_key_bytes).ok_or(
+                    let _coin_manager = coin_manager.lock().await;
+                    _coin_manager.get_account_balance(account_key_bytes).ok_or(
                         StackError::CoinBalanceGetError(
                             CoinBalanceGetError::UnableToGetAccountBalance(account_key_bytes),
                         ),
@@ -84,12 +84,12 @@ impl OP_EXT_BALANCE {
 
                 // Get the contract balance.
                 let contract_balance = {
-                    let _coin_holder = coin_holder.lock().await;
-                    _coin_holder.get_contract_balance(contract_id_bytes).ok_or(
-                        StackError::CoinBalanceGetError(
+                    let _coin_manager = coin_manager.lock().await;
+                    _coin_manager
+                        .get_contract_balance(contract_id_bytes)
+                        .ok_or(StackError::CoinBalanceGetError(
                             CoinBalanceGetError::UnableToGetContractBalance(contract_id_bytes),
-                        ),
-                    )?
+                        ))?
                 };
                 // Convert the contract balance to a stack uint.
                 let contract_balance_as_stack_uint = StackUint::from(contract_balance);

@@ -1,3 +1,4 @@
+use serde_json::{Map, Value};
 use std::collections::HashMap;
 
 /// Account key.
@@ -86,5 +87,36 @@ impl ShadowSpace {
             Some(_) => true,
             None => false,
         }
+    }
+
+    /// Returns the shadow space as a JSON object.
+    pub fn json(&self) -> Value {
+        // Construct the shadow space JSON object.
+        let mut obj = Map::new();
+
+        // Insert the allocs sum.
+        obj.insert(
+            "allocs_sum".to_string(),
+            Value::String(self.allocs_sum().to_string()),
+        );
+
+        // Insert the allocations.
+        obj.insert(
+            "allocs".to_string(),
+            Value::Object(
+                self.allocs
+                    .iter()
+                    .map(|(account_key, alloc_value)| {
+                        (
+                            hex::encode(account_key),
+                            Value::String(alloc_value.to_string()),
+                        )
+                    })
+                    .collect(),
+            ),
+        );
+
+        // Return the JSON object.
+        Value::Object(obj)
     }
 }

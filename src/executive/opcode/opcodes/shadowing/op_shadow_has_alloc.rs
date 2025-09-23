@@ -4,7 +4,7 @@ use crate::{
         stack_holder::StackHolder,
         stack_item::StackItem,
     },
-    inscriptive::coin_holder::coin_holder::COIN_HOLDER,
+    inscriptive::coin_manager::coin_manager::COIN_MANAGER,
 };
 
 /// Checks if an account has an allocation within the contract shadow space.
@@ -15,7 +15,7 @@ pub struct OP_SHADOW_HAS_ALLOC;
 impl OP_SHADOW_HAS_ALLOC {
     pub async fn execute(
         stack_holder: &mut StackHolder,
-        coin_holder: &COIN_HOLDER,
+        coin_manager: &COIN_MANAGER,
     ) -> Result<(), StackError> {
         // If this is not the active execution, return immediately.
         if !stack_holder.active_execution() {
@@ -41,10 +41,10 @@ impl OP_SHADOW_HAS_ALLOC {
         // Check if the account key has an allocation within the contract shadow space by returnin its allocation value.
         {
             // Get the mutable coin holder.
-            let mut _coin_holder = coin_holder.lock().await;
+            let mut _coin_manager = coin_manager.lock().await;
 
             // Get the result item.
-            let result_item = match _coin_holder
+            let result_item = match _coin_manager
                 .get_account_shadow_alloc_value_of_a_contract_in_sati_satoshis(
                     self_contract_id_bytes,
                     account_key_bytes,

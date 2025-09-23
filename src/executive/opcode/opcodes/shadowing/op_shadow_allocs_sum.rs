@@ -5,7 +5,7 @@ use crate::{
         stack_item::StackItem,
         stack_uint::{SafeConverter, StackItemUintExt, StackUint},
     },
-    inscriptive::coin_holder::coin_holder::COIN_HOLDER,
+    inscriptive::coin_manager::coin_manager::COIN_MANAGER,
 };
 
 /// Returns the sum of all shadow allocation values of the contract.
@@ -16,7 +16,7 @@ pub struct OP_SHADOW_ALLOCS_SUM;
 impl OP_SHADOW_ALLOCS_SUM {
     pub async fn execute(
         stack_holder: &mut StackHolder,
-        coin_holder: &COIN_HOLDER,
+        coin_manager: &COIN_MANAGER,
     ) -> Result<(), StackError> {
         // If this is not the active execution, return immediately.
         if !stack_holder.active_execution() {
@@ -29,11 +29,11 @@ impl OP_SHADOW_ALLOCS_SUM {
         //
         {
             // Get the mutable contract coin holder.
-            let mut _coin_holder = coin_holder.lock().await;
+            let mut _coin_manager = coin_manager.lock().await;
 
             // Get the result item.
             let result_item =
-                match _coin_holder.get_contract_allocs_sum_in_satoshis(self_contract_id_bytes) {
+                match _coin_manager.get_contract_allocs_sum_in_satoshis(self_contract_id_bytes) {
                     Some(allocs_sum) => {
                         // Convert the number of allocations to a stack uint.
                         let allocs_sum_as_stack_uint = StackUint::from_u64(allocs_sum);

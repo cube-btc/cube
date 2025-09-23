@@ -16,7 +16,7 @@ type SATI_SATOSHI_AMOUNT = u128;
 
 /// Errors associated with saving account delta changes to the `CoinHolder`.
 #[derive(Debug, Clone)]
-pub enum CHAccountApplyChangesError {
+pub enum CMAccountApplyChangesError {
     OpenTreeError(ACCOUNT_KEY, sled::Error),
     BalanceValueOnDiskInsertionError(ACCOUNT_KEY, SATOSHI_AMOUNT, sled::Error),
     ShadowAllocsSumValueOnDiskInsertionError(ACCOUNT_KEY, SATI_SATOSHI_AMOUNT, sled::Error),
@@ -27,7 +27,7 @@ pub enum CHAccountApplyChangesError {
 
 /// Errors associated with applying contract delta changes to the `CoinHolder`.
 #[derive(Debug, Clone)]
-pub enum CHContractApplyChangesError {
+pub enum CMContractApplyChangesError {
     OpenTreeError(CONTRACT_ID, sled::Error),
     BalanceValueOnDiskInsertionError(CONTRACT_ID, SATOSHI_AMOUNT, sled::Error),
     AllocsSumValueOnDiskInsertionError(CONTRACT_ID, SATOSHI_AMOUNT, sled::Error),
@@ -44,7 +44,7 @@ pub enum CHContractApplyChangesError {
 
 /// Errors associated with applying account and contract delta changes to the `CoinHolder`.
 #[derive(Debug, Clone)]
-pub enum CHApplyChangesError {
-    AccountApplyChangesError(CHAccountApplyChangesError),
-    ContractApplyChangesError(CHContractApplyChangesError),
+pub enum CMApplyChangesError {
+    AccountApplyChangesError(CMAccountApplyChangesError),
+    ContractApplyChangesError(CMContractApplyChangesError),
 }

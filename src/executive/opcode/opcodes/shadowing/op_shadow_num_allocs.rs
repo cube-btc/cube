@@ -5,7 +5,7 @@ use crate::{
         stack_item::StackItem,
         stack_uint::{SafeConverter, StackItemUintExt, StackUint},
     },
-    inscriptive::coin_holder::coin_holder::COIN_HOLDER,
+    inscriptive::coin_manager::coin_manager::COIN_MANAGER,
 };
 
 /// Returns the number of total shadow allocations of the contract.
@@ -16,7 +16,7 @@ pub struct OP_SHADOW_NUM_ALLOCS;
 impl OP_SHADOW_NUM_ALLOCS {
     pub async fn execute(
         stack_holder: &mut StackHolder,
-        coin_holder: &COIN_HOLDER,
+        coin_manager: &COIN_MANAGER,
     ) -> Result<(), StackError> {
         // If this is not the active execution, return immediately.
         if !stack_holder.active_execution() {
@@ -29,10 +29,10 @@ impl OP_SHADOW_NUM_ALLOCS {
         //
         {
             // Get the mutable coin holder.
-            let mut _coin_holder = coin_holder.lock().await;
+            let mut _coin_manager = coin_manager.lock().await;
 
             // Get the result item.
-            let result_item = match _coin_holder.get_contract_num_allocs(self_contract_id_bytes) {
+            let result_item = match _coin_manager.get_contract_num_allocs(self_contract_id_bytes) {
                 Some(num_allocs) => {
                     // Convert the number of allocations to a stack uint.
                     let num_allocs_as_stack_uint = StackUint::from_u64(num_allocs);

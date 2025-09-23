@@ -1,27 +1,27 @@
-use crate::inscriptive::coin_holder::bodies::account_body::account_body::CHAccountBody;
-use crate::inscriptive::coin_holder::bodies::contract_body::contract_body::CHContractBody;
-use crate::inscriptive::coin_holder::bodies::contract_body::shadow_space::shadow_space::ShadowSpace;
-use crate::inscriptive::coin_holder::deltas::account_delta::account_delta::CHAccountDelta;
-use crate::inscriptive::coin_holder::deltas::contract_delta::contract_delta::CHContractDelta;
-use crate::inscriptive::coin_holder::errors::apply_changes_errors::{
-    CHAccountApplyChangesError, CHApplyChangesError, CHContractApplyChangesError,
+use crate::inscriptive::coin_manager::bodies::account_body::account_body::CHAccountBody;
+use crate::inscriptive::coin_manager::bodies::contract_body::contract_body::CHContractBody;
+use crate::inscriptive::coin_manager::bodies::contract_body::shadow_space::shadow_space::ShadowSpace;
+use crate::inscriptive::coin_manager::deltas::account_delta::account_delta::CHAccountDelta;
+use crate::inscriptive::coin_manager::deltas::contract_delta::contract_delta::CHContractDelta;
+use crate::inscriptive::coin_manager::errors::apply_changes_errors::{
+    CMAccountApplyChangesError, CMApplyChangesError, CMContractApplyChangesError,
 };
-use crate::inscriptive::coin_holder::errors::balance_update_errors::{
-    CHAccountBalanceDownError, CHAccountBalanceUpError, CHContractBalanceDownError,
-    CHContractBalanceUpError,
+use crate::inscriptive::coin_manager::errors::balance_update_errors::{
+    CMAccountBalanceDownError, CMAccountBalanceUpError, CMContractBalanceDownError,
+    CMContractBalanceUpError,
 };
-use crate::inscriptive::coin_holder::errors::construction_errors::{
-    CHConstructionAccountError, CHConstructionContractError, CHConstructionError,
+use crate::inscriptive::coin_manager::errors::construction_errors::{
+    CMConstructionAccountError, CMConstructionContractError, CMConstructionError,
 };
-use crate::inscriptive::coin_holder::errors::register_errors::{
-    CHRegisterAccountError, CHRegisterContractError,
+use crate::inscriptive::coin_manager::errors::register_errors::{
+    CMRegisterAccountError, CMRegisterContractError,
 };
-use crate::inscriptive::coin_holder::errors::shadow_alloc_errors::{
-    CHContractShadowAllocAccountError, CHContractShadowDeallocAccountError,
+use crate::inscriptive::coin_manager::errors::shadow_alloc_errors::{
+    CMContractShadowAllocAccountError, CMContractShadowDeallocAccountError,
 };
-use crate::inscriptive::coin_holder::errors::shadow_update_errors::{
-    CHAccountShadowAllocsSumDownError, CHAccountShadowAllocsSumUpError, CHShadowDownAllError,
-    CHShadowDownError, CHShadowUpAllError, CHShadowUpError,
+use crate::inscriptive::coin_manager::errors::shadow_update_errors::{
+    CMAccountShadowAllocsSumDownError, CMAccountShadowAllocsSumUpError, CMShadowDownAllError,
+    CMShadowDownError, CMShadowUpAllError, CMShadowUpError,
 };
 use crate::operative::Chain;
 use std::collections::HashMap;
@@ -51,7 +51,7 @@ const CONTRACT_BALANCE_SPECIAL_KEY: [u8; 32] = [0x00; 32];
 const CONTRACT_ALLOCS_SUM_SPECIAL_KEY: [u8; 32] = [0x01; 32];
 
 /// A database manager for handling account and contract balances & shadow space allocations.
-pub struct CoinHolder {
+pub struct CoinManager {
     // IN-MEMORY STATES
     in_memory_accounts: HashMap<ACCOUNT_KEY, CHAccountBody>,
     in_memory_contracts: HashMap<CONTRACT_ID, CHContractBody>,
@@ -69,16 +69,16 @@ pub struct CoinHolder {
     backup_of_delta_contracts: CHContractDelta,
 }
 
-/// Guarded coin holder.
+/// Guarded coin manager.
 #[allow(non_camel_case_types)]
-pub type COIN_HOLDER = Arc<Mutex<CoinHolder>>;
+pub type COIN_MANAGER = Arc<Mutex<CoinManager>>;
 
-impl CoinHolder {
-    pub fn new(chain: Chain) -> Result<COIN_HOLDER, CHConstructionError> {
+impl CoinManager {
+    pub fn new(chain: Chain) -> Result<COIN_MANAGER, CMConstructionError> {
         // 1. Open the account db.
         let account_db_path = format!("db/{}/coin/account", chain.to_string());
         let account_db = sled::open(account_db_path).map_err(|e| {
-            CHConstructionError::AccountConstructionError(CHConstructionAccountError::DBOpenError(
+            CMConstructionError::AccountConstructionError(CMConstructionAccountError::DBOpenError(
                 e,
             ))
         })?;
@@ -86,8 +86,8 @@ impl CoinHolder {
         // 2. Open the contract db.
         let contract_db_path = format!("db/{}/coin/contract", chain.to_string());
         let contract_db = sled::open(contract_db_path).map_err(|e| {
-            CHConstructionError::ContractConstructionError(
-                CHConstructionContractError::DBOpenError(e),
+            CMConstructionError::ContractConstructionError(
+                CMConstructionContractError::DBOpenError(e),
             )
         })?;
 
@@ -99,8 +99,8 @@ impl CoinHolder {
         for tree_name in account_db.tree_names() {
             // Deserialize account key bytes from tree name.
             let account_key: [u8; 32] = tree_name.as_ref().try_into().map_err(|_| {
-                CHConstructionError::AccountConstructionError(
-                    CHConstructionAccountError::UnableToDeserializeAccountKeyBytesFromTreeName(
+                CMConstructionError::AccountConstructionError(
+                    CMConstructionAccountError::UnableToDeserializeAccountKeyBytesFromTreeName(
                         tree_name.to_vec(),
                     ),
                 )
@@ -108,8 +108,8 @@ impl CoinHolder {
 
             // Open the tree.
             let tree = account_db.open_tree(tree_name).map_err(|e| {
-                CHConstructionError::AccountConstructionError(
-                    CHConstructionAccountError::TreeOpenError(account_key, e),
+                CMConstructionError::AccountConstructionError(
+                    CMConstructionAccountError::TreeOpenError(account_key, e),
                 )
             })?;
 
@@ -122,16 +122,16 @@ impl CoinHolder {
                 let (key, value) = match item {
                     Ok((k, v)) => (k, v),
                     Err(e) => {
-                        return Err(CHConstructionError::AccountConstructionError(
-                            CHConstructionAccountError::TreeIterError(index, e),
+                        return Err(CMConstructionError::AccountConstructionError(
+                            CMConstructionAccountError::TreeIterError(index, e),
                         ));
                     }
                 };
 
                 // Deserialize the key bytes.
                 let tree_key_byte: [u8; 1] = key.as_ref().try_into().map_err(|_| {
-                    CHConstructionError::AccountConstructionError(
-                        CHConstructionAccountError::UnableToDeserializeKeyBytesFromTreeKey(
+                    CMConstructionError::AccountConstructionError(
+                        CMConstructionAccountError::UnableToDeserializeKeyBytesFromTreeKey(
                             account_key,
                             index,
                             key.to_vec(),
@@ -146,7 +146,7 @@ impl CoinHolder {
                         // Deserialize the value bytes.
                         let account_balance_deserialized: u64 =
                             u64::from_le_bytes(value.as_ref().try_into().map_err(|_| {
-                                CHConstructionError::AccountConstructionError(CHConstructionAccountError::UnableToDeserializeAccountBalanceFromTreeValue(
+                                CMConstructionError::AccountConstructionError(CMConstructionAccountError::UnableToDeserializeAccountBalanceFromTreeValue(
                                     account_key,
                                     index,
                                     tree_key_byte,
@@ -163,7 +163,7 @@ impl CoinHolder {
                         // Deserialize the value bytes.
                         let account_shadow_allocs_sum_deserialized: u128 =
                             u128::from_le_bytes(value.as_ref().try_into().map_err(|_| {
-                                CHConstructionError::AccountConstructionError(CHConstructionAccountError::UnableToDeserializeAccountShadowAllocsSumFromTreeValue(
+                                CMConstructionError::AccountConstructionError(CMConstructionAccountError::UnableToDeserializeAccountShadowAllocsSumFromTreeValue(
                                     account_key,
                                     index,
                                     tree_key_byte,
@@ -176,8 +176,8 @@ impl CoinHolder {
                     }
                     _ => {
                         // This key is a normal account key that corresponds to an account allocation.
-                        return Err(CHConstructionError::AccountConstructionError(
-                            CHConstructionAccountError::InvalidTreeKeyEncountered(
+                        return Err(CMConstructionError::AccountConstructionError(
+                            CMConstructionAccountError::InvalidTreeKeyEncountered(
                                 account_key,
                                 tree_key_byte.to_vec(),
                             ),
@@ -197,8 +197,8 @@ impl CoinHolder {
         for tree_name in contract_db.tree_names() {
             // Deserialize contract id bytes from tree name.
             let contract_id: [u8; 32] = tree_name.as_ref().try_into().map_err(|_| {
-                CHConstructionError::ContractConstructionError(
-                    CHConstructionContractError::UnableToDeserializeContractIDBytesFromTreeName(
+                CMConstructionError::ContractConstructionError(
+                    CMConstructionContractError::UnableToDeserializeContractIDBytesFromTreeName(
                         tree_name.to_vec(),
                     ),
                 )
@@ -206,8 +206,8 @@ impl CoinHolder {
 
             // Open the tree.
             let tree = contract_db.open_tree(&tree_name).map_err(|e| {
-                CHConstructionError::ContractConstructionError(
-                    CHConstructionContractError::TreeOpenError(contract_id, e),
+                CMConstructionError::ContractConstructionError(
+                    CMConstructionContractError::TreeOpenError(contract_id, e),
                 )
             })?;
 
@@ -226,16 +226,16 @@ impl CoinHolder {
                 let (key, value) = match item {
                     Ok((k, v)) => (k, v),
                     Err(e) => {
-                        return Err(CHConstructionError::ContractConstructionError(
-                            CHConstructionContractError::TreeIterError(contract_id, index, e),
+                        return Err(CMConstructionError::ContractConstructionError(
+                            CMConstructionContractError::TreeIterError(contract_id, index, e),
                         ));
                     }
                 };
 
                 // Deserialize the key bytes.
                 let tree_key_bytes: [u8; 32] = key.as_ref().try_into().map_err(|_| {
-                    CHConstructionError::ContractConstructionError(
-                        CHConstructionContractError::UnableToDeserializeKeyBytesFromTreeKey(
+                    CMConstructionError::ContractConstructionError(
+                        CMConstructionContractError::UnableToDeserializeKeyBytesFromTreeKey(
                             contract_id,
                             index,
                             key.to_vec(),
@@ -250,7 +250,7 @@ impl CoinHolder {
                         // Deserialize the value bytes.
                         let contract_balance_value_in_satoshis: u64 =
                                 u64::from_le_bytes(value.as_ref().try_into().map_err(|_| {
-                                    CHConstructionError::ContractConstructionError(CHConstructionContractError::UnableToDeserializeContractBalanceFromTreeValue(
+                                    CMConstructionError::ContractConstructionError(CMConstructionContractError::UnableToDeserializeContractBalanceFromTreeValue(
                                         contract_id,
                                         index,
                                         tree_key_bytes,
@@ -266,7 +266,7 @@ impl CoinHolder {
                         // Deserialize the value bytes.
                         let allocs_sum_value_in_satoshis: u64 =
                                 u64::from_le_bytes(value.as_ref().try_into().map_err(|_| {
-                                    CHConstructionError::ContractConstructionError(CHConstructionContractError::UnableToDeserializeAllocsSumFromTreeValue(
+                                    CMConstructionError::ContractConstructionError(CMConstructionContractError::UnableToDeserializeAllocsSumFromTreeValue(
                                         contract_id,
                                         index,
                                         tree_key_bytes,
@@ -283,7 +283,7 @@ impl CoinHolder {
                         // Deserialize the value bytes.
                         let alloc_value_in_sati_satoshis: u128 =
                                 u128::from_le_bytes(value.as_ref().try_into().map_err(|_| {
-                                    CHConstructionError::ContractConstructionError(CHConstructionContractError::UnableToDeserializeAllocValueFromTreeValue(
+                                    CMConstructionError::ContractConstructionError(CMConstructionContractError::UnableToDeserializeAllocValueFromTreeValue(
                                         contract_id,
                                         index,
                                         tree_key_bytes,
@@ -299,8 +299,8 @@ impl CoinHolder {
 
             // Check if the shadow space allocations sum exceeds the contract balance.
             if allocs_sum > contract_balance {
-                return Err(CHConstructionError::ContractConstructionError(
-                    CHConstructionContractError::AllocsSumExceedsTheContractBalance(
+                return Err(CMConstructionError::ContractConstructionError(
+                    CMConstructionContractError::AllocsSumExceedsTheContractBalance(
                         contract_id,
                         allocs_sum,
                         contract_balance,
@@ -319,7 +319,7 @@ impl CoinHolder {
         }
 
         // 6. Construct the coin holder.
-        let coin_holder = CoinHolder {
+        let coin_holder = CoinManager {
             in_memory_accounts: account_bodies,
             in_memory_contracts: contract_bodies,
             on_disk_accounts: account_db,
@@ -355,6 +355,16 @@ impl CoinHolder {
     pub fn pre_execution(&mut self) {
         // Backup the delta.
         self.backup_delta();
+    }
+
+    /// Returns the account body for an account key.
+    pub fn get_account_body(&self, account_key: ACCOUNT_KEY) -> Option<CHAccountBody> {
+        self.in_memory_accounts.get(&account_key).cloned()
+    }
+
+    /// Returns the contract body for a contract ID.
+    pub fn get_contract_body(&self, contract_id: CONTRACT_ID) -> Option<CHContractBody> {
+        self.in_memory_contracts.get(&contract_id).cloned()
     }
 
     /// Checks if an account is registered.
@@ -515,7 +525,7 @@ impl CoinHolder {
         &mut self,
         account_key: ACCOUNT_KEY,
         initial_account_balance: u64,
-    ) -> Result<(), CHRegisterAccountError> {
+    ) -> Result<(), CMRegisterAccountError> {
         // Check if the account has just been epheremally registered in the delta.
         if self
             .delta_accounts
@@ -523,13 +533,13 @@ impl CoinHolder {
             .contains_key(&account_key)
         {
             return Err(
-                CHRegisterAccountError::AccountHasJustBeenEphemerallyRegistered(account_key),
+                CMRegisterAccountError::AccountHasJustBeenEphemerallyRegistered(account_key),
             );
         }
 
         // Check if the account is already permanently registered.
         if self.is_account_registered(account_key) {
-            return Err(CHRegisterAccountError::AccountIsAlreadyPermanentlyRegistered(account_key));
+            return Err(CMRegisterAccountError::AccountIsAlreadyPermanentlyRegistered(account_key));
         }
 
         // Insert into the new accounts to register list in the delta.
@@ -548,7 +558,7 @@ impl CoinHolder {
         &mut self,
         contract_id: [u8; 32],
         initial_contract_balance: u64,
-    ) -> Result<(), CHRegisterContractError> {
+    ) -> Result<(), CMRegisterContractError> {
         // Check if the contract has just been epheremally registered in the delta.
         if self
             .delta_contracts
@@ -556,14 +566,14 @@ impl CoinHolder {
             .contains_key(&contract_id)
         {
             return Err(
-                CHRegisterContractError::ContractHasJustBeenEphemerallyRegistered(contract_id),
+                CMRegisterContractError::ContractHasJustBeenEphemerallyRegistered(contract_id),
             );
         }
 
         // Check if the contract is already permanently registered.
         if self.is_contract_registered(contract_id) {
             return Err(
-                CHRegisterContractError::ContractIsAlreadyPermanentlyRegistered(contract_id),
+                CMRegisterContractError::ContractIsAlreadyPermanentlyRegistered(contract_id),
             );
         }
 
@@ -583,11 +593,11 @@ impl CoinHolder {
         &mut self,
         account_key: ACCOUNT_KEY,
         up_value_in_satoshis: u64,
-    ) -> Result<(), CHAccountBalanceUpError> {
+    ) -> Result<(), CMAccountBalanceUpError> {
         // Get the old ephemeral account balance before any mutable borrows.
         let existing_account_balance_in_satoshis: u64 =
             self.get_account_balance(account_key).ok_or(
-                CHAccountBalanceUpError::UnableToGetAccountBalance(account_key),
+                CMAccountBalanceUpError::UnableToGetAccountBalance(account_key),
             )?;
 
         // Calculate the new ephemeral account balance.
@@ -606,7 +616,7 @@ impl CoinHolder {
             None => {
                 // Get the mutable account body from the permanent states.
                 let account_body = self.in_memory_accounts.get(&account_key).ok_or(
-                    CHAccountBalanceUpError::UnableToGetAccountBalance(account_key),
+                    CMAccountBalanceUpError::UnableToGetAccountBalance(account_key),
                 )?;
 
                 // Insert the account balance into the delta.
@@ -640,16 +650,16 @@ impl CoinHolder {
         &mut self,
         account_key: ACCOUNT_KEY,
         down_value_in_satoshis: u64,
-    ) -> Result<(), CHAccountBalanceDownError> {
+    ) -> Result<(), CMAccountBalanceDownError> {
         // Get the old ephemeral account balance before any mutable borrows.
         let existing_account_balance_in_satoshis: u64 =
             self.get_account_balance(account_key).ok_or(
-                CHAccountBalanceDownError::UnableToGetAccountBalance(account_key),
+                CMAccountBalanceDownError::UnableToGetAccountBalance(account_key),
             )?;
 
         // Check if the decrease would make the account balance go below zero.
         if down_value_in_satoshis > existing_account_balance_in_satoshis {
-            return Err(CHAccountBalanceDownError::AccountBalanceWouldGoBelowZero(
+            return Err(CMAccountBalanceDownError::AccountBalanceWouldGoBelowZero(
                 account_key,
                 existing_account_balance_in_satoshis,
                 down_value_in_satoshis,
@@ -672,7 +682,7 @@ impl CoinHolder {
             None => {
                 // Get the mutable account body from the permanent states.
                 let account_body = self.in_memory_accounts.get(&account_key).ok_or(
-                    CHAccountBalanceDownError::UnableToGetAccountBalance(account_key),
+                    CMAccountBalanceDownError::UnableToGetAccountBalance(account_key),
                 )?;
 
                 // Insert the account balance into the delta.
@@ -706,11 +716,11 @@ impl CoinHolder {
         &mut self,
         contract_id: [u8; 32],
         up_value_in_satoshis: u64,
-    ) -> Result<(), CHContractBalanceUpError> {
+    ) -> Result<(), CMContractBalanceUpError> {
         // Get the old contract balance before any mutable borrows.
         let existing_contract_balance_in_satoshis: u64 =
             self.get_contract_balance(contract_id).ok_or(
-                CHContractBalanceUpError::UnableToGetContractBalance(contract_id),
+                CMContractBalanceUpError::UnableToGetContractBalance(contract_id),
             )?;
 
         // Calculate the new contract balance.
@@ -729,7 +739,7 @@ impl CoinHolder {
             None => {
                 // Get the mutable balance from the permanent in-memory states.
                 let contract_body = self.in_memory_contracts.get_mut(&contract_id).ok_or(
-                    CHContractBalanceUpError::UnableToGetContractBody(contract_id),
+                    CMContractBalanceUpError::UnableToGetContractBody(contract_id),
                 )?;
 
                 // Get the mutable balance.
@@ -766,16 +776,16 @@ impl CoinHolder {
         &mut self,
         contract_id: [u8; 32],
         down_value_in_satoshis: u64,
-    ) -> Result<(), CHContractBalanceDownError> {
+    ) -> Result<(), CMContractBalanceDownError> {
         // Get the old contract balance before any mutable borrows.
         let existing_contract_balance_in_satoshis: u64 =
             self.get_contract_balance(contract_id).ok_or(
-                CHContractBalanceDownError::UnableToGetContractBalance(contract_id),
+                CMContractBalanceDownError::UnableToGetContractBalance(contract_id),
             )?;
 
         // Check if the decrease would make the contract balance go below zero.
         if down_value_in_satoshis > existing_contract_balance_in_satoshis {
-            return Err(CHContractBalanceDownError::ContractBalanceWouldGoBelowZero(
+            return Err(CMContractBalanceDownError::ContractBalanceWouldGoBelowZero(
                 contract_id,
                 existing_contract_balance_in_satoshis,
                 down_value_in_satoshis,
@@ -789,7 +799,7 @@ impl CoinHolder {
         // Get shadow allocs sum.
         let existing_contract_shadow_allocs_sum_in_satoshis: u64 = self
             .get_contract_allocs_sum_in_satoshis(contract_id)
-            .ok_or(CHContractBalanceDownError::UnableToGetContractAllocsSum(
+            .ok_or(CMContractBalanceDownError::UnableToGetContractAllocsSum(
                 contract_id,
             ))?;
 
@@ -797,7 +807,7 @@ impl CoinHolder {
         // Shadow allocs sum is bound by the contract's balance.
         if new_contract_balance_in_satoshis < existing_contract_shadow_allocs_sum_in_satoshis {
             return Err(
-                CHContractBalanceDownError::ContractBalanceWouldGoBelowAllocsSum(
+                CMContractBalanceDownError::ContractBalanceWouldGoBelowAllocsSum(
                     contract_id,
                     new_contract_balance_in_satoshis,
                     existing_contract_shadow_allocs_sum_in_satoshis,
@@ -817,7 +827,7 @@ impl CoinHolder {
             None => {
                 // Get the mutable contract body from the permanent in-memory states.
                 let contract_body = self.in_memory_contracts.get_mut(&contract_id).ok_or(
-                    CHContractBalanceDownError::UnableToGetContractBody(contract_id),
+                    CMContractBalanceDownError::UnableToGetContractBody(contract_id),
                 )?;
 
                 // Get the contract balance.
@@ -854,13 +864,13 @@ impl CoinHolder {
         &mut self,
         contract_id: [u8; 32],
         account_key: ACCOUNT_KEY,
-    ) -> Result<(), CHContractShadowAllocAccountError> {
+    ) -> Result<(), CMContractShadowAllocAccountError> {
         // Check if the account has just been epheremally allocated in the delta.
         // We do not allow it to be allocated again in the same execution.
         if let Some(allocs_list) = self.delta_contracts.allocs_list.get(&contract_id) {
             if allocs_list.contains(&account_key) {
                 return Err(
-                    CHContractShadowAllocAccountError::AccountHasJustBeenEphemerallyAllocated(
+                    CMContractShadowAllocAccountError::AccountHasJustBeenEphemerallyAllocated(
                         contract_id,
                         account_key,
                     ),
@@ -873,7 +883,7 @@ impl CoinHolder {
         if let Some(deallocs_list) = self.delta_contracts.deallocs_list.get(&contract_id) {
             if deallocs_list.contains(&account_key) {
                 return Err(
-                    CHContractShadowAllocAccountError::AccountHasJustBeenEphemerallyDeallocated(
+                    CMContractShadowAllocAccountError::AccountHasJustBeenEphemerallyDeallocated(
                         contract_id,
                         account_key,
                     ),
@@ -888,7 +898,7 @@ impl CoinHolder {
             .is_some()
         {
             return Err(
-                CHContractShadowAllocAccountError::UnableToGetAccountAllocValue(
+                CMContractShadowAllocAccountError::UnableToGetAccountAllocValue(
                     contract_id,
                     account_key,
                 ),
@@ -905,7 +915,7 @@ impl CoinHolder {
             None => {
                 // Otherwise, from the permanent states.
                 let contract_body = self.in_memory_contracts.get(&contract_id).ok_or(
-                    CHContractShadowAllocAccountError::UnableToGetContractBody(contract_id),
+                    CMContractShadowAllocAccountError::UnableToGetContractBody(contract_id),
                 )?;
 
                 // Clone the shadow space from permanent states.
@@ -949,7 +959,7 @@ impl CoinHolder {
         &mut self,
         contract_id: [u8; 32],
         account_key: ACCOUNT_KEY,
-    ) -> Result<(), CHContractShadowDeallocAccountError> {
+    ) -> Result<(), CMContractShadowDeallocAccountError> {
         // Check if the account has just been epheremally allocated in the delta.
         // We do not allow it to be deallocated if it is just allocated in the same execution.
         if self
@@ -960,7 +970,7 @@ impl CoinHolder {
             .contains(&account_key)
         {
             return Err(
-                CHContractShadowDeallocAccountError::AccountHasJustBeenEphemerallyAllocated(
+                CMContractShadowDeallocAccountError::AccountHasJustBeenEphemerallyAllocated(
                     contract_id,
                     account_key,
                 ),
@@ -972,7 +982,7 @@ impl CoinHolder {
         let allocation_value_in_sati_satoshis = self
             .get_account_shadow_alloc_value_of_a_contract_in_sati_satoshis(contract_id, account_key)
             .ok_or(
-                CHContractShadowDeallocAccountError::UnableToGetAccountAllocValue(
+                CMContractShadowDeallocAccountError::UnableToGetAccountAllocValue(
                     contract_id,
                     account_key,
                 ),
@@ -981,7 +991,7 @@ impl CoinHolder {
         // Check if the account allocation value is non-zero.
         // Deallocation is allowed only if the allocation value is zero.
         if allocation_value_in_sati_satoshis != 0 {
-            return Err(CHContractShadowDeallocAccountError::AllocValueIsNonZero(
+            return Err(CMContractShadowDeallocAccountError::AllocValueIsNonZero(
                 contract_id,
                 account_key,
             ));
@@ -1016,7 +1026,7 @@ impl CoinHolder {
         // We do not allow it to be deallocated if it is just deallocated in the same execution.
         if epheremal_dealloc_list.contains(&account_key) {
             return Err(
-                CHContractShadowDeallocAccountError::AccountHasJustBeenEphemerallyDeallocated(
+                CMContractShadowDeallocAccountError::AccountHasJustBeenEphemerallyDeallocated(
                     contract_id,
                     account_key,
                 ),
@@ -1036,7 +1046,7 @@ impl CoinHolder {
             None => {
                 // Otherwise, from the permanent states.
                 let contract_body = self.in_memory_contracts.get(&contract_id).ok_or(
-                    CHContractShadowDeallocAccountError::UnableToGetContractBody(contract_id),
+                    CMContractShadowDeallocAccountError::UnableToGetContractBody(contract_id),
                 )?;
 
                 // Clone the shadow space from permanent states.
@@ -1073,12 +1083,12 @@ impl CoinHolder {
         &mut self,
         account_key: ACCOUNT_KEY,
         up_value_in_sati_satoshis: u128,
-    ) -> Result<(), CHAccountShadowAllocsSumUpError> {
+    ) -> Result<(), CMAccountShadowAllocsSumUpError> {
         // Get the old ephemeral account shadow allocs sum before any mutable borrows.
         let existing_account_shadow_allocs_sum_in_sati_satoshis: u128 = self
             .get_account_shadow_allocs_sum_of_all_contracts_in_sati_satoshis(account_key)
             .ok_or(
-                CHAccountShadowAllocsSumUpError::UnableToGetAccountShadowAllocsSum(account_key),
+                CMAccountShadowAllocsSumUpError::UnableToGetAccountShadowAllocsSum(account_key),
             )?;
 
         // Calculate the new ephemeral account shadow allocs sum.
@@ -1097,7 +1107,7 @@ impl CoinHolder {
             None => {
                 // Get the mutable account body from the permanent states.
                 let account_body = self.in_memory_accounts.get(&account_key).ok_or(
-                    CHAccountShadowAllocsSumUpError::UnableToGetAccountBody(account_key),
+                    CMAccountShadowAllocsSumUpError::UnableToGetAccountBody(account_key),
                 )?;
 
                 // Insert the account shadow allocs sum into the delta.
@@ -1131,18 +1141,18 @@ impl CoinHolder {
         &mut self,
         account_key: ACCOUNT_KEY,
         down_value_in_sati_satoshis: u128,
-    ) -> Result<(), CHAccountShadowAllocsSumDownError> {
+    ) -> Result<(), CMAccountShadowAllocsSumDownError> {
         // Get the old ephemeral account shadow allocs sum before any mutable borrows.
         let existing_account_shadow_allocs_sum_in_sati_satoshis: u128 = self
             .get_account_shadow_allocs_sum_of_all_contracts_in_sati_satoshis(account_key)
             .ok_or(
-                CHAccountShadowAllocsSumDownError::UnableToGetAccountShadowAllocsSum(account_key),
+                CMAccountShadowAllocsSumDownError::UnableToGetAccountShadowAllocsSum(account_key),
             )?;
 
         // Check if the decrease would make the account shadow allocs sum go below zero.
         if down_value_in_sati_satoshis > existing_account_shadow_allocs_sum_in_sati_satoshis {
             return Err(
-                CHAccountShadowAllocsSumDownError::AccountShadowAllocsSumWouldGoBelowZero(
+                CMAccountShadowAllocsSumDownError::AccountShadowAllocsSumWouldGoBelowZero(
                     account_key,
                     existing_account_shadow_allocs_sum_in_sati_satoshis,
                     down_value_in_sati_satoshis,
@@ -1166,7 +1176,7 @@ impl CoinHolder {
             None => {
                 // Get the mutable account body from the permanent states.
                 let account_body = self.in_memory_accounts.get(&account_key).ok_or(
-                    CHAccountShadowAllocsSumDownError::UnableToGetAccountBody(account_key),
+                    CMAccountShadowAllocsSumDownError::UnableToGetAccountBody(account_key),
                 )?;
 
                 // Insert the account shadow allocs sum into the delta.
@@ -1201,14 +1211,14 @@ impl CoinHolder {
         contract_id: [u8; 32],
         account_key: ACCOUNT_KEY,
         up_value_in_satoshis: u64,
-    ) -> Result<(), CHShadowUpError> {
+    ) -> Result<(), CMShadowUpError> {
         // Convert the increase value to sati-satoshi value.
         let up_value_in_sati_satoshis: u128 = (up_value_in_satoshis as u128) * 100_000_000;
 
         // Get the old account allocation value and contract balance before any mutable borrows.
         let existing_account_shadow_alloc_value_in_sati_satoshis: u128 = self
             .get_account_shadow_alloc_value_of_a_contract_in_sati_satoshis(contract_id, account_key)
-            .ok_or(CHShadowUpError::UnableToGetAccountShadowAllocValue(
+            .ok_or(CMShadowUpError::UnableToGetAccountShadowAllocValue(
                 contract_id,
                 account_key,
             ))?;
@@ -1216,7 +1226,7 @@ impl CoinHolder {
         // Get existing contract balance.
         let existing_contract_balance_in_satoshis: u64 = self
             .get_contract_balance(contract_id)
-            .ok_or(CHShadowUpError::UnableToGetContractBalance(contract_id))?;
+            .ok_or(CMShadowUpError::UnableToGetContractBalance(contract_id))?;
 
         // Retrieve the mutable shadow space from the delta.
         let epheremal_shadow_space = match self
@@ -1231,7 +1241,7 @@ impl CoinHolder {
                 let contract_body = self
                     .in_memory_contracts
                     .get_mut(&contract_id)
-                    .ok_or(CHShadowUpError::UnableToGetContractBody(contract_id))?;
+                    .ok_or(CMShadowUpError::UnableToGetContractBody(contract_id))?;
 
                 // Get the mutable shadow space.
                 let shadow_space = contract_body.shadow_space().clone();
@@ -1263,7 +1273,7 @@ impl CoinHolder {
 
         // Check if the new contract alloc sum value exceeds the contract balance.
         if new_contract_allocs_sum_value_in_satoshis > existing_contract_balance_in_satoshis {
-            return Err(CHShadowUpError::AllocsSumExceedsTheContractBalance(
+            return Err(CMShadowUpError::AllocsSumExceedsTheContractBalance(
                 contract_id,
                 new_contract_allocs_sum_value_in_satoshis,
                 existing_contract_balance_in_satoshis,
@@ -1281,7 +1291,7 @@ impl CoinHolder {
         {
             self.account_shadow_allocs_sum_up(account_key, up_value_in_sati_satoshis)
                 .map_err(|error| {
-                    CHShadowUpError::AccountShadowAllocsSumUpError(contract_id, account_key, error)
+                    CMShadowUpError::AccountShadowAllocsSumUpError(contract_id, account_key, error)
                 })?;
         }
 
@@ -1297,14 +1307,14 @@ impl CoinHolder {
         contract_id: [u8; 32],
         account_key: ACCOUNT_KEY,
         down_value_in_satoshis: u64,
-    ) -> Result<(), CHShadowDownError> {
+    ) -> Result<(), CMShadowDownError> {
         // Convert the decrease value to sati-satoshi value.
         let down_value_in_sati_satoshis: u128 = (down_value_in_satoshis as u128) * 100_000_000;
 
         // Get the old account allocation value and contract balance before any mutable borrows.
         let existing_account_shadow_alloc_value_in_sati_satoshis: u128 = self
             .get_account_shadow_alloc_value_of_a_contract_in_sati_satoshis(contract_id, account_key)
-            .ok_or(CHShadowDownError::UnableToGetAccountShadowAllocValue(
+            .ok_or(CMShadowDownError::UnableToGetAccountShadowAllocValue(
                 contract_id,
                 account_key,
             ))?;
@@ -1312,11 +1322,11 @@ impl CoinHolder {
         // Get existing contract balance.
         let existing_contract_balance_in_satoshis: u64 = self
             .get_contract_balance(contract_id)
-            .ok_or(CHShadowDownError::UnableToGetContractBalance(contract_id))?;
+            .ok_or(CMShadowDownError::UnableToGetContractBalance(contract_id))?;
 
         // Check if the decrease would make the allocation value go below zero.
         if down_value_in_sati_satoshis > existing_account_shadow_alloc_value_in_sati_satoshis {
-            return Err(CHShadowDownError::AccountShadowAllocValueWouldGoBelowZero(
+            return Err(CMShadowDownError::AccountShadowAllocValueWouldGoBelowZero(
                 contract_id,
                 account_key,
                 existing_account_shadow_alloc_value_in_sati_satoshis,
@@ -1337,7 +1347,7 @@ impl CoinHolder {
                 let contract_body = self
                     .in_memory_contracts
                     .get_mut(&contract_id)
-                    .ok_or(CHShadowDownError::UnableToGetContractBody(contract_id))?;
+                    .ok_or(CMShadowDownError::UnableToGetContractBody(contract_id))?;
 
                 // Get the mutable shadow space.
                 let shadow_space = contract_body.shadow_space().clone();
@@ -1369,7 +1379,7 @@ impl CoinHolder {
 
         // Check if the new contract alloc sum value exceeds the contract balance.
         if new_contract_allocs_sum_value_in_satoshis > existing_contract_balance_in_satoshis {
-            return Err(CHShadowDownError::AllocsSumExceedsTheContractBalance(
+            return Err(CMShadowDownError::AllocsSumExceedsTheContractBalance(
                 contract_id,
                 new_contract_allocs_sum_value_in_satoshis,
                 existing_contract_balance_in_satoshis,
@@ -1387,7 +1397,7 @@ impl CoinHolder {
         {
             self.account_shadow_allocs_sum_down(account_key, down_value_in_sati_satoshis)
                 .map_err(|error| {
-                    CHShadowDownError::AccountShadowAllocsSumDownError(
+                    CMShadowDownError::AccountShadowAllocsSumDownError(
                         contract_id,
                         account_key,
                         error,
@@ -1406,26 +1416,26 @@ impl CoinHolder {
         &mut self,
         contract_id: [u8; 32],
         up_value_in_satoshis: u64,
-    ) -> Result<u64, CHShadowUpAllError> {
+    ) -> Result<u64, CMShadowUpAllError> {
         // Convert the increase value to sati-satoshi value.
         let up_value_in_sati_satoshis: u128 = (up_value_in_satoshis as u128) * 100_000_000;
 
         // Get the old contract balance and allocs sum before any mutable borrows.
         let contract_balance_in_satoshis: u64 = self
             .get_contract_balance(contract_id)
-            .ok_or(CHShadowUpAllError::UnableToGetContractBalance(contract_id))?;
+            .ok_or(CMShadowUpAllError::UnableToGetContractBalance(contract_id))?;
 
         // Get the old contract allocs sum before any mutable borrows.
         let existing_contract_allocs_sum_in_satoshis: u64 = self
             .get_contract_allocs_sum_in_satoshis(contract_id)
-            .ok_or(CHShadowUpAllError::UnableToGetContractAllocsSum(
+            .ok_or(CMShadowUpAllError::UnableToGetContractAllocsSum(
                 contract_id,
             ))?;
 
         // Check if the contract allocs sum is zero.
         // This operation is not possible with zero allocs sum.
         if existing_contract_allocs_sum_in_satoshis == 0 {
-            return Err(CHShadowUpAllError::OperationNotPossibleWithZeroAllocsSum(
+            return Err(CMShadowUpAllError::OperationNotPossibleWithZeroAllocsSum(
                 contract_id,
             ));
         }
@@ -1436,7 +1446,7 @@ impl CoinHolder {
 
         // Check if the new contract alloc sum value exceeds the contract balance.
         if new_contract_allocs_sum_value_in_satoshis > contract_balance_in_satoshis {
-            return Err(CHShadowUpAllError::AllocsSumExceedsTheContractBalance(
+            return Err(CMShadowUpAllError::AllocsSumExceedsTheContractBalance(
                 contract_id,
                 new_contract_allocs_sum_value_in_satoshis,
                 contract_balance_in_satoshis,
@@ -1464,7 +1474,7 @@ impl CoinHolder {
             None => self
                 .in_memory_contracts
                 .get_mut(&contract_id)
-                .ok_or(CHShadowUpAllError::UnableToGetContractBody(contract_id))?
+                .ok_or(CMShadowUpAllError::UnableToGetContractBody(contract_id))?
                 .shadow_space()
                 .allocs()
                 .iter(),
@@ -1505,7 +1515,7 @@ impl CoinHolder {
                 let contract_body = self
                     .in_memory_contracts
                     .get_mut(&contract_id)
-                    .ok_or(CHShadowUpAllError::UnableToGetContractBody(contract_id))?;
+                    .ok_or(CMShadowUpAllError::UnableToGetContractBody(contract_id))?;
 
                 // Get the mutable shadow space.
                 let shadow_space = contract_body.shadow_space().clone();
@@ -1544,7 +1554,7 @@ impl CoinHolder {
         {
             self.account_shadow_allocs_sum_up(*account_key, *individual_up_value_in_sati_satoshis)
                 .map_err(|error| {
-                    CHShadowUpAllError::AccountShadowAllocsSumUpError(
+                    CMShadowUpAllError::AccountShadowAllocsSumUpError(
                         contract_id,
                         *account_key,
                         error,
@@ -1563,33 +1573,33 @@ impl CoinHolder {
         &mut self,
         contract_id: [u8; 32],
         down_value_in_satoshis: u64,
-    ) -> Result<u64, CHShadowDownAllError> {
+    ) -> Result<u64, CMShadowDownAllError> {
         // Convert the decrease value to sati-satoshi value.
         let down_value_in_sati_satoshis: u128 = (down_value_in_satoshis as u128) * 100_000_000;
 
         // Get the old contract balance and allocs sum before any mutable borrows.
         let contract_balance_in_satoshis: u64 = self.get_contract_balance(contract_id).ok_or(
-            CHShadowDownAllError::UnableToGetContractBalance(contract_id),
+            CMShadowDownAllError::UnableToGetContractBalance(contract_id),
         )?;
 
         // Get the old contract allocs sum before any mutable borrows.
         let existing_contract_allocs_sum_in_satoshis: u64 = self
             .get_contract_allocs_sum_in_satoshis(contract_id)
-            .ok_or(CHShadowDownAllError::UnableToGetContractAllocsSum(
+            .ok_or(CMShadowDownAllError::UnableToGetContractAllocsSum(
                 contract_id,
             ))?;
 
         // Check if the contract allocs sum is zero.
         // This operation is not possible with zero allocs sum.
         if existing_contract_allocs_sum_in_satoshis == 0 {
-            return Err(CHShadowDownAllError::OperationNotPossibleWithZeroAllocsSum(
+            return Err(CMShadowDownAllError::OperationNotPossibleWithZeroAllocsSum(
                 contract_id,
             ));
         }
 
         // Check if would go below zero.
         if down_value_in_satoshis > existing_contract_allocs_sum_in_satoshis {
-            return Err(CHShadowDownAllError::AllocsSumWouldGoBelowZero(
+            return Err(CMShadowDownAllError::AllocsSumWouldGoBelowZero(
                 contract_id,
                 existing_contract_allocs_sum_in_satoshis,
                 down_value_in_satoshis,
@@ -1602,7 +1612,7 @@ impl CoinHolder {
 
         // Check if the new contract alloc sum value exceeds the contract balance.
         if new_contract_allocs_sum_value_in_satoshis > contract_balance_in_satoshis {
-            return Err(CHShadowDownAllError::AllocsSumExceedsTheContractBalance(
+            return Err(CMShadowDownAllError::AllocsSumExceedsTheContractBalance(
                 contract_id,
                 new_contract_allocs_sum_value_in_satoshis,
                 contract_balance_in_satoshis,
@@ -1630,7 +1640,7 @@ impl CoinHolder {
             None => self
                 .in_memory_contracts
                 .get_mut(&contract_id)
-                .ok_or(CHShadowDownAllError::UnableToGetContractBody(contract_id))?
+                .ok_or(CMShadowDownAllError::UnableToGetContractBody(contract_id))?
                 .shadow_space()
                 .allocs()
                 .iter(),
@@ -1644,7 +1654,7 @@ impl CoinHolder {
             // Check if the individual down value would go below zero.
             if individual_down_value_in_sati_satoshis > *shadow_alloc_value_in_sati_satoshis {
                 return Err(
-                    CHShadowDownAllError::AccountShadowAllocValueWouldGoBelowZero(
+                    CMShadowDownAllError::AccountShadowAllocValueWouldGoBelowZero(
                         contract_id,
                         *account_key,
                         *shadow_alloc_value_in_sati_satoshis,
@@ -1683,7 +1693,7 @@ impl CoinHolder {
                 let contract_body = self
                     .in_memory_contracts
                     .get_mut(&contract_id)
-                    .ok_or(CHShadowDownAllError::UnableToGetContractBody(contract_id))?;
+                    .ok_or(CMShadowDownAllError::UnableToGetContractBody(contract_id))?;
 
                 // Get the mutable shadow space.
                 let shadow_space = contract_body.shadow_space().clone();
@@ -1725,7 +1735,7 @@ impl CoinHolder {
                 *individual_down_value_in_sati_satoshis,
             )
             .map_err(|error| {
-                CHShadowDownAllError::AccountShadowAllocsSumDownError(
+                CMShadowDownAllError::AccountShadowAllocsSumDownError(
                     contract_id,
                     *account_key,
                     error,
@@ -1755,7 +1765,7 @@ impl CoinHolder {
     }
 
     /// Applies all epheremal changes from the delta into the in-memory and on-disk.
-    pub fn apply_changes(&mut self) -> Result<(), CHApplyChangesError> {
+    pub fn apply_changes(&mut self) -> Result<(), CMApplyChangesError> {
         // 1. Register new accounts in-memory and on-disk.
         for (account_key, initial_account_balance) in
             self.delta_accounts.new_accounts_to_register.iter()
@@ -1781,8 +1791,8 @@ impl CoinHolder {
             {
                 // Open tree.
                 let tree = self.on_disk_accounts.open_tree(account_key).map_err(|e| {
-                    CHApplyChangesError::AccountApplyChangesError(
-                        CHAccountApplyChangesError::OpenTreeError(*account_key, e),
+                    CMApplyChangesError::AccountApplyChangesError(
+                        CMAccountApplyChangesError::OpenTreeError(*account_key, e),
                     )
                 })?;
 
@@ -1792,8 +1802,8 @@ impl CoinHolder {
                     initial_account_balance.to_le_bytes().to_vec(),
                 )
                 .map_err(|e| {
-                    CHApplyChangesError::AccountApplyChangesError(
-                        CHAccountApplyChangesError::BalanceValueOnDiskInsertionError(
+                    CMApplyChangesError::AccountApplyChangesError(
+                        CMAccountApplyChangesError::BalanceValueOnDiskInsertionError(
                             account_key.to_owned(),
                             *initial_account_balance,
                             e,
@@ -1809,8 +1819,8 @@ impl CoinHolder {
                         .to_vec(),
                 )
                 .map_err(|e| {
-                    CHApplyChangesError::AccountApplyChangesError(
-                        CHAccountApplyChangesError::ShadowAllocsSumValueOnDiskInsertionError(
+                    CMApplyChangesError::AccountApplyChangesError(
+                        CMAccountApplyChangesError::ShadowAllocsSumValueOnDiskInsertionError(
                             *account_key,
                             initial_account_allocs_sum_value_in_sati_satoshis,
                             e,
@@ -1846,8 +1856,8 @@ impl CoinHolder {
             {
                 // Open tree
                 let tree = self.on_disk_contracts.open_tree(contract_id).map_err(|e| {
-                    CHApplyChangesError::ContractApplyChangesError(
-                        CHContractApplyChangesError::OpenTreeError(*contract_id, e),
+                    CMApplyChangesError::ContractApplyChangesError(
+                        CMContractApplyChangesError::OpenTreeError(*contract_id, e),
                     )
                 })?;
 
@@ -1857,8 +1867,8 @@ impl CoinHolder {
                     initial_contract_balance.to_le_bytes().to_vec(),
                 )
                 .map_err(|e| {
-                    CHApplyChangesError::ContractApplyChangesError(
-                        CHContractApplyChangesError::BalanceValueOnDiskInsertionError(
+                    CMApplyChangesError::ContractApplyChangesError(
+                        CMContractApplyChangesError::BalanceValueOnDiskInsertionError(
                             *contract_id,
                             *initial_contract_balance,
                             e,
@@ -1874,8 +1884,8 @@ impl CoinHolder {
                         .to_vec(),
                 )
                 .map_err(|e| {
-                    CHApplyChangesError::ContractApplyChangesError(
-                        CHContractApplyChangesError::AllocsSumValueOnDiskInsertionError(
+                    CMApplyChangesError::ContractApplyChangesError(
+                        CMContractApplyChangesError::AllocsSumValueOnDiskInsertionError(
                             *contract_id,
                             initial_contract_allocs_sum_value_in_satoshis,
                             e,
@@ -1893,8 +1903,8 @@ impl CoinHolder {
             {
                 // Get the mutable permanent account body from the permanent states.
                 let permanent_account_body = self.in_memory_accounts.get_mut(account_key).ok_or(
-                    CHApplyChangesError::AccountApplyChangesError(
-                        CHAccountApplyChangesError::UnableToGetPermanentAccountBody(*account_key),
+                    CMApplyChangesError::AccountApplyChangesError(
+                        CMAccountApplyChangesError::UnableToGetPermanentAccountBody(*account_key),
                     ),
                 )?;
 
@@ -1906,8 +1916,8 @@ impl CoinHolder {
             {
                 // Open tree.
                 let tree = self.on_disk_accounts.open_tree(account_key).map_err(|e| {
-                    CHApplyChangesError::AccountApplyChangesError(
-                        CHAccountApplyChangesError::OpenTreeError(*account_key, e),
+                    CMApplyChangesError::AccountApplyChangesError(
+                        CMAccountApplyChangesError::OpenTreeError(*account_key, e),
                     )
                 })?;
 
@@ -1917,8 +1927,8 @@ impl CoinHolder {
                     ephemeral_account_balance.to_le_bytes().to_vec(),
                 )
                 .map_err(|e| {
-                    CHApplyChangesError::AccountApplyChangesError(
-                        CHAccountApplyChangesError::BalanceValueOnDiskInsertionError(
+                    CMApplyChangesError::AccountApplyChangesError(
+                        CMAccountApplyChangesError::BalanceValueOnDiskInsertionError(
                             account_key.to_owned(),
                             *ephemeral_account_balance,
                             e,
@@ -1936,8 +1946,8 @@ impl CoinHolder {
             {
                 // Get mutable permanent contract body.
                 let permanent_contract_body = self.in_memory_contracts.get_mut(contract_id).ok_or(
-                    CHApplyChangesError::ContractApplyChangesError(
-                        CHContractApplyChangesError::UnableToGetPermanentContractBody(*contract_id),
+                    CMApplyChangesError::ContractApplyChangesError(
+                        CMContractApplyChangesError::UnableToGetPermanentContractBody(*contract_id),
                     ),
                 )?;
 
@@ -1949,8 +1959,8 @@ impl CoinHolder {
             {
                 // Open tree.
                 let tree = self.on_disk_contracts.open_tree(contract_id).map_err(|e| {
-                    CHApplyChangesError::ContractApplyChangesError(
-                        CHContractApplyChangesError::OpenTreeError(*contract_id, e),
+                    CMApplyChangesError::ContractApplyChangesError(
+                        CMContractApplyChangesError::OpenTreeError(*contract_id, e),
                     )
                 })?;
 
@@ -1960,8 +1970,8 @@ impl CoinHolder {
                     ephemeral_contract_balance.to_le_bytes().to_vec(),
                 )
                 .map_err(|e| {
-                    CHApplyChangesError::ContractApplyChangesError(
-                        CHContractApplyChangesError::BalanceValueOnDiskInsertionError(
+                    CMApplyChangesError::ContractApplyChangesError(
+                        CMContractApplyChangesError::BalanceValueOnDiskInsertionError(
                             *contract_id,
                             *ephemeral_contract_balance,
                             e,
@@ -1979,8 +1989,8 @@ impl CoinHolder {
             {
                 // Get the mutable permanent account body.
                 let permanent_account_body = self.in_memory_accounts.get_mut(account_key).ok_or(
-                    CHApplyChangesError::AccountApplyChangesError(
-                        CHAccountApplyChangesError::UnableToGetPermanentAccountBody(*account_key),
+                    CMApplyChangesError::AccountApplyChangesError(
+                        CMAccountApplyChangesError::UnableToGetPermanentAccountBody(*account_key),
                     ),
                 )?;
 
@@ -1993,8 +2003,8 @@ impl CoinHolder {
             {
                 // Open tree.
                 let tree = self.on_disk_accounts.open_tree(account_key).map_err(|e| {
-                    CHApplyChangesError::AccountApplyChangesError(
-                        CHAccountApplyChangesError::OpenTreeError(*account_key, e),
+                    CMApplyChangesError::AccountApplyChangesError(
+                        CMAccountApplyChangesError::OpenTreeError(*account_key, e),
                     )
                 })?;
 
@@ -2004,8 +2014,8 @@ impl CoinHolder {
                     ephemeral_account_shadow_allocs_sum.to_le_bytes().to_vec(),
                 )
                 .map_err(|e| {
-                    CHApplyChangesError::AccountApplyChangesError(
-                        CHAccountApplyChangesError::ShadowAllocsSumValueOnDiskInsertionError(
+                    CMApplyChangesError::AccountApplyChangesError(
+                        CMAccountApplyChangesError::ShadowAllocsSumValueOnDiskInsertionError(
                             account_key.to_owned(),
                             *ephemeral_account_shadow_allocs_sum,
                             e,
@@ -2026,8 +2036,8 @@ impl CoinHolder {
             {
                 // Get mutable permanent contract body.
                 let permanent_contract_body = self.in_memory_contracts.get_mut(contract_id).ok_or(
-                    CHApplyChangesError::ContractApplyChangesError(
-                        CHContractApplyChangesError::UnableToGetPermanentContractBody(*contract_id),
+                    CMApplyChangesError::ContractApplyChangesError(
+                        CMContractApplyChangesError::UnableToGetPermanentContractBody(*contract_id),
                     ),
                 )?;
 
@@ -2039,8 +2049,8 @@ impl CoinHolder {
             {
                 // Open tree.
                 let tree = self.on_disk_contracts.open_tree(contract_id).map_err(|e| {
-                    CHApplyChangesError::ContractApplyChangesError(
-                        CHContractApplyChangesError::OpenTreeError(*contract_id, e),
+                    CMApplyChangesError::ContractApplyChangesError(
+                        CMContractApplyChangesError::OpenTreeError(*contract_id, e),
                     )
                 })?;
 
@@ -2054,8 +2064,8 @@ impl CoinHolder {
                         ephemeral_shadow_alloc_value.to_le_bytes().to_vec(),
                     )
                     .map_err(|e| {
-                        CHApplyChangesError::ContractApplyChangesError(
-                            CHContractApplyChangesError::ShadowAllocValueOnDiskInsertionError(
+                        CMApplyChangesError::ContractApplyChangesError(
+                            CMContractApplyChangesError::ShadowAllocValueOnDiskInsertionError(
                                 *contract_id,
                                 *shadow_account_key,
                                 *ephemeral_shadow_alloc_value,
@@ -2071,8 +2081,8 @@ impl CoinHolder {
                     epheremal_shadow_allocs_sum_value.to_le_bytes().to_vec(),
                 )
                 .map_err(|e| {
-                    CHApplyChangesError::ContractApplyChangesError(
-                        CHContractApplyChangesError::AllocsSumValueOnDiskInsertionError(
+                    CMApplyChangesError::ContractApplyChangesError(
+                        CMContractApplyChangesError::AllocsSumValueOnDiskInsertionError(
                             *contract_id,
                             epheremal_shadow_allocs_sum_value,
                             e,
@@ -2091,8 +2101,8 @@ impl CoinHolder {
                     let permanent_contract_body = self
                         .in_memory_contracts
                         .get_mut(contract_id)
-                        .ok_or(CHApplyChangesError::ContractApplyChangesError(
-                            CHContractApplyChangesError::UnableToGetPermanentContractBody(
+                        .ok_or(CMApplyChangesError::ContractApplyChangesError(
+                            CMContractApplyChangesError::UnableToGetPermanentContractBody(
                                 *contract_id,
                             ),
                         ))?;
@@ -2103,8 +2113,8 @@ impl CoinHolder {
                             .shadow_space_mut()
                             .remove_alloc(*account_key)
                         {
-                            return Err(CHApplyChangesError::ContractApplyChangesError(
-                                CHContractApplyChangesError::InMemoryDeallocAccountError(
+                            return Err(CMApplyChangesError::ContractApplyChangesError(
+                                CMContractApplyChangesError::InMemoryDeallocAccountError(
                                     *contract_id,
                                     *account_key,
                                 ),
@@ -2117,8 +2127,8 @@ impl CoinHolder {
                 {
                     // Open tree.
                     let tree = self.on_disk_contracts.open_tree(contract_id).map_err(|e| {
-                        CHApplyChangesError::ContractApplyChangesError(
-                            CHContractApplyChangesError::OpenTreeError(*contract_id, e),
+                        CMApplyChangesError::ContractApplyChangesError(
+                            CMContractApplyChangesError::OpenTreeError(*contract_id, e),
                         )
                     })?;
 
@@ -2127,8 +2137,8 @@ impl CoinHolder {
                         match tree.remove(account_key) {
                             Ok(_) => (),
                             Err(err) => {
-                                return Err(CHApplyChangesError::ContractApplyChangesError(
-                                    CHContractApplyChangesError::OnDiskDeallocAccountError(
+                                return Err(CMApplyChangesError::ContractApplyChangesError(
+                                    CMContractApplyChangesError::OnDiskDeallocAccountError(
                                         *contract_id,
                                         *account_key,
                                         err,

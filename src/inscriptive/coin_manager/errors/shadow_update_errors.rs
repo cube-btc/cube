@@ -16,14 +16,14 @@ type SATOSHI_AMOUNT = u64;
 
 /// Errors associated with increasing the account's shadow allocs sum.
 #[derive(Debug, Clone)]
-pub enum CHAccountShadowAllocsSumUpError {
+pub enum CMAccountShadowAllocsSumUpError {
     UnableToGetAccountShadowAllocsSum(ACCOUNT_KEY),
     UnableToGetAccountBody(ACCOUNT_KEY),
 }
 
 /// Errors associated with decreasing the account's shadow allocs sum.
 #[derive(Debug, Clone)]
-pub enum CHAccountShadowAllocsSumDownError {
+pub enum CMAccountShadowAllocsSumDownError {
     UnableToGetAccountShadowAllocsSum(ACCOUNT_KEY),
     AccountShadowAllocsSumWouldGoBelowZero(ACCOUNT_KEY, SATI_SATOSHI_AMOUNT, SATI_SATOSHI_AMOUNT),
     UnableToGetAccountBody(ACCOUNT_KEY),
@@ -31,21 +31,17 @@ pub enum CHAccountShadowAllocsSumDownError {
 
 /// Errors associated with increasing an account's shadow allocation value in the contract's shadow space.   
 #[derive(Debug, Clone)]
-pub enum CHShadowUpError {
+pub enum CMShadowUpError {
     UnableToGetAccountShadowAllocValue(CONTRACT_ID, ACCOUNT_KEY),
     UnableToGetContractBalance(CONTRACT_ID),
     UnableToGetContractBody(CONTRACT_ID),
     AllocsSumExceedsTheContractBalance(CONTRACT_ID, SATOSHI_AMOUNT, SATOSHI_AMOUNT),
-    AccountShadowAllocsSumUpError(
-        CONTRACT_ID,
-        ACCOUNT_KEY,
-        CHAccountShadowAllocsSumUpError,
-    ),
+    AccountShadowAllocsSumUpError(CONTRACT_ID, ACCOUNT_KEY, CMAccountShadowAllocsSumUpError),
 }
 
 /// Errors associated with decreasing an account's shadow allocation value in the contract's shadow space.
 #[derive(Debug, Clone)]
-pub enum CHShadowDownError {
+pub enum CMShadowDownError {
     UnableToGetAccountShadowAllocValue(CONTRACT_ID, ACCOUNT_KEY),
     UnableToGetContractBalance(CONTRACT_ID),
     AccountShadowAllocValueWouldGoBelowZero(
@@ -56,32 +52,24 @@ pub enum CHShadowDownError {
     ),
     UnableToGetContractBody(CONTRACT_ID),
     AllocsSumExceedsTheContractBalance(CONTRACT_ID, SATOSHI_AMOUNT, SATOSHI_AMOUNT),
-    AccountShadowAllocsSumDownError(
-        CONTRACT_ID,
-        ACCOUNT_KEY,
-        CHAccountShadowAllocsSumDownError,
-    ),
+    AccountShadowAllocsSumDownError(CONTRACT_ID, ACCOUNT_KEY, CMAccountShadowAllocsSumDownError),
 }
 
 /// Errors associated with increasing an account's shadow allocation value in the contract's shadow space.
 #[derive(Debug, Clone)]
-pub enum CHShadowUpAllError {
+pub enum CMShadowUpAllError {
     UnableToGetContractBalance(CONTRACT_ID),
     UnableToGetContractAllocsSum(CONTRACT_ID),
     OperationNotPossibleWithZeroAllocsSum(CONTRACT_ID),
     AllocsSumExceedsTheContractBalance(CONTRACT_ID, SATOSHI_AMOUNT, SATOSHI_AMOUNT),
     UnableToGetContractBody(CONTRACT_ID),
-    AccountShadowAllocsSumUpError(
-        CONTRACT_ID,
-        ACCOUNT_KEY,
-        CHAccountShadowAllocsSumUpError,
-    ),
+    AccountShadowAllocsSumUpError(CONTRACT_ID, ACCOUNT_KEY, CMAccountShadowAllocsSumUpError),
 }
 
 /// Errors associated with decreasing an account's shadow allocation value in the contract's shadow space.
 
 #[derive(Debug, Clone)]
-pub enum CHShadowDownAllError {
+pub enum CMShadowDownAllError {
     UnableToGetContractBalance(CONTRACT_ID),
     UnableToGetContractAllocsSum(CONTRACT_ID),
     OperationNotPossibleWithZeroAllocsSum(CONTRACT_ID),
@@ -94,9 +82,5 @@ pub enum CHShadowDownAllError {
         SATI_SATOSHI_AMOUNT,
         SATI_SATOSHI_AMOUNT,
     ),
-    AccountShadowAllocsSumDownError(
-        CONTRACT_ID,
-        ACCOUNT_KEY,
-        CHAccountShadowAllocsSumDownError,
-    ),
+    AccountShadowAllocsSumDownError(CONTRACT_ID, ACCOUNT_KEY, CMAccountShadowAllocsSumDownError),
 }

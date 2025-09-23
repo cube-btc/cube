@@ -4,7 +4,7 @@ use crate::{
         stack_holder::StackHolder,
         stack_uint::{SafeConverter, StackItemUintExt},
     },
-    inscriptive::coin_holder::coin_holder::COIN_HOLDER,
+    inscriptive::coin_manager::coin_manager::COIN_MANAGER,
 };
 
 /// Decreases the shadow space allocation of an account.
@@ -15,7 +15,7 @@ pub struct OP_SHADOW_DOWN;
 impl OP_SHADOW_DOWN {
     pub async fn execute(
         stack_holder: &mut StackHolder,
-        coin_holder: &COIN_HOLDER,
+        coin_manager: &COIN_MANAGER,
     ) -> Result<(), StackError> {
         // If this is not the active execution, return immediately.
         if !stack_holder.active_execution() {
@@ -55,8 +55,8 @@ impl OP_SHADOW_DOWN {
 
         // Allocate the account key in the contract shadow space.
         {
-            let mut _coin_holder = coin_holder.lock().await;
-            _coin_holder
+            let mut _coin_manager = coin_manager.lock().await;
+            _coin_manager
                 .shadow_down(self_contract_id_bytes, account_key_bytes, amount_as_u64)
                 .map_err(|error| ShadowOpsError::ShadowAllocDownError(error))
                 .map_err(StackError::ShadowOpsError)?;

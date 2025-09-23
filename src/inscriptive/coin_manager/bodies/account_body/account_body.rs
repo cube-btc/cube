@@ -1,3 +1,5 @@
+use serde_json::{Map, Value};
+
 /// Satoshi amount.
 #[allow(non_camel_case_types)]
 type SATOSHI_AMOUNT = u64;
@@ -43,5 +45,26 @@ impl CHAccountBody {
     /// Updates the account shadow allocs sum.
     pub fn update_shadow_allocs_sum(&mut self, shadow_allocs_sum: SATI_SATOSHI_AMOUNT) {
         self.shadow_allocs_sum = shadow_allocs_sum;
+    }
+
+    /// Returns the account body as a JSON object.
+    pub fn json(&self) -> Value {
+        // Construct the account body JSON object.
+        let mut obj = Map::new();
+
+        // Insert the balance.
+        obj.insert(
+            "balance".to_string(),
+            Value::String(self.balance().to_string()),
+        );
+
+        // Insert the shadow allocs sum.
+        obj.insert(
+            "shadow_allocs_sum".to_string(),
+            Value::String(self.shadow_allocs_sum().to_string()),
+        );
+
+        // Return the JSON object.
+        Value::Object(obj)
     }
 }

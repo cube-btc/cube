@@ -5,7 +5,7 @@ use crate::{
         stack::stack_item::StackItem,
     },
     inscriptive::{
-        coin_holder::coin_holder::COIN_HOLDER, repo::repo::PROGRAMS_REPO,
+        coin_manager::coin_manager::COIN_MANAGER, repo::repo::PROGRAMS_REPO,
         state_holder::state_holder::STATE_HOLDER,
     },
 };
@@ -22,7 +22,7 @@ pub struct ExecCtx {
     // The state holder.
     state_holder: STATE_HOLDER,
     // The coin holder.
-    coin_holder: COIN_HOLDER,
+    coin_manager: COIN_MANAGER,
     // The programs repo.
     programs_repo: PROGRAMS_REPO,
     // External ops counter.
@@ -39,14 +39,14 @@ impl ExecCtx {
     /// Creates a new execution context.
     pub fn new(
         state_holder: &STATE_HOLDER,
-        coin_holder: &COIN_HOLDER,
+        coin_manager: &COIN_MANAGER,
         programs_repo: &PROGRAMS_REPO,
         base_ops_price: u32,
         timestamp: u64,
     ) -> Self {
         Self {
             state_holder: Arc::clone(state_holder),
-            coin_holder: Arc::clone(coin_holder),
+            coin_manager: Arc::clone(coin_manager),
             programs_repo: Arc::clone(programs_repo),
             external_ops_counter: 0,
             base_ops_price,
@@ -105,12 +105,12 @@ impl ExecCtx {
             _state_holder.pre_execution();
         }
 
-        let coin_holder = &self.coin_holder;
+        let coin_manager = &self.coin_manager;
 
         // Pre-execution coin holder backup.
         {
-            let mut _coin_holder = coin_holder.lock().await;
-            _coin_holder.pre_execution();
+            let mut _coin_manager = coin_manager.lock().await;
+            _coin_manager.pre_execution();
         }
 
         // Programs repo.
@@ -129,7 +129,7 @@ impl ExecCtx {
             internal_ops_counter,
             external_ops_counter,
             state_holder,
-            coin_holder,
+            coin_manager,
             programs_repo,
         )
         .await;
@@ -173,8 +173,8 @@ impl ExecCtx {
 
                 // Rollback last on coin holder.
                 {
-                    let mut _coin_holder = coin_holder.lock().await;
-                    _coin_holder.rollback_last();
+                    let mut _coin_manager = coin_manager.lock().await;
+                    _coin_manager.rollback_last();
                 }
 
                 // Return the error.
@@ -191,10 +191,10 @@ impl ExecCtx {
             _state_holder.rollback_all();
         }
 
-        // Rollback the coin holder.
+        // Rollback the coin manager.
         {
-            let mut _coin_holder = self.coin_holder.lock().await;
-            _coin_holder.flush_delta();
+            let mut _coin_manager = self.coin_manager.lock().await;
+            _coin_manager.flush_delta();
         }
 
         // Set the external ops counter to zero.

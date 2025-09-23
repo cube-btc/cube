@@ -1,4 +1,4 @@
-use crate::inscriptive::coin_holder::bodies::contract_body::shadow_space::shadow_space::ShadowSpace;
+use crate::inscriptive::coin_manager::bodies::contract_body::shadow_space::shadow_space::ShadowSpace;
 use std::collections::HashMap;
 
 /// Contract ID.

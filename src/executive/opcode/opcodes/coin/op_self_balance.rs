@@ -5,7 +5,7 @@ use crate::{
         stack_item::StackItem,
         stack_uint::{StackItemUintExt, StackUint},
     },
-    inscriptive::coin_holder::coin_holder::COIN_HOLDER,
+    inscriptive::coin_manager::coin_manager::COIN_MANAGER,
 };
 
 /// Pushes the BTC balance of the underlying contract into the stack.
@@ -16,7 +16,7 @@ pub struct OP_SELF_BALANCE;
 impl OP_SELF_BALANCE {
     pub async fn execute(
         stack_holder: &mut StackHolder,
-        coin_holder: &COIN_HOLDER,
+        coin_manager: &COIN_MANAGER,
     ) -> Result<(), StackError> {
         // If this is not the active execution, return immediately.
         if !stack_holder.active_execution() {
@@ -28,8 +28,8 @@ impl OP_SELF_BALANCE {
 
         // Get the contract balance.
         let contract_balance = {
-            let _coin_holder = coin_holder.lock().await;
-            _coin_holder
+            let _coin_manager = coin_manager.lock().await;
+            _coin_manager
                 .get_contract_balance(self_contract_id_bytes)
                 .ok_or(StackError::CoinBalanceGetError(
                     CoinBalanceGetError::UnableToGetContractBalance(self_contract_id_bytes),
