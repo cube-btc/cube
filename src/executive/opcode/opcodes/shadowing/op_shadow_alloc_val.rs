@@ -58,9 +58,14 @@ impl OP_SHADOW_ALLOC_VAL {
 
                     // Push the value item to the main stack.
                     stack_holder.push(value_as_stack_item)?;
+
+                    // Push true item to the main stack.
+                    // Represents 'has allocation' = true.
+                    stack_holder.push(StackItem::true_item())?;
                 }
                 None => {
                     // Push false item to the main stack.
+                    // Represents 'has allocation' = false.
                     stack_holder.push(StackItem::false_item())?;
                 }
             };
