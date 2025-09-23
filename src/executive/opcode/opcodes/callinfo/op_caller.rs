@@ -21,18 +21,20 @@ impl OP_CALLER {
         // Match caller.
         match stack_holder.caller() {
             Caller::Account(account_key) => {
-                // Push false to the stack.
-                stack_holder.push(StackItem::false_item())?;
-
                 // Push the account key to the stack.
                 stack_holder.push(StackItem::new(account_key.to_vec()))?;
+
+                // Push false to the stack.
+                // Represents caller type is an account.
+                stack_holder.push(StackItem::false_item())?;
             }
             Caller::Contract(contract_id) => {
-                // Push true to the stack.
-                stack_holder.push(StackItem::true_item())?;
-
                 // Push the contract id to the stack.
                 stack_holder.push(StackItem::new(contract_id.to_vec()))?;
+
+                // Push true to the stack.
+                // Represents caller type is a contract.
+                stack_holder.push(StackItem::true_item())?;
             }
         }
 

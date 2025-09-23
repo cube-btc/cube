@@ -5,7 +5,7 @@ Cube uses an extended Bitcoin script with splicing, better memory management, an
 
 | Opcode        | Bytecode  | Ops            | Input       | Output         | Description                                                                                        |
 |:--------------|:----------|:---------------|:------------|:---------------|:---------------------------------------------------------------------------------------------------|
-| OP_FALSE OP_0 | 0x00      | 1              | Nothing.    | (empty value)  | An empty array of bytes is pushed onto the stack.                                                  |
+| OP_FALSE OP_0 | 0x00      | 1              | -           | false          | An empty array of bytes is pushed onto the stack.                                                  |
 | OP_N/A        | 0x01-0x4b | 1 + (1 * Len)  | (special)   | data           | *Bytecode* number of following bytes pushed onto the stack.                                        |
 | OP_PUSHDATA1  | 0x4c      | 1 + (1 * Len)  | (special)   | data           | The next byte contains the number of bytes to push onto the stack.                                 |
 | OP_PUSHDATA2  | 0x4d      | 1 + (1 * Len)  | (special)   | data           | The next two bytes contain the number of bytes to be pushed onto the stack in little endian order. |
@@ -14,18 +14,18 @@ Cube uses an extended Bitcoin script with splicing, better memory management, an
 
 ## Flow control
 
-| Opcode        | Bytecode  | Ops | Input       | Output         | Description                                                                                        |
-|:--------------|:----------|:----|:------------|:---------------|:---------------------------------------------------------------------------------------------------|
-| OP_NOP        | 0x61      | 1   | Nothing.    | Nothing.       | Does nothing.                                                                                      |
-| OP_JUMP       | 0x62      | 1   | index       | Nothing/Fail   | Pops the iterator index and jumps to the respective opcode execution.                              |
-| OP_IF         | 0x63      | 1   | True/false  | Nothing.       | If the top stack value is not False, the statements are executed. The top stack value is removed.  |
-| OP_NOTIF      | 0x64      | 1   | True/false  | Nothing.       | If the top stack value is False, the statements are executed. The top stack value is removed.      |
-| OP_RETURNALL  | 0x65      | 1   | x1..xn      | Return.        | All stack items are popped and returned.                                                           |
-| OP_RETURNSOME | 0x66      | 1   | x1..xn      | Return.        | Pops the stack item *count* and returns *count* number of items.                                   |
-| OP_ELSE       | 0x67      | 1   | Nothing.    | Nothing.       | If the preceding OP_IF or OP_NOTIF or OP_ELSE was not executed then these statements are.          |
-| OP_ENDIF      | 0x68      | 1   | Nothing.    | Nothing.       | Ends an if/else block. All blocks must end, or the transaction is invalid.                         |
-| OP_VERIFY     | 0x69      | 1   | True/false  | Nothing/Fail   | Pops the top stack item and marks transaction as invalid if top stack value is not true.           |
-| OP_FAIL       | 0x6a      | 1   | (special)   | Fail.          | Fails the entry.                                                                                   |
+| Opcode        | Bytecode  | Ops | Input        | Output         | Description                                                                                        |
+|:--------------|:----------|:----|:-------------|:---------------|:---------------------------------------------------------------------------------------------------|
+| OP_NOP        | 0x61      | 1   | -            | -              | Does nothing.                                                                                      |
+| OP_JUMP       | 0x62      | 1   | index        | - / Fail.      | Pops the iterator index and jumps to the respective opcode execution.                              |
+| OP_IF         | 0x63      | 1   | true / false | -              | If the top stack value is not False, the statements are executed. The top stack value is removed.  |
+| OP_NOTIF      | 0x64      | 1   | true / false | -              | If the top stack value is False, the statements are executed. The top stack value is removed.      |
+| OP_RETURNALL  | 0x65      | 1   | x1..xn       | Return.        | All stack items are popped and returned.                                                           |
+| OP_RETURNSOME | 0x66      | 1   | x1..xn       | Return.        | Pops the stack item *count* and returns *count* number of items.                                   |
+| OP_ELSE       | 0x67      | 1   | -            | -              | If the preceding OP_IF or OP_NOTIF or OP_ELSE was not executed then these statements are.          |
+| OP_ENDIF      | 0x68      | 1   | -            | -              | Ends an if/else block. All blocks must end, or the transaction is invalid.                         |
+| OP_VERIFY     | 0x69      | 1   | true / false | - / Fail.      | Pops the top stack item and marks transaction as invalid if top stack value is not true.           |
+| OP_FAIL       | 0x6a      | 1   | -            | Fail.          | Fails the entry.                                                                                   |
 
 ## Alstack Operations
 
@@ -38,15 +38,15 @@ Cube uses an extended Bitcoin script with splicing, better memory management, an
 
 | Opcode          | Bytecode | Ops | Input                   | Output                 | Description                                                                  |
 |:----------------|:---------|:----|:------------------------|:-----------------------|:-----------------------------------------------------------------------------|
-| OP_2DROP        | 0x6d     | 1   | x1 x2                   | Nothing                | Removes the top two stack items.                                             |
+| OP_2DROP        | 0x6d     | 1   | x1 x2                   | -                     | Removes the top two stack items.                                             |
 | OP_2DUP         | 0x6e     | 1   | x1 x2                   | x1 x2 x1 x2            | Duplicates the top two stack items.                                          |
 | OP_3DUP         | 0x6f     | 1   | x1 x2 x3                | x1 x2 x3 x1 x2 x3      | Duplicates the top three stack items.                                        |
 | OP_2OVER        | 0x70     | 1   | x1 x2 x3 x4             | x1 x2 x3 x4 x1 x2      | Copies the pair of items two spaces back in the stack to the front.          |
 | OP_2ROT         | 0x71     | 1   | x1 x2 x3 x4 x5 x6       | x3 x4 x5 x6 x1 x2      | The fifth and sixth items back are moved to the top of the stack.            |
 | OP_2SWAP        | 0x72     | 1   | x1 x2 x3 x4             | x3 x4 x1 x2            | Swaps the top two pairs of items.                                            |
 | OP_IFDUP        | 0x73     | 1   | x                       | x / x x                | If the top stack value is not 0, duplicate it.                               |
-| OP_DEPTH        | 0x74     | 1   | Nothing                 | <Stack size>           | Puts the number of stack items onto the stack.                               |
-| OP_DROP         | 0x75     | 1   | x                       | Nothing                | Removes the top stack item.                                                  |
+| OP_DEPTH        | 0x74     | 1   | -                       | <Stack size>           | Puts the number of stack items onto the stack.                               |
+| OP_DROP         | 0x75     | 1   | x                       | -                      | Removes the top stack item.                                                  |
 | OP_DUP          | 0x76     | 1   | x                       | x x                    | Duplicates the top stack item.                                               |
 | OP_NIP          | 0x77     | 1   | x1 x2                   | x2                     | Removes the second-to-top stack item.                                        |
 | OP_OVER         | 0x78     | 1   | x1 x2                   | x1 x2 x1               | Copies the second-to-top stack item to the top.                              |
@@ -74,8 +74,8 @@ Cube uses an extended Bitcoin script with splicing, better memory management, an
 | OP_AND          | 0x84     | 2   | x1 x2          | out                                     | Boolean and between each bit in the inputs.                                  |
 | OP_OR           | 0x85     | 2   | x1 x2          | out                                     | Boolean or between each bit in the inputs.                                   |
 | OP_XOR          | 0x86     | 2   | x1 x2          | out                                     | Boolean exclusive or between each bit in the inputs.                         |
-| OP_EQUAL        | 0x87     | 1   | x1 x2          | True / false                            | Returns 1 if the inputs are exactly equal, 0 otherwise.                      |
-| OP_EQUALVERIFY  | 0x88     | 2   | x1 x2          | Nothing / fail                          | Same as OP_EQUAL, but runs OP_VERIFY afterward.                              |
+| OP_EQUAL        | 0x87     | 1   | x1 x2          | true / false                            | Returns 1 if the inputs are exactly equal, 0 otherwise.                      |
+| OP_EQUALVERIFY  | 0x88     | 2   | x1 x2          | - / Fail.                               | Same as OP_EQUAL, but runs OP_VERIFY afterward.                              |
 | OP_REVERSE      | 0x89     | 3   | in             | out                                     | Pop the top item from the stack and reverses the byte order.                 |
 
 ## Arithmetic
@@ -124,30 +124,30 @@ Cube uses an extended Bitcoin script with splicing, better memory management, an
 
 ## Secp
 
-| Opcode                    | Bytecode | Ops            | Input            | Output              | Description                                                                |
-|:--------------------------|:---------|:---------------|:-----------------|:--------------------|:---------------------------------------------------------------------------|
-| OP_SECPSCALARADD          | 0xae     | 10             | scalar scalar    | scalar              | Adds two secp scalars.                                                     |
-| OP_SECPSCALARMUL          | 0xaf     | 10             | scalar scalar    | scalar              | Multiplies two secp scalars.                                               |
-| OP_SECPPOINTADD           | 0xb0     | 50             | point point      | point               | Adds two secp points.                                                      |
-| OP_SECPPOINTMUL           | 0xb1     | 50             | point scalar     | point               | Multiplies a secp point by a secp scalar.                                  |
-| OP_PUSHSECPGENERATORPOINT | 0xb2     | 50             | Nothing          | point               | Pushes generator point into stack.                                         |
-| OP_ISZEROSECPSCALAR       | 0xb3     | 50             | scalar           | scalar true/false   | Returns whether the scalar is zero.                                        |
-| OP_ISINFINITESECPPOINT    | 0xb4     | 50             | point            | point true/false    | Returns whether the point is at infinity.                                  |
+| Opcode                    | Bytecode | Ops          | Input            | Output              | Description                                                                |
+|:--------------------------|:---------|:-------------|:-----------------|:--------------------|:---------------------------------------------------------------------------|
+| OP_SECPSCALARADD          | 0xae     | 10           | scalar scalar    | scalar              | Adds two secp scalars.                                                     |
+| OP_SECPSCALARMUL          | 0xaf     | 10           | scalar scalar    | scalar              | Multiplies two secp scalars.                                               |
+| OP_SECPPOINTADD           | 0xb0     | 50           | point point      | point               | Adds two secp points.                                                      |
+| OP_SECPPOINTMUL           | 0xb1     | 50           | point scalar     | point               | Multiplies a secp point by a secp scalar.                                  |
+| OP_PUSHSECPGENERATORPOINT | 0xb2     | 50           | -               | point               | Pushes generator point into stack.                                         |
+| OP_ISZEROSECPSCALAR       | 0xb3     | 50           | scalar           | scalar true / false | Returns whether the scalar is zero.                                        |
+| OP_ISINFINITESECPPOINT    | 0xb4     | 50           | point            | point true / false  | Returns whether the point is at infinity.                                  |
 
 ## Digital signatures
 
 | Opcode                   | Bytecode | Ops                | Input                 | Output            | Description                                                          |
 |:-------------------------|:---------|:-------------------|:----------------------|:------------------|:---------------------------------------------------------------------|
-| OP_CHECKSCHNORRSIG       | 0xb5     | 100                | sig msg key           | True/false        | Checks a schnorr signature according to the 'Cube/challenge' tag. |
-| OP_CHECKSCHNORRSIGBIP340 | 0xb6     | 100                | sig msg key           | True/false        | Checks a schnorr signature according to the 'BIP0340/challenge' tag. |
-| OP_CHECKBLSSIG           | 0xb7     | 100                | sig msg key           | True/false        | Checks a BLS signature against a key and a message.                  |
-| OP_CHECKBLSSIGAGG        | 0xb8     | 100 + (50 * count) | sig [msg] [key] count | True/false        | Checks a BLS aggregate signature against a set of keys and messages. |
+| OP_CHECKSCHNORRSIG       | 0xb5     | 100                | sig msg key           | true / false      | Checks a schnorr signature according to the 'Cube/challenge' tag.    |
+| OP_CHECKSCHNORRSIGBIP340 | 0xb6     | 100                | sig msg key           | true / false      | Checks a schnorr signature according to the 'BIP0340/challenge' tag. |
+| OP_CHECKBLSSIG           | 0xb7     | 100                | sig msg key           | true / false      | Checks a BLS signature against a key and a message.                  |
+| OP_CHECKBLSSIGAGG        | 0xb8     | 100 + (50 * count) | sig [msg] [key] count | true / false      | Checks a BLS aggregate signature against a set of keys and messages. |
 
 ## Call info
 
 | Opcode         | Bytecode | Ops | Input                | Output                 | Description                                                                      |
 |:---------------|:---------|:----|:---------------------|:-----------------------|:---------------------------------------------------------------------------------|
-| OP_CALLER      | 0xb9     | 1   | -                    | True/false id          | Pushes the caller type and id to the stack.                                      |
+| OP_CALLER      | 0xb9     | 1   | -                    | key false / id true    | Pushes the caller id/key and type to the stack.                                  |
 | OP_OPSBUDGET   | 0xba     | 1   | -                    | out                    | Pushes the ops budget into stack.                                                |
 | OP_OPSCOUNTER  | 0xbb     | 1   | -                    | out                    | Pushes the number of ops spent into stack.                                       |
 | OP_OPSPRICE    | 0xbc     | 1   | -                    | out                    | Pushes the ops price into stack.                                                 |
@@ -162,26 +162,26 @@ Cube uses an extended Bitcoin script with splicing, better memory management, an
 
 ## Shadowing 
 
-| Opcode                    | Bytecode | Ops         | Input      | Output               | Description                                                                       |
-|:--------------------------|:---------|:------------|:-----------|:---------------------|:----------------------------------------------------------------------------------|
-| OP_SHADOW_ALLOC           | 0xc0     | 1000        | key        | nothing / fail.      | Allocates an account within the contract's shadow space.                          |
-| OP_SHADOW_DEALLOC         | 0xc1     | +900        | key        | nothing / fail.      | Deallocates the account within the contract's shadow space.                       |
-| OP_SHADOW_HAS_ALLOC       | 0xc2     | 1           | key        | out                  | Returns whether the account has an allocation within the contract's shadow space. |
-| OP_SHADOW_ALLOC_VAL       | 0xc3     | 1           | key        | val true / false     | Returns the allocation value of an account within the contract's shadow space.    |
-| OP_SHADOW_UP              | 0xc4     | 5           | key amount | nothing / fail.      | Increases the shadow space allocation of an account.                              |
-| OP_SHADOW_DOWN            | 0xc5     | 5           | key amount | nothing / fail.      | Decreases the shadow space allocation of an account.                              |
-| OP_SHADOW_UP_ALL          | 0xc6     | 50          | amount     | nothing / fail.      | Proportionally increases shadow space allocations of all accounts.                |
-| OP_SHADOW_DOWN_ALL        | 0xc7     | 50          | amount     | nothing / fail.      | Proportionally decreases shadow space allocations of all accounts.                |
-| OP_SHADOW_NUM_ALLOCS      | 0xc8     | 1           | -          | out                  | Returns the number of total shadow allocations of the contract.                   |
-| OP_SHADOW_ALLOCS_SUM      | 0xc9     | 1           | -          | out                  | Returns the sum of all shadow allocation values of the contract.                  |
+| Opcode                    | Bytecode | Ops         | Input      | Output             | Description                                                                       |
+|:--------------------------|:---------|:------------|:-----------|:-------------------|:----------------------------------------------------------------------------------|
+| OP_SHADOW_ALLOC           | 0xc0     | 1000        | key        | - / Fail.          | Allocates an account within the contract's shadow space.                          |
+| OP_SHADOW_DEALLOC         | 0xc1     | +900        | key        | - / Fail.          | Deallocates the account within the contract's shadow space.                       |
+| OP_SHADOW_HAS_ALLOC       | 0xc2     | 1           | key        | true / false       | Returns whether the account has an allocation within the contract's shadow space. |
+| OP_SHADOW_ALLOC_VAL       | 0xc3     | 1           | key        | out                | Returns the allocation value of an account within the contract's shadow space.    |
+| OP_SHADOW_UP              | 0xc4     | 5           | key amount | - / Fail.          | Increases the shadow space allocation of an account.                              |
+| OP_SHADOW_DOWN            | 0xc5     | 5           | key amount | - / Fail.          | Decreases the shadow space allocation of an account.                              |
+| OP_SHADOW_UP_ALL          | 0xc6     | 50          | amount     | - / Fail.          | Proportionally increases shadow space allocations of all accounts.                |
+| OP_SHADOW_DOWN_ALL        | 0xc7     | 50          | amount     | - / Fail.          | Proportionally decreases shadow space allocations of all accounts.                |
+| OP_SHADOW_NUM_ALLOCS      | 0xc8     | 1           | -          | out                | Returns the number of total shadow allocations of the contract.                   |
+| OP_SHADOW_ALLOCS_SUM      | 0xc9     | 1           | -          | out                | Returns the sum of all shadow allocation values of the contract.                  |
 
 ## Coin 
 
 | Opcode           | Bytecode | Ops              | Input                   | Output        | Description                                                                  |
 |:-----------------|:---------|:-----------------|:------------------------|:--------------|:-----------------------------------------------------------------------------|
-| OP_EXT_BALANCE   | 0xca     | 1                | kind destination        | out/fail.     | Pops the kind and pushes the contract's or account's balance onto the stack. |
-| OP_SELF_BALANCE  | 0xcb     | 1                | -                       | out/fail.     | Pushes the underlying contract’s balance onto the stack.                     |
-| OP_TRANSFER      | 0xcc     | 10               | kind destination amount | Nothing/fail. | Pops the kind and transfers sats to the account or the contract.             |
+| OP_EXT_BALANCE   | 0xca     | 1                | kind destination        | out / Fail.   | Pops the kind and pushes the contract's or account's balance onto the stack. |
+| OP_SELF_BALANCE  | 0xcb     | 1                | -                       | out / Fail.   | Pushes the underlying contract’s balance onto the stack.                     |
+| OP_TRANSFER      | 0xcc     | 10               | kind destination amount | - / Fail.     | Pops the kind and transfers sats to the account or the contract.             |
 
 ## Storage
 

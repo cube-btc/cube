@@ -50,17 +50,17 @@ impl OP_SHADOW_ALLOC_VAL {
                 account_key_bytes,
             ) {
                 Some(value) => {
+                    // Convert the value to a stack uint.
                     let value_as_stack_uint = StackUint::from_u64(value);
+
+                    // Convert the value to a stack item.
                     let value_as_stack_item = StackItem::from_stack_uint(value_as_stack_uint);
 
-                    // Push the value to the main stack.
+                    // Push the value item to the main stack.
                     stack_holder.push(value_as_stack_item)?;
-
-                    // Push true to the main stack.
-                    stack_holder.push(StackItem::true_item())?;
                 }
                 None => {
-                    // Push false to the main stack.
+                    // Push false item to the main stack.
                     stack_holder.push(StackItem::false_item())?;
                 }
             };
