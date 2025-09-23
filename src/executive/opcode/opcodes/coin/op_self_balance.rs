@@ -35,6 +35,7 @@ impl OP_SELF_BALANCE {
                     CoinBalanceGetError::UnableToGetContractBalance(self_contract_id_bytes),
                 ))?
         };
+
         // Convert the contract balance to a stack uint.
         let contract_balance_as_stack_uint = StackUint::from(contract_balance);
 

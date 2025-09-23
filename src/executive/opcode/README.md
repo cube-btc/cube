@@ -180,7 +180,7 @@ Cube uses an extended Bitcoin script with splicing, better memory management, an
 | Opcode           | Bytecode | Ops              | Input                   | Output        | Description                                                                  |
 |:-----------------|:---------|:-----------------|:------------------------|:--------------|:-----------------------------------------------------------------------------|
 | OP_EXT_BALANCE   | 0xca     | 1                | kind destination        | out / Fail.   | Pops the kind and pushes the contract's or account's balance onto the stack. |
-| OP_SELF_BALANCE  | 0xcb     | 1                | -                       | out / Fail.   | Pushes the underlying contract’s balance onto the stack.                     |
+| OP_SELF_BALANCE  | 0xcb     | 1                | -                       | out           | Pushes the underlying contract’s balance onto the stack.                     |
 | OP_TRANSFER      | 0xcc     | 10               | kind destination amount | - / Fail.     | Pops the kind and transfers sats to the account or the contract.             |
 
 ## Storage
