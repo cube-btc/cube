@@ -348,7 +348,7 @@ impl CoinManager {
 
     /// Gets or creates a mutable ephemeral account balance from the delta.
     /// Returns None if the account doesn't exist in permanent storage.
-    fn get_mut_delta_account_balance(&mut self, account_key: AccountKey) -> Option<&mut u64> {
+    fn get_mut_ephemeral_account_balance(&mut self, account_key: AccountKey) -> Option<&mut u64> {
         // If the account balance is not in the delta, create it.
         if !self
             .delta_accounts
@@ -375,7 +375,7 @@ impl CoinManager {
 
     /// Gets or creates a mutable ephemeral contract balance from the delta.
     /// Returns None if the contract doesn't exist in permanent storage.
-    fn get_mut_delta_contract_balance(&mut self, contract_id: ContractId) -> Option<&mut u64> {
+    fn get_mut_ephemeral_contract_balance(&mut self, contract_id: ContractId) -> Option<&mut u64> {
         // If the contract balance is not in the delta, create it.
         if !self
             .delta_contracts
@@ -402,7 +402,7 @@ impl CoinManager {
 
     /// Gets or creates a mutable ephemeral account shadow allocs sum from the delta.
     /// Returns None if the account doesn't exist in permanent storage.
-    fn get_mut_delta_account_shadow_allocs_sum(
+    fn get_mut_ephemeral_account_shadow_allocs_sum(
         &mut self,
         account_key: AccountKey,
     ) -> Option<&mut u128> {
@@ -432,7 +432,10 @@ impl CoinManager {
 
     /// Gets or creates a mutable ephemeral shadow space from the delta.
     /// Returns None if the contract doesn't exist in permanent storage.
-    fn get_mut_delta_shadow_space(&mut self, contract_id: ContractId) -> Option<&mut ShadowSpace> {
+    fn get_mut_ephemeral_shadow_space(
+        &mut self,
+        contract_id: ContractId,
+    ) -> Option<&mut ShadowSpace> {
         // If the shadow space is not in the delta, create it.
         if !self
             .delta_contracts
@@ -700,23 +703,24 @@ impl CoinManager {
         account_key: AccountKey,
         up_value_in_satoshis: u64,
     ) -> Result<(), CMAccountBalanceUpError> {
-        // Get the old ephemeral account balance before any mutable borrows.
+        // Get the account's existing balance.
         let existing_account_balance_in_satoshis: u64 =
             self.get_account_balance(account_key).ok_or(
                 CMAccountBalanceUpError::UnableToGetAccountBalance(account_key),
             )?;
 
-        // Calculate the new ephemeral account balance.
+        // Calculate the new account balance.
         let new_account_balance_in_satoshis: u64 =
             existing_account_balance_in_satoshis + up_value_in_satoshis;
 
-        // Get or create the ephemeral account balance from the delta.
-        let ephemeral_account_balance = self.get_mut_delta_account_balance(account_key).ok_or(
-            CMAccountBalanceUpError::UnableToGetAccountBalance(account_key),
-        )?;
+        // Get mutable ephemeral account balance from the delta.
+        let mut_ephemeral_account_balance =
+            self.get_mut_ephemeral_account_balance(account_key).ok_or(
+                CMAccountBalanceUpError::UnableToGetAccountBalance(account_key),
+            )?;
 
-        // Update the account balance.
-        *ephemeral_account_balance = new_account_balance_in_satoshis;
+        // Epheremally update the account's balance.
+        *mut_ephemeral_account_balance = new_account_balance_in_satoshis;
 
         // Return the result.
         Ok(())
@@ -730,7 +734,7 @@ impl CoinManager {
         account_key: AccountKey,
         down_value_in_satoshis: u64,
     ) -> Result<(), CMAccountBalanceDownError> {
-        // Get the old ephemeral account balance before any mutable borrows.
+        // Get the account's existing balance.
         let existing_account_balance_in_satoshis: u64 =
             self.get_account_balance(account_key).ok_or(
                 CMAccountBalanceDownError::UnableToGetAccountBalance(account_key),
@@ -745,17 +749,18 @@ impl CoinManager {
             ));
         }
 
-        // Calculate the new ephemeral account balance.
+        // Calculate the new account balance.
         let new_account_balance_in_satoshis: u64 =
             existing_account_balance_in_satoshis - down_value_in_satoshis;
 
-        // Get or create the ephemeral account balance from the delta.
-        let ephemeral_account_balance = self.get_mut_delta_account_balance(account_key).ok_or(
-            CMAccountBalanceDownError::UnableToGetAccountBalance(account_key),
-        )?;
+        // Get mutable ephemeral account balance from the delta.
+        let mut_ephemeral_account_balance =
+            self.get_mut_ephemeral_account_balance(account_key).ok_or(
+                CMAccountBalanceDownError::UnableToGetAccountBalance(account_key),
+            )?;
 
-        // Update the ephemeral account balance.
-        *ephemeral_account_balance = new_account_balance_in_satoshis;
+        // Epheremally update the account's balance.
+        *mut_ephemeral_account_balance = new_account_balance_in_satoshis;
 
         // Return the result.
         Ok(())
@@ -769,23 +774,24 @@ impl CoinManager {
         contract_id: [u8; 32],
         up_value_in_satoshis: u64,
     ) -> Result<(), CMContractBalanceUpError> {
-        // Get the old contract balance before any mutable borrows.
+        // Get the contract's existing balance.
         let existing_contract_balance_in_satoshis: u64 =
             self.get_contract_balance(contract_id).ok_or(
                 CMContractBalanceUpError::UnableToGetContractBalance(contract_id),
             )?;
 
-        // Calculate the new contract balance.
+        // Calculate the contract's new balance.
         let new_contract_balance_in_satoshis: u64 =
             existing_contract_balance_in_satoshis + up_value_in_satoshis;
 
-        // Get or create the ephemeral contract balance from the delta.
-        let ephemeral_contract_balance = self.get_mut_delta_contract_balance(contract_id).ok_or(
-            CMContractBalanceUpError::UnableToGetContractBody(contract_id),
-        )?;
+        // Get mutable ephemeral contract balance from the delta.
+        let mut_ephemeral_contract_balance =
+            self.get_mut_ephemeral_contract_balance(contract_id).ok_or(
+                CMContractBalanceUpError::UnableToGetContractBody(contract_id),
+            )?;
 
-        // Update the contract balance.
-        *ephemeral_contract_balance = new_contract_balance_in_satoshis;
+        // Epheremally update the contract's balance.
+        *mut_ephemeral_contract_balance = new_contract_balance_in_satoshis;
 
         // Return the result.
         Ok(())
@@ -799,7 +805,7 @@ impl CoinManager {
         contract_id: [u8; 32],
         down_value_in_satoshis: u64,
     ) -> Result<(), CMContractBalanceDownError> {
-        // Get the old contract balance before any mutable borrows.
+        // Get the contract's existing balance.
         let existing_contract_balance_in_satoshis: u64 =
             self.get_contract_balance(contract_id).ok_or(
                 CMContractBalanceDownError::UnableToGetContractBalance(contract_id),
@@ -814,11 +820,11 @@ impl CoinManager {
             ));
         }
 
-        // Calculate the new contract balance.
+        // Calculate the contract's new balance.
         let new_contract_balance_in_satoshis: u64 =
             existing_contract_balance_in_satoshis - down_value_in_satoshis;
 
-        // Get shadow allocs sum.
+        // Get the contract's existing shadow allocs sum.
         let existing_contract_shadow_allocs_sum_in_satoshis: u64 = self
             .get_contract_shadow_allocs_sum_in_satoshis(contract_id)
             .ok_or(CMContractBalanceDownError::UnableToGetContractAllocsSum(
@@ -837,13 +843,14 @@ impl CoinManager {
             );
         }
 
-        // Get or create the ephemeral contract balance from the delta.
-        let ephemeral_contract_balance = self.get_mut_delta_contract_balance(contract_id).ok_or(
-            CMContractBalanceDownError::UnableToGetContractBody(contract_id),
-        )?;
+        // Get mutable ephemeral contract balance from the delta.
+        let mut_ephemeral_contract_balance =
+            self.get_mut_ephemeral_contract_balance(contract_id).ok_or(
+                CMContractBalanceDownError::UnableToGetContractBody(contract_id),
+            )?;
 
-        // Update the contract balance.
-        *ephemeral_contract_balance = new_contract_balance_in_satoshis;
+        // Epheremally update the contract's balance.
+        *mut_ephemeral_contract_balance = new_contract_balance_in_satoshis;
 
         // Return the result.
         Ok(())
@@ -897,15 +904,15 @@ impl CoinManager {
             );
         }
 
-        // Get or create the ephemeral shadow space from the delta.
-        let epheremal_shadow_space = self.get_mut_delta_shadow_space(contract_id).ok_or(
+        // Get mutable ephemeral shadow space from the delta.
+        let mut_epheremal_shadow_space = self.get_mut_ephemeral_shadow_space(contract_id).ok_or(
             CMContractShadowAllocAccountError::UnableToGetContractBody(contract_id),
         )?;
 
-        // Insert the account key into the shadow space in the delta with the value initalliy set to zero.
-        epheremal_shadow_space.insert_alloc(account_key, 0);
+        // Epheremally insert the new allocation.
+        mut_epheremal_shadow_space.insert_alloc(account_key, 0);
 
-        // Insert the account key into the allocs list in the delta.
+        // Insert the allocation record to the allocs list in the delta.
         self.delta_contracts
             .allocs_list
             .entry(contract_id)
@@ -962,33 +969,33 @@ impl CoinManager {
         }
 
         // Get the mutable epheremal dealloc list from the delta.
-        let epheremal_dealloc_list = match self.delta_contracts.deallocs_list.get_mut(&contract_id)
-        {
-            Some(dealloc_list) => dealloc_list,
-            None => {
-                // Create a fresh dealloc list.
-                let fresh_dealloc_list = Vec::new();
+        let mut_epheremal_dealloc_list =
+            match self.delta_contracts.deallocs_list.get_mut(&contract_id) {
+                Some(dealloc_list) => dealloc_list,
+                None => {
+                    // Create a fresh dealloc list.
+                    let fresh_dealloc_list = Vec::new();
 
-                // Insert the dealloc list into the delta.
-                self.delta_contracts
-                    .deallocs_list
-                    .insert(contract_id, fresh_dealloc_list);
+                    // Insert the dealloc list into the delta.
+                    self.delta_contracts
+                        .deallocs_list
+                        .insert(contract_id, fresh_dealloc_list);
 
-                // Get the mutable dealloc list from the delta that we just inserted.
-                let delta_dealloc_list = self
-                    .delta_contracts
-                    .deallocs_list
-                    .get_mut(&contract_id)
-                    .expect("This cannot happen because we just inserted it.");
+                    // Get the mutable dealloc list from the delta that we just inserted.
+                    let delta_dealloc_list = self
+                        .delta_contracts
+                        .deallocs_list
+                        .get_mut(&contract_id)
+                        .expect("This cannot happen because we just inserted it.");
 
-                // Return the mutable dealloc list.
-                delta_dealloc_list
-            }
-        };
+                    // Return the mutable dealloc list.
+                    delta_dealloc_list
+                }
+            };
 
         // Check if the account has just been epheremally deallocated in the delta.
         // We do not allow it to be deallocated if it is just deallocated in the same execution.
-        if epheremal_dealloc_list.contains(&account_key) {
+        if mut_epheremal_dealloc_list.contains(&account_key) {
             return Err(
                 CMContractShadowDeallocAccountError::AccountHasJustBeenEphemerallyDeallocated(
                     contract_id,
@@ -997,16 +1004,16 @@ impl CoinManager {
             );
         }
 
-        // Insert the account key into the epheremal dealloc list.
-        epheremal_dealloc_list.push(account_key);
+        // Insert the deallocation record to the dealloc list in the delta.
+        mut_epheremal_dealloc_list.push(account_key);
 
-        // Get or create the ephemeral shadow space from the delta.
-        let epheremal_shadow_space = self
-            .get_mut_delta_shadow_space(contract_id)
+        // Get mutable ephemeral shadow space from the delta.
+        let mut_epheremal_shadow_space = self
+            .get_mut_ephemeral_shadow_space(contract_id)
             .ok_or(CMContractShadowDeallocAccountError::UnableToGetContractBody(contract_id))?;
 
-        // Remove the account key from the shadow space in the delta.
-        epheremal_shadow_space.remove_alloc(account_key);
+        // Epheremally remove the account key from the shadow space.
+        mut_epheremal_shadow_space.remove_alloc(account_key);
 
         // Return the result.
         Ok(())
@@ -1031,15 +1038,15 @@ impl CoinManager {
         let new_account_shadow_allocs_sum_in_sati_satoshis: u128 =
             existing_account_shadow_allocs_sum_in_sati_satoshis + up_value_in_sati_satoshis;
 
-        // Get or create the ephemeral account shadow allocs sum from the delta.
-        let ephemeral_account_shadow_allocs_sum = self
-            .get_mut_delta_account_shadow_allocs_sum(account_key)
+        // Get mutable ephemeral account shadow allocs sum from the delta.
+        let mut_ephemeral_account_shadow_allocs_sum = self
+            .get_mut_ephemeral_account_shadow_allocs_sum(account_key)
             .ok_or(CMAccountShadowAllocsSumUpError::UnableToGetAccountBody(
                 account_key,
             ))?;
 
-        // Update the ephemeral account shadow allocs sum.
-        *ephemeral_account_shadow_allocs_sum = new_account_shadow_allocs_sum_in_sati_satoshis;
+        // Epheremally update the account shadow allocs sum.
+        *mut_ephemeral_account_shadow_allocs_sum = new_account_shadow_allocs_sum_in_sati_satoshis;
 
         // Return the result.
         Ok(())
@@ -1075,15 +1082,15 @@ impl CoinManager {
         let new_account_shadow_allocs_sum_in_sati_satoshis: u128 =
             existing_account_shadow_allocs_sum_in_sati_satoshis - down_value_in_sati_satoshis;
 
-        // Get or create the ephemeral account shadow allocs sum from the delta.
-        let ephemeral_account_shadow_allocs_sum = self
-            .get_mut_delta_account_shadow_allocs_sum(account_key)
+        // Get mutable ephemeral account shadow allocs sum from the delta.
+        let mut_ephemeral_account_shadow_allocs_sum = self
+            .get_mut_ephemeral_account_shadow_allocs_sum(account_key)
             .ok_or(CMAccountShadowAllocsSumDownError::UnableToGetAccountBody(
                 account_key,
             ))?;
 
-        // Update the ephemeral account shadow allocs sum.
-        *ephemeral_account_shadow_allocs_sum = new_account_shadow_allocs_sum_in_sati_satoshis;
+        // Epheremally update the account shadow allocs sum.
+        *mut_ephemeral_account_shadow_allocs_sum = new_account_shadow_allocs_sum_in_sati_satoshis;
 
         // Return the result.
         Ok(())
@@ -1114,10 +1121,10 @@ impl CoinManager {
             .get_contract_balance(contract_id)
             .ok_or(CMShadowUpError::UnableToGetContractBalance(contract_id))?;
 
-        // Get or create the ephemeral shadow space from the delta.
-        let epheremal_shadow_space = self
-            .get_mut_delta_shadow_space(contract_id)
-            .ok_or(CMShadowUpError::UnableToGetContractBody(contract_id))?;
+        // Get mutable ephemeral shadow space from the delta.
+        let mut_epheremal_shadow_space = self.get_mut_ephemeral_shadow_space(contract_id).ok_or(
+            CMShadowUpError::UnableToGetMutEphemeralShadowSpace(contract_id),
+        )?;
 
         // Calculate the new allocation value.
         let new_account_shadow_alloc_value_in_sati_satoshis: u128 =
@@ -1125,7 +1132,7 @@ impl CoinManager {
 
         // Calculate the new allocation sum value.
         let new_contract_allocs_sum_value_in_satoshis: u64 =
-            epheremal_shadow_space.allocs_sum() + up_value_in_satoshis;
+            mut_epheremal_shadow_space.allocs_sum() + up_value_in_satoshis;
 
         // Check if the new contract alloc sum value exceeds the contract balance.
         if new_contract_allocs_sum_value_in_satoshis > existing_contract_balance_in_satoshis {
@@ -1137,11 +1144,11 @@ impl CoinManager {
         }
 
         // Epheremally update the account shadow allocation value.
-        epheremal_shadow_space
+        mut_epheremal_shadow_space
             .insert_alloc(account_key, new_account_shadow_alloc_value_in_sati_satoshis);
 
         // Epheremally update the contract shadow allocation sum value.
-        epheremal_shadow_space.update_allocs_sum(new_contract_allocs_sum_value_in_satoshis);
+        mut_epheremal_shadow_space.update_allocs_sum(new_contract_allocs_sum_value_in_satoshis);
 
         // Update the account shadow allocs sum value.
         {
@@ -1190,10 +1197,10 @@ impl CoinManager {
             ));
         }
 
-        // Get or create the ephemeral shadow space from the delta.
-        let epheremal_shadow_space = self
-            .get_mut_delta_shadow_space(contract_id)
-            .ok_or(CMShadowDownError::UnableToGetContractBody(contract_id))?;
+        // Get mutable ephemeral shadow space from the delta.
+        let mut_epheremal_shadow_space = self.get_mut_ephemeral_shadow_space(contract_id).ok_or(
+            CMShadowDownError::UnableToGetMutEphemeralShadowSpace(contract_id),
+        )?;
 
         // Calculate the new allocation value.
         let new_account_shadow_alloc_value_in_sati_satoshis: u128 =
@@ -1201,7 +1208,7 @@ impl CoinManager {
 
         // Calculate the new allocation sum value.
         let new_contract_allocs_sum_value_in_satoshis: u64 =
-            epheremal_shadow_space.allocs_sum() - down_value_in_satoshis;
+            mut_epheremal_shadow_space.allocs_sum() - down_value_in_satoshis;
 
         // Check if the new contract alloc sum value exceeds the contract balance.
         if new_contract_allocs_sum_value_in_satoshis > existing_contract_balance_in_satoshis {
@@ -1213,13 +1220,13 @@ impl CoinManager {
         }
 
         // Epheremally update the account shadow allocation value.
-        epheremal_shadow_space
+        mut_epheremal_shadow_space
             .insert_alloc(account_key, new_account_shadow_alloc_value_in_sati_satoshis);
 
         // Epheremally update the contract shadow allocation sum value.
-        epheremal_shadow_space.update_allocs_sum(new_contract_allocs_sum_value_in_satoshis);
+        mut_epheremal_shadow_space.update_allocs_sum(new_contract_allocs_sum_value_in_satoshis);
 
-        // Update the account shadow allocs sum value.
+        // Epheremally update the account shadow allocs sum value.
         {
             self.account_shadow_allocs_sum_down(account_key, down_value_in_sati_satoshis)
                 .map_err(|error| {
@@ -1235,63 +1242,48 @@ impl CoinManager {
         Ok(())
     }
 
-    /// Proportionally adjusts the shadow allocation value of all accounts in a given contract's shadow space.
-    /// Positive values increase allocations, negative values decrease allocations.
+    /// Proportionaly increases the shadow allocation value of all accounts in a contract shadow space by a given value.
     ///
     /// NOTE: These changes are saved with the use of the `apply_changes` function.
-    fn shadow_adjust_all_internal(
+    pub fn shadow_up_all(
         &mut self,
         contract_id: [u8; 32],
-        adjustment_value_in_satoshis: i64,
-    ) -> Result<u64, Box<dyn std::error::Error>> {
-        // Convert the adjustment value to sati-satoshi value.
-        let _adjustment_value_in_sati_satoshis: i128 =
-            (adjustment_value_in_satoshis as i128) * 100_000_000;
+        up_value_in_satoshis: u64,
+    ) -> Result<u64, CMShadowUpAllError> {
+        // Convert the increase value to sati-satoshi value.
+        let up_value_in_sati_satoshis: u128 = (up_value_in_satoshis as u128) * 100_000_000;
 
         // Get the old contract balance and allocs sum before any mutable borrows.
         let contract_balance_in_satoshis: u64 = self
             .get_contract_balance(contract_id)
-            .ok_or_else(|| format!("Unable to get contract balance for {:?}", contract_id))?;
+            .ok_or(CMShadowUpAllError::UnableToGetContractBalance(contract_id))?;
 
         // Get the old contract allocs sum before any mutable borrows.
         let existing_contract_allocs_sum_in_satoshis: u64 = self
             .get_contract_shadow_allocs_sum_in_satoshis(contract_id)
-            .ok_or_else(|| format!("Unable to get contract allocs sum for {:?}", contract_id))?;
+            .ok_or(CMShadowUpAllError::UnableToGetContractAllocsSum(
+                contract_id,
+            ))?;
 
         // Check if the contract allocs sum is zero.
         // This operation is not possible with zero allocs sum.
         if existing_contract_allocs_sum_in_satoshis == 0 {
-            return Err(format!(
-                "Operation not possible with zero allocs sum for contract {:?}",
-                contract_id
-            )
-            .into());
+            return Err(CMShadowUpAllError::OperationNotPossibleWithZeroAllocsSum(
+                contract_id,
+            ));
         }
 
         // Calculate the new contract allocs sum value.
-        let new_contract_allocs_sum_value_in_satoshis: u64 = if adjustment_value_in_satoshis >= 0 {
-            existing_contract_allocs_sum_in_satoshis + (adjustment_value_in_satoshis as u64)
-        } else {
-            let abs_adjustment = (-adjustment_value_in_satoshis) as u64;
-            if abs_adjustment > existing_contract_allocs_sum_in_satoshis {
-                return Err(format!(
-                    "Allocs sum would go below zero for contract {:?}",
-                    contract_id
-                )
-                .into());
-            }
-            existing_contract_allocs_sum_in_satoshis - abs_adjustment
-        };
+        let new_contract_allocs_sum_value_in_satoshis: u64 =
+            existing_contract_allocs_sum_in_satoshis + up_value_in_satoshis;
 
         // Check if the new contract alloc sum value exceeds the contract balance.
         if new_contract_allocs_sum_value_in_satoshis > contract_balance_in_satoshis {
-            return Err(format!(
-                "Allocs sum would exceed contract balance for contract {:?}: {} > {}",
+            return Err(CMShadowUpAllError::AllocsSumExceedsTheContractBalance(
                 contract_id,
                 new_contract_allocs_sum_value_in_satoshis,
-                contract_balance_in_satoshis
-            )
-            .into());
+                contract_balance_in_satoshis,
+            ));
         }
 
         // Convert the old contract allocs sum to sati-satoshi value.
@@ -1299,11 +1291,11 @@ impl CoinManager {
             (existing_contract_allocs_sum_in_satoshis as u128) * 100_000_000;
 
         // Initialize a list of update values of individual accounts.
-        // (adjustment value, updated value)
-        let mut individual_update_values_in_sati_satoshis: HashMap<AccountKey, (i128, u128)> =
+        // (up value, updated value)
+        let mut individual_update_values_in_sati_satoshis: HashMap<AccountKey, (u128, u128)> =
             HashMap::new();
 
-        // Iterate over all accounts in the shadow space.
+        // Iterate over all all account in the shadow space.
         for (account_key, shadow_alloc_value_in_sati_satoshis) in match self
             .delta_contracts
             .updated_shadow_spaces
@@ -1315,153 +1307,69 @@ impl CoinManager {
             None => self
                 .in_memory_contracts
                 .get_mut(&contract_id)
-                .ok_or_else(|| format!("Unable to get contract body for {:?}", contract_id))?
+                .ok_or(CMShadowUpAllError::UnableToGetContractBody(contract_id))?
                 .shadow_space()
                 .allocs()
                 .iter(),
         } {
-            // Calculate proportional adjustment for this account.
-            let individual_adjustment_value_in_sati_satoshis: i128 = if adjustment_value_in_satoshis
-                >= 0
-            {
-                ((shadow_alloc_value_in_sati_satoshis
-                    * (adjustment_value_in_satoshis as u128)
-                    * 100_000_000)
-                    / existing_contract_allocs_sum_in_satisatoshis) as i128
-            } else {
-                let abs_adjustment = (-adjustment_value_in_satoshis) as u128;
-                -(((shadow_alloc_value_in_sati_satoshis * abs_adjustment * 100_000_000)
-                    / existing_contract_allocs_sum_in_satisatoshis) as i128)
-            };
+            // shadow_alloc_value_in_sati_satoshis divided by existing_contract_allocs_sum_in_satisatoshis = x divided by up_value_in_sati_satoshis.
+            // NOTE: if the account is ephemerally deallocated, since it's allocation value had to be zero, this will also be zero.
+            let individual_up_value_in_sati_satoshis: u128 = (shadow_alloc_value_in_sati_satoshis
+                * up_value_in_sati_satoshis)
+                / existing_contract_allocs_sum_in_satisatoshis;
 
-            // Check if the individual adjustment would make the allocation go below zero.
-            if individual_adjustment_value_in_sati_satoshis < 0
-                && (-individual_adjustment_value_in_sati_satoshis)
-                    > (*shadow_alloc_value_in_sati_satoshis as i128)
-            {
-                return Err(format!(
-                    "Account shadow alloc value would go below zero for contract {:?}, account {:?}",
-                    contract_id, account_key
-                ).into());
-            }
-
-            // If the individual adjustment is non-zero, insert it into the list of new values.
-            if individual_adjustment_value_in_sati_satoshis != 0 {
+            // If the individual up value is greater than zero, insert it into the list of new values.
+            if individual_up_value_in_sati_satoshis > 0 {
                 // Calculate the new value.
                 let individual_new_value_in_sati_satoshis: u128 =
-                    if individual_adjustment_value_in_sati_satoshis >= 0 {
-                        shadow_alloc_value_in_sati_satoshis
-                            + (individual_adjustment_value_in_sati_satoshis as u128)
-                    } else {
-                        shadow_alloc_value_in_sati_satoshis
-                            - (-individual_adjustment_value_in_sati_satoshis as u128)
-                    };
+                    shadow_alloc_value_in_sati_satoshis + individual_up_value_in_sati_satoshis;
 
                 // Insert the new value into the list of update values.
                 individual_update_values_in_sati_satoshis.insert(
                     *account_key,
                     (
-                        individual_adjustment_value_in_sati_satoshis,
+                        individual_up_value_in_sati_satoshis,
                         individual_new_value_in_sati_satoshis,
                     ),
                 );
             }
         }
 
-        // Get or create the ephemeral shadow space from the delta.
-        let epheremal_shadow_space = self
-            .get_mut_delta_shadow_space(contract_id)
-            .ok_or_else(|| format!("Unable to get shadow space for contract {:?}", contract_id))?;
+        // Retrieve the mutable shadow space from the delta.
+        let mut_epheremal_shadow_space = self.get_mut_ephemeral_shadow_space(contract_id).ok_or(
+            CMShadowUpAllError::UnableToGetMutEphemeralShadowSpace(contract_id),
+        )?;
 
-        // Ephemerally update the account shadow allocation values.
+        // Epheremally update the account shadow allocation value.
         for (account_key, (_, individual_new_value_in_sati_satoshis)) in
             individual_update_values_in_sati_satoshis.iter()
         {
-            epheremal_shadow_space
+            mut_epheremal_shadow_space
                 .insert_alloc(*account_key, *individual_new_value_in_sati_satoshis);
         }
 
-        // Update the allocs sum value in the ephemeral shadow space.
-        epheremal_shadow_space.update_allocs_sum(new_contract_allocs_sum_value_in_satoshis);
+        // Epheremally update the allocs sum value in the shadow space.
+        mut_epheremal_shadow_space.update_allocs_sum(new_contract_allocs_sum_value_in_satoshis);
 
-        // Update the account shadow allocs sum values.
-        for (account_key, (individual_adjustment_value_in_sati_satoshis, _)) in
+        // Epheremally update the account shadow allocs sum value.
+        for (account_key, (individual_up_value_in_sati_satoshis, _)) in
             individual_update_values_in_sati_satoshis.iter()
         {
-            if *individual_adjustment_value_in_sati_satoshis >= 0 {
-                self.account_shadow_allocs_sum_up(
-                    *account_key,
-                    *individual_adjustment_value_in_sati_satoshis as u128,
-                )
-                .map_err(|e| {
-                    format!(
-                        "Account shadow allocs sum up error for {:?}: {:?}",
-                        account_key, e
+            self.account_shadow_allocs_sum_up(*account_key, *individual_up_value_in_sati_satoshis)
+                .map_err(|error| {
+                    CMShadowUpAllError::AccountShadowAllocsSumUpError(
+                        contract_id,
+                        *account_key,
+                        error,
                     )
                 })?;
-            } else {
-                self.account_shadow_allocs_sum_down(
-                    *account_key,
-                    (-individual_adjustment_value_in_sati_satoshis) as u128,
-                )
-                .map_err(|e| {
-                    format!(
-                        "Account shadow allocs sum down error for {:?}: {:?}",
-                        account_key, e
-                    )
-                })?;
-            }
         }
 
         // Return the number of updated accounts.
         Ok(individual_update_values_in_sati_satoshis.len() as u64)
     }
 
-    /// Proportionaly increases the shadow allocation value of all accounts in a given contract's shadow space by a given value.
-    ///
-    /// NOTE: These changes are saved with the use of the `apply_changes` function.
-    pub fn shadow_up_all(
-        &mut self,
-        contract_id: [u8; 32],
-        up_value_in_satoshis: u64,
-    ) -> Result<u64, CMShadowUpAllError> {
-        self.shadow_adjust_all_internal(contract_id, up_value_in_satoshis as i64)
-            .map_err(|e| {
-                // Convert generic error to specific error type
-                let error_msg = e.to_string();
-                if error_msg.contains("Unable to get contract balance") {
-                    CMShadowUpAllError::UnableToGetContractBalance(contract_id)
-                } else if error_msg.contains("Unable to get contract allocs sum") {
-                    CMShadowUpAllError::UnableToGetContractAllocsSum(contract_id)
-                } else if error_msg.contains("Operation not possible with zero allocs sum") {
-                    CMShadowUpAllError::OperationNotPossibleWithZeroAllocsSum(contract_id)
-                } else if error_msg.contains("Allocs sum would exceed contract balance") {
-                    // Parse the error message to extract values
-                    let parts: Vec<&str> = error_msg.split(": ").collect();
-                    if parts.len() >= 2 {
-                        let values: Vec<&str> = parts[1].split(" > ").collect();
-                        if values.len() >= 2 {
-                            if let (Ok(new_sum), Ok(balance)) =
-                                (values[0].parse::<u64>(), values[1].parse::<u64>())
-                            {
-                                return CMShadowUpAllError::AllocsSumExceedsTheContractBalance(
-                                    contract_id,
-                                    new_sum,
-                                    balance,
-                                );
-                            }
-                        }
-                    }
-                    // Fallback error
-                    CMShadowUpAllError::UnableToGetContractBalance(contract_id)
-                } else {
-                    // Generic error fallback
-                    CMShadowUpAllError::UnableToGetContractBalance(contract_id)
-                }
-            })
-    }
-
-    /// Proportionaly decreases the shadow allocation value of all accounts in a given contract's shadow space by a given value.
+    /// Proportionaly decreases the shadow allocation value of all accounts in a contract shadow space by a given value.
     ///
     /// NOTE: These changes are saved with the use of the `apply_changes` function.
     pub fn shadow_down_all(
@@ -1469,63 +1377,147 @@ impl CoinManager {
         contract_id: [u8; 32],
         down_value_in_satoshis: u64,
     ) -> Result<u64, CMShadowDownAllError> {
-        self.shadow_adjust_all_internal(contract_id, -(down_value_in_satoshis as i64))
-            .map_err(|e| {
-                // Convert generic error to specific error type
-                let error_msg = e.to_string();
-                if error_msg.contains("Unable to get contract balance") {
-                    CMShadowDownAllError::UnableToGetContractBalance(contract_id)
-                } else if error_msg.contains("Unable to get contract allocs sum") {
-                    CMShadowDownAllError::UnableToGetContractAllocsSum(contract_id)
-                } else if error_msg.contains("Operation not possible with zero allocs sum") {
-                    CMShadowDownAllError::OperationNotPossibleWithZeroAllocsSum(contract_id)
-                } else if error_msg.contains("Allocs sum would go below zero") {
-                    // Parse the error message to extract values
-                    let parts: Vec<&str> = error_msg.split(": ").collect();
-                    if parts.len() >= 2 {
-                        let values: Vec<&str> = parts[1].split(" > ").collect();
-                        if values.len() >= 2 {
-                            if let (Ok(existing_sum), Ok(down_value)) =
-                                (values[0].parse::<u64>(), values[1].parse::<u64>())
-                            {
-                                return CMShadowDownAllError::AllocsSumWouldGoBelowZero(
-                                    contract_id,
-                                    existing_sum,
-                                    down_value,
-                                );
-                            }
-                        }
-                    }
-                    // Fallback error
-                    CMShadowDownAllError::UnableToGetContractBalance(contract_id)
-                } else if error_msg.contains("Allocs sum would exceed contract balance") {
-                    // Parse the error message to extract values
-                    let parts: Vec<&str> = error_msg.split(": ").collect();
-                    if parts.len() >= 2 {
-                        let values: Vec<&str> = parts[1].split(" > ").collect();
-                        if values.len() >= 2 {
-                            if let (Ok(new_sum), Ok(balance)) =
-                                (values[0].parse::<u64>(), values[1].parse::<u64>())
-                            {
-                                return CMShadowDownAllError::AllocsSumExceedsTheContractBalance(
-                                    contract_id,
-                                    new_sum,
-                                    balance,
-                                );
-                            }
-                        }
-                    }
-                    // Fallback error
-                    CMShadowDownAllError::UnableToGetContractBalance(contract_id)
-                } else if error_msg.contains("Account shadow alloc value would go below zero") {
-                    // This is a more complex error that needs parsing
-                    // For now, return a generic error
-                    CMShadowDownAllError::UnableToGetContractBalance(contract_id)
-                } else {
-                    // Generic error fallback
-                    CMShadowDownAllError::UnableToGetContractBalance(contract_id)
-                }
-            })
+        // Convert the decrease value to sati-satoshi value.
+        let down_value_in_sati_satoshis: u128 = (down_value_in_satoshis as u128) * 100_000_000;
+
+        // Get the old contract balance and allocs sum before any mutable borrows.
+        let contract_balance_in_satoshis: u64 = self.get_contract_balance(contract_id).ok_or(
+            CMShadowDownAllError::UnableToGetContractBalance(contract_id),
+        )?;
+
+        // Get the old contract allocs sum before any mutable borrows.
+        let existing_contract_allocs_sum_in_satoshis: u64 = self
+            .get_contract_shadow_allocs_sum_in_satoshis(contract_id)
+            .ok_or(CMShadowDownAllError::UnableToGetContractAllocsSum(
+                contract_id,
+            ))?;
+
+        // Check if the contract allocs sum is zero.
+        // This operation is not possible with zero allocs sum.
+        if existing_contract_allocs_sum_in_satoshis == 0 {
+            return Err(CMShadowDownAllError::OperationNotPossibleWithZeroAllocsSum(
+                contract_id,
+            ));
+        }
+
+        // Check if would go below zero.
+        if down_value_in_satoshis > existing_contract_allocs_sum_in_satoshis {
+            return Err(CMShadowDownAllError::AllocsSumWouldGoBelowZero(
+                contract_id,
+                existing_contract_allocs_sum_in_satoshis,
+                down_value_in_satoshis,
+            ));
+        }
+
+        // Calculate the new contract allocs sum value.
+        let new_contract_allocs_sum_value_in_satoshis: u64 =
+            existing_contract_allocs_sum_in_satoshis - down_value_in_satoshis;
+
+        // Check if the new contract alloc sum value exceeds the contract balance.
+        if new_contract_allocs_sum_value_in_satoshis > contract_balance_in_satoshis {
+            return Err(CMShadowDownAllError::AllocsSumExceedsTheContractBalance(
+                contract_id,
+                new_contract_allocs_sum_value_in_satoshis,
+                contract_balance_in_satoshis,
+            ));
+        }
+
+        // Convert the old contract allocs sum to sati-satoshi value.
+        let existing_contract_allocs_sum_in_satisatoshis: u128 =
+            (existing_contract_allocs_sum_in_satoshis as u128) * 100_000_000;
+
+        // Initialize a list of update values of individual accounts.
+        // (down value, updated value)
+        let mut individual_update_values_in_sati_satoshis: HashMap<AccountKey, (u128, u128)> =
+            HashMap::new();
+
+        // Iterate over all all account in the shadow space.
+        for (account_key, shadow_alloc_value_in_sati_satoshis) in match self
+            .delta_contracts
+            .updated_shadow_spaces
+            .get_mut(&contract_id)
+        {
+            // First try the ephemeral shadow space.
+            Some(shadow_space) => shadow_space.allocs().iter(),
+            // Otherwise from the in-memory shadow space.
+            None => self
+                .in_memory_contracts
+                .get_mut(&contract_id)
+                .ok_or(CMShadowDownAllError::UnableToGetContractBody(contract_id))?
+                .shadow_space()
+                .allocs()
+                .iter(),
+        } {
+            // shadow_alloc_value_in_sati_satoshis divided by existing_contract_allocs_sum_in_satisatoshis = x divided by down_value_in_sati_satoshis.
+            // NOTE: if the account is ephemerally deallocated, since it's allocation value had to be zero, this will also be zero.
+            let individual_down_value_in_sati_satoshis: u128 = (shadow_alloc_value_in_sati_satoshis
+                * down_value_in_sati_satoshis)
+                / existing_contract_allocs_sum_in_satisatoshis;
+
+            // Check if the individual down value would go below zero.
+            if individual_down_value_in_sati_satoshis > *shadow_alloc_value_in_sati_satoshis {
+                return Err(
+                    CMShadowDownAllError::AccountShadowAllocValueWouldGoBelowZero(
+                        contract_id,
+                        *account_key,
+                        *shadow_alloc_value_in_sati_satoshis,
+                        individual_down_value_in_sati_satoshis,
+                    ),
+                );
+            }
+
+            // If the individual up value is greater than zero, insert it into the list of new values.
+            if individual_down_value_in_sati_satoshis > 0 {
+                // Calculate the new value.
+                let individual_new_value_in_sati_satoshis: u128 =
+                    shadow_alloc_value_in_sati_satoshis - individual_down_value_in_sati_satoshis;
+
+                // Insert the new value into the list of update values.
+                individual_update_values_in_sati_satoshis.insert(
+                    *account_key,
+                    (
+                        individual_down_value_in_sati_satoshis,
+                        individual_new_value_in_sati_satoshis,
+                    ),
+                );
+            }
+        }
+
+        // Retrieve the mutable shadow space from the delta.
+        let mut_epheremal_shadow_space = self.get_mut_ephemeral_shadow_space(contract_id).ok_or(
+            CMShadowDownAllError::UnableToGetMutEphemeralShadowSpace(contract_id),
+        )?;
+
+        // Epheremally update the account shadow allocation value.
+        for (account_key, (_, individual_new_value_in_sati_satoshis)) in
+            individual_update_values_in_sati_satoshis.iter()
+        {
+            mut_epheremal_shadow_space
+                .insert_alloc(*account_key, *individual_new_value_in_sati_satoshis);
+        }
+
+        // Epheremally update the allocs sum value in the shadow space.
+        mut_epheremal_shadow_space.update_allocs_sum(new_contract_allocs_sum_value_in_satoshis);
+
+        // Epheremally update the account shadow allocs sum value.
+        for (account_key, (individual_down_value_in_sati_satoshis, _)) in
+            individual_update_values_in_sati_satoshis.iter()
+        {
+            self.account_shadow_allocs_sum_down(
+                *account_key,
+                *individual_down_value_in_sati_satoshis,
+            )
+            .map_err(|error| {
+                CMShadowDownAllError::AccountShadowAllocsSumDownError(
+                    contract_id,
+                    *account_key,
+                    error,
+                )
+            })?;
+        }
+
+        // Return the number of updated accounts.
+        Ok(individual_update_values_in_sati_satoshis.len() as u64)
     }
 
     /// Reverts the epheremal changes associated with the last execution.

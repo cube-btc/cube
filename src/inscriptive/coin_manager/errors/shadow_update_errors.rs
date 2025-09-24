@@ -34,7 +34,7 @@ pub enum CMAccountShadowAllocsSumDownError {
 pub enum CMShadowUpError {
     UnableToGetAccountShadowAllocValue(CONTRACT_ID, ACCOUNT_KEY),
     UnableToGetContractBalance(CONTRACT_ID),
-    UnableToGetContractBody(CONTRACT_ID),
+    UnableToGetMutEphemeralShadowSpace(CONTRACT_ID),
     AllocsSumExceedsTheContractBalance(CONTRACT_ID, SATOSHI_AMOUNT, SATOSHI_AMOUNT),
     AccountShadowAllocsSumUpError(CONTRACT_ID, ACCOUNT_KEY, CMAccountShadowAllocsSumUpError),
 }
@@ -50,7 +50,7 @@ pub enum CMShadowDownError {
         SATI_SATOSHI_AMOUNT,
         SATI_SATOSHI_AMOUNT,
     ),
-    UnableToGetContractBody(CONTRACT_ID),
+    UnableToGetMutEphemeralShadowSpace(CONTRACT_ID),
     AllocsSumExceedsTheContractBalance(CONTRACT_ID, SATOSHI_AMOUNT, SATOSHI_AMOUNT),
     AccountShadowAllocsSumDownError(CONTRACT_ID, ACCOUNT_KEY, CMAccountShadowAllocsSumDownError),
 }
@@ -63,6 +63,7 @@ pub enum CMShadowUpAllError {
     OperationNotPossibleWithZeroAllocsSum(CONTRACT_ID),
     AllocsSumExceedsTheContractBalance(CONTRACT_ID, SATOSHI_AMOUNT, SATOSHI_AMOUNT),
     UnableToGetContractBody(CONTRACT_ID),
+    UnableToGetMutEphemeralShadowSpace(CONTRACT_ID),
     AccountShadowAllocsSumUpError(CONTRACT_ID, ACCOUNT_KEY, CMAccountShadowAllocsSumUpError),
 }
 
@@ -76,6 +77,7 @@ pub enum CMShadowDownAllError {
     AllocsSumWouldGoBelowZero(CONTRACT_ID, SATOSHI_AMOUNT, SATOSHI_AMOUNT),
     AllocsSumExceedsTheContractBalance(CONTRACT_ID, SATOSHI_AMOUNT, SATOSHI_AMOUNT),
     UnableToGetContractBody(CONTRACT_ID),
+    UnableToGetMutEphemeralShadowSpace(CONTRACT_ID),
     AccountShadowAllocValueWouldGoBelowZero(
         CONTRACT_ID,
         ACCOUNT_KEY,
