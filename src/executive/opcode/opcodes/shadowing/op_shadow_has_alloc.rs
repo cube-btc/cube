@@ -45,10 +45,8 @@ impl OP_SHADOW_HAS_ALLOC {
 
             // Get the result item.
             let result_item = match _coin_manager
-                .get_account_shadow_alloc_value_of_a_contract_in_sati_satoshis(
-                    self_contract_id_bytes,
-                    account_key_bytes,
-                ) {
+                .get_shadow_alloc_value_in_sati_satoshis(self_contract_id_bytes, account_key_bytes)
+            {
                 Some(_) => StackItem::true_item(),
                 None => StackItem::false_item(),
             };

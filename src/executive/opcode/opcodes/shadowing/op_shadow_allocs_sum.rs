@@ -32,18 +32,19 @@ impl OP_SHADOW_ALLOCS_SUM {
             let mut _coin_manager = coin_manager.lock().await;
 
             // Get the result item.
-            let result_item =
-                match _coin_manager.get_contract_allocs_sum_in_satoshis(self_contract_id_bytes) {
-                    Some(allocs_sum) => {
-                        // Convert the number of allocations to a stack uint.
-                        let allocs_sum_as_stack_uint = StackUint::from_u64(allocs_sum);
+            let result_item = match _coin_manager
+                .get_contract_shadow_allocs_sum_in_satoshis(self_contract_id_bytes)
+            {
+                Some(allocs_sum) => {
+                    // Convert the number of allocations to a stack uint.
+                    let allocs_sum_as_stack_uint = StackUint::from_u64(allocs_sum);
 
-                        // Return the result item.
-                        StackItem::from_stack_uint(allocs_sum_as_stack_uint)
-                    }
-                    // NOTE: This is impossible.
-                    None => StackItem::false_item(),
-                };
+                    // Return the result item.
+                    StackItem::from_stack_uint(allocs_sum_as_stack_uint)
+                }
+                // NOTE: This is impossible.
+                None => StackItem::false_item(),
+            };
 
             // Push the result item to the stack.
             stack_holder.push(result_item)?;

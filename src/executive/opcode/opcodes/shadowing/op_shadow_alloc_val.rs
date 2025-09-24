@@ -45,10 +45,9 @@ impl OP_SHADOW_ALLOC_VAL {
             let mut _coin_manager = coin_manager.lock().await;
 
             // Match the allocation value.
-            match _coin_manager.get_account_shadow_alloc_value_of_a_contract_in_satoshis(
-                self_contract_id_bytes,
-                account_key_bytes,
-            ) {
+            match _coin_manager
+                .get_shadow_alloc_value_in_satoshis(self_contract_id_bytes, account_key_bytes)
+            {
                 Some(value) => {
                     // Convert the value to a stack uint.
                     let value_as_stack_uint = StackUint::from_u64(value);
