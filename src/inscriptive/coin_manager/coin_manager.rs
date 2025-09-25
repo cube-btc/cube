@@ -37,6 +37,9 @@ type ContractId = [u8; 32];
 /// Sati-satoshi amount.
 type SatiSatoshiAmount = u128;
 
+/// One satoshi is 100_000_000 sati-satoshis.
+const ONE_SATOSHI_IN_SATI_SATOSHIS: u128 = 100_000_000;
+
 /// Special db key for the account balance (0x00..).
 const ACCOUNT_BALANCE_SPECIAL_KEY: [u8; 1] = [0x00; 1];
 /// Special db key for the account shadow allocs sum (0x01..).
@@ -553,8 +556,8 @@ impl CoinManager {
         let sati_satoshi_value =
             self.get_account_shadow_allocs_sum_in_sati_satoshis(account_key)?;
 
-        // Divide by 100_000_000 to get the satoshi value.
-        let satoshi_value = sati_satoshi_value / 100_000_000;
+        // Convert to satoshi value.
+        let satoshi_value = sati_satoshi_value / ONE_SATOSHI_IN_SATI_SATOSHIS;
 
         // Return the result.
         Some(satoshi_value as u64)
@@ -620,8 +623,8 @@ impl CoinManager {
         let sati_satoshi_value =
             self.get_shadow_alloc_value_in_sati_satoshis(contract_id, account_key)?;
 
-        // Divide by 100_000_000 to get the satoshi value.
-        let satoshi_value = sati_satoshi_value / 100_000_000;
+        // Convert to satoshi value.
+        let satoshi_value = sati_satoshi_value / ONE_SATOSHI_IN_SATI_SATOSHIS;
 
         // Return the result.
         Some(satoshi_value as u64)
@@ -1106,7 +1109,8 @@ impl CoinManager {
         up_value_in_satoshis: u64,
     ) -> Result<(), CMShadowUpError> {
         // Convert the increase value to sati-satoshi value.
-        let up_value_in_sati_satoshis: u128 = (up_value_in_satoshis as u128) * 100_000_000;
+        let up_value_in_sati_satoshis: u128 =
+            (up_value_in_satoshis as u128) * ONE_SATOSHI_IN_SATI_SATOSHIS;
 
         // Get the old account allocation value and contract balance before any mutable borrows.
         let existing_account_shadow_alloc_value_in_sati_satoshis: u128 = self
@@ -1172,7 +1176,8 @@ impl CoinManager {
         down_value_in_satoshis: u64,
     ) -> Result<(), CMShadowDownError> {
         // Convert the decrease value to sati-satoshi value.
-        let down_value_in_sati_satoshis: u128 = (down_value_in_satoshis as u128) * 100_000_000;
+        let down_value_in_sati_satoshis: u128 =
+            (down_value_in_satoshis as u128) * ONE_SATOSHI_IN_SATI_SATOSHIS;
 
         // Get the old account allocation value and contract balance before any mutable borrows.
         let existing_account_shadow_alloc_value_in_sati_satoshis: u128 = self
@@ -1251,7 +1256,8 @@ impl CoinManager {
         up_value_in_satoshis: u64,
     ) -> Result<u64, CMShadowUpAllError> {
         // Convert the increase value to sati-satoshi value.
-        let up_value_in_sati_satoshis: u128 = (up_value_in_satoshis as u128) * 100_000_000;
+        let up_value_in_sati_satoshis: u128 =
+            (up_value_in_satoshis as u128) * ONE_SATOSHI_IN_SATI_SATOSHIS;
 
         // Get the old contract balance and allocs sum before any mutable borrows.
         let contract_balance_in_satoshis: u64 = self
@@ -1288,7 +1294,7 @@ impl CoinManager {
 
         // Convert the old contract allocs sum to sati-satoshi value.
         let existing_contract_allocs_sum_in_satisatoshis: u128 =
-            (existing_contract_allocs_sum_in_satoshis as u128) * 100_000_000;
+            (existing_contract_allocs_sum_in_satoshis as u128) * ONE_SATOSHI_IN_SATI_SATOSHIS;
 
         // Initialize a list of update values of individual accounts.
         // (up value, updated value)
@@ -1378,7 +1384,8 @@ impl CoinManager {
         down_value_in_satoshis: u64,
     ) -> Result<u64, CMShadowDownAllError> {
         // Convert the decrease value to sati-satoshi value.
-        let down_value_in_sati_satoshis: u128 = (down_value_in_satoshis as u128) * 100_000_000;
+        let down_value_in_sati_satoshis: u128 =
+            (down_value_in_satoshis as u128) * ONE_SATOSHI_IN_SATI_SATOSHIS;
 
         // Get the old contract balance and allocs sum before any mutable borrows.
         let contract_balance_in_satoshis: u64 = self.get_contract_balance(contract_id).ok_or(
@@ -1424,7 +1431,7 @@ impl CoinManager {
 
         // Convert the old contract allocs sum to sati-satoshi value.
         let existing_contract_allocs_sum_in_satisatoshis: u128 =
-            (existing_contract_allocs_sum_in_satoshis as u128) * 100_000_000;
+            (existing_contract_allocs_sum_in_satoshis as u128) * ONE_SATOSHI_IN_SATI_SATOSHIS;
 
         // Initialize a list of update values of individual accounts.
         // (down value, updated value)
