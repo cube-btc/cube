@@ -18,7 +18,7 @@ type SATOSHI_AMOUNT = u64;
 #[derive(Debug, Clone)]
 pub enum CMAccountShadowAllocsSumUpError {
     UnableToGetAccountShadowAllocsSum(ACCOUNT_KEY),
-    UnableToGetAccountBody(ACCOUNT_KEY),
+    UnableToGetMutEphemeralAccountShadowAllocsSum(ACCOUNT_KEY),
 }
 
 /// Errors associated with decreasing the account's shadow allocs sum.
@@ -26,7 +26,7 @@ pub enum CMAccountShadowAllocsSumUpError {
 pub enum CMAccountShadowAllocsSumDownError {
     UnableToGetAccountShadowAllocsSum(ACCOUNT_KEY),
     AccountShadowAllocsSumWouldGoBelowZero(ACCOUNT_KEY, SATI_SATOSHI_AMOUNT, SATI_SATOSHI_AMOUNT),
-    UnableToGetAccountBody(ACCOUNT_KEY),
+    UnableToGetMutEphemeralAccountShadowAllocsSum(ACCOUNT_KEY),
 }
 
 /// Errors associated with increasing an account's shadow allocation value in the contract's shadow space.   
@@ -43,7 +43,6 @@ pub enum CMShadowUpError {
 #[derive(Debug, Clone)]
 pub enum CMShadowDownError {
     UnableToGetAccountShadowAllocValue(CONTRACT_ID, ACCOUNT_KEY),
-    UnableToGetContractBalance(CONTRACT_ID),
     AccountShadowAllocValueWouldGoBelowZero(
         CONTRACT_ID,
         ACCOUNT_KEY,
@@ -51,7 +50,7 @@ pub enum CMShadowDownError {
         SATI_SATOSHI_AMOUNT,
     ),
     UnableToGetMutEphemeralShadowSpace(CONTRACT_ID),
-    AllocsSumExceedsTheContractBalance(CONTRACT_ID, SATOSHI_AMOUNT, SATOSHI_AMOUNT),
+    ContractShadowAllocsSumWouldGoBelowZero(CONTRACT_ID, SATOSHI_AMOUNT, SATOSHI_AMOUNT),
     AccountShadowAllocsSumDownError(CONTRACT_ID, ACCOUNT_KEY, CMAccountShadowAllocsSumDownError),
 }
 

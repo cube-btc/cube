@@ -12,7 +12,8 @@ pub enum CMContractShadowAllocAccountError {
     AccountHasJustBeenEphemerallyAllocated(CONTRACT_ID, ACCOUNT_KEY),
     AccountHasJustBeenEphemerallyDeallocated(CONTRACT_ID, ACCOUNT_KEY),
     UnableToGetAccountAllocValue(CONTRACT_ID, ACCOUNT_KEY),
-    UnableToGetContractBody(CONTRACT_ID),
+    UnableToGetMutEphemeralShadowSpace(CONTRACT_ID),
+    UnableToGetMutEpheremalAllocsList(CONTRACT_ID),
 }
 
 /// Errors associated with deallocating an account from the contract's shadow space.
@@ -23,5 +24,6 @@ pub enum CMContractShadowDeallocAccountError {
     AllocValueIsNonZero(CONTRACT_ID, ACCOUNT_KEY),
     UnableToGetEpheremalDeallocList(CONTRACT_ID),
     AccountHasJustBeenEphemerallyDeallocated(CONTRACT_ID, ACCOUNT_KEY),
-    UnableToGetContractBody(CONTRACT_ID),
+    UnableToGetMutEphemeralShadowSpace(CONTRACT_ID),
+    UnableToGetMutEpheremalDeallocList(CONTRACT_ID),
 }

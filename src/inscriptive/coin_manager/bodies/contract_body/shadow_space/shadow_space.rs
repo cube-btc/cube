@@ -67,17 +67,14 @@ impl ShadowSpace {
         self.allocs_sum = new_value;
     }
 
-    /// Inserts an allocation into the shadow space.
-    pub fn insert_alloc(
+    /// Inserts (or updates) an allocation into the shadow space.
+    pub fn insert_update_alloc(
         &mut self,
         account_key: ACCOUNT_KEY,
         alloc_value: SATI_SATOSHI_AMOUNT,
-    ) -> bool {
+    ) {
         // Insert the allocation into the allocations map.
-        match self.allocs.insert(account_key, alloc_value) {
-            Some(_) => false,
-            None => true,
-        }
+        self.allocs.insert(account_key, alloc_value);
     }
 
     /// Removes an allocation from the shadow space.

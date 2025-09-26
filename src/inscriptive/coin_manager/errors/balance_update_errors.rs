@@ -14,6 +14,7 @@ type CONTRACT_ID = [u8; 32];
 #[derive(Debug, Clone)]
 pub enum CMAccountBalanceUpError {
     UnableToGetAccountBalance(ACCOUNT_KEY),
+    UnableToGetMutEphemeralAccountBalance(ACCOUNT_KEY),
 }
 
 /// Errors associated with decreasing the account's balance.
@@ -21,13 +22,14 @@ pub enum CMAccountBalanceUpError {
 pub enum CMAccountBalanceDownError {
     UnableToGetAccountBalance(ACCOUNT_KEY),
     AccountBalanceWouldGoBelowZero(ACCOUNT_KEY, SATOSHI_AMOUNT, SATOSHI_AMOUNT),
+    UnableToGetMutEphemeralAccountBalance(ACCOUNT_KEY),
 }
 
 /// Errors associated with increasing contract's balance.
 #[derive(Debug, Clone)]
 pub enum CMContractBalanceUpError {
     UnableToGetContractBalance(CONTRACT_ID),
-    UnableToGetContractBody(CONTRACT_ID),
+    UnableToGetMutEphemeralContractBalance(CONTRACT_ID),
 }
 
 /// Errors associated with decreasing contract's balance.
@@ -37,5 +39,5 @@ pub enum CMContractBalanceDownError {
     ContractBalanceWouldGoBelowZero(CONTRACT_ID, SATOSHI_AMOUNT, SATOSHI_AMOUNT),
     UnableToGetContractAllocsSum(CONTRACT_ID),
     ContractBalanceWouldGoBelowAllocsSum(CONTRACT_ID, SATOSHI_AMOUNT, SATOSHI_AMOUNT),
-    UnableToGetContractBody(CONTRACT_ID),
+    UnableToGetMutEphemeralContractBalance(CONTRACT_ID),
 }
