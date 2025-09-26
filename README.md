@@ -6,7 +6,7 @@ Cube is a four-elemental, fire-sampled state machine built to supercharge Bitcoi
 Ensure you have [Rust](https://www.rust-lang.org/tools/install) installed. Clone the repository and navigate into the project directory:
 
 ```sh
-git clone https://github.com/cube-vm/cube
+git clone https://github.com/cube-btc/cube
 cd cube
 ```
 
