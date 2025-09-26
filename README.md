@@ -27,8 +27,8 @@ cargo run <chain> <mode> <bitcoin-rpc-url> <bitcoin-rpc-user> <bitcoin-rpc-passw
   - `node`: For running a Cube node.
   - `engine`: For network operators.
 - `<bitcoin-rpc-url>`: The RPC URL of the Bitcoin node.
-- `<bitcoin-rpc-user>`: The RPC username.
-- `<bitcoin-rpc-password>`: The RPC password.
+- `<bitcoin-rpc-user>`: The RPC username of the Bitcoin node.
+- `<bitcoin-rpc-password>`: The RPC password of the Bitcoin node.
 
 ### Example:
 

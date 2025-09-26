@@ -42,12 +42,12 @@ const ONE_SATOSHI_IN_SATI_SATOSHIS: u128 = 100_000_000;
 
 /// Special db key for the account balance (0x00..).
 const ACCOUNT_BALANCE_SPECIAL_KEY: [u8; 1] = [0x00; 1];
-/// Special db key for the account shadow allocs sum (0x01..).
+/// Special db key for the account shadow allocs sum value (0x01..).
 const ACCOUNT_ALLOCS_SUM_SPECIAL_KEY: [u8; 1] = [0x01; 1];
 
 /// Special db key for the contract balance (0x00..).
 const CONTRACT_BALANCE_SPECIAL_KEY: [u8; 32] = [0x00; 32];
-/// Special db key for the allocs sum (0x01..).
+/// Special db key for the contract shadow allocs sum value (0x01..).
 const CONTRACT_ALLOCS_SUM_SPECIAL_KEY: [u8; 32] = [0x01; 32];
 
 /// A database manager for handling account and contract balances & shadow space allocations.
