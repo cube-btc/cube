@@ -11,7 +11,7 @@ type ACCOUNT_KEY = [u8; 32];
 pub enum CMContractShadowAllocAccountError {
     AccountHasJustBeenEphemerallyAllocated(CONTRACT_ID, ACCOUNT_KEY),
     AccountHasJustBeenEphemerallyDeallocated(CONTRACT_ID, ACCOUNT_KEY),
-    UnableToGetAccountAllocValue(CONTRACT_ID, ACCOUNT_KEY),
+    AccountIsAlreadyPermanentlyAllocated(CONTRACT_ID, ACCOUNT_KEY),
     UnableToGetMutEphemeralShadowSpace(CONTRACT_ID),
     UnableToGetMutEpheremalAllocsList(CONTRACT_ID),
 }

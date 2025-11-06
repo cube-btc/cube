@@ -186,12 +186,14 @@ impl CoinManager {
                     }
                 }
 
-                // Construct the account body.
-                let account_body = CHAccountBody::new(account_balance, account_shadow_allocs_sum);
-
-                // Insert the account body into the account bodies list.
-                account_bodies.insert(account_key, account_body);
+                
             }
+
+            // Construct the account body.
+            let account_body = CHAccountBody::new(account_balance, account_shadow_allocs_sum);
+
+            // Insert the account body into the account bodies list.
+            account_bodies.insert(account_key, account_body);
         }
 
         // 5. Collect contract bodies from the contract database.
@@ -277,9 +279,9 @@ impl CoinManager {
                         allocs_sum = allocs_sum_value_in_satoshis;
                     }
                     _ => {
-                        // This key is a normal account key that corresponds to an account allocation.
+                        // This key is an account key that corresponds to an allocation in the contract's shadow space.
 
-                        // Deserialize the value bytes.
+                        // Deserialize the allocation value in sati-satoshis.
                         let alloc_value_in_sati_satoshis: u128 =
                                 u128::from_le_bytes(value.as_ref().try_into().map_err(|_| {
                                     CMConstructionError::ContractConstructionError(CMConstructionContractError::UnableToDeserializeAllocValueFromTreeValue(
@@ -290,7 +292,7 @@ impl CoinManager {
                                     ))
                                 })?);
 
-                        // Update the shadow space allocations.
+                        // Insert the allocation.
                         allocs.insert(tree_key_bytes, alloc_value_in_sati_satoshis);
                     }
                 }
@@ -631,6 +633,8 @@ impl CoinManager {
         // Check if the account is epheremally deallocated in the delta.
         if let Some(dealloc_list) = self.delta_contracts.deallocs_list.get(&contract_id) {
             if dealloc_list.contains(&account_key) {
+                // The account is epheremally deallocated in the same execution.
+                // Therefore, there is no allocation value anymore to return.
                 return None;
             }
         }
@@ -929,7 +933,7 @@ impl CoinManager {
             .is_some()
         {
             return Err(
-                CMContractShadowAllocAccountError::UnableToGetAccountAllocValue(
+                CMContractShadowAllocAccountError::AccountIsAlreadyPermanentlyAllocated(
                     contract_id,
                     account_key,
                 ),
@@ -1347,14 +1351,14 @@ impl CoinManager {
         for (account_key, shadow_alloc_value_in_sati_satoshis) in match self
             .delta_contracts
             .updated_shadow_spaces
-            .get_mut(&contract_id)
+            .get(&contract_id)
         {
             // First try the ephemeral shadow space.
             Some(shadow_space) => shadow_space.allocs().iter(),
             // Otherwise from the in-memory shadow space.
             None => self
                 .in_memory_contracts
-                .get_mut(&contract_id)
+                .get(&contract_id)
                 .ok_or(CMShadowUpAllError::UnableToGetContractBody(contract_id))?
                 .shadow_space()
                 .allocs()
@@ -1486,14 +1490,14 @@ impl CoinManager {
         for (account_key, shadow_alloc_value_in_sati_satoshis) in match self
             .delta_contracts
             .updated_shadow_spaces
-            .get_mut(&contract_id)
+            .get(&contract_id)
         {
             // First try the ephemeral shadow space.
             Some(shadow_space) => shadow_space.allocs().iter(),
             // Otherwise from the in-memory shadow space.
             None => self
                 .in_memory_contracts
-                .get_mut(&contract_id)
+                .get(&contract_id)
                 .ok_or(CMShadowDownAllError::UnableToGetContractBody(contract_id))?
                 .shadow_space()
                 .allocs()
@@ -1517,7 +1521,7 @@ impl CoinManager {
                 );
             }
 
-            // If the individual up value is greater than zero, insert it into the list of new values.
+            // If the individual down value is greater than zero, insert it into the list of new values.
             if individual_down_value_in_sati_satoshis > 0 {
                 // Calculate the new value.
                 let individual_new_value_in_sati_satoshis: u128 =
@@ -1615,7 +1619,7 @@ impl CoinManager {
 
             // 1.2 On-disk insertion.
             {
-                // Open tree.
+                // Open on-disk accounts tree.
                 let tree = self.on_disk_accounts.open_tree(account_key).map_err(|e| {
                     CMApplyChangesError::AccountApplyChangesError(
                         CMAccountApplyChangesError::OpenTreeError(*account_key, e),
@@ -1623,40 +1627,44 @@ impl CoinManager {
                 })?;
 
                 // Insert the account balance on-disk.
-                tree.insert(
-                    ACCOUNT_BALANCE_SPECIAL_KEY,
-                    initial_account_balance.to_le_bytes().to_vec(),
-                )
-                .map_err(|e| {
-                    CMApplyChangesError::AccountApplyChangesError(
-                        CMAccountApplyChangesError::BalanceValueOnDiskInsertionError(
-                            account_key.to_owned(),
-                            *initial_account_balance,
-                            e,
-                        ),
+                {
+                    tree.insert(
+                        ACCOUNT_BALANCE_SPECIAL_KEY,
+                        initial_account_balance.to_le_bytes().to_vec(),
                     )
-                })?;
+                    .map_err(|e| {
+                        CMApplyChangesError::AccountApplyChangesError(
+                            CMAccountApplyChangesError::BalanceValueOnDiskInsertionError(
+                                account_key.to_owned(),
+                                *initial_account_balance,
+                                e,
+                            ),
+                        )
+                    })?;
+                }
 
                 // Insert the account shadow allocs value sum on-disk.
-                tree.insert(
-                    ACCOUNT_ALLOCS_SUM_SPECIAL_KEY,
-                    initial_account_allocs_sum_value_in_sati_satoshis
-                        .to_le_bytes()
-                        .to_vec(),
-                )
-                .map_err(|e| {
-                    CMApplyChangesError::AccountApplyChangesError(
-                        CMAccountApplyChangesError::ShadowAllocsSumValueOnDiskInsertionError(
-                            *account_key,
-                            initial_account_allocs_sum_value_in_sati_satoshis,
-                            e,
-                        ),
+                {
+                    tree.insert(
+                        ACCOUNT_ALLOCS_SUM_SPECIAL_KEY,
+                        initial_account_allocs_sum_value_in_sati_satoshis
+                            .to_le_bytes()
+                            .to_vec(),
                     )
-                })?;
+                    .map_err(|e| {
+                        CMApplyChangesError::AccountApplyChangesError(
+                            CMAccountApplyChangesError::ShadowAllocsSumValueOnDiskInsertionError(
+                                *account_key,
+                                initial_account_allocs_sum_value_in_sati_satoshis,
+                                e,
+                            ),
+                        )
+                    })?;
+                }
             }
         }
 
-        // 2. Register new contracts.
+        // 2. Register new contracts in-memory and on-disk.
         for (contract_id, initial_contract_balance) in
             self.delta_contracts.new_contracts_to_register.iter()
         {
@@ -1728,14 +1736,15 @@ impl CoinManager {
             // 3.1 In-memory insertion.
             {
                 // Get the mutable permanent account body from the permanent states.
-                let permanent_account_body = self.in_memory_accounts.get_mut(account_key).ok_or(
-                    CMApplyChangesError::AccountApplyChangesError(
+                let mut_permanent_account_body = self
+                    .in_memory_accounts
+                    .get_mut(account_key)
+                    .ok_or(CMApplyChangesError::AccountApplyChangesError(
                         CMAccountApplyChangesError::UnableToGetPermanentAccountBody(*account_key),
-                    ),
-                )?;
+                    ))?;
 
                 // Update the account balance in-memory.
-                permanent_account_body.update_balance(*ephemeral_account_balance);
+                mut_permanent_account_body.update_balance(*ephemeral_account_balance);
             }
 
             // 3.2 On-disk insertion.
@@ -1771,14 +1780,15 @@ impl CoinManager {
             // 4.1 In-memory insertion.
             {
                 // Get mutable permanent contract body.
-                let permanent_contract_body = self.in_memory_contracts.get_mut(contract_id).ok_or(
-                    CMApplyChangesError::ContractApplyChangesError(
+                let mut_permanent_contract_body = self
+                    .in_memory_contracts
+                    .get_mut(contract_id)
+                    .ok_or(CMApplyChangesError::ContractApplyChangesError(
                         CMContractApplyChangesError::UnableToGetPermanentContractBody(*contract_id),
-                    ),
-                )?;
+                    ))?;
 
                 // Update the contract balance in-memory.
-                permanent_contract_body.update_balance(*ephemeral_contract_balance);
+                mut_permanent_contract_body.update_balance(*ephemeral_contract_balance);
             }
 
             // 4.2 On-disk insertion.
@@ -1807,21 +1817,23 @@ impl CoinManager {
             }
         }
 
-        // 5. Save account's updated shadow allocs sums.
+        // 5. Save account's updated shadow allocs sum values.
+        // NOTE: This also automatically handles new allocations.
         for (account_key, ephemeral_account_shadow_allocs_sum) in
             self.delta_accounts.updated_shadow_allocs_sums.iter()
         {
             // 5.1 In-memory insertion.
             {
                 // Get the mutable permanent account body.
-                let permanent_account_body = self.in_memory_accounts.get_mut(account_key).ok_or(
-                    CMApplyChangesError::AccountApplyChangesError(
+                let mut_permanent_account_body = self
+                    .in_memory_accounts
+                    .get_mut(account_key)
+                    .ok_or(CMApplyChangesError::AccountApplyChangesError(
                         CMAccountApplyChangesError::UnableToGetPermanentAccountBody(*account_key),
-                    ),
-                )?;
+                    ))?;
 
                 // Update the shadow allocs sum in-memory.
-                permanent_account_body
+                mut_permanent_account_body
                     .update_shadow_allocs_sum(*ephemeral_account_shadow_allocs_sum);
             }
 
@@ -1861,14 +1873,15 @@ impl CoinManager {
             // 6.1 In-memory insertion.
             {
                 // Get mutable permanent contract body.
-                let permanent_contract_body = self.in_memory_contracts.get_mut(contract_id).ok_or(
-                    CMApplyChangesError::ContractApplyChangesError(
+                let mut_permanent_contract_body = self
+                    .in_memory_contracts
+                    .get_mut(contract_id)
+                    .ok_or(CMApplyChangesError::ContractApplyChangesError(
                         CMContractApplyChangesError::UnableToGetPermanentContractBody(*contract_id),
-                    ),
-                )?;
+                    ))?;
 
                 // Update the shadow space in-memory.
-                permanent_contract_body.update_shadow_space(ephemeral_shadow_space.clone());
+                mut_permanent_contract_body.update_shadow_space(ephemeral_shadow_space.clone());
             }
 
             // 6.2 On-disk insertion.
@@ -1880,7 +1893,7 @@ impl CoinManager {
                     )
                 })?;
 
-                // Iterate over all shadow alloc values.
+                // Update alloc values one-by-one on-disk.
                 for (shadow_account_key, ephemeral_shadow_alloc_value) in
                     ephemeral_shadow_space.allocs().iter()
                 {
@@ -1924,7 +1937,7 @@ impl CoinManager {
                 // 7.1 In-memory deletion.
                 {
                     // Get mutable permanent contract body.
-                    let permanent_contract_body = self
+                    let mut_permanent_contract_body = self
                         .in_memory_contracts
                         .get_mut(contract_id)
                         .ok_or(CMApplyChangesError::ContractApplyChangesError(
@@ -1935,7 +1948,7 @@ impl CoinManager {
 
                     // Remove all accounts from the shadow space.
                     for account_key in ephemeral_dealloc_list.iter() {
-                        if !permanent_contract_body
+                        if !mut_permanent_contract_body
                             .shadow_space_mut()
                             .remove_alloc(*account_key)
                         {
