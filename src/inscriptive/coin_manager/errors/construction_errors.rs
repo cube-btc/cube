@@ -14,7 +14,6 @@ type SATOSHI_AMOUNT = u64;
 #[derive(Debug, Clone)]
 pub enum CMConstructionAccountError {
     DBOpenError(sled::Error),
-    UnableToDeserializeAccountKeyBytesFromTreeName(Vec<u8>),
     TreeOpenError(ACCOUNT_KEY, sled::Error),
     TreeIterError(usize, sled::Error),
     UnableToDeserializeKeyBytesFromTreeKey(ACCOUNT_KEY, usize, Vec<u8>),
@@ -27,7 +26,6 @@ pub enum CMConstructionAccountError {
 #[derive(Debug, Clone)]
 pub enum CMConstructionContractError {
     DBOpenError(sled::Error),
-    UnableToDeserializeContractIDBytesFromTreeName(Vec<u8>),
     TreeOpenError(CONTRACT_ID, sled::Error),
     TreeIterError(CONTRACT_ID, usize, sled::Error),
     UnableToDeserializeKeyBytesFromTreeKey(CONTRACT_ID, usize, Vec<u8>),

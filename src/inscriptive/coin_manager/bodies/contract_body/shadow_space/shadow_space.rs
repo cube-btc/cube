@@ -16,10 +16,10 @@ type SATI_SATOSHI_AMOUNT = u128;
 /// A struct for representing a shadow space of a contract.
 #[derive(Clone)]
 pub struct ShadowSpace {
-    // Total allocated BTC value of the entire shadow space.
+    // 1 Total allocated BTC value of the entire shadow space.
     allocs_sum: SATOSHI_AMOUNT,
 
-    // Allocated BTC values of each account.
+    // 2 Allocated BTC values of each account.
     allocs: HashMap<ACCOUNT_KEY, SATI_SATOSHI_AMOUNT>,
 }
 
@@ -36,13 +36,13 @@ impl ShadowSpace {
         allocs_sum: SATOSHI_AMOUNT,
         allocs: HashMap<ACCOUNT_KEY, SATI_SATOSHI_AMOUNT>,
     ) -> Self {
-        // Return the shadow space.
+        // 1 Construct the shadow space.
         let shadow_space = Self {
             allocs_sum: allocs_sum,
             allocs: allocs,
         };
 
-        // Return the shadow space.
+        // 2 Return the shadow space.
         shadow_space
     }
 
@@ -63,7 +63,7 @@ impl ShadowSpace {
 
     /// Updates the allocations sum.
     pub fn update_allocs_sum(&mut self, new_value: SATOSHI_AMOUNT) {
-        // Update the allocations sum.
+        // 1 Update the allocations sum.
         self.allocs_sum = new_value;
     }
 
@@ -73,13 +73,13 @@ impl ShadowSpace {
         account_key: ACCOUNT_KEY,
         alloc_value: SATI_SATOSHI_AMOUNT,
     ) {
-        // Insert the allocation into the allocations map.
+        // 1 Insert the allocation into the allocations map.
         self.allocs.insert(account_key, alloc_value);
     }
 
     /// Removes an allocation from the shadow space.
     pub fn remove_alloc(&mut self, account_key: ACCOUNT_KEY) -> bool {
-        // Remove the allocation from the allocations map.
+        // 1 Remove the allocation from the allocations map.
         match self.allocs.remove(&account_key) {
             Some(_) => true,
             None => false,
@@ -88,16 +88,16 @@ impl ShadowSpace {
 
     /// Returns the shadow space as a JSON object.
     pub fn json(&self) -> Value {
-        // Construct the shadow space JSON object.
+        // 1 Construct the shadow space JSON object.
         let mut obj = Map::new();
 
-        // Insert the allocs sum.
+        // 2 Insert the allocs sum.
         obj.insert(
             "allocs_sum".to_string(),
             Value::String(self.allocs_sum().to_string()),
         );
 
-        // Insert the allocations.
+        // 3 Insert the allocations.
         obj.insert(
             "allocs".to_string(),
             Value::Object(
@@ -113,7 +113,7 @@ impl ShadowSpace {
             ),
         );
 
-        // Return the JSON object.
+        // 4 Return the JSON object.
         Value::Object(obj)
     }
 }

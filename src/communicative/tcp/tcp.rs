@@ -25,7 +25,7 @@ pub enum TCPError {
 
 pub fn port_number(chain: Chain) -> u16 {
     match chain {
-        Chain::Signet => baked::SIGNET_PORT,
+        Chain::Signet | Chain::Testbed => baked::SIGNET_PORT,
         Chain::Mainnet => baked::MAINNET_PORT,
     }
 }

@@ -11,7 +11,7 @@ pub type PEER_MANAGER = Arc<Mutex<PeerManager>>;
 
 pub fn coordinator_key(chain: Chain) -> [u8; 32] {
     match chain {
-        Chain::Signet => baked::SIGNET_COORDINATOR,
+        Chain::Signet | Chain::Testbed => baked::SIGNET_COORDINATOR,
         Chain::Mainnet => baked::MAINNET_COORDINATOR,
     }
 }

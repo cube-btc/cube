@@ -100,7 +100,7 @@ impl RollupSync for ROLLUP_DIRECTORY {
         let rollup_dir: &ROLLUP_DIRECTORY = self;
 
         let sync_start_height = match chain {
-            Chain::Signet => baked::SIGNET_SYNC_START_HEIGHT,
+            Chain::Signet | Chain::Testbed => baked::SIGNET_SYNC_START_HEIGHT,
             Chain::Mainnet => baked::MAINNET_SYNC_START_HEIGHT,
         };
 

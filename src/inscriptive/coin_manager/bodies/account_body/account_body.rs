@@ -11,10 +11,10 @@ type SATI_SATOSHI_AMOUNT = u128;
 /// A struct for containing account balance and shadow allocs sum of all contracts.
 #[derive(Clone)]
 pub struct CHAccountBody {
-    // Account balance.
+    // 1 Account balance.
     balance: SATOSHI_AMOUNT,
 
-    // Individual shadow allocs sum of all contracts.
+    // 2 Individual shadow allocs sum of all contracts.
     shadow_allocs_sum: SATI_SATOSHI_AMOUNT,
 }
 
@@ -49,22 +49,22 @@ impl CHAccountBody {
 
     /// Returns the account body as a JSON object.
     pub fn json(&self) -> Value {
-        // Construct the account body JSON object.
+        // 1 Construct the account body JSON object.
         let mut obj = Map::new();
 
-        // Insert the balance.
+        // 2 Insert the balance.
         obj.insert(
             "balance".to_string(),
             Value::String(self.balance().to_string()),
         );
 
-        // Insert the shadow allocs sum.
+        // 3 Insert the shadow allocs sum.
         obj.insert(
             "shadow_allocs_sum".to_string(),
             Value::String(self.shadow_allocs_sum().to_string()),
         );
 
-        // Return the JSON object.
+        // 4 Return the JSON object.
         Value::Object(obj)
     }
 }

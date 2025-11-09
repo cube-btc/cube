@@ -8,10 +8,10 @@ type SATOSHI_AMOUNT = u64;
 /// A struct for containing BTC balance and shadow space allocations of a contract.
 #[derive(Clone)]
 pub struct CHContractBody {
-    // Contract's BTC balance.
+    // 1 Contract's BTC balance.
     balance: SATOSHI_AMOUNT,
 
-    // Contract's shadow space.
+    // 2 Contract's shadow space.
     shadow_space: ShadowSpace,
 }
 
@@ -51,19 +51,19 @@ impl CHContractBody {
 
     /// Returns the contract body as a JSON object.
     pub fn json(&self) -> Value {
-        // Construct the contract body JSON object.
+        // 1 Construct the contract body JSON object.
         let mut obj = Map::new();
 
-        // Insert the balance.
+        // 2 Insert the balance.
         obj.insert(
             "balance".to_string(),
             Value::String(self.balance().to_string()),
         );
 
-        // Insert the shadow space.
+        // 3 Insert the shadow space.
         obj.insert("shadow_space".to_string(), self.shadow_space().json());
 
-        // Return the JSON object.
+        // 4 Return the JSON object.
         Value::Object(obj)
     }
 }

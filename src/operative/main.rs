@@ -29,6 +29,10 @@ fn main() {
     let network = match args[1].to_lowercase().as_str() {
         "signet" => Chain::Signet,
         "mainnet" => Chain::Mainnet,
+        "testbed" => {
+            println!("{}", "Testbed is for local tests only (./tests/).".red());
+            return;
+        }
         _ => {
             println!("{}", "Invalid <network>.".red());
             return;
