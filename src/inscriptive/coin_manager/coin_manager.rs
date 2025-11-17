@@ -107,8 +107,6 @@ impl CoinManager {
                 }
             };
 
-            // UnableToDeserializeAccountKeyBytesFromTreeName
-
             // 4.2 Open the tree.
             let tree = account_db.open_tree(tree_name).map_err(|e| {
                 CMConstructionError::AccountConstructionError(
