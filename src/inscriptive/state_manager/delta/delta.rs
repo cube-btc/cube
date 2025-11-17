@@ -18,7 +18,7 @@ pub struct SMDelta {
     // New states to register for a given contract.
     new_contract_states: HashMap<ContractId, HashMap<StateKey, StateValue>>,
 
-    // Updated contract states for a given contract.
+    // Updated states for a given contract.
     updated_contract_states: HashMap<ContractId, HashMap<StateKey, StateValue>>,
 
     // Removed states for a given contract.
