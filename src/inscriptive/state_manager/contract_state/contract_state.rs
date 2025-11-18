@@ -27,4 +27,9 @@ impl SMContractState {
     pub fn state_mut(&mut self) -> &mut HashMap<StateKey, StateValue> {
         &mut self.state
     }
+
+    /// Returns the state value by state key.
+    pub fn get_state_value(&self, key: &StateKey) -> Option<StateValue> {
+        self.state.get(key).cloned()
+    }
 }

@@ -498,8 +498,10 @@ impl CoinManager {
     }
 
     /// Prepares 'CoinManager' prior to each execution.
+    /// 
+    /// NOTE: Used by the Engine.
     pub fn pre_execution(&mut self) {
-        // 1 Backup the deltas.
+        // Backup the deltas.
         self.backup_delta();
     }
 
