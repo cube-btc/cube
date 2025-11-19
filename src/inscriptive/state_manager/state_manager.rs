@@ -3,6 +3,7 @@ use super::delta::delta::SMDelta;
 use super::errors::construction_error::SMConstructionError;
 use super::errors::insert_update_state_error::SMInsertUpdateStateError;
 use super::errors::register_error::SMRegisterContractError;
+use crate::inscriptive::state_manager::errors::apply_changes_error::SMApplyChangesError;
 use crate::inscriptive::state_manager::errors::remove_state_error::SMRemoveStateError;
 use crate::operative::Chain;
 use std::collections::HashMap;
@@ -71,7 +72,7 @@ impl StateManager {
                 .collect::<HashMap<StateKey, StateValue>>();
 
             // 3.4 Construct the contract state from the collected values.
-            let contract_state = SMContractState::new(contract_state);
+            let contract_state = SMContractState::new(&contract_state);
 
             // 3.5 Insert the contract state into the in-memory states.
             in_memory_states.insert(contract_id, contract_state);
@@ -178,18 +179,24 @@ impl StateManager {
         match self.get_state_value(contract_id, key) {
             // 2.a Update the existing value.
             Some(existing_value) => {
-                // 2.a.1 Insert the new value to the delta.
-                self.delta
-                    .epheremally_update_existing_contract_state(contract_id, key, value);
+                // 2.a.1 Epheremally insert the updated value to the delta.
+                self.delta.epheremally_insert_new_or_updated_contract_state(
+                    contract_id,
+                    key,
+                    value,
+                );
 
                 // 2.a.2 Return the previous value for updated.
                 return Ok(Some(existing_value));
             }
             // 2.b Insert the value.
             None => {
-                // 2.b.1 Insert the value.
-                self.delta
-                    .epheremally_insert_new_contract_state(contract_id, key, value);
+                // 2.b.1 Epheremally insert the new value to the delta.
+                self.delta.epheremally_insert_new_or_updated_contract_state(
+                    contract_id,
+                    key,
+                    value,
+                );
 
                 // 2.b.2 Return None for newly inserted.
                 return Ok(None);
@@ -224,6 +231,105 @@ impl StateManager {
         // 3 Epheremally remove the state in the delta.
         self.delta
             .epheremally_remove_existing_contract_state(contract_id, key);
+
+        // 4 Return the result.
+        Ok(())
+    }
+
+    /// Applies the changes to the 'StateManager'.
+    pub fn apply_changes(&mut self) -> Result<(), SMApplyChangesError> {
+        // 1 Apply the new contracts to register.
+        for contract_id in self.delta.new_contracts_to_register().iter() {
+            // 1.1 In-memory insertion.
+            {
+                // 1.1.1 Insert the contract state into the in-memory states.
+                self.in_memory_states
+                    .insert(contract_id.clone(), SMContractState::fresh_new());
+            }
+
+            // 1.2 On-disk insertion.
+            {
+                // 1.2.1 Open the tree. This creates a new tree since it does not exist.
+                self.on_disk_states
+                    .open_tree(contract_id)
+                    .map_err(|e| SMApplyChangesError::TreeOpenError(contract_id.clone(), e))?;
+            }
+        }
+
+        // 2 Apply the new or updated states.
+        for (contract_id, epheremal_states) in self.delta.new_or_updated_contract_states().iter() {
+            // 2.1 In-memory insertion.
+            {
+                // 2.1.1 Get the mutable contract state from the in-memory states.
+                let mut_contract_state = self.in_memory_states.get_mut(contract_id).ok_or(
+                    SMApplyChangesError::ContractIdNotFoundInMemory(contract_id.clone()),
+                )?;
+
+                // 2.1.2 Insert the states into the contract state.
+                for (epheremal_state_key, epheremal_state_value) in epheremal_states.iter() {
+                    mut_contract_state
+                        .insert_update_state(epheremal_state_key, epheremal_state_value);
+                }
+            }
+
+            // 2.2 On-disk insertion.
+            {
+                // 2.2.1 Open the tree.
+                let tree = self
+                    .on_disk_states
+                    .open_tree(contract_id)
+                    .map_err(|e| SMApplyChangesError::TreeOpenError(contract_id.clone(), e))?;
+
+                // 2.2.2 Insert the states into the tree.
+                for (epheremal_state_key, epheremal_state_value) in epheremal_states.iter() {
+                    tree.insert(epheremal_state_key, epheremal_state_value.clone())
+                        .map_err(|e| {
+                            SMApplyChangesError::TreeValueInsertError(
+                                contract_id.clone(),
+                                epheremal_state_key.clone(),
+                                epheremal_state_value.clone(),
+                                e,
+                            )
+                        })?;
+                }
+            }
+        }
+
+        // 3 Apply the removed states.
+        for (contract_id, state_keys_to_remove) in self.delta.removed_contract_states().iter() {
+            // 3.1 In-memory removal.
+            {
+                // 3.1.1 Get the mutable contract state from the in-memory states.
+                let mut_contract_state = self.in_memory_states.get_mut(contract_id).ok_or(
+                    SMApplyChangesError::ContractIdNotFoundInMemory(*contract_id),
+                )?;
+
+                // 3.1.2 Remove the states from the contract state.
+                for state_key_to_remove in state_keys_to_remove.iter() {
+                    mut_contract_state.remove_state(state_key_to_remove);
+                }
+            }
+
+            // 3.2 On-disk removal.
+            {
+                // 3.2.1 Open the tree.
+                let tree = self
+                    .on_disk_states
+                    .open_tree(contract_id)
+                    .map_err(|e| SMApplyChangesError::TreeOpenError(contract_id.clone(), e))?;
+
+                // 3.2.2 Remove the states from the tree.
+                for state_key_to_remove in state_keys_to_remove.iter() {
+                    tree.remove(state_key_to_remove).map_err(|e| {
+                        SMApplyChangesError::TreeValueRemoveError(
+                            contract_id.clone(),
+                            state_key_to_remove.clone(),
+                            e,
+                        )
+                    })?;
+                }
+            }
+        }
 
         // 4 Return the result.
         Ok(())

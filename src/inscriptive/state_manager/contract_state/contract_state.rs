@@ -13,23 +13,32 @@ pub struct SMContractState {
 }
 
 impl SMContractState {
+    /// Constructs a fresh new contract state.
+    pub fn fresh_new() -> Self {
+        Self {
+            state: HashMap::new(),
+        }
+    }
+
     /// Constructs a contract state from a hashmap.
-    pub fn new(state: HashMap<StateKey, StateValue>) -> Self {
-        Self { state: state }
-    }
-
-    /// Returns the contract state.
-    pub fn state(&self) -> &HashMap<StateKey, StateValue> {
-        &self.state
-    }
-
-    /// Returns a mutable reference to the contract state.
-    pub fn state_mut(&mut self) -> &mut HashMap<StateKey, StateValue> {
-        &mut self.state
+    pub fn new(state: &HashMap<StateKey, StateValue>) -> Self {
+        Self {
+            state: state.clone(),
+        }
     }
 
     /// Returns the state value by state key.
     pub fn get_state_value(&self, key: &StateKey) -> Option<StateValue> {
         self.state.get(key).cloned()
+    }
+
+    /// Inserts or updates a state by key.
+    pub fn insert_update_state(&mut self, key: &StateKey, value: &StateValue) {
+        self.state.insert(key.clone(), value.clone());
+    }
+
+    /// Removes a state by key.
+    pub fn remove_state(&mut self, key: &StateKey) {
+        self.state.remove(key);
     }
 }
