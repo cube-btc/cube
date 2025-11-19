@@ -1,5 +1,5 @@
 ![Cube](https://i.ibb.co/KjnGsD7L/cube-text-logo.png)
-Cube is a four-elemental, fire-sampled virtual execution environment designed to bring trustless programmability to Bitcoin.
+Cube is a four-elemental, fire-sampled virtual execution environment for Bitcoin.
 
 ## Installation
 
