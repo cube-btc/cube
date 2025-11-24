@@ -1,4 +1,4 @@
-/db
+/storage
 /target
 .DS_Store
 Dockerfile

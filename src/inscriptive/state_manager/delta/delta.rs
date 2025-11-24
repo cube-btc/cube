@@ -13,18 +13,18 @@ type StateValue = Vec<u8>;
 #[derive(Clone)]
 pub struct SMDelta {
     // New contracts to register.
-    new_contracts_to_register: Vec<ContractId>,
+    pub new_contracts_to_register: Vec<ContractId>,
 
     // New or updated states for a given contract.
-    new_or_updated_contract_states: HashMap<ContractId, HashMap<StateKey, StateValue>>,
+    pub new_or_updated_contract_states: HashMap<ContractId, HashMap<StateKey, StateValue>>,
 
     // Removed states for a given contract.
-    removed_contract_states: HashMap<ContractId, Vec<StateKey>>,
+    pub removed_contract_states: HashMap<ContractId, Vec<StateKey>>,
 }
 
 impl SMDelta {
-    /// Constructs a fresh new state delta.
-    pub fn new() -> Self {
+    /// Constructs a fresh new state manager delta.
+    pub fn fresh_new() -> Self {
         Self {
             new_contracts_to_register: Vec::new(),
             new_or_updated_contract_states: HashMap::new(),
@@ -37,23 +37,6 @@ impl SMDelta {
         self.new_contracts_to_register.clear();
         self.new_or_updated_contract_states.clear();
         self.removed_contract_states.clear();
-    }
-
-    /// Returns the new contracts to register.
-    pub fn new_contracts_to_register(&self) -> &Vec<ContractId> {
-        &self.new_contracts_to_register
-    }
-
-    /// Returns the new or updated states for a given contract.
-    pub fn new_or_updated_contract_states(
-        &self,
-    ) -> &HashMap<ContractId, HashMap<StateKey, StateValue>> {
-        &self.new_or_updated_contract_states
-    }
-
-    /// Returns the removed states for a given contract.
-    pub fn removed_contract_states(&self) -> &HashMap<ContractId, Vec<StateKey>> {
-        &self.removed_contract_states
     }
 
     /// Checks if a contract has just been epheremally registered in the delta.

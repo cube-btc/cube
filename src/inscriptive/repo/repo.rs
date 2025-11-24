@@ -25,7 +25,7 @@ impl ProgramsRepo {
     pub fn new(chain: Chain) -> Result<PROGRAMS_REPO, RepoConstructionError> {
         // Open the programs db.
         let programs_db = {
-            let path = format!("{}/{}/{}", "db", chain.to_string(), "repo");
+            let path = format!("{}/{}/{}", "storage", chain.to_string(), "repo");
             sled::open(path).map_err(|e| RepoConstructionError::DBOpenError(e))?
         };
 

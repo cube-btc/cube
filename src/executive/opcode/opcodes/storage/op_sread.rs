@@ -5,7 +5,7 @@ use crate::{
         stack_holder::StackHolder,
         stack_item::StackItem,
     },
-    inscriptive::state_holder::state_holder::STATE_HOLDER,
+    inscriptive::state_manager::state_manager::STATE_MANAGER,
 };
 
 /// The `OP_SREAD` opcode.
@@ -19,7 +19,7 @@ pub const SREAD_OPS: u32 = 50;
 impl OP_SREAD {
     pub async fn execute(
         stack_holder: &mut StackHolder,
-        state_holder: &STATE_HOLDER,
+        state_manager: &STATE_MANAGER,
     ) -> Result<(), StackError> {
         // If this is not the active execution, return immediately.
         if !stack_holder.active_execution() {
@@ -38,8 +38,8 @@ impl OP_SREAD {
 
         // Read from storage.
         let read_value = {
-            let _state_holder = state_holder.lock().await;
-            _state_holder.get_value(stack_holder.contract_id(), &key.bytes().to_vec())
+            let _state_manager = state_manager.lock().await;
+            _state_manager.get_state_value(stack_holder.contract_id(), &key.bytes().to_vec())
         };
 
         // Push the read value to the main stack.

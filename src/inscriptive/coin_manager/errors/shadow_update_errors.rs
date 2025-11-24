@@ -18,7 +18,6 @@ type SATOSHI_AMOUNT = u64;
 #[derive(Debug, Clone)]
 pub enum CMAccountShadowAllocsSumUpError {
     UnableToGetAccountShadowAllocsSum(ACCOUNT_KEY),
-    UnableToGetMutEphemeralAccountShadowAllocsSum(ACCOUNT_KEY),
 }
 
 /// Errors associated with decreasing the account's shadow allocs sum.
@@ -26,7 +25,6 @@ pub enum CMAccountShadowAllocsSumUpError {
 pub enum CMAccountShadowAllocsSumDownError {
     UnableToGetAccountShadowAllocsSum(ACCOUNT_KEY),
     AccountShadowAllocsSumWouldGoBelowZero(ACCOUNT_KEY, SATI_SATOSHI_AMOUNT, SATI_SATOSHI_AMOUNT),
-    UnableToGetMutEphemeralAccountShadowAllocsSum(ACCOUNT_KEY),
 }
 
 /// Errors associated with increasing an account's shadow allocation value in the contract's shadow space.   

@@ -19,15 +19,15 @@ pub struct DKGDirectory {
     nonce_height: u64,
     nonce_height_db: sled::Db,
 }
-// 'db/signatory/dkg/batches/BATCH_NO' key:SESSION_NONCE
+// 'storage/signatory/dkg/batches/BATCH_NO' key:SESSION_NONCE
 impl DKGDirectory {
     pub fn new(setup: &VSESetup) -> Option<Self> {
         let setup_height = setup.height();
-        // sessions path 'db/signatory/dkg/batches/BATCH_NO/sessions' key is SESSION_INDEX
-        // manager path 'db/signatory/dkg/batches/manager' key is BATCH_NO
+        // sessions path 'storage/signatory/dkg/batches/BATCH_NO/sessions' key is SESSION_INDEX
+        // manager path 'storage/signatory/dkg/batches/manager' key is BATCH_NO
         let mut nonce_height: u64 = 0;
 
-        let nonce_height_path = format!("{}/{}", "db/noist/dkgdir/", setup_height);
+        let nonce_height_path = format!("{}/{}", "storage/noist/dkgdir/", setup_height);
         let nonce_height_db = sled::open(nonce_height_path).ok()?;
 
         if let Ok(lookup) = nonce_height_db.get(&[0x00]) {
@@ -36,7 +36,7 @@ impl DKGDirectory {
             }
         };
 
-        let sessions_path = format!("{}/{}/{}", "db/noist/dkgdir", setup_height, "dkgses");
+        let sessions_path = format!("{}/{}/{}", "storage/noist/dkgdir", setup_height, "dkgses");
         let sessions_db = sled::open(sessions_path).ok()?;
 
         let mut sessions = HashMap::<u64, DKGSession>::new();

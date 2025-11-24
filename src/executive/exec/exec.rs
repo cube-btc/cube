@@ -86,7 +86,7 @@ use crate::{
     },
     inscriptive::{
         coin_manager::coin_manager::COIN_MANAGER, repo::repo::PROGRAMS_REPO,
-        state_holder::state_holder::STATE_HOLDER,
+        state_manager::state_manager::STATE_MANAGER,
     },
 };
 
@@ -121,8 +121,8 @@ pub async fn execute(
     internal_ops_counter: u32,
     // The external ops counter.
     external_ops_counter: ExternalOpsCounter,
-    // The state holder.
-    state_holder: &STATE_HOLDER,
+    // The state manager.
+    state_manager: &STATE_MANAGER,
     // The coin manager.
     coin_manager: &COIN_MANAGER,
     // The programs repo.
@@ -752,7 +752,7 @@ pub async fn execute(
                     ops_price,  // Ops price is the same as the current ops price.
                     stack_holder.internal_ops_counter(), // Remainder of the internal ops counter passed to the next call.
                     stack_holder.external_ops_counter(), // Remainder of the external ops counter passed to the next call.
-                    state_holder,
+                    state_manager,
                     coin_manager,
                     programs_repo,
                 ))
@@ -790,7 +790,7 @@ pub async fn execute(
                     ops_price,  // Ops price is the same as the current ops price.
                     stack_holder.internal_ops_counter(), // Remainder of the internal ops counter passed to the next call.
                     stack_holder.external_ops_counter(), // Remainder of the external ops counter passed to the next call.
-                    state_holder,
+                    state_manager,
                     coin_manager,
                     programs_repo,
                 ))
@@ -868,12 +868,12 @@ pub async fn execute(
 
             // Storage opcodes.
             Opcode::OP_SWRITE(OP_SWRITE) => {
-                OP_SWRITE::execute(&mut stack_holder, state_holder)
+                OP_SWRITE::execute(&mut stack_holder, state_manager)
                     .await
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }
             Opcode::OP_SREAD(OP_SREAD) => {
-                OP_SREAD::execute(&mut stack_holder, state_holder)
+                OP_SREAD::execute(&mut stack_holder, state_manager)
                     .await
                     .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
             }

@@ -25,7 +25,7 @@ impl ZKTLCSet {
     /// Creates the ZKTLCSet instance.
     pub fn new(chain: Chain) -> Option<ZKTLC_SET> {
         // Collect VTXOs from db.
-        let zktlcs_path = format!("{}/{}/{}", "db", chain.to_string(), "set/zktlc");
+        let zktlcs_path = format!("{}/{}/{}", "storage", chain.to_string(), "set/zktlc");
         let zktlcs_db = sled::open(zktlcs_path).ok()?;
 
         let mut global_zktlc_set = HashMap::<AccountKey, Vec<ZKTLC>>::new();

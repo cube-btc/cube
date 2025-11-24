@@ -6,7 +6,7 @@ use crate::{
     },
     inscriptive::{
         coin_manager::coin_manager::COIN_MANAGER, repo::repo::PROGRAMS_REPO,
-        state_holder::state_holder::STATE_HOLDER,
+        state_manager::state_manager::STATE_MANAGER,
     },
 };
 use std::sync::Arc;
@@ -20,7 +20,7 @@ type FeesSpent = u32;
 /// The context of a program execution.
 pub struct ExecCtx {
     // The state holder.
-    state_holder: STATE_HOLDER,
+    state_manager: STATE_MANAGER,
     // The coin holder.
     coin_manager: COIN_MANAGER,
     // The programs repo.
@@ -38,14 +38,14 @@ pub struct ExecCtx {
 impl ExecCtx {
     /// Creates a new execution context.
     pub fn new(
-        state_holder: &STATE_HOLDER,
+        state_manager: &STATE_MANAGER,
         coin_manager: &COIN_MANAGER,
         programs_repo: &PROGRAMS_REPO,
         base_ops_price: u32,
         timestamp: u64,
     ) -> Self {
         Self {
-            state_holder: Arc::clone(state_holder),
+            state_manager: Arc::clone(state_manager),
             coin_manager: Arc::clone(coin_manager),
             programs_repo: Arc::clone(programs_repo),
             external_ops_counter: 0,
@@ -96,13 +96,13 @@ impl ExecCtx {
         // External ops counter is the external ops counter of the call.
         let external_ops_counter = self.external_ops_counter;
 
-        // State holder.
-        let state_holder = &self.state_holder;
+        // State manager.
+        let state_manager = &self.state_manager;
 
         // Pre-execution state backup.
         {
-            let mut _state_holder = state_holder.lock().await;
-            _state_holder.pre_execution();
+            let mut _state_manager = state_manager.lock().await;
+            _state_manager.pre_execution();
         }
 
         let coin_manager = &self.coin_manager;
@@ -128,7 +128,7 @@ impl ExecCtx {
             ops_price,
             internal_ops_counter,
             external_ops_counter,
-            state_holder,
+            state_manager,
             coin_manager,
             programs_repo,
         )
@@ -165,13 +165,13 @@ impl ExecCtx {
                 Ok(())
             }
             Err(error) => {
-                // Rollback last on state holder.
+                // Rollback last on the state manager.
                 {
-                    let mut _state_holder = state_holder.lock().await;
-                    _state_holder.rollback_last();
+                    let mut _state_manager = state_manager.lock().await;
+                    _state_manager.rollback_last();
                 }
 
-                // Rollback last on coin holder.
+                // Rollback last on the coin manager.
                 {
                     let mut _coin_manager = coin_manager.lock().await;
                     _coin_manager.rollback_last();
@@ -185,13 +185,13 @@ impl ExecCtx {
 
     /// Flushes all the passed calls.
     pub async fn flush_all(&mut self) {
-        // Rollback the state.
+        // Flush the state manager delta.
         {
-            let mut _state_holder = self.state_holder.lock().await;
-            _state_holder.rollback_all();
+            let mut _state_manager = self.state_manager.lock().await;
+            _state_manager.flush_delta();
         }
 
-        // Rollback the coin manager.
+        // Flush the coin manager delta.
         {
             let mut _coin_manager = self.coin_manager.lock().await;
             _coin_manager.flush_delta();

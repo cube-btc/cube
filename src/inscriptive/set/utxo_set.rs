@@ -31,7 +31,7 @@ impl UTXOSet {
     /// Creates the UTXOSet instance.
     pub fn new(chain: Chain) -> Option<UTXO_SET> {
         // Collect UTXOs from db.
-        let utxos_path = format!("{}/{}/{}", "db", chain.to_string(), "set/utxo");
+        let utxos_path = format!("{}/{}/{}", "storage", chain.to_string(), "set/utxo");
         let utxos_db = sled::open(utxos_path).ok()?;
 
         let mut utxos = HashMap::<OutPoint, TxOut>::new();

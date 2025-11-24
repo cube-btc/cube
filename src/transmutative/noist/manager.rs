@@ -30,7 +30,7 @@ pub struct DKGManager {
 
 impl DKGManager {
     pub fn new(lp_dir: &LP_DIRECTORY) -> Option<DKG_MANAGER> {
-        let setup_db = sled::open("db/noist/setup").ok()?;
+        let setup_db = sled::open("storage/noist/setup").ok()?;
 
         let mut directories = HashMap::<u64, DKG_DIRECTORY>::new();
 

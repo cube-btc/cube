@@ -21,7 +21,7 @@ pub struct EpochDirectory {
 
 impl EpochDirectory {
     pub fn new(chain: Chain) -> Option<EPOCH_DIRECTORY> {
-        let path = format!("{}/{}/{}", "db", chain.to_string(), "dir/epoch");
+        let path = format!("{}/{}/{}", "storage", chain.to_string(), "dir/epoch");
         let db = sled::open(path).ok()?;
 
         let mut epochs = HashMap::<u64, Epoch>::new();

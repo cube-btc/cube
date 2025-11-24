@@ -19,7 +19,7 @@ pub struct RollupDirectory {
 
 impl RollupDirectory {
     pub fn new(chain: Chain) -> Option<ROLLUP_DIRECTORY> {
-        let path = format!("{}/{}/{}", "db", chain.to_string(), "dir/rollup");
+        let path = format!("{}/{}/{}", "storage", chain.to_string(), "dir/rollup");
         let db = sled::open(path).ok()?;
 
         let bitcoin_sync_height: u64 = db

@@ -20,7 +20,7 @@ pub struct LPDirectory {
 
 impl LPDirectory {
     pub fn new(chain: Chain) -> Option<LP_DIRECTORY> {
-        let path = format!("{}/{}/{}", "db", chain.to_string(), "dir/lp");
+        let path = format!("{}/{}/{}", "storage", chain.to_string(), "dir/lp");
         let db = sled::open(path).ok()?;
 
         let mut lps = Vec::<LP>::new();

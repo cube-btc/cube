@@ -4,7 +4,7 @@ use crate::{
         stack_error::{StackError, StorageError},
         stack_holder::StackHolder,
     },
-    inscriptive::state_holder::state_holder::STATE_HOLDER,
+    inscriptive::state_manager::state_manager::STATE_MANAGER,
 };
 
 /// The `OP_SWRITE` opcode.
@@ -15,7 +15,7 @@ pub struct OP_SWRITE;
 impl OP_SWRITE {
     pub async fn execute(
         stack_holder: &mut StackHolder,
-        state_holder: &STATE_HOLDER,
+        state_manager: &STATE_MANAGER,
     ) -> Result<(), StackError> {
         // If this is not the active execution, return immediately.
         if !stack_holder.active_execution() {
@@ -45,17 +45,17 @@ impl OP_SWRITE {
 
         // Write to storage.
         {
-            let mut _state_holder = state_holder.lock().await;
+            let mut _state_manager = state_manager.lock().await;
 
-            _state_holder
-                .insert_update_value(
+            _state_manager
+                .insert_update_state(
                     stack_holder.contract_id(),
                     &key.bytes().to_vec(),
                     &value.bytes().to_vec(),
                     true,
                 )
                 .map_err(|e| {
-                    StackError::StorageError(StorageError::StateHolderInsertUpdateValueError(e))
+                    StackError::StorageError(StorageError::StateManagerInsertUpdateStateError(e))
                 })?;
         }
 
