@@ -2,25 +2,25 @@ use serde_json::{Map, Value};
 
 /// Satoshi amount.
 #[allow(non_camel_case_types)]
-type SATOSHI_AMOUNT = u64;
+type SatoshiAmount = u64;
 
 /// Sati-satoshi amount.
 #[allow(non_camel_case_types)]
-type SATI_SATOSHI_AMOUNT = u128;
+type SatiSatoshiAmount = u128;
 
-/// A struct for containing account balance and shadow allocs sum of all contracts.
+/// A struct for containing BTC balance and shadow allocs sum of an account.
 #[derive(Clone)]
-pub struct CHAccountBody {
-    // 1 Account balance.
-    balance: SATOSHI_AMOUNT,
+pub struct CMAccountBody {
+    // 1 Account's BTC balance.
+    balance: SatoshiAmount,
 
-    // 2 Individual shadow allocs sum of all contracts.
-    shadow_allocs_sum: SATI_SATOSHI_AMOUNT,
+    // 2 Account's shadow allocs sum.
+    shadow_allocs_sum: SatiSatoshiAmount,
 }
 
-impl CHAccountBody {
+impl CMAccountBody {
     /// Constructs a fresh new account body.
-    pub fn new(balance: SATOSHI_AMOUNT, shadow_allocs_sum: SATI_SATOSHI_AMOUNT) -> Self {
+    pub fn new(balance: SatoshiAmount, shadow_allocs_sum: SatiSatoshiAmount) -> Self {
         Self {
             balance: balance,
             shadow_allocs_sum: shadow_allocs_sum,
@@ -28,22 +28,22 @@ impl CHAccountBody {
     }
 
     /// Returns the account balance.
-    pub fn balance(&self) -> SATOSHI_AMOUNT {
+    pub fn balance(&self) -> SatoshiAmount {
         self.balance
     }
 
     /// Returns the account shadow allocs sum.
-    pub fn shadow_allocs_sum(&self) -> SATI_SATOSHI_AMOUNT {
+    pub fn shadow_allocs_sum(&self) -> SatiSatoshiAmount {
         self.shadow_allocs_sum
     }
 
     /// Updates the account balance.
-    pub fn update_balance(&mut self, balance: SATOSHI_AMOUNT) {
+    pub fn update_balance(&mut self, balance: SatoshiAmount) {
         self.balance = balance;
     }
 
     /// Updates the account shadow allocs sum.
-    pub fn update_shadow_allocs_sum(&mut self, shadow_allocs_sum: SATI_SATOSHI_AMOUNT) {
+    pub fn update_shadow_allocs_sum(&mut self, shadow_allocs_sum: SatiSatoshiAmount) {
         self.shadow_allocs_sum = shadow_allocs_sum;
     }
 

@@ -1,5 +1,5 @@
-use crate::inscriptive::coin_manager::bodies::account_body::account_body::CHAccountBody;
-use crate::inscriptive::coin_manager::bodies::contract_body::contract_body::CHContractBody;
+use crate::inscriptive::coin_manager::bodies::account_body::account_body::CMAccountBody;
+use crate::inscriptive::coin_manager::bodies::contract_body::contract_body::CMContractBody;
 use crate::inscriptive::coin_manager::bodies::contract_body::shadow_space::shadow_space::ShadowSpace;
 use crate::inscriptive::coin_manager::delta::delta::CMDelta;
 use crate::inscriptive::coin_manager::errors::apply_changes_errors::{
@@ -53,8 +53,8 @@ const CONTRACT_ALLOCS_SUM_SPECIAL_KEY: [u8; 32] = [0x01; 32];
 /// A database manager for handling account and contract balances & shadow space allocations.
 pub struct CoinManager {
     // 1 In-memory account and contract bodies.
-    in_memory_accounts: HashMap<AccountKey, CHAccountBody>,
-    in_memory_contracts: HashMap<ContractId, CHContractBody>,
+    in_memory_accounts: HashMap<AccountKey, CMAccountBody>,
+    in_memory_contracts: HashMap<ContractId, CMContractBody>,
 
     // 2 On-disk accounts and contracts.
     on_disk_accounts: sled::Db,
@@ -90,8 +90,8 @@ impl CoinManager {
         })?;
 
         // 3 Initialize the in-memory lists of account and contract bodies.
-        let mut account_bodies = HashMap::<AccountKey, CHAccountBody>::new();
-        let mut contract_bodies = HashMap::<ContractId, CHContractBody>::new();
+        let mut account_bodies = HashMap::<AccountKey, CMAccountBody>::new();
+        let mut contract_bodies = HashMap::<ContractId, CMContractBody>::new();
 
         // 4 Collect account bodies from the account database.
         for tree_name in accounts_db.tree_names() {
@@ -186,7 +186,7 @@ impl CoinManager {
             }
 
             // 4.5 Construct the account body.
-            let account_body = CHAccountBody::new(account_balance, account_shadow_allocs_sum);
+            let account_body = CMAccountBody::new(account_balance, account_shadow_allocs_sum);
 
             // 4.6 Insert the account body into the account bodies list.
             account_bodies.insert(account_key, account_body);
@@ -309,7 +309,7 @@ impl CoinManager {
             let shadow_space = ShadowSpace::new(allocs_sum, allocs);
 
             // 5.8 Construct the contract body.
-            let contract_body = CHContractBody::new(contract_balance, shadow_space);
+            let contract_body = CMContractBody::new(contract_balance, shadow_space);
 
             // 5.9 Insert the contract body into the contract bodies list.
             contract_bodies.insert(contract_id, contract_body);
@@ -373,13 +373,13 @@ impl CoinManager {
         self.backup_delta();
     }
 
-    /// Returns the 'CHAccountBody' for a given account key.
-    pub fn get_account_body(&self, account_key: AccountKey) -> Option<CHAccountBody> {
+    /// Returns the account body for a given account key.
+    pub fn get_account_body(&self, account_key: AccountKey) -> Option<CMAccountBody> {
         self.in_memory_accounts.get(&account_key).cloned()
     }
 
-    /// Returns the 'CHContractBody' for a given contract ID.
-    pub fn get_contract_body(&self, contract_id: ContractId) -> Option<CHContractBody> {
+    /// Returns the contract body for a given contract ID.
+    pub fn get_contract_body(&self, contract_id: ContractId) -> Option<CMContractBody> {
         self.in_memory_contracts.get(&contract_id).cloned()
     }
 
@@ -1412,7 +1412,7 @@ impl CoinManager {
             // 1.2 In-memory insertion.
             {
                 // 1.2.1 Construct the fresh new account body.
-                let fresh_new_account_body = CHAccountBody::new(
+                let fresh_new_account_body = CMAccountBody::new(
                     *initial_account_balance,
                     initial_account_allocs_sum_value_in_sati_satoshis,
                 );
@@ -1482,7 +1482,7 @@ impl CoinManager {
 
                 // 2.2.2 Construct the fresh new contract body.
                 let fresh_new_contract_body =
-                    CHContractBody::new(*initial_contract_balance, fresh_new_shadow_space);
+                    CMContractBody::new(*initial_contract_balance, fresh_new_shadow_space);
 
                 // 2.2.3 Insert the contract body into the in-memory list.
                 // 2.2.4 Register the contract in-memory.

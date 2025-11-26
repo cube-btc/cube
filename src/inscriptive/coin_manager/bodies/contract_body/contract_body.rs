@@ -3,21 +3,21 @@ use serde_json::{Map, Value};
 
 /// Satoshi amount.
 #[allow(non_camel_case_types)]
-type SATOSHI_AMOUNT = u64;
+type SatoshiAmount = u64;
 
-/// A struct for containing BTC balance and shadow space allocations of a contract.
+/// A struct for containing BTC balance and shadow space of a contract.
 #[derive(Clone)]
-pub struct CHContractBody {
+pub struct CMContractBody {
     // 1 Contract's BTC balance.
-    balance: SATOSHI_AMOUNT,
+    balance: SatoshiAmount,
 
     // 2 Contract's shadow space.
     shadow_space: ShadowSpace,
 }
 
-impl CHContractBody {
+impl CMContractBody {
     /// Constructs a fresh new contract body.
-    pub fn new(balance: SATOSHI_AMOUNT, shadow_space: ShadowSpace) -> Self {
+    pub fn new(balance: SatoshiAmount, shadow_space: ShadowSpace) -> Self {
         Self {
             balance: balance,
             shadow_space: shadow_space,
@@ -25,7 +25,7 @@ impl CHContractBody {
     }
 
     /// Returns the contract balance.
-    pub fn balance(&self) -> SATOSHI_AMOUNT {
+    pub fn balance(&self) -> SatoshiAmount {
         self.balance
     }
 
@@ -40,7 +40,7 @@ impl CHContractBody {
     }
 
     /// Updates the contract balance.
-    pub fn update_balance(&mut self, balance: SATOSHI_AMOUNT) {
+    pub fn update_balance(&mut self, balance: SatoshiAmount) {
         self.balance = balance;
     }
 
