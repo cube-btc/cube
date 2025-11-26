@@ -260,50 +260,36 @@ impl StateManager {
     pub fn apply_changes(&mut self) -> Result<(), SMApplyChangesError> {
         // 1 Apply the new contracts to register.
         for contract_id in self.delta.new_contracts_to_register.iter() {
-            // 1.1 In-memory insertion.
+            // 1.1 On-disk insertion.
             {
-                // 1.1.1 Create a fresh new contract state holder.
-                let fresh_new_contract_state_holder = SMContractStateHolder::fresh_new();
-
-                // 1.1.2 Insert the contract state into the in-memory states.
-                self.in_memory_states
-                    .insert(contract_id.clone(), fresh_new_contract_state_holder);
-            }
-
-            // 1.2 On-disk insertion.
-            {
-                // 1.2.1 Open the tree. This creates a new tree since it does not exist.
+                // 1.1.1 Open the tree. This creates a new tree since it does not exist.
                 self.on_disk_states
                     .open_tree(contract_id)
                     .map_err(|e| SMApplyChangesError::TreeOpenError(contract_id.clone(), e))?;
+            }
+
+            // 1.2 In-memory insertion.
+            {
+                // 1.2.1 Create a fresh new contract state holder.
+                let fresh_new_contract_state_holder = SMContractStateHolder::fresh_new();
+
+                // 1.2.2 Insert the contract state into the in-memory states.
+                self.in_memory_states
+                    .insert(contract_id.clone(), fresh_new_contract_state_holder);
             }
         }
 
         // 2 Apply the new or updated states.
         for (contract_id, epheremal_states) in self.delta.new_or_updated_contract_states.iter() {
-            // 2.1 In-memory insertion.
+            // 2.1 On-disk insertion FIRST (critical: apply on-disk before in-memory for atomicity).
             {
-                // 2.1.1 Get the mutable contract state holder from the in-memory states.
-                let mut_contract_state_holder = self.in_memory_states.get_mut(contract_id).ok_or(
-                    SMApplyChangesError::ContractIdNotFoundInMemory(contract_id.clone()),
-                )?;
-
-                // 2.1.2 Insert the states into the contract state holder.
-                for (epheremal_state_key, epheremal_state_value) in epheremal_states.iter() {
-                    mut_contract_state_holder
-                        .insert_update_state(epheremal_state_key, epheremal_state_value);
-                }
-            }
-
-            // 2.2 On-disk insertion.
-            {
-                // 2.2.1 Open the tree.
+                // 2.1.1 Open the tree.
                 let tree = self
                     .on_disk_states
                     .open_tree(contract_id)
                     .map_err(|e| SMApplyChangesError::TreeOpenError(contract_id.clone(), e))?;
 
-                // 2.2.2 Insert the states into the tree.
+                // 2.1.2 Insert the states into the tree.
                 for (epheremal_state_key, epheremal_state_value) in epheremal_states.iter() {
                     tree.insert(epheremal_state_key, epheremal_state_value.clone())
                         .map_err(|e| {
@@ -316,32 +302,33 @@ impl StateManager {
                         })?;
                 }
             }
+
+            // 2.2 In-memory insertion.
+            {
+                // 2.2.1 Get the mutable contract state holder from the in-memory states.
+                let mut_contract_state_holder = self.in_memory_states.get_mut(contract_id).ok_or(
+                    SMApplyChangesError::ContractIdNotFoundInMemory(contract_id.clone()),
+                )?;
+
+                // 2.2.2 Insert the states into the contract state holder.
+                for (epheremal_state_key, epheremal_state_value) in epheremal_states.iter() {
+                    mut_contract_state_holder
+                        .insert_update_state(epheremal_state_key, epheremal_state_value);
+                }
+            }
         }
 
         // 3 Apply the removed states.
         for (contract_id, state_keys_to_remove) in self.delta.removed_contract_states.iter() {
-            // 3.1 In-memory removal.
+            // 3.1 On-disk removal.
             {
-                // 3.1.1 Get the mutable contract state holder from the in-memory states.
-                let mut_contract_state_holder = self.in_memory_states.get_mut(contract_id).ok_or(
-                    SMApplyChangesError::ContractIdNotFoundInMemory(*contract_id),
-                )?;
-
-                // 3.1.2 Remove the states from the contract state holder.
-                for state_key_to_remove in state_keys_to_remove.iter() {
-                    mut_contract_state_holder.remove_state(state_key_to_remove);
-                }
-            }
-
-            // 3.2 On-disk removal.
-            {
-                // 3.2.1 Open the tree.
+                // 3.1.1 Open the tree.
                 let tree = self
                     .on_disk_states
                     .open_tree(contract_id)
                     .map_err(|e| SMApplyChangesError::TreeOpenError(contract_id.clone(), e))?;
 
-                // 3.2.2 Remove the states from the tree.
+                // 3.1.2 Remove the states from the tree.
                 for state_key_to_remove in state_keys_to_remove.iter() {
                     tree.remove(state_key_to_remove).map_err(|e| {
                         SMApplyChangesError::TreeValueRemoveError(
@@ -350,6 +337,19 @@ impl StateManager {
                             e,
                         )
                     })?;
+                }
+            }
+
+            // 3.2 In-memory removal.
+            {
+                // 3.2.1 Get the mutable contract state holder from the in-memory states.
+                let mut_contract_state_holder = self.in_memory_states.get_mut(contract_id).ok_or(
+                    SMApplyChangesError::ContractIdNotFoundInMemory(*contract_id),
+                )?;
+
+                // 3.2.2 Remove the states from the contract state holder.
+                for state_key_to_remove in state_keys_to_remove.iter() {
+                    mut_contract_state_holder.remove_state(state_key_to_remove);
                 }
             }
         }
