@@ -44,6 +44,20 @@ impl SMDelta {
         self.new_contracts_to_register.contains(&contract_id)
     }
 
+    /// Checks if a state has just been epheremally removed in the delta.
+    pub fn is_state_epheremally_removed(&self, contract_id: ContractId, key: &StateKey) -> bool {
+        // 1 Check if the contract has any removed states.
+        if let Some(removed_states) = self.removed_contract_states.get(&contract_id) {
+            // 1.1 Check if the state key is in the removed states.
+            if removed_states.contains(key) {
+                return true;
+            }
+        }
+
+        // 2 If the state key is not in the removed states, return false.
+        false
+    }
+
     /// Returns the value of a state by contract ID and key.
     pub fn get_epheremal_state_value(
         &self,
@@ -51,10 +65,8 @@ impl SMDelta {
         key: &StateKey,
     ) -> Option<StateValue> {
         // 1 Return None if the state key has just been epheremally removed.
-        if let Some(removed_states) = self.removed_contract_states.get(&contract_id) {
-            if removed_states.contains(key) {
-                return None;
-            }
+        if self.is_state_epheremally_removed(contract_id, key) {
+            return None;
         }
 
         // 2 Try to get from the new or updated states.

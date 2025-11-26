@@ -119,12 +119,17 @@ impl StateManager {
 
     /// Returns the value of a state by contract ID and key.
     pub fn get_state_value(&self, contract_id: ContractId, key: &StateKey) -> Option<StateValue> {
-        // 1 Try to get from the delta first.
+        // 1 Check if the state has just been epheremally removed in the delta.
+        if self.delta.is_state_epheremally_removed(contract_id, key) {
+            return None;
+        }
+
+        // 2 Try to get from the delta first.
         if let Some(value) = self.delta.get_epheremal_state_value(contract_id, key) {
             return Some(value.clone());
         }
 
-        // 2 And then try to get from the permanent in-memory states.
+        // 3 And then try to get from the permanent in-memory states.
         self.in_memory_states
             .get(&contract_id)?
             .get_state_value(key)
@@ -360,7 +365,7 @@ impl StateManager {
 
         // 2 Insert the contract states.
         obj.insert(
-            "states".to_string(),
+            "contracts".to_string(),
             Value::Object(
                 self.in_memory_states
                     .iter()

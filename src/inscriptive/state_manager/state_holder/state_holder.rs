@@ -48,21 +48,13 @@ impl SMContractStateHolder {
         // 1 Construct the state holder JSON object.
         let mut obj = Map::new();
 
-        // 2 Insert the states.
+        // 2 Insert the states. I think we can direct insert key and values as strings.
         obj.insert(
             "contract_states".to_string(),
             Value::Object(
                 self.states
                     .iter()
-                    .map(|(key, value)| {
-                        (
-                            hex::encode(key),
-                            Value::String(
-                                String::from_utf8(value.clone())
-                                    .expect("This should never happen."),
-                            ),
-                        )
-                    })
+                    .map(|(key, value)| (hex::encode(key), Value::String(hex::encode(value))))
                     .collect(),
             ),
         );
