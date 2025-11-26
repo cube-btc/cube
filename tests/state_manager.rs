@@ -1,5 +1,5 @@
 #[cfg(test)]
-mod coin_manager_tests {
+mod state_manager_tests {
     use cube::inscriptive::state_manager::state_manager::{
         erase_state_manager, StateManager, STATE_MANAGER,
     };
@@ -36,7 +36,7 @@ mod coin_manager_tests {
         // 1 Set the chain for local tests.
         let chain = Chain::Testbed;
 
-        // 2 Erase first the coin manager.
+        // 2 Erase first the state manager.
         erase_state_manager(chain);
 
         // 3 Construct the state manager.
@@ -112,12 +112,17 @@ mod coin_manager_tests {
             assert_eq!(result.unwrap(), STATE_VALUE_1);
         }
 
-        // 12 Insert the third state.
+        // 12 Pre-execution before rollback test.
         {
-            // 12.1 Lock the state manager.
+            state_manager.lock().await.pre_execution();
+        }
+
+        // 13 Insert the third state.
+        {
+            // 13.1 Lock the state manager.
             let mut _state_manager = state_manager.lock().await;
 
-            // 12.2 Insert the state.
+            // 13.2 Insert the state.
             let result = _state_manager.insert_update_state(
                 CONTRACT_ID_1,
                 &Vec::from(STATE_KEY_3),
@@ -129,46 +134,46 @@ mod coin_manager_tests {
 
         // NOTE: This time we are not applying changes.
 
-        // 13 Try to read the third state.
+        // 14 Try to read the third state.
         {
-            // 13.1 Lock the state manager.
+            // 14.1 Lock the state manager.
             let _state_manager = state_manager.lock().await;
 
-            // 13.2 Read the state.
+            // 14.2 Read the state.
             let result = _state_manager.get_state_value(CONTRACT_ID_1, &Vec::from(STATE_KEY_3));
             assert!(result.is_some());
 
-            // 13.3 Assert match.
+            // 14.3 Assert match.
             assert_eq!(result.unwrap(), STATE_VALUE_3);
         }
 
-        // 14 Rollback the changes.
+        // 15 Rollback the changes.
         {
-            // 14.1 Lock the state manager.
+            // 15.1 Lock the state manager.
             let mut _state_manager = state_manager.lock().await;
 
-            // 14.2 Restore old states by rolling back.
+            // 15.2 Restore old states by rolling back.
             _state_manager.rollback_last();
         }
 
-        // 15 Try to read the third state again post-rollback.
+        // 16 Try to read the third state again post-rollback.
         {
-            // 15.1 Lock the state manager.
+            // 16.1 Lock the state manager.
             let _state_manager = state_manager.lock().await;
 
-            // 15.2 Read the state.
+            // 16.2 Read the state.
             let result = _state_manager.get_state_value(CONTRACT_ID_1, &Vec::from(STATE_KEY_3));
 
-            // 15.3 Should be none as the state was rolled back.
+            // 16.3 Should be none as the state was rolled back.
             assert!(result.is_none());
         }
 
-        // 16 Insert the third state again.
+        // 17 Insert the third state again.
         {
-            // 16.1 Lock the state manager.
+            // 17.1 Lock the state manager.
             let mut _state_manager = state_manager.lock().await;
 
-            // 16.2 Insert the state.
+            // 17.2 Insert the state.
             let result = _state_manager.insert_update_state(
                 CONTRACT_ID_1,
                 &Vec::from(STATE_KEY_3),
@@ -178,70 +183,54 @@ mod coin_manager_tests {
             assert!(result.is_ok());
         }
 
-        // 17 Apply changes.
+        // 18 Apply changes.
         let result = state_manager.lock().await.apply_changes();
         assert!(result.is_ok());
 
-        // 18 Remove the second state.
+        // 19 Remove the second state.
         {
-            // 18.1 Lock the state manager.
+            // 19.1 Lock the state manager.
             let mut _state_manager = state_manager.lock().await;
 
-            // 18.2 Remove the state.
+            // 19.2 Remove the state.
             let result = _state_manager.remove_state(CONTRACT_ID_1, &Vec::from(STATE_KEY_2), false);
             assert!(result.is_ok());
         }
 
-        // 19 Try to read the second state post-removal.
+        // 20 Try to read the second state post-removal.
         {
-            // 19.1 Lock the state manager.
+            // 20.1 Lock the state manager.
             let _state_manager = state_manager.lock().await;
 
-            // 19.2 Read the state.
+            // 20.2 Read the state.
             let result = _state_manager.get_state_value(CONTRACT_ID_1, &Vec::from(STATE_KEY_2));
 
-            // 19.3 Should be none as the state was removed.
+            // 20.3 Should be none as the state was removed.
             assert!(result.is_none());
         }
 
-        // 20 Apply changes.
+        // 21 Apply changes.
         let result = state_manager.lock().await.apply_changes();
         assert!(result.is_ok());
 
-        // 21 Remove the first state.
+        // 22 Pre-execution before second rollback test.
         {
-            // 21.1 Lock the state manager.
+            state_manager.lock().await.pre_execution();
+        }
+
+        // 23 Remove the first state.
+        {
+            // 23.1 Lock the state manager.
             let mut _state_manager = state_manager.lock().await;
 
-            // 21.2 Remove the state.
+            // 23.2 Remove the state.
             let result = _state_manager.remove_state(CONTRACT_ID_1, &Vec::from(STATE_KEY_1), false);
             assert!(result.is_ok());
         }
 
         // NOTE: This time we are not applying changes.
 
-        // 22 Try to read the first state post-removal.
-        {
-            // 22.1 Lock the state manager.
-            let _state_manager = state_manager.lock().await;
-
-            // 22.2 Read the state.
-            let result = _state_manager.get_state_value(CONTRACT_ID_1, &Vec::from(STATE_KEY_1));
-
-            // 22.3 Should be none as the state was removed.
-            assert!(result.is_none());
-        }
-
-        // 23 Rollback the changes.
-        {
-            // 23.1 Lock the state manager.
-            let mut _state_manager = state_manager.lock().await;
-
-            // 23.2 Restore old states by rolling back.
-            _state_manager.rollback_last();
-        }
-
-        // 24 Try to read the first state again post-rollback.
+        // 24 Try to read the first state post-removal.
         {
             // 24.1 Lock the state manager.
             let _state_manager = state_manager.lock().await;
@@ -249,33 +238,54 @@ mod coin_manager_tests {
             // 24.2 Read the state.
             let result = _state_manager.get_state_value(CONTRACT_ID_1, &Vec::from(STATE_KEY_1));
 
-            // 24.3 Should be some as the removal was rolled back.
-            assert!(result.is_some());
-
-            // 24.4 Assert match.
-            assert_eq!(result.unwrap(), STATE_VALUE_1);
+            // 24.3 Should be none as the state was removed.
+            assert!(result.is_none());
         }
 
-        // 25 Register the second contract.
+        // 25 Rollback the changes.
         {
             // 25.1 Lock the state manager.
             let mut _state_manager = state_manager.lock().await;
 
-            // 25.2 Register the second contract.
-            let result = _state_manager.register_contract(CONTRACT_ID_2);
-            assert!(result.is_ok());
+            // 25.2 Restore old states by rolling back.
+            _state_manager.rollback_last();
         }
 
-        // 26 Apply changes.
-        let result = state_manager.lock().await.apply_changes();
-        assert!(result.is_ok());
+        // 26 Try to read the first state again post-rollback.
+        {
+            // 26.1 Lock the state manager.
+            let _state_manager = state_manager.lock().await;
 
-        // 27 Insert the third state into the second contract.
+            // 26.2 Read the state.
+            let result = _state_manager.get_state_value(CONTRACT_ID_1, &Vec::from(STATE_KEY_1));
+
+            // 26.3 Should be some as the removal was rolled back.
+            assert!(result.is_some());
+
+            // 26.4 Assert match.
+            assert_eq!(result.unwrap(), STATE_VALUE_1);
+        }
+
+        // 27 Register the second contract.
         {
             // 27.1 Lock the state manager.
             let mut _state_manager = state_manager.lock().await;
 
-            // 27.2 Insert the state.
+            // 27.2 Register the second contract.
+            let result = _state_manager.register_contract(CONTRACT_ID_2);
+            assert!(result.is_ok());
+        }
+
+        // 28 Apply changes.
+        let result = state_manager.lock().await.apply_changes();
+        assert!(result.is_ok());
+
+        // 29 Insert the third state into the second contract.
+        {
+            // 29.1 Lock the state manager.
+            let mut _state_manager = state_manager.lock().await;
+
+            // 29.2 Insert the state.
             let result = _state_manager.insert_update_state(
                 CONTRACT_ID_2,
                 &Vec::from(STATE_KEY_3),
@@ -285,20 +295,20 @@ mod coin_manager_tests {
             assert!(result.is_ok());
         }
 
-        // 28 Apply changes.
+        // 30 Apply changes.
         let result = state_manager.lock().await.apply_changes();
         assert!(result.is_ok());
 
-        // 29 Try to read the third state from the second contract.
+        // 31 Try to read the third state from the second contract.
         {
-            // 29.1 Lock the state manager.
+            // 31.1 Lock the state manager.
             let _state_manager = state_manager.lock().await;
 
-            // 29.2 Read the state.
+            // 31.2 Read the state.
             let result = _state_manager.get_state_value(CONTRACT_ID_2, &Vec::from(STATE_KEY_3));
             assert!(result.is_some());
 
-            // 29.3 Assert match.
+            // 31.3 Assert match.
             assert_eq!(result.unwrap(), STATE_VALUE_3);
         }
 
