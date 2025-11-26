@@ -83,10 +83,10 @@ impl SMDelta {
         value: &StateValue,
     ) {
         // 1 Check if this key was epheremally removed.
-        if let Some(removed_states) = self.removed_contract_states.get_mut(&contract_id) {
+        if let Some(removed_state_keys) = self.removed_contract_states.get_mut(&contract_id) {
             // 1.1 If the key was just epheremally removed, redo the removal from the removed states.
-            if removed_states.contains(key) {
-                removed_states.retain(|k| k != key);
+            if removed_state_keys.contains(key) {
+                removed_state_keys.retain(|k| k != key);
             }
         }
 
