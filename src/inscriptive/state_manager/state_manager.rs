@@ -6,6 +6,7 @@ use crate::inscriptive::state_manager::errors::apply_changes_error::SMApplyChang
 use crate::inscriptive::state_manager::errors::remove_state_error::SMRemoveStateError;
 use crate::inscriptive::state_manager::state_holder::state_holder::SMContractStateHolder;
 use crate::operative::Chain;
+use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -350,6 +351,28 @@ impl StateManager {
 
         // 4 Return the result.
         Ok(())
+    }
+
+    /// Returns the state manager as a JSON object.
+    pub fn json(&self) -> Value {
+        // 1 Construct the state manager JSON object.
+        let mut obj = Map::new();
+
+        // 2 Insert the contract states.
+        obj.insert(
+            "states".to_string(),
+            Value::Object(
+                self.in_memory_states
+                    .iter()
+                    .map(|(contract_id, contract_state_holder)| {
+                        (hex::encode(contract_id), contract_state_holder.json())
+                    })
+                    .collect(),
+            ),
+        );
+
+        // 3 Return the JSON object.
+        Value::Object(obj)
     }
 }
 

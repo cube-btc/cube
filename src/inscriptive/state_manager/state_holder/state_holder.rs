@@ -1,3 +1,4 @@
+use serde_json::{Map, Value};
 use std::collections::HashMap;
 
 /// State key.
@@ -40,5 +41,33 @@ impl SMContractStateHolder {
     /// Removes a state by key.
     pub fn remove_state(&mut self, key: &StateKey) {
         self.states.remove(key);
+    }
+
+    /// Returns the state holder as a JSON object.
+    pub fn json(&self) -> Value {
+        // 1 Construct the state holder JSON object.
+        let mut obj = Map::new();
+
+        // 2 Insert the states.
+        obj.insert(
+            "contract_states".to_string(),
+            Value::Object(
+                self.states
+                    .iter()
+                    .map(|(key, value)| {
+                        (
+                            hex::encode(key),
+                            Value::String(
+                                String::from_utf8(value.clone())
+                                    .expect("This should never happen."),
+                            ),
+                        )
+                    })
+                    .collect(),
+            ),
+        );
+
+        // 3 Return the JSON object.
+        Value::Object(obj)
     }
 }
