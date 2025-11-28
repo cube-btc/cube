@@ -8,11 +8,11 @@ type SatoshiAmount = u64;
 /// A struct for containing BTC balance and shadow space of a contract.
 #[derive(Clone)]
 pub struct CMContractBody {
-    // 1 Contract's BTC balance.
-    balance: SatoshiAmount,
+    // Contract's BTC balance.
+    pub balance: SatoshiAmount,
 
-    // 2 Contract's shadow space.
-    shadow_space: ShadowSpace,
+    // Contract's shadow space.
+    pub shadow_space: ShadowSpace,
 }
 
 impl CMContractBody {
@@ -22,21 +22,6 @@ impl CMContractBody {
             balance: balance,
             shadow_space: shadow_space,
         }
-    }
-
-    /// Returns the contract balance.
-    pub fn balance(&self) -> SatoshiAmount {
-        self.balance
-    }
-
-    /// Returns the contract shadow space.
-    pub fn shadow_space(&self) -> &ShadowSpace {
-        &self.shadow_space
-    }
-
-    /// Returns a mutable reference to the contract shadow space.
-    pub fn shadow_space_mut(&mut self) -> &mut ShadowSpace {
-        &mut self.shadow_space
     }
 
     /// Updates the contract balance.
@@ -57,11 +42,11 @@ impl CMContractBody {
         // 2 Insert the balance.
         obj.insert(
             "balance".to_string(),
-            Value::String(self.balance().to_string()),
+            Value::String(self.balance.to_string()),
         );
 
         // 3 Insert the shadow space.
-        obj.insert("shadow_space".to_string(), self.shadow_space().json());
+        obj.insert("shadow_space".to_string(), self.shadow_space.json());
 
         // 4 Return the JSON object.
         Value::Object(obj)

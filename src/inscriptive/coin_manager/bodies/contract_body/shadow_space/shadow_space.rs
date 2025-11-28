@@ -17,10 +17,10 @@ type SATI_SATOSHI_AMOUNT = u128;
 #[derive(Clone)]
 pub struct ShadowSpace {
     // 1 Total allocated BTC value of the entire shadow space.
-    allocs_sum: SATOSHI_AMOUNT,
+    pub allocs_sum: SATOSHI_AMOUNT,
 
     // 2 Allocated BTC values of each account.
-    allocs: HashMap<ACCOUNT_KEY, SATI_SATOSHI_AMOUNT>,
+    pub allocs: HashMap<ACCOUNT_KEY, SATI_SATOSHI_AMOUNT>,
 }
 
 impl ShadowSpace {
@@ -44,21 +44,6 @@ impl ShadowSpace {
 
         // 2 Return the shadow space.
         shadow_space
-    }
-
-    /// Returns the allocations sum.
-    pub fn allocs_sum(&self) -> SATOSHI_AMOUNT {
-        self.allocs_sum
-    }
-
-    /// Returns the number of allocations.
-    pub fn allocs_len(&self) -> usize {
-        self.allocs.len()
-    }
-
-    /// Returns a clone of the allocations map.
-    pub fn allocs(&self) -> &HashMap<ACCOUNT_KEY, SATI_SATOSHI_AMOUNT> {
-        &self.allocs
     }
 
     /// Updates the allocations sum.
@@ -94,7 +79,7 @@ impl ShadowSpace {
         // 2 Insert the allocs sum.
         obj.insert(
             "allocs_sum".to_string(),
-            Value::String(self.allocs_sum().to_string()),
+            Value::String(self.allocs_sum.to_string()),
         );
 
         // 3 Insert the allocations.

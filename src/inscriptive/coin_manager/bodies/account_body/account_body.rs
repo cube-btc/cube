@@ -11,11 +11,11 @@ type SatiSatoshiAmount = u128;
 /// A struct for containing BTC balance and shadow allocs sum of an account.
 #[derive(Clone)]
 pub struct CMAccountBody {
-    // 1 Account's BTC balance.
-    balance: SatoshiAmount,
+    // Account's BTC balance.
+    pub balance: SatoshiAmount,
 
-    // 2 Account's shadow allocs sum.
-    shadow_allocs_sum: SatiSatoshiAmount,
+    // Account's shadow allocs sum.
+    pub shadow_allocs_sum: SatiSatoshiAmount,
 }
 
 impl CMAccountBody {
@@ -25,16 +25,6 @@ impl CMAccountBody {
             balance: balance,
             shadow_allocs_sum: shadow_allocs_sum,
         }
-    }
-
-    /// Returns the account balance.
-    pub fn balance(&self) -> SatoshiAmount {
-        self.balance
-    }
-
-    /// Returns the account shadow allocs sum.
-    pub fn shadow_allocs_sum(&self) -> SatiSatoshiAmount {
-        self.shadow_allocs_sum
     }
 
     /// Updates the account balance.
@@ -55,13 +45,13 @@ impl CMAccountBody {
         // 2 Insert the balance.
         obj.insert(
             "balance".to_string(),
-            Value::String(self.balance().to_string()),
+            Value::String(self.balance.to_string()),
         );
 
         // 3 Insert the shadow allocs sum.
         obj.insert(
             "shadow_allocs_sum".to_string(),
-            Value::String(self.shadow_allocs_sum().to_string()),
+            Value::String(self.shadow_allocs_sum.to_string()),
         );
 
         // 4 Return the JSON object.

@@ -10,7 +10,7 @@ type StateValue = Vec<u8>;
 /// A struct for holding contract states.
 pub struct SMContractStateHolder {
     // Contract states.
-    states: HashMap<StateKey, StateValue>,
+    pub states: HashMap<StateKey, StateValue>,
 }
 
 impl SMContractStateHolder {

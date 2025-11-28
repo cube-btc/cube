@@ -41,29 +41,31 @@ type SatiSatoshiAmount = u128;
 const ONE_SATOSHI_IN_SATI_SATOSHIS: u128 = 100_000_000;
 
 /// Special db key for the account balance (0x00..).
-const ACCOUNT_BALANCE_SPECIAL_KEY: [u8; 1] = [0x00; 1];
+const ACCOUNT_BALANCE_SPECIAL_DB_KEY: [u8; 1] = [0x00; 1];
+
 /// Special db key for the account shadow allocs sum value (0x01..).
-const ACCOUNT_ALLOCS_SUM_SPECIAL_KEY: [u8; 1] = [0x01; 1];
+const ACCOUNT_ALLOCS_SUM_SPECIAL_DB_KEY: [u8; 1] = [0x01; 1];
 
 /// Special db key for the contract balance (0x00..).
-const CONTRACT_BALANCE_SPECIAL_KEY: [u8; 32] = [0x00; 32];
+const CONTRACT_BALANCE_SPECIAL_DB_KEY: [u8; 32] = [0x00; 32];
+
 /// Special db key for the contract shadow allocs sum value (0x01..).
-const CONTRACT_ALLOCS_SUM_SPECIAL_KEY: [u8; 32] = [0x01; 32];
+const CONTRACT_ALLOCS_SUM_SPECIAL_DB_KEY: [u8; 32] = [0x01; 32];
 
 /// A database manager for handling account and contract balances & shadow space allocations.
 pub struct CoinManager {
-    // 1 In-memory account and contract bodies.
+    // In-memory account & contract bodies.
     in_memory_accounts: HashMap<AccountKey, CMAccountBody>,
     in_memory_contracts: HashMap<ContractId, CMContractBody>,
 
-    // 2 On-disk accounts and contracts.
+    // On-disk accounts & contracts.
     on_disk_accounts: sled::Db,
     on_disk_contracts: sled::Db,
 
-    // 3 State differences to be applied.
+    // State differences to be applied.
     delta: CMDelta,
 
-    // 4 Backup of state differences in case of rollback.
+    // Backup of state differences in case of rollback.
     backup_of_delta: CMDelta,
 }
 
@@ -141,7 +143,7 @@ impl CoinManager {
                 // 4.4.3 Match the tree key bytes.
                 match tree_key_byte {
                     // 4.4.3.1 If the key is (0x00..), it is a special key that corresponds to the account balance value.
-                    ACCOUNT_BALANCE_SPECIAL_KEY => {
+                    ACCOUNT_BALANCE_SPECIAL_DB_KEY => {
                         // 4.4.3.1.1 Deserialize the value bytes.
                         let account_balance_deserialized: u64 =
                             u64::from_le_bytes(value.as_ref().try_into().map_err(|_| {
@@ -158,7 +160,7 @@ impl CoinManager {
                         account_balance = account_balance_deserialized;
                     }
                     // 4.4.3.2 If the key is (0x01..), it is a special key that corresponds to the account shadow allocs sum value.
-                    ACCOUNT_ALLOCS_SUM_SPECIAL_KEY => {
+                    ACCOUNT_ALLOCS_SUM_SPECIAL_DB_KEY => {
                         // 4.4.3.2.1 Deserialize the value bytes.
                         let account_shadow_allocs_sum_deserialized: u128 =
                             u128::from_le_bytes(value.as_ref().try_into().map_err(|_| {
@@ -243,7 +245,7 @@ impl CoinManager {
                 // 5.5.3 Match the tree key bytes.
                 match tree_key_bytes {
                     // 5.5.3.1 If the key is (0x00..), it is a special key that corresponds to the contract balance value.
-                    CONTRACT_BALANCE_SPECIAL_KEY => {
+                    CONTRACT_BALANCE_SPECIAL_DB_KEY => {
                         // 5.5.3.1.1 Deserialize the value bytes.
                         let contract_balance_value_in_satoshis: u64 =
                                 u64::from_le_bytes(value.as_ref().try_into().map_err(|_| {
@@ -259,7 +261,7 @@ impl CoinManager {
                         contract_balance = contract_balance_value_in_satoshis;
                     }
                     // 5.5.3.2 If the key is (0x01..), it is a special key that corresponds to the allocs sum value.
-                    CONTRACT_ALLOCS_SUM_SPECIAL_KEY => {
+                    CONTRACT_ALLOCS_SUM_SPECIAL_DB_KEY => {
                         // 5.5.3.2.1 Deserialize the value bytes.
                         let allocs_sum_value_in_satoshis: u64 =
                                 u64::from_le_bytes(value.as_ref().try_into().map_err(|_| {
@@ -353,7 +355,7 @@ impl CoinManager {
             let contract_body = self.in_memory_contracts.get(&contract_id)?;
 
             // 1.2 Get the shadow space.
-            let shadow_space = contract_body.shadow_space().clone();
+            let shadow_space = contract_body.shadow_space.clone();
 
             // 1.3 Insert the shadow space into the delta.
             self.delta
@@ -407,7 +409,7 @@ impl CoinManager {
         // 2 And then try to get from the permanent in-memory states.
         self.in_memory_accounts
             .get(&account_key)
-            .map(|account_body| account_body.balance())
+            .map(|account_body| account_body.balance)
     }
 
     /// Returns a contract's balance in satoshis.
@@ -420,7 +422,7 @@ impl CoinManager {
         // 2 And then try to get from the permanent in-memory states.
         self.in_memory_contracts
             .get(&contract_id)
-            .map(|contract_body| contract_body.balance())
+            .map(|contract_body| contract_body.balance)
     }
 
     /// Returns the sum of a given account's shadow allocation values across all contracts in sati-satoshis.
@@ -436,7 +438,7 @@ impl CoinManager {
         // 2 And then try to get from the permanent in-memory states.
         self.in_memory_accounts
             .get(&account_key)
-            .map(|account_body| account_body.shadow_allocs_sum())
+            .map(|account_body| account_body.shadow_allocs_sum)
     }
 
     /// Returns the sum of a given account's shadow allocation values across all contracts in satoshis.
@@ -459,26 +461,26 @@ impl CoinManager {
     pub fn get_contract_shadow_allocs_sum_in_satoshis(&self, contract_id: [u8; 32]) -> Option<u64> {
         // 1 Try to read from the delta first.
         if let Some(allocs_sum) = self.delta.updated_shadow_spaces.get(&contract_id) {
-            return Some(allocs_sum.allocs_sum());
+            return Some(allocs_sum.allocs_sum);
         }
 
         // 2 And then try to get from the in-memory states.
         self.in_memory_contracts
             .get(&contract_id)
-            .map(|body| body.shadow_space().allocs_sum())
+            .map(|body| body.shadow_space.allocs_sum)
     }
 
     /// Returns the number of total shadow allocations of a given contract's shadow space.
     pub fn get_contract_num_shadow_allocs(&self, contract_id: [u8; 32]) -> Option<u64> {
         // 1 Try to get from the delta first.
         if let Some(shadow_space) = self.delta.updated_shadow_spaces.get(&contract_id) {
-            return Some(shadow_space.allocs_len() as u64);
+            return Some(shadow_space.allocs.len() as u64);
         }
 
         // 2 And then try to get from the in-memory states.
         self.in_memory_contracts
             .get(&contract_id)
-            .map(|body| body.shadow_space().allocs_len() as u64)
+            .map(|body| body.shadow_space.allocs.len() as u64)
     }
 
     /// Returns the shadow allocation value of a given account for a given contract in sati-satoshis.
@@ -498,13 +500,13 @@ impl CoinManager {
 
         // 2 Try to read from the delta first.
         if let Some(shadow_space) = self.delta.updated_shadow_spaces.get(&contract_id) {
-            return shadow_space.allocs().get(&account_key).cloned();
+            return shadow_space.allocs.get(&account_key).cloned();
         }
 
         // 3 And then try to read from the permanent states.
         self.in_memory_contracts
             .get(&contract_id)
-            .and_then(|body| body.shadow_space().allocs().get(&account_key).cloned())
+            .and_then(|body| body.shadow_space.allocs.get(&account_key).cloned())
     }
 
     /// Returns the shadow allocation value of a given account for a given contract in satoshis.
@@ -533,8 +535,8 @@ impl CoinManager {
         initial_account_balance: u64,
     ) -> Result<(), CMRegisterAccountError> {
         // 1 Check if the account key collides with reserved database keys.
-        if account_key == CONTRACT_BALANCE_SPECIAL_KEY
-            || account_key == CONTRACT_ALLOCS_SUM_SPECIAL_KEY
+        if account_key == CONTRACT_BALANCE_SPECIAL_DB_KEY
+            || account_key == CONTRACT_ALLOCS_SUM_SPECIAL_DB_KEY
         {
             return Err(CMRegisterAccountError::AccountKeyCannotBeTheSpecialDbKeys(
                 account_key,
@@ -995,7 +997,7 @@ impl CoinManager {
 
         // 6 Calculate the contract's new shadow allocs sum value.
         let new_contract_allocs_sum_value_in_satoshis: u64 =
-            mut_epheremal_shadow_space.allocs_sum() + up_value_in_satoshis;
+            mut_epheremal_shadow_space.allocs_sum + up_value_in_satoshis;
 
         // 7 Check if the contract's new shadow allocs sum value exceeds the contract balance.
         if new_contract_allocs_sum_value_in_satoshis > contract_balance_in_satoshis {
@@ -1068,7 +1070,7 @@ impl CoinManager {
             ))?;
 
         // 5 Get the contract's existing shadow allocs sum value.
-        let contract_shadow_allocs_sum_in_satoshis: u64 = mut_epheremal_shadow_space.allocs_sum();
+        let contract_shadow_allocs_sum_in_satoshis: u64 = mut_epheremal_shadow_space.allocs_sum;
 
         // 6 Check if the decrease would make the contract's shadow allocs sum to go below zero.
         // NOTE: This is unlikely to happen, but we are checking for it just in case.
@@ -1165,14 +1167,14 @@ impl CoinManager {
         for (account_key, shadow_alloc_value_in_sati_satoshis) in
             match self.delta.updated_shadow_spaces.get(&contract_id) {
                 // 9.1 First try the ephemeral shadow space.
-                Some(shadow_space) => shadow_space.allocs().iter(),
+                Some(shadow_space) => shadow_space.allocs.iter(),
                 // 9.2 Otherwise from the in-memory shadow space.
                 None => self
                     .in_memory_contracts
                     .get(&contract_id)
                     .ok_or(CMShadowUpAllError::UnableToGetContractBody(contract_id))?
-                    .shadow_space()
-                    .allocs()
+                    .shadow_space
+                    .allocs
                     .iter(),
             }
         {
@@ -1302,14 +1304,14 @@ impl CoinManager {
         for (account_key, shadow_alloc_value_in_sati_satoshis) in
             match self.delta.updated_shadow_spaces.get(&contract_id) {
                 // 10.1 First try the ephemeral shadow space.
-                Some(shadow_space) => shadow_space.allocs().iter(),
+                Some(shadow_space) => shadow_space.allocs.iter(),
                 // 10.2 Otherwise from the in-memory shadow space.
                 None => self
                     .in_memory_contracts
                     .get(&contract_id)
                     .ok_or(CMShadowDownAllError::UnableToGetContractBody(contract_id))?
-                    .shadow_space()
-                    .allocs()
+                    .shadow_space
+                    .allocs
                     .iter(),
             }
         {
@@ -1421,7 +1423,7 @@ impl CoinManager {
                 // 1.2.2 Insert the account balance on-disk.
                 {
                     tree.insert(
-                        ACCOUNT_BALANCE_SPECIAL_KEY,
+                        ACCOUNT_BALANCE_SPECIAL_DB_KEY,
                         initial_account_balance.to_le_bytes().to_vec(),
                     )
                     .map_err(|e| {
@@ -1438,7 +1440,7 @@ impl CoinManager {
                 // 1.2.3 Insert the account shadow allocs value sum on-disk.
                 {
                     tree.insert(
-                        ACCOUNT_ALLOCS_SUM_SPECIAL_KEY,
+                        ACCOUNT_ALLOCS_SUM_SPECIAL_DB_KEY,
                         initial_account_allocs_sum_value_in_sati_satoshis
                             .to_le_bytes()
                             .to_vec(),
@@ -1486,7 +1488,7 @@ impl CoinManager {
 
                 // 2.2.2 Insert the contract balance on-disk.
                 tree.insert(
-                    CONTRACT_BALANCE_SPECIAL_KEY,
+                    CONTRACT_BALANCE_SPECIAL_DB_KEY,
                     initial_contract_balance.to_le_bytes().to_vec(),
                 )
                 .map_err(|e| {
@@ -1501,7 +1503,7 @@ impl CoinManager {
 
                 // 2.2.3 Insert the contract allocs sum value on-disk.
                 tree.insert(
-                    CONTRACT_ALLOCS_SUM_SPECIAL_KEY,
+                    CONTRACT_ALLOCS_SUM_SPECIAL_DB_KEY,
                     initial_contract_allocs_sum_value_in_satoshis
                         .to_le_bytes()
                         .to_vec(),
@@ -1546,7 +1548,7 @@ impl CoinManager {
 
                 // 3.1.2 Update the account balance on-disk.
                 tree.insert(
-                    ACCOUNT_BALANCE_SPECIAL_KEY,
+                    ACCOUNT_BALANCE_SPECIAL_DB_KEY,
                     ephemeral_account_balance.to_le_bytes().to_vec(),
                 )
                 .map_err(|e| {
@@ -1589,7 +1591,7 @@ impl CoinManager {
 
                 // Update the contract balance on-disk.
                 tree.insert(
-                    CONTRACT_BALANCE_SPECIAL_KEY,
+                    CONTRACT_BALANCE_SPECIAL_DB_KEY,
                     ephemeral_contract_balance.to_le_bytes().to_vec(),
                 )
                 .map_err(|e| {
@@ -1634,7 +1636,7 @@ impl CoinManager {
 
                 // Update the shadow allocs sum on-disk.
                 tree.insert(
-                    ACCOUNT_ALLOCS_SUM_SPECIAL_KEY,
+                    ACCOUNT_ALLOCS_SUM_SPECIAL_DB_KEY,
                     ephemeral_account_shadow_allocs_sum.to_le_bytes().to_vec(),
                 )
                 .map_err(|e| {
@@ -1667,7 +1669,7 @@ impl CoinManager {
         // 6 Save contract's updated shadow spaces.
         for (contract_id, ephemeral_shadow_space) in self.delta.updated_shadow_spaces.iter() {
             // Get the contract's ephemeral shadow allocs sum value.
-            let epheremal_shadow_allocs_sum_value = ephemeral_shadow_space.allocs_sum();
+            let epheremal_shadow_allocs_sum_value = ephemeral_shadow_space.allocs_sum;
 
             // 6.1 On-disk insertion.
             {
@@ -1680,7 +1682,7 @@ impl CoinManager {
 
                 // Update alloc values one-by-one on-disk.
                 for (shadow_account_key, ephemeral_shadow_alloc_value) in
-                    ephemeral_shadow_space.allocs().iter()
+                    ephemeral_shadow_space.allocs.iter()
                 {
                     // Update the shadow alloc value on-disk.
                     tree.insert(
@@ -1701,7 +1703,7 @@ impl CoinManager {
 
                 // Update the allocs sum value on-disk.
                 tree.insert(
-                    CONTRACT_ALLOCS_SUM_SPECIAL_KEY,
+                    CONTRACT_ALLOCS_SUM_SPECIAL_DB_KEY,
                     epheremal_shadow_allocs_sum_value.to_le_bytes().to_vec(),
                 )
                 .map_err(|e| {
@@ -1774,7 +1776,7 @@ impl CoinManager {
                     // Remove all accounts from the shadow space.
                     for account_key in ephemeral_dealloc_list.iter() {
                         if !mut_permanent_contract_body
-                            .shadow_space_mut()
+                            .shadow_space
                             .remove_alloc(*account_key)
                         {
                             return Err(CMApplyChangesError::ContractApplyChangesError(

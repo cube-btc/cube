@@ -66,21 +66,14 @@ impl CMDelta {
 
     /// Clears all values.
     pub fn flush(&mut self) {
-        // 1 Clear account-related values.
-        {
-            self.new_accounts_to_register.clear();
-            self.updated_account_balances.clear();
-            self.updated_shadow_allocs_sums.clear();
-        }
-
-        // 2 Clear contract-related values.
-        {
-            self.new_contracts_to_register.clear();
-            self.allocs_list.clear();
-            self.deallocs_list.clear();
-            self.updated_contract_balances.clear();
-            self.updated_shadow_spaces.clear();
-        }
+        self.new_accounts_to_register.clear();
+        self.updated_account_balances.clear();
+        self.updated_shadow_allocs_sums.clear();
+        self.new_contracts_to_register.clear();
+        self.allocs_list.clear();
+        self.deallocs_list.clear();
+        self.updated_contract_balances.clear();
+        self.updated_shadow_spaces.clear();
     }
 
     /// ACCOUNT RELATED METHODS ///
