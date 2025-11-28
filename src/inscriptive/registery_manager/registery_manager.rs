@@ -1,3 +1,5 @@
+use crate::executive::program::compiler::compiler::ProgramCompiler;
+use crate::executive::program::program::Program;
 use crate::inscriptive::registery_manager::bodies::account_body::account_body::RMAccountBody;
 use crate::inscriptive::registery_manager::bodies::contract_body::contract_body::RMContractBody;
 use crate::inscriptive::registery_manager::delta::delta::RMDelta;
@@ -21,6 +23,9 @@ const REGISTERY_INDEX_SPECIAL_DB_KEY: [u8; 1] = [0x00; 1];
 
 /// Special db key for the call counter (0x01..).
 const CALL_COUNTER_SPECIAL_DB_KEY: [u8; 1] = [0x01; 1];
+
+/// Special db key for the program (0x02..).
+const PROGRAM_SPECIAL_DB_KEY: [u8; 1] = [0x02; 1];
 
 /// A struct for managing the registery of accounts and contracts.
 #[allow(dead_code)]
@@ -124,7 +129,7 @@ impl RegisteryManager {
                         // Update the call counter.
                         call_counter = u64::from_le_bytes(call_counter_bytes);
                     }
-                    // Invalid key byte.
+                    // Invalid db key byte.
                     _ => {
                         return Err(RMConstructionError::InvalidAccountDbKeyByte(
                             account_key,
@@ -152,17 +157,22 @@ impl RegisteryManager {
 
             // 5.2 Initialize the registery index and call counter to zero.
             let mut registery_index = 0;
+
+            // 5.3 Initialize the call counter to zero.
             let mut call_counter = 0;
 
-            // 5.3 Open the tree associated with the contract.
+            // 5.4 Construct a placeholder program.
+            let mut program = Program::placeholder_program();
+
+            // 5.5 Open the tree associated with the contract.
             let tree = contracts_db
                 .open_tree(&tree_name)
                 .map_err(|e| RMConstructionError::ContractsTreeOpenError(contract_id, e))?;
 
-            // 5.4 Iterate over all items in the tree.
+            // 5.6 Iterate over all items in the tree.
             // NOTE: There should be only two iterations in the tree, one for the registery index and one for the call counter.
             for item in tree.iter() {
-                // 5.4.1 Get the key and value.
+                // 5.6.1 Get the key and value.
                 let (key, value) = match item {
                     Ok((k, v)) => (k, v),
                     Err(e) => {
@@ -170,7 +180,7 @@ impl RegisteryManager {
                     }
                 };
 
-                // 5.4.2 Convert the tree key to the single db key byte.
+                // 5.6.2 Convert the tree key to the single db key byte.
                 let key_byte: [u8; 1] = key.as_ref().try_into().map_err(|_| {
                     RMConstructionError::UnableToDeserializeContractDbKeyByteFromTreeKey(
                         contract_id,
@@ -178,7 +188,7 @@ impl RegisteryManager {
                     )
                 })?;
 
-                // 5.4.3 Match the db key byte.
+                // 5.6.3 Match the db key byte.
                 match key_byte {
                     // 0x00 key byte represents the registery index.
                     REGISTERY_INDEX_SPECIAL_DB_KEY => {
@@ -200,7 +210,18 @@ impl RegisteryManager {
                         // Update the call counter.
                         call_counter = u64::from_le_bytes(call_counter_bytes);
                     }
-                    // Invalid key byte.
+                    // 0x02 key byte represents the program.
+                    PROGRAM_SPECIAL_DB_KEY => {
+                        // Convert the value to a program bytes.
+                        let program_bytes: Vec<u8> = value.as_ref().to_vec();
+
+                        // Decompile the program from bytecode and update the program.
+                        program =
+                            Program::decompile(&mut program_bytes.into_iter()).map_err(|e| {
+                                RMConstructionError::ContractProgramDecompileError(contract_id, e)
+                            })?;
+                    }
+                    // Invalid db key byte.
                     _ => {
                         return Err(RMConstructionError::InvalidContractDbKeyByte(
                             contract_id,
@@ -210,20 +231,20 @@ impl RegisteryManager {
                 }
             }
 
-            // 5.5 Construct the contract body with the collected registery index and call counter values.
-            let contract_body = RMContractBody::new(registery_index, call_counter);
+            // 5.7 Construct the contract body with the collected registery index and call counter values.
+            let contract_body = RMContractBody::new(registery_index, call_counter, program);
 
-            // 5.6 Insert the contract body into the in-memory list of contracts.
+            // 5.8 Insert the contract body into the in-memory list of contracts.
             in_memory_contracts.insert(contract_id, contract_body);
         }
 
-        // 6 Rank accounts.
+        // 7 Rank accounts.
         let in_memory_account_ranks = Self::rank_accounts(&in_memory_accounts);
 
-        // 7 Rank contracts.
+        // 8 Rank contracts.
         let in_memory_contract_ranks = Self::rank_contracts(&in_memory_contracts);
 
-        // 8 Construct the registery manager.
+        // 9 Construct the registery manager.
         let registery_manager = RegisteryManager {
             in_memory_accounts,
             in_memory_contracts,
@@ -235,38 +256,53 @@ impl RegisteryManager {
             backup_of_delta: RMDelta::fresh_new(),
         };
 
-        // 9 Guard the registery manager.
+        // 10 Guard the registery manager.
         let guarded_registery_manager = Arc::new(Mutex::new(registery_manager));
 
-        // 10 Return the guarded registery manager.
+        // 11 Return the guarded registery manager.
         Ok(guarded_registery_manager)
     }
 
     /// Ranks accounts by call counter (descending) and registery index (ascending as tiebreaker).
     /// Returns a HashMap where keys are ranks starting from 1.
     fn rank_accounts(accounts: &HashMap<AccountKey, RMAccountBody>) -> HashMap<Rank, AccountKey> {
-        // 1 Convert the accounts HashMap to a vector.
-        let mut accounts_vec: Vec<(&AccountKey, &RMAccountBody)> = accounts.iter().collect();
+        // 1 Collect the ranking triples (account key, registery index, call counter).
+        let mut ranking_triples: Vec<(AccountKey, u32, u64)> = accounts
+            .iter()
+            .map(|(account_key, account_body)| {
+                (
+                    account_key.to_owned(),
+                    account_body.registery_index,
+                    account_body.call_counter,
+                )
+            })
+            .collect();
 
-        // 2 Sort the accounts vector by call counter (descending), then by registery index (ascending) as tiebreaker.
-        accounts_vec.sort_by(|a, b| {
-            // 2.1 Primary sort: call counter (descending)
-            b.1.call_counter
-                .cmp(&a.1.call_counter)
-                // 2.2 Secondary sort: registery index (ascending) as tiebreaker
-                .then(a.1.registery_index.cmp(&b.1.registery_index))
-        });
+        // 2 Sort the ranking triples by call counter (descending), then by registery index (ascending) as tiebreaker.
+        ranking_triples.sort_by(
+            |(_, registery_index_a, call_counter_a), (_, registery_index_b, call_counter_b)| {
+                // 2.1 Primary sort: call counter (descending).
+                call_counter_b
+                    .cmp(call_counter_a)
+                    // 2.2 Secondary sort: registery index (ascending) as tiebreaker.
+                    .then(registery_index_a.cmp(registery_index_b))
+            },
+        );
 
-        // 3 Convert the sorted accounts vector to a ranked HashMap with ranks starting from 1.
+        // 3 Initialize the ranked accounts list.
         let mut ranked_accounts = HashMap::<Rank, AccountKey>::new();
 
-        // 4 Iterate over the sorted accounts vector and insert the account key and rank into the ranked HashMap.
-        for (index, (account_key, _)) in accounts_vec.into_iter().enumerate() {
-            let rank = (index + 1) as Rank; // Start from 1
-            ranked_accounts.insert(rank, *account_key);
+        // 4 Calculate the ranks and insert the account keys and ranks into the ranked list.
+        for (index, (account_key, _, _)) in ranking_triples.into_iter().enumerate() {
+            // 4.1 Calculate the rank.
+            // NOTE: Ranking count starts from 1.
+            let rank = (index + 1) as Rank;
+
+            // 4.2 Insert the account key and rank into the ranked list.
+            ranked_accounts.insert(rank, account_key.to_owned());
         }
 
-        // 5 Return the ranked HashMap.
+        // 5 Return the ranked accounts list.
         ranked_accounts
     }
 
@@ -275,28 +311,43 @@ impl RegisteryManager {
     fn rank_contracts(
         contracts: &HashMap<ContractId, RMContractBody>,
     ) -> HashMap<Rank, ContractId> {
-        // 1 Convert the contracts HashMap to a vector.
-        let mut contracts_vec: Vec<(&ContractId, &RMContractBody)> = contracts.iter().collect();
+        // 1 Collect the ranking triples (contract id, registery index, call counter).
+        let mut ranking_triples: Vec<(ContractId, u32, u64)> = contracts
+            .iter()
+            .map(|(contract_id, contract_body)| {
+                (
+                    contract_id.to_owned(),
+                    contract_body.registery_index,
+                    contract_body.call_counter,
+                )
+            })
+            .collect();
 
-        // 2 Sort the contracts vector by call counter (descending), then by registery index (ascending) as tiebreaker.
-        contracts_vec.sort_by(|a, b| {
-            // 2.1 Primary sort: call counter (descending)
-            b.1.call_counter
-                .cmp(&a.1.call_counter)
-                // 2.2 Secondary sort: registery index (ascending) as tiebreaker
-                .then(a.1.registery_index.cmp(&b.1.registery_index))
-        });
+        // 2 Sort the ranking triples by call counter (descending), then by registery index (ascending) as tiebreaker.
+        ranking_triples.sort_by(
+            |(_, registery_index_a, call_counter_a), (_, registery_index_b, call_counter_b)| {
+                // 2.1 Primary sort: call counter (descending).
+                call_counter_b
+                    .cmp(call_counter_a)
+                    // 2.2 Secondary sort: registery index (ascending) as tiebreaker.
+                    .then(registery_index_a.cmp(registery_index_b))
+            },
+        );
 
-        // 3 Convert the sorted contracts vector to a ranked HashMap with ranks starting from 1.
+        // 3 Initialize the ranked contracts list.
         let mut ranked_contracts = HashMap::<Rank, ContractId>::new();
 
-        // 4 Iterate over the sorted contracts vector and insert the contract id and rank into the ranked HashMap.
-        for (index, (contract_id, _)) in contracts_vec.into_iter().enumerate() {
-            let rank = (index + 1) as Rank; // Start from 1
-            ranked_contracts.insert(rank, *contract_id);
+        // 4 Calculate the ranks and insert the contract ids and ranks into the ranked list.
+        for (index, (contract_id, _, _)) in ranking_triples.into_iter().enumerate() {
+            // 4.1 Calculate the rank.
+            // NOTE: Ranking count starts from 1.
+            let rank = (index + 1) as Rank;
+
+            // 4.2 Insert the contract id and rank into the ranked list.
+            ranked_contracts.insert(rank, contract_id.to_owned());
         }
 
-        // 5 Return the ranked HashMap.
+        // 5 Return the ranked contracts list.
         ranked_contracts
     }
 }

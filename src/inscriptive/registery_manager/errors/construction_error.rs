@@ -1,3 +1,5 @@
+use crate::executive::program::compiler::compiler_error::ProgramDecompileError;
+
 /// Account Key.
 type AccountKey = [u8; 32];
 
@@ -27,5 +29,6 @@ pub enum RMConstructionError {
     UnableToDeserializeContractDbKeyByteFromTreeKey(ContractId, Vec<u8>),
     UnableToDeserializeContractRegisteryIndexBytesFromTreeValue(ContractId, Vec<u8>),
     UnableToDeserializeContractCallCounterBytesFromTreeValue(ContractId, Vec<u8>),
+    ContractProgramDecompileError(ContractId, ProgramDecompileError),
     InvalidContractDbKeyByte(ContractId, Vec<u8>),
 }
