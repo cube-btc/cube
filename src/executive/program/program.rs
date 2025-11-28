@@ -22,6 +22,15 @@ pub struct Program {
 }
 
 impl Program {
+    /// Constructs a placeholder program.
+    pub fn placeholder_program() -> Self {
+        Self {
+            program_name: String::new(),
+            deployed_by: [0x00; 32],
+            methods: Vec::new(),
+        }
+    }
+
     /// Creates a new `Program` with the given program name and list of methods.
     pub fn new(
         program_name: String,
