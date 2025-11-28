@@ -1,4 +1,4 @@
-# Registry Manager 👮‍♂️
+# Registery Manager 👮‍♂️
 
 Local storage manager for civil registration affairs for permanent Cube residents (accounts) and deployed smart contracts.
 
