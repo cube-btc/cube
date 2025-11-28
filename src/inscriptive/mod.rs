@@ -4,6 +4,7 @@ pub mod coin_manager;
 pub mod epoch;
 pub mod lp;
 pub mod registery;
+pub mod registery_manager;
 pub mod repo;
 pub mod rollup;
 pub mod set;

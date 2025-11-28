@@ -13,10 +13,19 @@ pub enum RMConstructionError {
     UnableToDeserializeAccountKeyBytesFromTreeName(Vec<u8>),
     AccountsTreeOpenError(AccountKey, sled::Error),
     AccountsTreeIterError(AccountKey, sled::Error),
+    UnableToDeserializeAccountDbKeyByteFromTreeKey(AccountKey, Vec<u8>),
+    UnableToDeserializeAccountRegisteryIndexBytesFromTreeValue(AccountKey, Vec<u8>),
+    UnableToDeserializeAccountCallCounterBytesFromTreeValue(AccountKey, Vec<u8>),
+    InvalidAccountDbKeyByte(AccountKey, Vec<u8>),
 
     /// Contract related errors.
     /// ------------------------------------------------------------
     ContractsDBOpenError(sled::Error),
+    UnableToDeserializeContractKeyBytesFromTreeName(Vec<u8>),
     ContractsTreeOpenError(ContractId, sled::Error),
     ContractsTreeIterError(ContractId, sled::Error),
+    UnableToDeserializeContractDbKeyByteFromTreeKey(ContractId, Vec<u8>),
+    UnableToDeserializeContractRegisteryIndexBytesFromTreeValue(ContractId, Vec<u8>),
+    UnableToDeserializeContractCallCounterBytesFromTreeValue(ContractId, Vec<u8>),
+    InvalidContractDbKeyByte(ContractId, Vec<u8>),
 }
