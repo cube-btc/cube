@@ -1,6 +1,7 @@
 use crate::executive::program::compiler::compiler::ProgramCompiler;
 use crate::executive::program::program::Program;
 use crate::inscriptive::registery_manager::bodies::account_body::account_body::RMAccountBody;
+use crate::inscriptive::registery_manager::bodies::account_body::flame_config::flame_config::FlameConfig;
 use crate::inscriptive::registery_manager::bodies::contract_body::contract_body::RMContractBody;
 use crate::inscriptive::registery_manager::delta::delta::RMDelta;
 use crate::inscriptive::registery_manager::errors::construction_error::RMConstructionError;
@@ -25,7 +26,16 @@ const REGISTERY_INDEX_SPECIAL_DB_KEY: [u8; 1] = [0x00; 1];
 const CALL_COUNTER_SPECIAL_DB_KEY: [u8; 1] = [0x01; 1];
 
 /// Special db key for the program (0x02..).
-const PROGRAM_SPECIAL_DB_KEY: [u8; 1] = [0x02; 1];
+const PROGRAM_BYTES_SPECIAL_DB_KEY: [u8; 1] = [0x02; 1];
+
+/// Special db key for the primary BLS key (0x03..).
+const BLS_KEY_SPECIAL_DB_KEY: [u8; 1] = [0x03; 1];
+
+/// Special db key for the secondary aggregation key (0x04..).
+const SECONDARY_AGGREGATION_KEY_SPECIAL_DB_KEY: [u8; 1] = [0x04; 1];
+
+/// Special db key for the flame config (0x05..).
+const FLAME_CONFIG_SPECIAL_DB_KEY: [u8; 1] = [0x05; 1];
 
 /// A struct for managing the registery of accounts and contracts.
 #[allow(dead_code)]
@@ -81,7 +91,18 @@ impl RegisteryManager {
 
             // 4.2 Initialize the registery index and call counter to zero.
             let mut registery_index = 0;
+
+            // 4.3 Initialize the call counter to zero.
             let mut call_counter = 0;
+
+            // 4.3 Initialize the BLS key to an empty byte array.
+            let mut bls_key = [0u8; 48];
+
+            // 4.4 Initialize the secondary aggregation key to None.
+            let mut secondary_aggregation_key: Option<Vec<u8>> = None;
+
+            // 4.5 Initialize the flame config to a fresh new flame config.
+            let mut flame_config = FlameConfig::fresh_new();
 
             // 4.3 Open the tree associated with the account.
             let tree = accounts_db
@@ -129,6 +150,34 @@ impl RegisteryManager {
                         // Update the call counter.
                         call_counter = u64::from_le_bytes(call_counter_bytes);
                     }
+                    // 0x03 key byte represents the primary BLS key.
+                    BLS_KEY_SPECIAL_DB_KEY => {
+                        // Get the primary BLS key bytes.
+                        let bls_key_bytes: [u8; 48] = value.as_ref().try_into().map_err(|_| {
+                            RMConstructionError::UnableToDeserializeAccountPrimaryBLSKeyBytesFromTreeValue(account_key, value.to_vec())
+                        })?;
+
+                        // Update the primary BLS key.
+                        bls_key = bls_key_bytes;
+                    }
+                    // 0x04 key byte represents the secondary aggregation key.
+                    SECONDARY_AGGREGATION_KEY_SPECIAL_DB_KEY => {
+                        // Convert the value to a secondary aggregation key bytes.
+                        let secondary_aggregation_key_bytes: Vec<u8> = value.as_ref().to_vec();
+
+                        // If the secondary aggregation key bytes are not empty, update the secondary aggregation key.
+                        if secondary_aggregation_key_bytes.len() > 0 {
+                            secondary_aggregation_key = Some(secondary_aggregation_key_bytes);
+                        }
+                    }
+                    // 0x05 key byte represents the flame config.
+                    FLAME_CONFIG_SPECIAL_DB_KEY => {
+                        // Get the flame config bytes.
+                        let flame_config_bytes: Vec<u8> = value.as_ref().to_vec();
+
+                        // Deserialize the flame config from bytes.
+                        flame_config = FlameConfig::from_db_value_bytes(&flame_config_bytes).ok_or(RMConstructionError::UnableToDeserializeAccountFlameConfigBytesFromTreeValue(account_key, value.to_vec()))?;
+                    }
                     // Invalid db key byte.
                     _ => {
                         return Err(RMConstructionError::InvalidAccountDbKeyByte(
@@ -140,7 +189,13 @@ impl RegisteryManager {
             }
 
             // 4.5 Construct the account body with the collected registery index and call counter values.
-            let account_body = RMAccountBody::new(registery_index, call_counter);
+            let account_body = RMAccountBody::new(
+                registery_index,
+                call_counter,
+                bls_key,
+                secondary_aggregation_key,
+                flame_config,
+            );
 
             // 4.6 Insert the account body into the in-memory list of accounts.
             in_memory_accounts.insert(account_key, account_body);
@@ -211,7 +266,7 @@ impl RegisteryManager {
                         call_counter = u64::from_le_bytes(call_counter_bytes);
                     }
                     // 0x02 key byte represents the program.
-                    PROGRAM_SPECIAL_DB_KEY => {
+                    PROGRAM_BYTES_SPECIAL_DB_KEY => {
                         // Convert the value to a program bytes.
                         let program_bytes: Vec<u8> = value.as_ref().to_vec();
 
