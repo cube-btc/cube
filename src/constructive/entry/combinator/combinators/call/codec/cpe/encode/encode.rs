@@ -7,7 +7,7 @@ use crate::{
     },
     inscriptive::{
         registery::contract_registery::contract_registery::CONTRACT_REGISTERY,
-        repo::repo::PROGRAMS_REPO,
+        registery_manager::registery_manager::REGISTERY_MANAGER,
     },
 };
 use bit_vec::BitVec;
@@ -18,7 +18,7 @@ impl Call {
         &self,
         account_key: [u8; 32],
         contract_registery: &CONTRACT_REGISTERY,
-        repo: &PROGRAMS_REPO,
+        registery_manager: &REGISTERY_MANAGER,
         ops_price_base: u32,
     ) -> Result<BitVec, CallCPEEncodeError> {
         // Initialize empty bit vector.
@@ -49,12 +49,19 @@ impl Call {
 
         // Methods length
         let contract_methods_count = {
-            let _repo = repo.lock().await;
-            _repo.methods_len_by_contract_id(&self.contract_id)
-        }
-        .ok_or(CallCPEEncodeError::ContractMethodCountNotFoundAtContractId(
-            self.contract_id,
-        ))?;
+            // Lock the registery manager.
+            let _registery_manager = registery_manager.lock().await;
+
+            // Get the contract body by contract id.
+            let contract_body = _registery_manager
+                .get_contract_body_by_contract_id(self.contract_id)
+                .ok_or(CallCPEEncodeError::ContractBodyNotFoundAtContractId(
+                    self.contract_id,
+                ))?;
+
+            // Get the methods length.
+            contract_body.executable.methods_len() as u8
+        };
 
         // Method index as atomic value
         let method_index_as_atomicval = AtomicVal::new(self.method_index, contract_methods_count);

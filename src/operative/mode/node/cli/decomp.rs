@@ -1,17 +1,18 @@
 use crate::executive::{
-    opcode::{compiler::compiler::OpcodeCompiler, opcode::Opcode},
-    program::{
-        compiler::compiler::ProgramCompiler,
-        method::{compiler::compiler::MethodCompiler, method::ProgramMethod},
-        program::Program,
+    executable::{
+        compiler::compiler::ExecutableCompiler,
+        executable::Executable,
+        method::{compiler::compiler::MethodCompiler, method::ExecutableMethod},
     },
+    opcode::{compiler::compiler::OpcodeCompiler, opcode::Opcode},
 };
 use serde_json::to_string_pretty;
+
 /// Prints the current set of lifts in the wallet.
 pub fn decomp_command(parts: Vec<&str>) {
     match parts.get(1) {
         Some(part) => match part.to_owned() {
-            "program" => decomp_program(parts),
+            "executable" => decomp_executable(parts),
             "method" => decomp_method(parts),
             "script" => decomp_script(parts),
             _ => eprintln!("Unknown command."),
@@ -20,36 +21,38 @@ pub fn decomp_command(parts: Vec<&str>) {
     }
 }
 
-fn decomp_program(parts: Vec<&str>) {
-    let program_bytes_str = match parts.get(2) {
-        Some(program_bytes_str) => program_bytes_str,
+/// Decompiles an executable from bytes.
+fn decomp_executable(parts: Vec<&str>) {
+    let executable_bytes_str = match parts.get(2) {
+        Some(executable_bytes_str) => executable_bytes_str,
         None => {
             eprintln!("Incorrect usage.");
             return;
         }
     };
 
-    let mut program_bytestream = match hex::decode(program_bytes_str) {
-        Ok(program_bytes) => program_bytes.into_iter(),
+    let mut executable_bytestream = match hex::decode(executable_bytes_str) {
+        Ok(executable_bytes) => executable_bytes.into_iter(),
         Err(_) => {
-            eprintln!("Invalid program bytes.");
+            eprintln!("Invalid executable bytes.");
             return;
         }
     };
 
-    let program = match Program::decompile(&mut program_bytestream) {
-        Ok(program) => program,
+    let executable = match Executable::decompile(&mut executable_bytestream) {
+        Ok(executable) => executable,
         Err(e) => {
             eprintln!("{}", e);
             return;
         }
     };
 
-    let pretty_json = to_string_pretty(&program.json()).unwrap();
+    let pretty_json = to_string_pretty(&executable.json()).unwrap();
 
     println!("{}", pretty_json);
 }
 
+/// Decompiles a method from bytes.
 fn decomp_method(parts: Vec<&str>) {
     let method_bytes_str = match parts.get(2) {
         Some(method_bytes_str) => method_bytes_str,
@@ -67,7 +70,7 @@ fn decomp_method(parts: Vec<&str>) {
         }
     };
 
-    let method = match ProgramMethod::decompile(&mut method_bytestream) {
+    let method = match ExecutableMethod::decompile(&mut method_bytestream) {
         Ok(method) => method,
         Err(e) => {
             eprintln!("{}", e);

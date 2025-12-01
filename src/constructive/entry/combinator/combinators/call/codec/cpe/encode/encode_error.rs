@@ -13,6 +13,7 @@ type FoundBaseOpsPrice = u32;
 pub enum CallCPEEncodeError {
     AccountKeyMismatch(ExpectedAccountKey, FoundAccountKey),
     ContractRankNotFoundAtContractId([u8; 32]),
+    ContractBodyNotFoundAtContractId([u8; 32]),
     ContractMethodCountNotFoundAtContractId([u8; 32]),
     MethodIndexCPEEncodeError(AtomicValCPEEncodeError),
     BaseOpsPriceMismatch(ExpectedBaseOpsPrice, FoundBaseOpsPrice),

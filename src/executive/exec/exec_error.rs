@@ -4,8 +4,8 @@ use std::fmt;
 /// A section of executable block in the `Contract`.    
 #[derive(Debug, Clone)]
 pub enum ExecutionError {
-    /// Program not found error.
-    ProgramNotFoundError([u8; 32]),
+    /// Executable not found error.
+    ExecutableNotFoundError([u8; 32]),
     /// Method not found at index error.
     MethodNotFoundAtIndexError(u8),
     /// Read only call error.
@@ -43,8 +43,8 @@ pub enum ExecutionError {
 impl fmt::Display for ExecutionError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ExecutionError::ProgramNotFoundError(contract_id) => {
-                write!(f, "Program not found at contract id: {:?}", contract_id)
+            ExecutionError::ExecutableNotFoundError(contract_id) => {
+                write!(f, "Executable not found at contract id: {:?}", contract_id)
             }
             ExecutionError::MethodNotFoundAtIndexError(index) => {
                 write!(f, "Method not found at index: {}", index)

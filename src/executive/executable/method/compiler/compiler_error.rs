@@ -1,6 +1,6 @@
-use crate::executive::{
-    opcode::compiler::compiler_error::{OpcodeCompileError, OpcodeDecompileError},
-    program::method::method_error::MethodConstructionError,
+use crate::executive::executable::method::method_error::MethodConstructionError;
+use crate::executive::opcode::compiler::compiler_error::{
+    OpcodeCompileError, OpcodeDecompileError,
 };
 use std::fmt;
 

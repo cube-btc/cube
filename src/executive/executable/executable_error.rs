@@ -2,25 +2,25 @@ use std::fmt;
 
 /// A section of executable block in the `Contract`.    
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ProgramConstructionError {
-    /// Program name length error.
-    ProgramNameLengthError,
+pub enum ExecutableConstructionError {
+    /// Executable name length error.
+    ExecutableNameLengthError,
     /// Method count error.
     MethodCountError,
     /// Method validation error.
     MethodValidationError(MethodValidationError),
 }
 
-impl fmt::Display for ProgramConstructionError {
+impl fmt::Display for ExecutableConstructionError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ProgramConstructionError::ProgramNameLengthError => {
-                write!(f, "Program name length is invalid")
+            ExecutableConstructionError::ExecutableNameLengthError => {
+                write!(f, "Executable name length is invalid")
             }
-            ProgramConstructionError::MethodCountError => {
+            ExecutableConstructionError::MethodCountError => {
                 write!(f, "Invalid method count")
             }
-            ProgramConstructionError::MethodValidationError(err) => {
+            ExecutableConstructionError::MethodValidationError(err) => {
                 write!(f, "Method validation error: {}", err)
             }
         }

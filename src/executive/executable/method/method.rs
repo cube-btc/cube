@@ -18,9 +18,9 @@ use crate::{
 };
 use serde_json::{Map, Value};
 
-/// A section of executable block in the `Contract`.
+/// A method of an executable.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ProgramMethod {
+pub struct ExecutableMethod {
     /// The method name.
     method_name: String,
     /// The type of method.
@@ -31,7 +31,7 @@ pub struct ProgramMethod {
     script: Vec<Opcode>,
 }
 
-impl ProgramMethod {
+impl ExecutableMethod {
     /// Create a new method.
     pub fn new(
         method_name: String,

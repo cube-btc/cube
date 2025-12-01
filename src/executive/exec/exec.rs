@@ -1,6 +1,7 @@
 use super::{caller::Caller, exec_error::ExecutionError};
 use crate::{
     executive::{
+        executable::method::method_type::MethodType,
         opcode::{
             opcode::Opcode,
             opcodes::{
@@ -81,11 +82,11 @@ use crate::{
                 storage::{op_sread::OP_SREAD, op_swrite::OP_SWRITE},
             },
         },
-        program::method::method_type::MethodType,
         stack::{stack_holder::StackHolder, stack_item::StackItem},
     },
     inscriptive::{
-        coin_manager::coin_manager::COIN_MANAGER, repo::repo::PROGRAMS_REPO,
+        coin_manager::coin_manager::COIN_MANAGER,
+        registery_manager::registery_manager::REGISTERY_MANAGER,
         state_manager::state_manager::STATE_MANAGER,
     },
 };
@@ -125,25 +126,26 @@ pub async fn execute(
     state_manager: &STATE_MANAGER,
     // The coin manager.
     coin_manager: &COIN_MANAGER,
-    // The programs repo.
-    programs_repo: &PROGRAMS_REPO,
+    // The registery manager.
+    registery_manager: &REGISTERY_MANAGER,
 ) -> Result<(Vec<StackItem>, InternalOpsCounter, ExternalOpsCounter), ExecutionError> {
-    // Get the program by contract id.
-    let program = {
-        let _programs_repo = programs_repo.lock().await;
-        _programs_repo
-            .program_by_contract_id(&contract_id)
-            .ok_or(ExecutionError::ProgramNotFoundError(contract_id))?
+    // Get the executable by contract id.
+    let executable = {
+        let _registery_manager = registery_manager.lock().await;
+        _registery_manager
+            .get_contract_body_by_contract_id(contract_id)
+            .ok_or(ExecutionError::ExecutableNotFoundError(contract_id))?
+            .executable
     };
 
     // Get the program method by index.
-    let program_method = match program.method_by_index(method_index) {
+    let executable_method = match executable.method_by_index(method_index) {
         Some(method) => method,
         None => return Err(ExecutionError::MethodNotFoundAtIndexError(method_index)),
     };
 
     // Match the method type.
-    match program_method.method_type() {
+    match executable_method.method_type() {
         // Read only methods are considered a non-executable behavior.
         MethodType::ReadOnly => return Err(ExecutionError::ReadOnlyCallEncounteredError),
 
@@ -167,12 +169,12 @@ pub async fn execute(
     }
 
     // Match the args to the arg types.
-    if !program_method.match_args(&arg_values) {
+    if !executable_method.match_args(&arg_values) {
         return Err(ExecutionError::ArgTypeMismatchError);
     }
 
     // Get the payable allocation value.
-    let payable_allocation_value = match program_method.payable_allocation_value(&arg_values) {
+    let payable_allocation_value = match executable_method.payable_allocation_value(&arg_values) {
         Some(payable_allocation_value) => {
             // If a payable value is allocted it must be greater than MIN_PAYABLE_ALLOCATION.
             if payable_allocation_value < MIN_PAYABLE_ALLOCATION_VALUE {
@@ -220,7 +222,7 @@ pub async fn execute(
         Err(error) => return Err(ExecutionError::StackHolderInitializationError(error)),
     };
 
-    let opcodes = program_method.script();
+    let opcodes = executable_method.script();
     let opcodes_length = opcodes.len();
 
     let mut opcode_index = 0;
@@ -754,7 +756,7 @@ pub async fn execute(
                     stack_holder.external_ops_counter(), // Remainder of the external ops counter passed to the next call.
                     state_manager,
                     coin_manager,
-                    programs_repo,
+                    registery_manager,
                 ))
                 .await;
             }
@@ -792,7 +794,7 @@ pub async fn execute(
                     stack_holder.external_ops_counter(), // Remainder of the external ops counter passed to the next call.
                     state_manager,
                     coin_manager,
-                    programs_repo,
+                    registery_manager,
                 ))
                 .await;
             }

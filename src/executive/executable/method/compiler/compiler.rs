@@ -1,26 +1,26 @@
 use crate::{
     constructive::calldata::element_type::CallElementType,
     executive::{
-        opcode::{compiler::compiler::OpcodeCompiler, opcode::Opcode},
-        program::method::{
+        executable::method::{
             compiler::compiler_error::{MethodCompileError, MethodDecompileError},
-            method::ProgramMethod,
+            method::ExecutableMethod,
             method_type::MethodType,
         },
+        opcode::{compiler::compiler::OpcodeCompiler, opcode::Opcode},
     },
 };
 
-/// A trait for compiling and decompiling a program method.
+/// A trait for compiling and decompiling a executable method.
 pub trait MethodCompiler {
     /// Compiles the method into a bytecode.
     fn compile(&self) -> Result<Vec<u8>, MethodCompileError>;
     /// Decompiles a method from a bytecode stream.
-    fn decompile<I>(bytecode_stream: &mut I) -> Result<ProgramMethod, MethodDecompileError>
+    fn decompile<I>(bytecode_stream: &mut I) -> Result<ExecutableMethod, MethodDecompileError>
     where
         I: Iterator<Item = u8>;
 }
 
-impl MethodCompiler for ProgramMethod {
+impl MethodCompiler for ExecutableMethod {
     fn compile(&self) -> Result<Vec<u8>, MethodCompileError> {
         // Compile the script.
         let mut method_bytes = Vec::<u8>::new();
@@ -61,7 +61,7 @@ impl MethodCompiler for ProgramMethod {
         Ok(method_bytes)
     }
 
-    fn decompile<I>(mut bytecode_stream: &mut I) -> Result<ProgramMethod, MethodDecompileError>
+    fn decompile<I>(mut bytecode_stream: &mut I) -> Result<ExecutableMethod, MethodDecompileError>
     where
         I: Iterator<Item = u8>,
     {
@@ -125,7 +125,7 @@ impl MethodCompiler for ProgramMethod {
         }
 
         // Construct the method.
-        let method = ProgramMethod::new(method_name, method_type, call_element_types, opcodes)
+        let method = ExecutableMethod::new(method_name, method_type, call_element_types, opcodes)
             .map_err(|e| MethodDecompileError::MethodConstructError(e))?;
 
         // Return the method.

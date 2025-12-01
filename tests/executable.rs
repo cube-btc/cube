@@ -1,8 +1,16 @@
 #[cfg(test)]
-mod program_and_method_tests {
+mod executable_and_method_tests {
     use cube::{
         constructive::calldata::element_type::CallElementType,
         executive::{
+            executable::{
+                compiler::compiler::ExecutableCompiler,
+                executable::Executable,
+                method::{
+                    compiler::compiler::MethodCompiler, method::ExecutableMethod,
+                    method_type::MethodType,
+                },
+            },
             opcode::{
                 opcode::Opcode,
                 opcodes::{
@@ -11,14 +19,6 @@ mod program_and_method_tests {
                         op_2::OP_2, op_false::OP_FALSE, op_pushdata::OP_PUSHDATA, op_true::OP_TRUE,
                     },
                 },
-            },
-            program::{
-                compiler::compiler::ProgramCompiler,
-                method::{
-                    compiler::compiler::MethodCompiler, method::ProgramMethod,
-                    method_type::MethodType,
-                },
-                program::Program,
             },
         },
     };
@@ -37,7 +37,8 @@ mod program_and_method_tests {
                 Opcode::OP_FAIL(OP_FAIL),
             ];
 
-            let method = ProgramMethod::new(method_name, method_type, call_element_types, script);
+            let method =
+                ExecutableMethod::new(method_name, method_type, call_element_types, script);
 
             assert!(method.is_err());
         }
@@ -73,7 +74,8 @@ mod program_and_method_tests {
                 Opcode::OP_FAIL(OP_FAIL),
             ];
 
-            let method = ProgramMethod::new(method_name, method_type, call_element_types, script);
+            let method =
+                ExecutableMethod::new(method_name, method_type, call_element_types, script);
 
             assert!(method.is_err());
         }
@@ -90,7 +92,8 @@ mod program_and_method_tests {
                 Opcode::OP_PUSHDATA(OP_PUSHDATA(vec![0xde, 0xad, 0xbe, 0xef])),
             ];
 
-            let method = ProgramMethod::new(method_name, method_type, call_element_types, script);
+            let method =
+                ExecutableMethod::new(method_name, method_type, call_element_types, script);
 
             assert!(method.is_err());
         }
@@ -108,7 +111,8 @@ mod program_and_method_tests {
                 Opcode::OP_RETURNALL(OP_RETURNALL),
             ];
 
-            let method = ProgramMethod::new(method_name, method_type, call_element_types, script);
+            let method =
+                ExecutableMethod::new(method_name, method_type, call_element_types, script);
 
             assert!(method.is_err());
         }
@@ -125,7 +129,8 @@ mod program_and_method_tests {
                 Opcode::OP_RETURNALL(OP_RETURNALL),
             ];
 
-            let method = ProgramMethod::new(method_name, method_type, call_element_types, script);
+            let method =
+                ExecutableMethod::new(method_name, method_type, call_element_types, script);
 
             assert!(method.is_ok());
         }
@@ -145,11 +150,12 @@ mod program_and_method_tests {
         ];
 
         let method =
-            ProgramMethod::new(method_name, method_type, call_element_types, script).unwrap();
+            ExecutableMethod::new(method_name, method_type, call_element_types, script).unwrap();
 
         let mut method_compiled_bytestream = method.compile().unwrap().into_iter();
 
-        let method_decompiled = ProgramMethod::decompile(&mut method_compiled_bytestream).unwrap();
+        let method_decompiled =
+            ExecutableMethod::decompile(&mut method_compiled_bytestream).unwrap();
 
         assert_eq!(method, method_decompiled);
 
@@ -164,7 +170,7 @@ mod program_and_method_tests {
             let methods = vec![];
 
             let deployed_by = [0x00; 32];
-            let program = Program::new(program_name, deployed_by, methods);
+            let program = Executable::new(program_name, deployed_by, methods);
 
             assert!(program.is_err());
         }
@@ -183,13 +189,13 @@ mod program_and_method_tests {
                     Opcode::OP_TRUE(OP_TRUE),
                 ];
 
-                ProgramMethod::new(method_name, method_type, call_element_types, script).unwrap()
+                ExecutableMethod::new(method_name, method_type, call_element_types, script).unwrap()
             };
             let methods = vec![method];
 
             let deployed_by = [0x00; 32];
 
-            let program = Program::new(program_name, deployed_by, methods);
+            let program = Executable::new(program_name, deployed_by, methods);
 
             assert!(program.is_err());
         }
@@ -208,7 +214,7 @@ mod program_and_method_tests {
                     Opcode::OP_TRUE(OP_TRUE),
                 ];
 
-                ProgramMethod::new(method_name, method_type, call_element_types, script).unwrap()
+                ExecutableMethod::new(method_name, method_type, call_element_types, script).unwrap()
             };
             let method_2 = {
                 let method_name = "test_method".to_string();
@@ -221,13 +227,13 @@ mod program_and_method_tests {
                     Opcode::OP_FALSE(OP_FALSE),
                 ];
 
-                ProgramMethod::new(method_name, method_type, call_element_types, script).unwrap()
+                ExecutableMethod::new(method_name, method_type, call_element_types, script).unwrap()
             };
             let methods = vec![method_1, method_2];
 
             let deployed_by = [0x00; 32];
 
-            let program = Program::new(program_name, deployed_by, methods);
+            let program = Executable::new(program_name, deployed_by, methods);
 
             assert!(program.is_err());
         }
@@ -246,7 +252,7 @@ mod program_and_method_tests {
                     Opcode::OP_TRUE(OP_TRUE),
                 ];
 
-                ProgramMethod::new(method_name, method_type, call_element_types, script).unwrap()
+                ExecutableMethod::new(method_name, method_type, call_element_types, script).unwrap()
             };
             let method_2 = {
                 let method_name = "test_method_2".to_string();
@@ -259,13 +265,13 @@ mod program_and_method_tests {
                     Opcode::OP_TRUE(OP_TRUE),
                 ];
 
-                ProgramMethod::new(method_name, method_type, call_element_types, script).unwrap()
+                ExecutableMethod::new(method_name, method_type, call_element_types, script).unwrap()
             };
             let methods = vec![method_1, method_2];
 
             let deployed_by = [0x00; 32];
 
-            let program = Program::new(program_name, deployed_by, methods);
+            let program = Executable::new(program_name, deployed_by, methods);
 
             assert!(program.is_err());
         }
@@ -284,7 +290,7 @@ mod program_and_method_tests {
                     Opcode::OP_TRUE(OP_TRUE),
                 ];
 
-                ProgramMethod::new(method_name, method_type, call_element_types, script).unwrap()
+                ExecutableMethod::new(method_name, method_type, call_element_types, script).unwrap()
             };
 
             let method_2 = {
@@ -298,14 +304,14 @@ mod program_and_method_tests {
                     Opcode::OP_FALSE(OP_FALSE),
                 ];
 
-                ProgramMethod::new(method_name, method_type, call_element_types, script).unwrap()
+                ExecutableMethod::new(method_name, method_type, call_element_types, script).unwrap()
             };
 
             let methods = vec![method_1, method_2];
 
             let deployed_by = [0x00; 32];
 
-            let program = Program::new(program_name, deployed_by, methods);
+            let program = Executable::new(program_name, deployed_by, methods);
 
             assert!(program.is_ok());
         }
@@ -326,7 +332,7 @@ mod program_and_method_tests {
                 Opcode::OP_TRUE(OP_TRUE),
             ];
 
-            ProgramMethod::new(method_name, method_type, call_element_types, script).unwrap()
+            ExecutableMethod::new(method_name, method_type, call_element_types, script).unwrap()
         };
 
         let method_2 = {
@@ -340,18 +346,18 @@ mod program_and_method_tests {
                 Opcode::OP_FALSE(OP_FALSE),
             ];
 
-            ProgramMethod::new(method_name, method_type, call_element_types, script).unwrap()
+            ExecutableMethod::new(method_name, method_type, call_element_types, script).unwrap()
         };
 
         let methods = vec![method_1, method_2];
 
         let deployed_by = [0x00; 32];
 
-        let program = Program::new(program_name, deployed_by, methods).unwrap();
+        let program = Executable::new(program_name, deployed_by, methods).unwrap();
 
         let mut program_compiled_bytestream = program.compile().unwrap().into_iter();
 
-        let program_decompiled = Program::decompile(&mut program_compiled_bytestream).unwrap();
+        let program_decompiled = Executable::decompile(&mut program_compiled_bytestream).unwrap();
 
         assert_eq!(program, program_decompiled);
 

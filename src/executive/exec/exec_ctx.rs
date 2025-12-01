@@ -5,7 +5,8 @@ use crate::{
         stack::stack_item::StackItem,
     },
     inscriptive::{
-        coin_manager::coin_manager::COIN_MANAGER, repo::repo::PROGRAMS_REPO,
+        coin_manager::coin_manager::COIN_MANAGER,
+        registery_manager::registery_manager::REGISTERY_MANAGER,
         state_manager::state_manager::STATE_MANAGER,
     },
 };
@@ -24,7 +25,7 @@ pub struct ExecCtx {
     // The coin holder.
     coin_manager: COIN_MANAGER,
     // The programs repo.
-    programs_repo: PROGRAMS_REPO,
+    registery_manager: REGISTERY_MANAGER,
     // External ops counter.
     external_ops_counter: u32,
     // The base ops price.
@@ -40,14 +41,14 @@ impl ExecCtx {
     pub fn new(
         state_manager: &STATE_MANAGER,
         coin_manager: &COIN_MANAGER,
-        programs_repo: &PROGRAMS_REPO,
+        registery_manager: &REGISTERY_MANAGER,
         base_ops_price: u32,
         timestamp: u64,
     ) -> Self {
         Self {
             state_manager: Arc::clone(state_manager),
             coin_manager: Arc::clone(coin_manager),
-            programs_repo: Arc::clone(programs_repo),
+            registery_manager: Arc::clone(registery_manager),
             external_ops_counter: 0,
             base_ops_price,
             timestamp,
@@ -114,7 +115,7 @@ impl ExecCtx {
         }
 
         // Programs repo.
-        let programs_repo = &self.programs_repo;
+        let registery_manager = &self.registery_manager;
 
         // Execution.
         let exectuion_result = execute(
@@ -130,7 +131,7 @@ impl ExecCtx {
             external_ops_counter,
             state_manager,
             coin_manager,
-            programs_repo,
+            registery_manager,
         )
         .await;
 

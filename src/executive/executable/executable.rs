@@ -1,75 +1,75 @@
+use super::executable_error::{ExecutableConstructionError, MethodValidationError};
 use super::limits::{
     MAX_METHOD_COUNT, MAX_PROGRAM_NAME_LENGTH, MIN_METHOD_COUNT, MIN_PROGRAM_NAME_LENGTH,
 };
-use super::method::method::ProgramMethod;
+use super::method::method::ExecutableMethod;
 use super::method::method_type::MethodType;
-use super::program_error::{MethodValidationError, ProgramConstructionError};
 use crate::constructive::valtype::val::atomic_val::atomic_val::AtomicVal;
-use crate::executive::program::compiler::compiler::ProgramCompiler;
+use crate::executive::executable::compiler::compiler::ExecutableCompiler;
 use crate::transmutative::hash::{Hash, HashTag};
 use serde_json::{Map, Value};
 use std::collections::HashSet;
 
-/// A program associated with a `Contract`.
+/// The executable associated with a `Contract`.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Program {
-    /// The program name.
-    program_name: String,
+pub struct Executable {
+    /// The executable name.
+    executable_name: String,
     /// The account key of the deployer.
     deployed_by: [u8; 32],
     /// The methods to execute.
-    methods: Vec<ProgramMethod>,
+    methods: Vec<ExecutableMethod>,
 }
 
-impl Program {
-    /// Constructs a placeholder program.
-    pub fn placeholder_program() -> Self {
+impl Executable {
+    /// Constructs a placeholder executable.
+    pub fn placeholder_executable() -> Self {
         Self {
-            program_name: String::new(),
+            executable_name: String::new(),
             deployed_by: [0x00; 32],
             methods: Vec::new(),
         }
     }
 
-    /// Creates a new `Program` with the given program name and list of methods.
+    /// Creates a new `Executable` with the given executable name and list of methods.
     pub fn new(
-        program_name: String,
+        executable_name: String,
         deployed_by: [u8; 32],
-        methods: Vec<ProgramMethod>,
-    ) -> Result<Self, ProgramConstructionError> {
+        methods: Vec<ExecutableMethod>,
+    ) -> Result<Self, ExecutableConstructionError> {
         // Check program name length.
-        if program_name.len() > MAX_PROGRAM_NAME_LENGTH
-            || program_name.len() < MIN_PROGRAM_NAME_LENGTH
+        if executable_name.len() > MAX_PROGRAM_NAME_LENGTH
+            || executable_name.len() < MIN_PROGRAM_NAME_LENGTH
         {
-            return Err(ProgramConstructionError::ProgramNameLengthError);
+            return Err(ExecutableConstructionError::ExecutableNameLengthError);
         }
 
         // Check method count.
         if methods.len() > MAX_METHOD_COUNT || methods.len() < MIN_METHOD_COUNT {
-            return Err(ProgramConstructionError::MethodCountError);
+            return Err(ExecutableConstructionError::MethodCountError);
         }
 
         // Validate the methods.
         Self::validate_methods(&methods)
-            .map_err(|e| ProgramConstructionError::MethodValidationError(e))?;
+            .map_err(|e| ExecutableConstructionError::MethodValidationError(e))?;
 
         // Order the methods.
         let ordered_methods = Self::order_methods(methods);
 
-        // Construct the program.
-        let program = Self {
-            program_name,
+        // Construct the executable.
+        let executable = Self {
+            executable_name,
             deployed_by,
             methods: ordered_methods,
         };
 
-        // Return the program.
-        Ok(program)
+        // Return the executable.
+        Ok(executable)
     }
 
-    /// Returns the program name.
-    pub fn program_name(&self) -> &str {
-        &self.program_name
+    /// Returns the executable name.
+    pub fn executable_name(&self) -> &str {
+        &self.executable_name
     }
 
     /// Returns the account key of the deployer.
@@ -83,7 +83,7 @@ impl Program {
     }
 
     /// Returns the methods.
-    pub fn methods(&self) -> &Vec<ProgramMethod> {
+    pub fn methods(&self) -> &Vec<ExecutableMethod> {
         &self.methods
     }
 
@@ -96,20 +96,20 @@ impl Program {
 
     /// Returns the method given the u8 index.
     /// Up to 256 methods are supported per program.
-    pub fn method_by_index(&self, index: u8) -> Option<ProgramMethod> {
+    pub fn method_by_index(&self, index: u8) -> Option<ExecutableMethod> {
         self.methods.get(index as usize).cloned()
     }
 
     /// Returns the method by given `AtomicVal` index, rather than a u8.
-    pub fn method_by_call_method(&self, call_method: AtomicVal) -> Option<ProgramMethod> {
+    pub fn method_by_call_method(&self, call_method: AtomicVal) -> Option<ExecutableMethod> {
         let method_index = call_method.value();
         self.method_by_index(method_index)
     }
 
     /// Orders the methods by prioritizing callable methods first.  
-    fn order_methods(methods: Vec<ProgramMethod>) -> Vec<ProgramMethod> {
-        let mut callable_methods = Vec::<ProgramMethod>::new();
-        let mut non_callable_methods = Vec::<ProgramMethod>::new();
+    fn order_methods(methods: Vec<ExecutableMethod>) -> Vec<ExecutableMethod> {
+        let mut callable_methods = Vec::<ExecutableMethod>::new();
+        let mut non_callable_methods = Vec::<ExecutableMethod>::new();
 
         for method in methods.iter() {
             if method.method_type() == MethodType::Callable {
@@ -124,7 +124,7 @@ impl Program {
     }
 
     /// Validates the methods.
-    fn validate_methods(methods: &Vec<ProgramMethod>) -> Result<(), MethodValidationError> {
+    fn validate_methods(methods: &Vec<ExecutableMethod>) -> Result<(), MethodValidationError> {
         // Check for duplicate method names.
         {
             let mut method_names = HashSet::<String>::new();
@@ -157,7 +157,7 @@ impl Program {
 
     /// Returns the 32-bytes contract ID.
     pub fn contract_id(&self) -> [u8; 32] {
-        // Compile the program.
+        // Compile the executable.
         let compiled_bytes = match self.compile() {
             Ok(bytes) => bytes,
             Err(_) => return [0xffu8; 32],
@@ -170,15 +170,15 @@ impl Program {
         contract_id
     }
 
-    /// Returns the program as a JSON object.
+    /// Returns the executable as a JSON object.
     pub fn json(&self) -> Value {
         // Convert the methods to JSON.
         let methods: Vec<Value> = self.methods.iter().map(|method| method.json()).collect();
 
-        // Construct the program JSON object.
+        // Construct the executable JSON object.
         let mut obj = Map::new();
 
-        // Add the contract ID to the program JSON object.
+        // Add the contract ID to the executable JSON object.
         obj.insert(
             "contract_id".to_string(),
             Value::String(hex::encode(self.contract_id())),
@@ -192,11 +192,11 @@ impl Program {
 
         // Add the program name to the program JSON object.
         obj.insert(
-            "program_name".to_string(),
-            Value::String(self.program_name.clone()),
+            "executable_name".to_string(),
+            Value::String(self.executable_name.clone()),
         );
 
-        // Add the methods to the program JSON object.
+        // Add the methods to the executable JSON object.
         obj.insert("methods".to_string(), Value::Array(methods));
 
         // Return the program JSON object.
