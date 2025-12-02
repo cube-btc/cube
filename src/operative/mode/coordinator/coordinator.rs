@@ -15,8 +15,8 @@ use crate::inscriptive::epoch::dir::EpochDirectory;
 use crate::inscriptive::epoch::dir::EPOCH_DIRECTORY;
 use crate::inscriptive::lp::dir::LPDirectory;
 use crate::inscriptive::lp::dir::LP_DIRECTORY;
-use crate::inscriptive::registery::registery::Registery;
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registery_manager::registery_manager::RegisteryManager;
+use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
 use crate::inscriptive::rollup::dir::RollupDirectory;
 use crate::inscriptive::rollup::dir::ROLLUP_DIRECTORY;
 use crate::inscriptive::set::set::CoinSet;
@@ -68,10 +68,10 @@ pub async fn run(key_holder: KeyHolder, chain: Chain, rpc_holder: BitcoinRPCHold
     };
 
     // #4 Initialize Registery.
-    let registery: REGISTERY = match Registery::new(chain) {
-        Ok(dir) => dir,
+    let registery: REGISTERY_MANAGER = match RegisteryManager::new(chain) {
+        Ok(registery_manager) => registery_manager,
         Err(_) => {
-            println!("{}", "Error initializing registery.".red());
+            println!("{}", "Error initializing registery manager.".red());
             return;
         }
     };

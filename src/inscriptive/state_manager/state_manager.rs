@@ -354,7 +354,10 @@ impl StateManager {
             }
         }
 
-        // 4 Return the result.
+        // 4 Flush the delta.
+        self.flush_delta();
+
+        // 5 Return the result.
         Ok(())
     }
 

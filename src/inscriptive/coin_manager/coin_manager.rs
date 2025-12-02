@@ -1791,6 +1791,10 @@ impl CoinManager {
             }
         }
 
+        // 8 Flush the delta.
+        self.flush_delta();
+
+        // 9 Return the result.
         Ok(())
     }
 

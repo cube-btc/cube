@@ -5,8 +5,9 @@ use crate::{
     },
     constructive::{taproot::P2TR, txo::lift::Lift},
     inscriptive::{
-        baked, epoch::dir::EPOCH_DIRECTORY, lp::dir::LP_DIRECTORY, registery::registery::REGISTERY,
-        rollup::dir::ROLLUP_DIRECTORY, set::set::COIN_SET, wallet::wallet::WALLET,
+        baked, epoch::dir::EPOCH_DIRECTORY, lp::dir::LP_DIRECTORY,
+        registery_manager::registery_manager::REGISTERY_MANAGER, rollup::dir::ROLLUP_DIRECTORY,
+        set::set::COIN_SET, wallet::wallet::WALLET,
     },
     operative::Chain,
     transmutative::key::KeyHolder,
@@ -59,7 +60,7 @@ pub trait RollupSync {
         key_holder: &KeyHolder,
         _epoch_dir: &EPOCH_DIRECTORY,
         _lp_dir: &LP_DIRECTORY,
-        _registery: &REGISTERY,
+        _registery: &REGISTERY_MANAGER,
         wallet: Option<&WALLET>,
         coin_set: &COIN_SET,
     );
@@ -91,7 +92,7 @@ impl RollupSync for ROLLUP_DIRECTORY {
         key_holder: &KeyHolder,
         epoch_dir: &EPOCH_DIRECTORY,
         _lp_dir: &LP_DIRECTORY,
-        _registery: &REGISTERY,
+        _registery: &REGISTERY_MANAGER,
         wallet: Option<&WALLET>,
         coin_set: &COIN_SET,
     ) {

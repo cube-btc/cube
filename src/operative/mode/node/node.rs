@@ -10,9 +10,8 @@ use crate::inscriptive::epoch::dir::EpochDirectory;
 use crate::inscriptive::epoch::dir::EPOCH_DIRECTORY;
 use crate::inscriptive::lp::dir::LPDirectory;
 use crate::inscriptive::lp::dir::LP_DIRECTORY;
-use crate::inscriptive::registery::account_registery::account_registery::ACCOUNT_REGISTERY;
-use crate::inscriptive::registery::registery::Registery;
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registery_manager::registery_manager::RegisteryManager;
+use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
 use crate::inscriptive::rollup::dir::RollupDirectory;
 use crate::inscriptive::rollup::dir::ROLLUP_DIRECTORY;
 use crate::inscriptive::set::set::CoinSet;
@@ -68,11 +67,11 @@ pub async fn run(key_holder: KeyHolder, chain: Chain, rpc_holder: BitcoinRPCHold
         }
     };
 
-    // #5 Initialize Registery.
-    let registery: REGISTERY = match Registery::new(chain) {
-        Ok(dir) => dir,
+    // #5 Initialize Registery manager.
+    let registery: REGISTERY_MANAGER = match RegisteryManager::new(chain) {
+        Ok(registery_manager) => registery_manager,
         Err(_) => {
-            println!("{}", "Error initializing registery.".red());
+            println!("{}", "Error initializing registery manager.".red());
             return;
         }
     };
@@ -132,16 +131,9 @@ pub async fn run(key_holder: KeyHolder, chain: Chain, rpc_holder: BitcoinRPCHold
 
     // #10 Construct account.
     let account = {
-        let account_registery: ACCOUNT_REGISTERY = {
-            let _registery = registery.lock().await;
-            _registery.account_registery()
-        };
+        let _registery_manager = registery.lock().await;
 
-        let _account_registery = account_registery.lock().await;
-
-        match _account_registery
-            .get_account_by_account_key(key_holder.public_key().serialize_xonly())
-        {
+        match _registery_manager.get_account_by_key(key_holder.public_key().serialize_xonly()) {
             Some(account) => account,
             None => {
                 println!("{}", "Error constructing account.".red());

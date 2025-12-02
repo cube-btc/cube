@@ -166,16 +166,22 @@ impl ExecCtx {
                 Ok(())
             }
             Err(error) => {
-                // Rollback last on the state manager.
+                // Rollback last on the registery manager.
                 {
-                    let mut _state_manager = state_manager.lock().await;
-                    _state_manager.rollback_last();
+                    let mut _registery_manager = registery_manager.lock().await;
+                    _registery_manager.rollback_last();
                 }
 
                 // Rollback last on the coin manager.
                 {
                     let mut _coin_manager = coin_manager.lock().await;
                     _coin_manager.rollback_last();
+                }
+
+                // Rollback last on the state manager.
+                {
+                    let mut _state_manager = state_manager.lock().await;
+                    _state_manager.rollback_last();
                 }
 
                 // Return the error.
@@ -186,16 +192,22 @@ impl ExecCtx {
 
     /// Flushes all the passed calls.
     pub async fn flush_all(&mut self) {
-        // Flush the state manager delta.
+        // Flush the registery manager delta.
         {
-            let mut _state_manager = self.state_manager.lock().await;
-            _state_manager.flush_delta();
+            let mut _registery_manager = self.registery_manager.lock().await;
+            _registery_manager.flush_delta();
         }
 
         // Flush the coin manager delta.
         {
             let mut _coin_manager = self.coin_manager.lock().await;
             _coin_manager.flush_delta();
+        }
+
+        // Flush the state manager delta.
+        {
+            let mut _state_manager = self.state_manager.lock().await;
+            _state_manager.flush_delta();
         }
 
         // Set the external ops counter to zero.

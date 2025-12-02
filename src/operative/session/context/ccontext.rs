@@ -17,10 +17,7 @@ use crate::{
         },
     },
     inscriptive::{
-        blacklist::BLIST_DIRECTORY,
-        registery::{
-            account_registery::account_registery::ACCOUNT_REGISTERY, registery::REGISTERY,
-        },
+        blacklist::BLIST_DIRECTORY, registery_manager::registery_manager::REGISTERY_MANAGER,
     },
     operative::session::{
         allowance::allowance, commit::NSessionCommit, commitack::CSessionCommitAck,
@@ -67,7 +64,7 @@ pub struct CSessionCtx {
     dkg_manager: DKG_MANAGER,
     peer_manager: PEER_MANAGER,
     blacklist_dir: BLIST_DIRECTORY,
-    registery: REGISTERY,
+    registery: REGISTERY_MANAGER,
     //
     session_id: [u8; 32],
     stage: CSessionStage,
@@ -143,7 +140,7 @@ impl CSessionCtx {
         dkg_manager: &DKG_MANAGER,
         peer_manager: &PEER_MANAGER,
         blacklist_dir: &BLIST_DIRECTORY,
-        registery: &REGISTERY,
+        registery: &REGISTERY_MANAGER,
     ) -> CSESSION_CTX {
         let session = CSessionCtx {
             dkg_manager: Arc::clone(dkg_manager),
@@ -344,13 +341,8 @@ impl CSessionCtx {
         // #3 Registery index validation.
         let given_registery_index = account.registery_index();
         let local_registery_index = {
-            let account_registery: ACCOUNT_REGISTERY = {
-                let _registery = self.registery.lock().await;
-                _registery.account_registery()
-            };
-
-            let _account_registery = account_registery.lock().await;
-            match _account_registery.get_account_by_account_key(account.key().serialize_xonly()) {
+            let _registery_manager = self.registery.lock().await;
+            match _registery_manager.get_account_by_key(account.key().serialize_xonly()) {
                 Some(account) => account.registery_index(),
                 None => None,
             }

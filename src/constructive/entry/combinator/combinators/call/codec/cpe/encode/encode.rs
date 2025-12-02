@@ -5,10 +5,7 @@ use crate::{
         },
         valtype::{val::atomic_val::atomic_val::AtomicVal, val::short_val::short_val::ShortVal},
     },
-    inscriptive::{
-        registery::contract_registery::contract_registery::CONTRACT_REGISTERY,
-        registery_manager::registery_manager::REGISTERY_MANAGER,
-    },
+    inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER,
 };
 use bit_vec::BitVec;
 
@@ -17,7 +14,6 @@ impl Call {
     pub async fn encode_cpe(
         &self,
         account_key: [u8; 32],
-        contract_registery: &CONTRACT_REGISTERY,
         registery_manager: &REGISTERY_MANAGER,
         ops_price_base: u32,
     ) -> Result<BitVec, CallCPEEncodeError> {
@@ -34,8 +30,8 @@ impl Call {
 
         // Contract rank
         let contract_rank = {
-            let _contract_registery = contract_registery.lock().await;
-            _contract_registery.get_rank_by_contract_id(self.contract_id)
+            let _registery_manager = registery_manager.lock().await;
+            _registery_manager.get_rank_by_contract_id(self.contract_id)
         }
         .ok_or(CallCPEEncodeError::ContractRankNotFoundAtContractId(
             self.contract_id,

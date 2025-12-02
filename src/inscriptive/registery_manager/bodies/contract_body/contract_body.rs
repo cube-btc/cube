@@ -1,4 +1,4 @@
-use crate::executive::program::program::Program;
+use crate::executive::executable::executable::Executable;
 
 /// A struct for containing the registery index and call counter of a contract.
 #[derive(Clone)]
@@ -9,17 +9,17 @@ pub struct RMContractBody {
     // Ever-increasing call counter of a contract.
     pub call_counter: u64,
 
-    // Decompiled program of a contract.
-    pub program: Program,
+    // Decompiled executable of a contract.
+    pub executable: Executable,
 }
 
 impl RMContractBody {
     /// Constructs a fresh new contract body.
-    pub fn new(registery_index: u32, call_counter: u64, program: Program) -> Self {
+    pub fn new(registery_index: u32, call_counter: u64, executable: Executable) -> Self {
         Self {
             registery_index,
             call_counter,
-            program,
+            executable,
         }
     }
 }

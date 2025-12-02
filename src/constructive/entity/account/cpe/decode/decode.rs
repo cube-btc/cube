@@ -1,7 +1,7 @@
 use crate::constructive::entity::account::account::Account;
 use crate::constructive::entity::account::cpe::decode::decode_error::AccountCPEDecodingError;
 use crate::constructive::valtype::val::short_val::short_val::ShortVal;
-use crate::inscriptive::registery::account_registery::account_registery::ACCOUNT_REGISTERY;
+use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
 use bit_vec::BitVec;
 use secp::Point;
 
@@ -9,7 +9,7 @@ impl Account {
     /// Decodes an `Account` from a bit stream.  
     pub async fn decode_cpe<'a>(
         bit_stream: &mut bit_vec::Iter<'a>,
-        account_registery: &ACCOUNT_REGISTERY,
+        registery_manager: &REGISTERY_MANAGER,
     ) -> Result<Account, AccountCPEDecodingError> {
         // Decode the rank value.
         let rank = ShortVal::decode_cpe(bit_stream)
@@ -40,8 +40,8 @@ impl Account {
 
                 // Check if the key is already registered.
                 let is_registered = {
-                    let _account_registery = account_registery.lock().await;
-                    _account_registery.is_account_registered(public_key.serialize_xonly())
+                    let _registery_manager = registery_manager.lock().await;
+                    _registery_manager.is_account_registered(public_key.serialize_xonly())
                 };
 
                 // If the key is already registered, return an error.
@@ -64,8 +64,8 @@ impl Account {
 
                 // Retrieve the account given rank value.
                 let account = {
-                    let _account_registery = account_registery.lock().await;
-                    _account_registery.get_account_by_rank(rank).ok_or(
+                    let _registery_manager = registery_manager.lock().await;
+                    _registery_manager.get_account_by_rank(rank).ok_or(
                         AccountCPEDecodingError::FailedToLocateAccountGivenRank(rank),
                     )?
                 };

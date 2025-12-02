@@ -11,9 +11,8 @@ use crate::constructive::entity::contract::contract::Contract;
 use crate::constructive::valtype::maybe_common::maybe_common::maybe_common::MaybeCommon;
 use crate::constructive::valtype::val::long_val::long_val::LongVal;
 use crate::constructive::valtype::val::short_val::short_val::ShortVal;
-use crate::inscriptive::registery::account_registery::account_registery::ACCOUNT_REGISTERY;
-use crate::inscriptive::registery::contract_registery::contract_registery::CONTRACT_REGISTERY;
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
+
 use bit_vec::BitVec;
 
 impl CallElement {
@@ -21,7 +20,7 @@ impl CallElement {
     pub async fn decode_cpe<'a>(
         bit_stream: &mut bit_vec::Iter<'_>,
         element_type: CallElementType,
-        registery: &REGISTERY,
+        registery_manager: &REGISTERY_MANAGER,
     ) -> Result<Self, CallArgCPEDecodingError> {
         // Match on the calldata element type.
         match element_type {
@@ -130,14 +129,8 @@ impl CallElement {
 
             // Decode the `Account`.
             CallElementType::Account => {
-                // Get the account registry.
-                let account_registry: ACCOUNT_REGISTERY = {
-                    let _registery = registery.lock().await;
-                    _registery.account_registery()
-                };
-
                 // Decode the `Account`.
-                let account = Account::decode_cpe(bit_stream, &account_registry)
+                let account = Account::decode_cpe(bit_stream, &registery_manager)
                     .await
                     .map_err(|e| {
                         CallArgCPEDecodingError::Account(
@@ -154,14 +147,8 @@ impl CallElement {
 
             // Decode the `Contract`.
             CallElementType::Contract => {
-                // Get the contract registry.
-                let contract_registry: CONTRACT_REGISTERY = {
-                    let _registery = registery.lock().await;
-                    _registery.contract_registery()
-                };
-
                 // Decode the `Contract`.
-                let contract = Contract::decode_cpe(bit_stream, &contract_registry)
+                let contract = Contract::decode_cpe(bit_stream, &registery_manager)
                     .await
                     .map_err(|e| {
                         CallArgCPEDecodingError::Contract(
