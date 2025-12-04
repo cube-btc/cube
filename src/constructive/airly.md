@@ -1,5 +1,5 @@
 # Airly Compression
-`Airly Compression` is a custom-tailored algorithm designed to optimize data availability (DA) efficiency for Bitcoin.
+`Airly Compression` is a custom-tailored algorithm designed to optimize data availability (DA) efficiency for Cube.
 
 `Airly Compression` allows Cube to pack as many transactions as possible into a Bitcoin block, enabling it to handle significantly more transactions compared to zkEVM and EVM. By optimizing transaction encoding, indexing, and signature aggregation, Cube achieves higher throughput and lower transaction costs, making it a highly scalable solution for decentralized Bitcoin applications.
 
@@ -24,17 +24,19 @@ See [Valtype](https://github.com/cube-vm/cube/tree/main/src/constructive/valtype
 #### 2. Common Value Lookup
 Cube uses a lookup table to efficiently encode commonly used values like 100, 5,000, and 10,000,000. This method significantly reduces byte usage when contracts with fewer decimal places are called with these values. By leveraging the lookup table to encode frequent patterns, Cube minimizes DA overhead at scale. 
 
-See [CommonVal](https://github.com/cube-vm/cube/blob/main/src/constructive/valtype/maybe_common/common_val.rs).
+See [CommonVal](https://github.com/cube-btc/cube/blob/main/src/constructive/valtype/maybe_common/common/common_short/common_short.rs).
 
 #### 3. Rank-based Indexing
 Cube indexes `Accounts` and `Contracts` based on how frequently they transact, rather than when they are registered. Each time an `Account` initiates a transaction or a `Contract` is called, their rank is incremented by one.
 
 This rank-based indexing system is cached and managed at the memory level, ensuring that frequently used contracts—such as AMM pools or Tether—consume only ~1 byte, compared to zkEVM’s 4 bytes and EVM’s 20 bytes.
 
+See [Registery Manager](https://github.com/cube-btc/cube/tree/main/src/inscriptive/registery_manager).
+
 #### 4. Non-prefixed Calldata
 Cube maps calldata items directly to pre-defined types with known lengths, eliminating the prefix overhead for calldata. In contrast, the EVM requires calldata to be prefixed with an `RLP` encoding, adding 1-2 bytes overhead.
 
-See [Calldata](https://github.com/cube-vm/cube/tree/main/src/constructive/calldata).
+See [Calldata Elements](https://github.com/cube-vm/cube/tree/main/src/constructive/calldata).
 
 #### 5. Compact Call Method
 Cube decodes `Contract` call methods through a varying bitsize `AtomicVal`.
@@ -44,9 +46,9 @@ In the case of an average `Contract` with four callable methods, `AtomicVal` wou
 See [Atomicval](https://github.com/cube-vm/cube/tree/main/src/constructive/valtype#atomicval).
 
 #### 6. Signature Aggregation
-Cube aggregates transaction signatures using `MuSig2`, resulting in a constant 64-byte aggregated signature, instead of using ZKPs, which typically take up around 500 bytes. This results in a saving of 436 bytes per block compared to zkEVMs. 
+Cube maps account Schnorr keys 1:1 to BLS and aggregates transaction signatures non-interactively, resulting in constant 96-byte signatures, instead of using ZKPs, which typically take around 500 bytes. This results in a saving of roughly 404 bytes per block compared to zkEVMs.
 
-See [Musig-nested-NOIST](https://blog.brollup.org/covenant-emulation-with-musig-nested-noist-784d428c7446).
+See [BLS](https://github.com/cube-btc/cube/tree/main/src/transmutative/bls).
 
 #### 7. Nonceless
 Cube omits nonce field from the transaction encoding scheme to track internal transaction states. Since rollup state transitions are externally chained, the requirement for internal chaining is eliminated.
