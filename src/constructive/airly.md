@@ -1,21 +1,21 @@
-# Airly Compression
-`Airly Compression` is a custom-tailored algorithm designed to optimize data availability (DA) efficiency for Cube.
+# Airly Payload Compression
+`Airly Payload Compression` is a custom-tailored algorithm designed to optimize data availability (DA) efficiency for Cube.
 
-`Airly Compression` allows Cube to pack as many transactions as possible into a Bitcoin block, enabling it to handle significantly more transactions compared to zkEVM and EVM. By optimizing transaction encoding, indexing, and signature aggregation, Cube achieves higher throughput and lower transaction costs, making it a highly scalable solution for decentralized Bitcoin applications.
+`APE` allows Cube to pack as many transactions as possible into a Bitcoin block, enabling it to handle significantly more transactions compared to zkEVM and EVM. By optimizing transaction encoding, indexing, and signature aggregation, Cube achieves higher throughput and lower transaction costs, making it a highly scalable solution for decentralized Bitcoin applications.
 
 ## VM Comparsion
 | VM Type | Encoding                        | Scope      | Indexing        | Nonce     | Gas Price/Limit | Calldata     | Signature      | Error-handling |
 |:--------|:--------------------------------|:-----------|:----------------|-----------|:----------------|:-------------|:---------------|:---------------|
-| Cube    | Compact-payload-encoding (CPE)  | Bit-level  | Rank-based      | -         | Negligible      | Non-prefixed | BLS-aggregated | Assertions     |
+| Cube    | Airly Payload Encoding (APE)    | Bit-level  | Rank-based      | -         | Negligible      | Non-prefixed | BLS-aggregated | Assertions     |
 | zkEVM   | Recursive-length prefix (RLP)   | Byte-level | Registery-based | Present   | Present         | Prefixed     | ZK-aggregated  | Failures       |
 | EVM     | Recursive-length prefix (RLP)   | Byte-level | -               | Present   | Present         | Prefixed     | 65 bytes       | Failures       |
 
 `Airly Compression` is composed of 9 key techniques:
 
 #### 1. Bit-level Encoding
-Cube uses bit-level `CPE` encoding for transaction and value types, unlike the standard byte-level `RLP` encoding used by zkEVM and EVM. 
+Cube uses bit-level `APE` encoding for transaction and value types, unlike the standard byte-level `RLP` encoding used by zkEVM and EVM. 
 
-While `RLP` encoding requires 4 bytes for `u32` and 8 bytes for `u64`, `CPE` encodes these values in smaller units, allowing more data to fit into the same space. This results in savings of 1-3 bytes for `u32` and 1-7 bytes for `u64`, with only a 2-3 bit overhead.
+While `APE` encoding requires 4 bytes for `u32` and 8 bytes for `u64`, `APE` encodes these values in smaller units, allowing more data to fit into the same space. This results in savings of 1-3 bytes for `u32` and 1-7 bytes for `u64`, with only a 2-3 bit overhead.
 
 Bit-level encoding is impractical for zkEVMs due to the increased complexity in generating zero-knowledge proofs (ZKPs), as it demands more precise data handling.
 
