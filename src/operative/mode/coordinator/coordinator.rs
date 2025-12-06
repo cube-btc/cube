@@ -17,10 +17,10 @@ use crate::inscriptive::lp::dir::LPDirectory;
 use crate::inscriptive::lp::dir::LP_DIRECTORY;
 use crate::inscriptive::registery_manager::registery_manager::RegisteryManager;
 use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
-use crate::inscriptive::rollup::dir::RollupDirectory;
-use crate::inscriptive::rollup::dir::ROLLUP_DIRECTORY;
 use crate::inscriptive::set::set::CoinSet;
 use crate::inscriptive::set::set::COIN_SET;
+use crate::inscriptive::sync_manager::sync_manager::SyncManager;
+use crate::inscriptive::sync_manager::sync_manager::SYNC_MANAGER;
 use crate::operative::mode::ccli;
 use crate::operative::mode::coordinator::dkgops::DKGOps;
 use crate::operative::session::ccontext::CContextRunner;
@@ -77,10 +77,10 @@ pub async fn run(key_holder: KeyHolder, chain: Chain, rpc_holder: BitcoinRPCHold
     };
 
     // #6 Initialize rollup directory.
-    let rollup_dir: ROLLUP_DIRECTORY = match RollupDirectory::new(chain) {
-        Some(dir) => dir,
-        None => {
-            println!("{}", "Error initializing rollup directory.".red());
+    let sync_manager: SYNC_MANAGER = match SyncManager::new(chain) {
+        Ok(sync_manager) => sync_manager,
+        Err(err) => {
+            println!("{} {:?}", "Error initializing sync manager: ".red(), err);
             return;
         }
     };
@@ -102,10 +102,10 @@ pub async fn run(key_holder: KeyHolder, chain: Chain, rpc_holder: BitcoinRPCHold
         let epoch_dir = Arc::clone(&epoch_dir);
         let lp_dir = Arc::clone(&lp_dir);
         let registery = Arc::clone(&registery);
-        let rollup_dir = Arc::clone(&rollup_dir);
+        let sync_manager = Arc::clone(&sync_manager);
         let coin_set = Arc::clone(&coin_set);
         tokio::spawn(async move {
-            let _ = rollup_dir
+            let _ = sync_manager
                 .spawn_background_sync_task(
                     chain,
                     &rpc_holder,
@@ -123,7 +123,7 @@ pub async fn run(key_holder: KeyHolder, chain: Chain, rpc_holder: BitcoinRPCHold
     println!("{}", "Syncing rollup.");
 
     // #9 Await rollup to be fully synced.
-    rollup_dir.await_ibd().await;
+    sync_manager.await_ibd().await;
 
     println!("{}", "Syncing complete.");
 

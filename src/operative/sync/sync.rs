@@ -6,8 +6,8 @@ use crate::{
     constructive::{taproot::P2TR, txo::lift::Lift},
     inscriptive::{
         baked, epoch::dir::EPOCH_DIRECTORY, lp::dir::LP_DIRECTORY,
-        registery_manager::registery_manager::REGISTERY_MANAGER, rollup::dir::ROLLUP_DIRECTORY,
-        set::set::COIN_SET, wallet::wallet::WALLET,
+        registery_manager::registery_manager::REGISTERY_MANAGER, set::set::COIN_SET,
+        sync_manager::sync_manager::SYNC_MANAGER, wallet::wallet::WALLET,
     },
     operative::Chain,
     transmutative::key::KeyHolder,
@@ -70,7 +70,7 @@ pub trait RollupSync {
 }
 
 #[async_trait]
-impl RollupSync for ROLLUP_DIRECTORY {
+impl RollupSync for SYNC_MANAGER {
     async fn await_ibd(&self) {
         loop {
             let is_fully_synced = {
@@ -98,7 +98,7 @@ impl RollupSync for ROLLUP_DIRECTORY {
     ) {
         let mut synced: bool = false;
 
-        let rollup_dir: &ROLLUP_DIRECTORY = self;
+        let sync_manager: &SYNC_MANAGER = self;
 
         let sync_start_height = match chain {
             Chain::Signet | Chain::Testbed => baked::SIGNET_SYNC_START_HEIGHT,
@@ -148,8 +148,8 @@ impl RollupSync for ROLLUP_DIRECTORY {
         'outer_sync_iteration: loop {
             // Retrieve cube node's sync height.
             let cube_node_sync_height = {
-                let _rollup_dir = rollup_dir.lock().await;
-                _rollup_dir.bitcoin_sync_height()
+                let _sync_manager = sync_manager.lock().await;
+                _sync_manager.bitcoin_sync_height()
             };
 
             // Retrieve self lifts.
@@ -197,8 +197,8 @@ impl RollupSync for ROLLUP_DIRECTORY {
                                         if !synced {
                                             {
                                                 // Set the rollup to synced.
-                                                let mut _rollup_dir = rollup_dir.lock().await;
-                                                _rollup_dir.set_synced(true);
+                                                let mut _sync_manager = sync_manager.lock().await;
+                                                _sync_manager.set_synced(true);
                                             }
 
                                             // Set the synced flag.
@@ -364,8 +364,8 @@ impl RollupSync for ROLLUP_DIRECTORY {
 
                     // Set the new rollup bitcoin sync height.
                     {
-                        let mut _rollup_dir = rollup_dir.lock().await;
-                        _rollup_dir.set_bitcoin_sync_height(height_to_sync);
+                        let mut _sync_manager = sync_manager.lock().await;
+                        _sync_manager.set_bitcoin_sync_height(height_to_sync);
                     }
 
                     // TODO set the new rollup sync height.

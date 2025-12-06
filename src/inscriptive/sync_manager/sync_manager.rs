@@ -1,27 +1,33 @@
-use crate::operative::Chain;
+use crate::{
+    inscriptive::sync_manager::errors::construction_error::SMConstructionError, operative::Chain,
+};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-/// Guarded rollup directory.
-#[allow(non_camel_case_types)]
-pub type ROLLUP_DIRECTORY = Arc<Mutex<RollupDirectory>>;
-
-/// Directory for the rollup state.
-pub struct RollupDirectory {
+/// A struct for managing the sync heights of the Bitcoin and rollup.
+pub struct SyncManager {
     synced: bool,
     // Bitcoin sync height.
     bitcoin_sync_height: u64,
+
     // Rollup sync height.
     rollup_sync_height: u64,
+
     // In-storage db.
     db: sled::Db,
 }
 
-impl RollupDirectory {
-    pub fn new(chain: Chain) -> Option<ROLLUP_DIRECTORY> {
-        let path = format!("{}/{}/{}", "storage", chain.to_string(), "dir/rollup");
-        let db = sled::open(path).ok()?;
+/// Guarded sync manager.
+#[allow(non_camel_case_types)]
+pub type SYNC_MANAGER = Arc<Mutex<SyncManager>>;
 
+impl SyncManager {
+    pub fn new(chain: Chain) -> Result<SYNC_MANAGER, SMConstructionError> {
+        // 1 Open the sync manager db.
+        let db_path = format!("storage/{}/sync_manager", chain.to_string());
+        let db = sled::open(db_path).map_err(SMConstructionError::DBOpenError)?;
+
+        // 2 Collect the sync heights from the db.
         let bitcoin_sync_height: u64 = db
             .get(b"bitcoin_sync_height")
             .ok()
@@ -29,6 +35,7 @@ impl RollupDirectory {
             .and_then(|val| val.as_ref().try_into().ok().map(u64::from_be_bytes))
             .unwrap_or(0);
 
+        // 2.1 Collect the rollup sync height from the db.
         let rollup_sync_height: u64 = db
             .get(b"rollup_sync_height")
             .ok()
@@ -36,16 +43,22 @@ impl RollupDirectory {
             .and_then(|val| val.as_ref().try_into().ok().map(u64::from_be_bytes))
             .unwrap_or(0);
 
-        let rollup_dir = RollupDirectory {
+        // 3 Construct the sync manager.
+        let sync_manager = SyncManager {
             synced: false,
             bitcoin_sync_height,
             rollup_sync_height,
             db,
         };
 
-        Some(Arc::new(Mutex::new(rollup_dir)))
+        // 4 Guard the sync manager.
+        let sync_manager = Arc::new(Mutex::new(sync_manager));
+
+        // 5 Return the sync manager.
+        Ok(sync_manager)
     }
 
+    /// Sets the synced flag.
     pub fn set_synced(&mut self, synced: bool) {
         self.synced = synced;
     }
