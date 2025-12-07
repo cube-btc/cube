@@ -1,4 +1,5 @@
 use super::flame_config::flame_config::FlameConfig;
+use serde_json::{Map, Value};
 
 /// BLS key of an account.
 type AccountBLSKey = [u8; 48];
@@ -41,5 +42,53 @@ impl RMAccountBody {
             secondary_aggregation_key,
             flame_config,
         }
+    }
+
+    /// Returns the account body as a JSON object.
+    pub fn json(&self) -> Value {
+        // 1 Construct the account body JSON object.
+        let mut obj = Map::new();
+
+        // 2 Insert the registery index.
+        obj.insert(
+            "registery_index".to_string(),
+            Value::String(self.registery_index.to_string()),
+        );
+
+        // 3 Insert the call counter.
+        obj.insert(
+            "call_counter".to_string(),
+            Value::String(self.call_counter.to_string()),
+        );
+
+        // 4 Insert the primary BLS key.
+        obj.insert(
+            "primary_bls_key".to_string(),
+            match &self.primary_bls_key {
+                Some(key) => Value::String(hex::encode(key)),
+                None => Value::Null,
+            },
+        );
+
+        // 5 Insert the secondary aggregation key.
+        obj.insert(
+            "secondary_aggregation_key".to_string(),
+            match &self.secondary_aggregation_key {
+                Some(key) => Value::String(hex::encode(key)),
+                None => Value::Null,
+            },
+        );
+
+        // 6 Insert the flame config.
+        obj.insert(
+            "flame_config".to_string(),
+            match &self.flame_config {
+                Some(config) => config.json(),
+                None => Value::Null,
+            },
+        );
+
+        // 2 Return the account body JSON object.
+        Value::Object(obj)
     }
 }

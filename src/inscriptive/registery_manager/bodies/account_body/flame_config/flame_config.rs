@@ -1,3 +1,5 @@
+use serde_json::{Map, Value};
+
 /// Satoshi amount.
 type SatoshiAmount = u64;
 
@@ -395,5 +397,86 @@ impl FlameConfig {
                 Vec::<(SatoshiAmount, ZKTLCScriptPubKey)>::new()
             }
         }
+    }
+
+    /// Returns the flame config as a JSON object.
+    pub fn json(&self) -> Value {
+        // 1 Construct the flame config JSON object.
+        let mut obj = Map::new();
+
+        // 2 Insert the ZKTLC tier 1 hundred satoshis.
+        obj.insert(
+            "zktlc_tier_1_spk".to_string(),
+            match &self.zktlc_tier_1_hundred_satoshis {
+                Some(script_pubkey) => Value::String(hex::encode(script_pubkey)),
+                None => Value::Null,
+            },
+        );
+
+        // 3 Insert the ZKTLC tier 2 thousand satoshis.
+        obj.insert(
+            "zktlc_tier_2_spk".to_string(),
+            match &self.zktlc_tier_2_thousand_satoshis {
+                Some(script_pubkey) => Value::String(hex::encode(script_pubkey)),
+                None => Value::Null,
+            },
+        );
+
+        // 4 Insert the ZKTLC tier 3 ten thousand satoshis.
+        obj.insert(
+            "zktlc_tier_3_spk".to_string(),
+            match &self.zktlc_tier_3_ten_thousand_satoshis {
+                Some(script_pubkey) => Value::String(hex::encode(script_pubkey)),
+                None => Value::Null,
+            },
+        );
+
+        // 5 Insert the ZKTLC tier 4 hundred thousand satoshis.
+        obj.insert(
+            "zktlc_tier_4_spk".to_string(),
+            match &self.zktlc_tier_4_hundred_thousand_satoshis {
+                Some(script_pubkey) => Value::String(hex::encode(script_pubkey)),
+                None => Value::Null,
+            },
+        );
+
+        // 6 Insert the ZKTLC tier 5 one million satoshis.
+        obj.insert(
+            "zktlc_tier_5_spk".to_string(),
+            match &self.zktlc_tier_5_one_million_satoshis {
+                Some(script_pubkey) => Value::String(hex::encode(script_pubkey)),
+                None => Value::Null,
+            },
+        );
+
+        // 7 Insert the ZKTLC tier 6 ten million satoshis.
+        obj.insert(
+            "zktlc_tier_6_spk".to_string(),
+            match &self.zktlc_tier_6_ten_million_satoshis {
+                Some(script_pubkey) => Value::String(hex::encode(script_pubkey)),
+                None => Value::Null,
+            },
+        );
+
+        // 8 Insert the ZKTLC tier 7 hundred million satoshis.
+        obj.insert(
+            "zktlc_tier_7_spk".to_string(),
+            match &self.zktlc_tier_7_hundred_million_satoshis {
+                Some(script_pubkey) => Value::String(hex::encode(script_pubkey)),
+                None => Value::Null,
+            },
+        );
+
+        // 9 Insert the ZKTLC tier any amount.
+        obj.insert(
+            "zktlc_tier_any_amount_spk".to_string(),
+            match &self.zktlc_tier_any_amount {
+                Some(script_pubkey) => Value::String(hex::encode(script_pubkey)),
+                None => Value::Null,
+            },
+        );
+
+        // 10 Return the JSON object.
+        Value::Object(obj)
     }
 }

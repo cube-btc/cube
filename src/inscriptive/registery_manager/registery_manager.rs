@@ -15,6 +15,7 @@ use crate::inscriptive::registery_manager::errors::register_account_error::RMReg
 use crate::inscriptive::registery_manager::errors::register_contract_error::RMRegisterContractError;
 use crate::operative::Chain;
 use secp::Point;
+use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -1165,4 +1166,54 @@ impl RegisteryManager {
         // 11 Return the result.
         Ok(())
     }
+
+    /// Returns the registery manager as a JSON object.
+    pub fn json(&self) -> Value {
+        // 1 Construct the registery manager JSON object.
+        let mut obj = Map::new();
+
+        // 2 Insert the in-memory accounts.
+        obj.insert(
+            "accounts".to_string(),
+            Value::Object(
+                self.in_memory_accounts
+                    .iter()
+                    .map(|(account_key, account_body)| {
+                        (hex::encode(account_key), account_body.json())
+                    })
+                    .collect(),
+            ),
+        );
+
+        // 3 Insert the in-memory contracts.
+        obj.insert(
+            "contracts".to_string(),
+            Value::Object(
+                self.in_memory_contracts
+                    .iter()
+                    .map(|(contract_id, contract_body)| {
+                        (hex::encode(contract_id), contract_body.json())
+                    })
+                    .collect(),
+            ),
+        );
+
+        // 4 Return the registery manager JSON object.
+        Value::Object(obj)
+    }
+}
+
+/// Erases the registery manager by db paths.
+pub fn erase_registery_manager(chain: Chain) {
+    // Accounts db path.
+    let accounts_db_path = format!("storage/{}/registery/accounts", chain.to_string());
+
+    // Erase the accounts db path.
+    let _ = std::fs::remove_dir_all(accounts_db_path);
+
+    // Contracts db path.
+    let contracts_db_path = format!("storage/{}/registery/contracts", chain.to_string());
+
+    // Erase the contracts db path.
+    let _ = std::fs::remove_dir_all(contracts_db_path);
 }
