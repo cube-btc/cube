@@ -22,7 +22,7 @@ cargo run <mode> <chain> <kind> <bitcoin-rpc-url> <bitcoin-rpc-user> <bitcoin-rp
 
 - `<mode>`: Whether to run in pruned or archival mode. Supported values:
   - `pruned`: For running in pruned mode.
-  - `archival`: For running in archival node.
+  - `archival`: For running in archival mode.
 - `<chain>`: The Bitcoin network to use. Supported values:
   - `signet`
   - `mainnet`
