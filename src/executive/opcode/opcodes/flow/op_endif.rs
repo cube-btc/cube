@@ -2,9 +2,10 @@ use crate::executive::{
     opcode::ops::OP_ENDIF_OPS,
     stack::{stack_error::StackError, stack_holder::StackHolder},
 };
+use serde::{Deserialize, Serialize};
 
 /// The `OP_ENDIF` opcode.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_ENDIF;
 

@@ -1,14 +1,13 @@
-use crate::{
-    executive::stack::{
-        stack_error::{BLSError, StackError},
-        stack_holder::StackHolder,
-        stack_item::StackItem,
-    },
-    transmutative::bls::{key::BLSPublicKey, verify::bls_verify},
+use crate::executive::stack::{
+    stack_error::{BLSError, StackError},
+    stack_holder::StackHolder,
+    stack_item::StackItem,
 };
+use crate::transmutative::bls::{key::BLSPublicKey, verify::bls_verify};
+use serde::{Deserialize, Serialize};
 
 /// Checks a BLS signature according against a key and a message.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_CHECKBLSSIG;
 

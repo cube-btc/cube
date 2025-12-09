@@ -1,10 +1,10 @@
 # Entity
 Cube supports 2 types of entities:
 
-| Entity           | Description                                                               |
-|:-----------------|:---------------------------------------------------------------------------|
-| Account 👨‍💻       | Represents a distinct user within the system.                              |
-| Contract 📑      | Represents a program within the system that can be called by an `Account`. |
+| Entity           | Description                                                                                      |
+|:-----------------|:-------------------------------------------------------------------------------------------------|
+| Account 👨‍💻       | Represents a distinct user within the system.                                                    |
+| Contract 📑      | Represents a program within the system that can be called by an `Account` or another `Contract`. |
 
 ## Account 👨‍💻
 An `Account` is a user-controlled entity that serves as the primary actor within the system. It can initiate calls to `Contract`s to execute program logic or move satoshis to other `Account`s.

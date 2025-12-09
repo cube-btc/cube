@@ -2,9 +2,10 @@ use crate::executive::stack::{
     stack_error::StackError, stack_holder::StackHolder, stack_item::StackItem,
 };
 use crate::transmutative::hash::{Hash, HashTag};
+use serde::{Deserialize, Serialize};
 
 /// The input is hashed with a domain seperation tag.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_TAGGEDHASH;
 

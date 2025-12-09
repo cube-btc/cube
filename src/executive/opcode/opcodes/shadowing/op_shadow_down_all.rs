@@ -1,14 +1,13 @@
-use crate::{
-    executive::stack::{
-        stack_error::{ShadowOpsError, StackError},
-        stack_holder::StackHolder,
-        stack_uint::{SafeConverter, StackItemUintExt},
-    },
-    inscriptive::coin_manager::coin_manager::COIN_MANAGER,
+use crate::executive::stack::{
+    stack_error::{ShadowOpsError, StackError},
+    stack_holder::StackHolder,
+    stack_uint::{SafeConverter, StackItemUintExt},
 };
+use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
+use serde::{Deserialize, Serialize};
 
 /// Shadow allocation down all.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_SHADOW_DOWN_ALL;
 

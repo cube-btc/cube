@@ -1,15 +1,14 @@
-use crate::executive::{
-    opcode::ops::OP_MWRITE_OPS,
-    stack::{
-        limits::{MAX_CONTRACT_MEMORY_SIZE, MAX_KEY_LENGTH, MIN_KEY_LENGTH, MIN_VALUE_LENGTH},
-        stack_error::{MemoryError, StackError},
-        stack_holder::StackHolder,
-        stack_item::StackItem,
-    },
+use crate::executive::opcode::ops::OP_MWRITE_OPS;
+use crate::executive::stack::{
+    limits::{MAX_CONTRACT_MEMORY_SIZE, MAX_KEY_LENGTH, MIN_KEY_LENGTH, MIN_VALUE_LENGTH},
+    stack_error::{MemoryError, StackError},
+    stack_holder::StackHolder,
+    stack_item::StackItem,
 };
+use serde::{Deserialize, Serialize};
 
 /// The `OP_MWRITE` opcode.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_MWRITE;
 

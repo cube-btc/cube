@@ -2,9 +2,10 @@ use crate::executive::{
     opcode::ops::OP_SWAP_OPS,
     stack::{stack_error::StackError, stack_holder::StackHolder},
 };
+use serde::{Deserialize, Serialize};
 
 /// The top two items on the stack are swapped.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_SWAP;
 

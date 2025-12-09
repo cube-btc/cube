@@ -1,13 +1,12 @@
-use crate::{
-    executive::stack::{
-        stack_error::{ShadowOpsError, StackError},
-        stack_holder::StackHolder,
-    },
-    inscriptive::coin_manager::coin_manager::COIN_MANAGER,
+use crate::executive::stack::{
+    stack_error::{ShadowOpsError, StackError},
+    stack_holder::StackHolder,
 };
+use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
+use serde::{Deserialize, Serialize};
 
 /// Allocates within the contract shadow space an account.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_SHADOW_ALLOC;
 

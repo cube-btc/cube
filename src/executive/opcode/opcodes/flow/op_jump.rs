@@ -3,12 +3,13 @@ use crate::executive::stack::{
     stack_holder::StackHolder,
     stack_uint::{SafeConverter, StackItemUintExt},
 };
+use serde::{Deserialize, Serialize};
 
 /// The number of ops for the `OP_JUMP` opcode.
 const JUMP_OPS: u32 = 1;
 
 /// Jumps to the respective opcode execution.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_JUMP;
 

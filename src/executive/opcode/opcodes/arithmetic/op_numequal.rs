@@ -7,10 +7,11 @@ use crate::executive::{
         stack_uint::StackItemUintExt,
     },
 };
+use serde::{Deserialize, Serialize};
 
 /// Returns 1 if the numbers are equal, 0 otherwise.
 /// Similar to OP_EQUAL, but items must be valid stack uints.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_NUMEQUAL;
 

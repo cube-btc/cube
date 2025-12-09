@@ -7,9 +7,10 @@ use crate::executive::{
         stack_uint::{SafeConverter, StackItemUintExt},
     },
 };
+use serde::{Deserialize, Serialize};
 
 /// Returns some number of items from the main stack.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_RETURNSOME;
 

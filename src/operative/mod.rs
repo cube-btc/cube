@@ -1,5 +1,4 @@
 pub mod mode;
-pub mod session;
 pub mod sync;
 
 /// Chain type.

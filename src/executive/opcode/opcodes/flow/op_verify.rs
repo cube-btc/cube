@@ -5,9 +5,10 @@ use crate::executive::{
         stack_holder::StackHolder,
     },
 };
+use serde::{Deserialize, Serialize};
 
 /// Pops an item from the main stack and checks if it is true. Fails if it is not.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_VERIFY;
 

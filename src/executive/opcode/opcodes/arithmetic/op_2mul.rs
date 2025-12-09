@@ -7,9 +7,10 @@ use crate::executive::{
         stack_uint::{SafeConverter, StackItemUintExt, StackUint},
     },
 };
+use serde::{Deserialize, Serialize};
 
 /// The input is multiplied by 2.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_2MUL;
 

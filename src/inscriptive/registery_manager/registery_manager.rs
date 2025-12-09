@@ -1,9 +1,11 @@
 use crate::constructive::entity::account::account::Account;
+use crate::constructive::entity::account::registered_account::flame_config::flame_config::FlameConfig;
+use crate::constructive::entity::account::registered_account::registered_account::RegisteredAccount;
 use crate::constructive::entity::contract::contract::Contract;
+use crate::constructive::entity::contract::deployed_contract::deployed_contract::DeployedContract;
 use crate::executive::executable::compiler::compiler::ExecutableCompiler;
 use crate::executive::executable::executable::Executable;
 use crate::inscriptive::registery_manager::bodies::account_body::account_body::RMAccountBody;
-use crate::inscriptive::registery_manager::bodies::account_body::flame_config::flame_config::FlameConfig;
 use crate::inscriptive::registery_manager::bodies::contract_body::contract_body::RMContractBody;
 use crate::inscriptive::registery_manager::delta::delta::RMDelta;
 use crate::inscriptive::registery_manager::errors::apply_changes_error::RMApplyChangesError;
@@ -14,7 +16,6 @@ use crate::inscriptive::registery_manager::errors::reconfig_account_error::RMRec
 use crate::inscriptive::registery_manager::errors::register_account_error::RMRegisterAccountError;
 use crate::inscriptive::registery_manager::errors::register_contract_error::RMRegisterContractError;
 use crate::operative::Chain;
-use secp::Point;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -33,7 +34,7 @@ type AccountSecondaryAggregationKey = Vec<u8>;
 type ContractId = [u8; 32];
 
 /// Rank of an account or contract.
-type Rank = u32;
+type Rank = u64;
 
 /// Special db key for the registery index (0x00..).
 const REGISTERY_INDEX_SPECIAL_DB_KEY: [u8; 1] = [0x00; 1];
@@ -149,12 +150,12 @@ impl RegisteryManager {
                     // 0x00 key byte represents the registery index.
                     REGISTERY_INDEX_SPECIAL_DB_KEY => {
                         // Convert the value to a registery index bytes.
-                        let registery_index_bytes: [u8; 4] = value.as_ref().try_into().map_err(|_| {
+                        let registery_index_bytes: [u8; 8] = value.as_ref().try_into().map_err(|_| {
                         RMConstructionError::UnableToDeserializeAccountRegisteryIndexBytesFromTreeValue(account_key, value.to_vec())
                     })?;
 
                         // Update the registery index.
-                        registery_index = u32::from_le_bytes(registery_index_bytes);
+                        registery_index = u64::from_le_bytes(registery_index_bytes);
                     }
                     // 0x01 key byte represents the call counter.
                     CALL_COUNTER_SPECIAL_DB_KEY => {
@@ -270,12 +271,12 @@ impl RegisteryManager {
                     // 0x00 key byte represents the registery index.
                     REGISTERY_INDEX_SPECIAL_DB_KEY => {
                         // Convert the value to a registery index bytes.
-                        let registery_index_bytes: [u8; 4] = value.as_ref().try_into().map_err(|_| {
+                        let registery_index_bytes: [u8; 8] = value.as_ref().try_into().map_err(|_| {
                             RMConstructionError::UnableToDeserializeContractRegisteryIndexBytesFromTreeValue(contract_id, value.to_vec())
                         })?;
 
                         // Update the registery index.
-                        registery_index = u32::from_le_bytes(registery_index_bytes);
+                        registery_index = u64::from_le_bytes(registery_index_bytes);
                     }
                     // 0x01 key byte represents the call counter.
                     CALL_COUNTER_SPECIAL_DB_KEY => {
@@ -347,7 +348,7 @@ impl RegisteryManager {
     /// Returns a HashMap where keys are ranks starting from 1.
     fn rank_accounts(accounts: &HashMap<AccountKey, RMAccountBody>) -> HashMap<Rank, AccountKey> {
         // 1 Collect the ranking triples (account key, registery index, call counter).
-        let mut ranking_triples: Vec<(AccountKey, u32, u64)> = accounts
+        let mut ranking_triples: Vec<(AccountKey, u64, u64)> = accounts
             .iter()
             .map(|(account_key, account_body)| {
                 (
@@ -392,7 +393,7 @@ impl RegisteryManager {
         contracts: &HashMap<ContractId, RMContractBody>,
     ) -> HashMap<Rank, ContractId> {
         // 1 Collect the ranking triples (contract id, registery index, call counter).
-        let mut ranking_triples: Vec<(ContractId, u32, u64)> = contracts
+        let mut ranking_triples: Vec<(ContractId, u64, u64)> = contracts
             .iter()
             .map(|(contract_id, contract_body)| {
                 (
@@ -526,17 +527,20 @@ impl RegisteryManager {
         // 2 Get the rank by its account key.
         let rank = self.get_rank_by_account_key(account_key)?;
 
-        // 2 Convert the account key to a point.
-        let account_key: Point = Point::from_slice(&account_key).ok()?;
-
-        // 3 Construct the account.
-        let account = Account::new(
+        // 3 Construct registered account.
+        let registered_account = RegisteredAccount::new(
             account_key,
-            Some(account_body.registery_index),
-            Some(rank as u32),
-        )?;
+            account_body.registery_index,
+            Some(rank as u64),
+            account_body.primary_bls_key,
+            account_body.secondary_aggregation_key,
+            account_body.flame_config,
+        );
 
-        // 4 Return the account.
+        // 4 Construct the account.
+        let account = Account::RegisteredAccount(registered_account);
+
+        // 5 Return the account.
         Some(account)
     }
 
@@ -549,13 +553,17 @@ impl RegisteryManager {
         let rank = self.get_rank_by_contract_id(contract_id)?;
 
         // 3 Construct the contract.
-        let contract = Contract::new(
+        let deployed_contract = DeployedContract::new(
             contract_id,
+            contract_body.executable,
             contract_body.registery_index,
-            Some(rank as u32),
+            Some(rank as u64),
         );
 
-        // 4 Return the contract.
+        // 4 Construct the contract.
+        let contract = Contract::DeployedContract(deployed_contract);
+
+        // 5 Return the contract.
         Some(contract)
     }
 
@@ -565,19 +573,9 @@ impl RegisteryManager {
         let account_key = self.get_account_key_by_rank(rank)?;
 
         // 2 Get the account body by its key.
-        let account_body = self.get_account_body_by_account_key(account_key)?;
+        let account = self.get_account_by_key(account_key)?;
 
-        // 3 Convert the account key to a point.
-        let account_key: Point = Point::from_slice(&account_key).ok()?;
-
-        // 4 Construct the account.
-        let account = Account::new(
-            account_key,
-            Some(account_body.registery_index),
-            Some(rank as u32),
-        )?;
-
-        // 5 Return the account.
+        // 3 Return the account.
         Some(account)
     }
 
@@ -587,18 +585,12 @@ impl RegisteryManager {
         let contract_id = self.get_contract_id_by_rank(rank)?;
 
         // 2 Get the contract body by its id.
-        let contract_body = self.get_contract_body_by_contract_id(contract_id)?;
+        let contract = self.get_contract_by_contract_id(contract_id)?;
 
-        // 4 Construct the contract.
-        let contract = Contract::new(
-            contract_id,
-            contract_body.registery_index,
-            Some(rank as u32),
-        );
-
-        // 5 Return the contract.
+        // 3 Return the contract.
         Some(contract)
     }
+
     /// Epheremally registers an account.
     ///
     /// NOTE: These changes are saved with the use of the `apply_changes` function.
@@ -801,17 +793,17 @@ impl RegisteryManager {
     /// NOTE: Used by the Engine.
     pub fn apply_changes(&mut self) -> Result<(), RMApplyChangesError> {
         // Get the current height of account registery indices.
-        let account_registery_index_height = self.in_memory_accounts.len() as u32;
+        let account_registery_index_height = self.in_memory_accounts.len() as u64;
 
         // Get the current height of contract registery indices.
-        let contract_registery_index_height = self.in_memory_contracts.len() as u32;
+        let contract_registery_index_height = self.in_memory_contracts.len() as u64;
 
         // 1 Register new accounts.
         for (index, (account_key, bls_key, secondary_aggregation_key, flame_config)) in
             self.delta.new_accounts_to_register.iter().enumerate()
         {
             // 1.1 Calculate the registery index for the new account.
-            let registery_index = account_registery_index_height + index as u32;
+            let registery_index = account_registery_index_height + index as u64;
 
             // 1.2 Initial call counter value is set to zero.
             let initial_call_counter = 0u64;
@@ -903,7 +895,7 @@ impl RegisteryManager {
             self.delta.new_contracts_to_register.iter().enumerate()
         {
             // 2.1 Calculate the registery index for the new contract.
-            let registery_index = contract_registery_index_height + index as u32;
+            let registery_index = contract_registery_index_height + index as u64;
 
             // 2.2 Initial call counter value is set to zero.
             let initial_call_counter = 0u64;

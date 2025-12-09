@@ -4,9 +4,10 @@ use crate::executive::stack::{
     stack_item::StackItem,
 };
 use secp::MaybePoint;
+use serde::{Deserialize, Serialize};
 
 /// Adds two secp points together.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_SECPPOINTADD;
 

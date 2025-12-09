@@ -7,9 +7,10 @@ use crate::executive::{
         stack_uint::{StackItemUintExt, StackUint},
     },
 };
+use serde::{Deserialize, Serialize};
 
 /// Divides two items on the main stack. Returns the modulo and division result.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_DIV;
 

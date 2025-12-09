@@ -7,9 +7,10 @@ use crate::executive::{
         stack_uint::StackItemUintExt,
     },
 };
+use serde::{Deserialize, Serialize};
 
 /// Multiplies two items on the main stack.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_MUL;
 

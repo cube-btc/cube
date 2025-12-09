@@ -1,20 +1,11 @@
 use crate::communicative::nns;
 use crate::communicative::nns::client::NNSClient;
 use crate::communicative::peer::manager::coordinator_key;
-use crate::communicative::peer::manager::PeerManager;
 use crate::communicative::peer::manager::PEER_MANAGER;
-use crate::communicative::peer::peer::PeerKind;
 use crate::communicative::rpc::bitcoin_rpc::bitcoin_rpc::validate_rpc;
 use crate::communicative::rpc::bitcoin_rpc::bitcoin_rpc_holder::BitcoinRPCHolder;
-use crate::communicative::tcp;
 use crate::communicative::tcp::tcp::open_port;
 use crate::communicative::tcp::tcp::port_number;
-use crate::inscriptive::blacklist::BlacklistDirectory;
-use crate::inscriptive::blacklist::BLIST_DIRECTORY;
-use crate::inscriptive::epoch::dir::EpochDirectory;
-use crate::inscriptive::epoch::dir::EPOCH_DIRECTORY;
-use crate::inscriptive::lp::dir::LPDirectory;
-use crate::inscriptive::lp::dir::LP_DIRECTORY;
 use crate::inscriptive::registery_manager::registery_manager::RegisteryManager;
 use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
 use crate::inscriptive::set::set::CoinSet;
@@ -22,17 +13,10 @@ use crate::inscriptive::set::set::COIN_SET;
 use crate::inscriptive::sync_manager::sync_manager::SyncManager;
 use crate::inscriptive::sync_manager::sync_manager::SYNC_MANAGER;
 use crate::operative::mode::ccli;
-use crate::operative::mode::coordinator::dkgops::DKGOps;
-use crate::operative::session::ccontext::CContextRunner;
-use crate::operative::session::ccontext::CSessionCtx;
-use crate::operative::session::ccontext::CSESSION_CTX;
 use crate::operative::sync::sync::RollupSync;
 use crate::operative::Chain;
 use crate::operative::OperatingMode;
 use crate::transmutative::key::KeyHolder;
-use crate::transmutative::noist::manager::DKGManager;
-use crate::transmutative::noist::manager::DKG_MANAGER;
-use crate::transmutative::secp::into::IntoPointByteVec;
 use colored::Colorize;
 use std::io::{self, BufRead};
 use std::sync::Arc;
@@ -48,24 +32,6 @@ pub async fn run(key_holder: KeyHolder, chain: Chain, rpc_holder: BitcoinRPCHold
     }
 
     println!("{}", "Initializing coordinator.");
-
-    // #2 Initialize Epoch directory.
-    let epoch_dir: EPOCH_DIRECTORY = match EpochDirectory::new(chain) {
-        Some(dir) => dir,
-        None => {
-            println!("{}", "Error initializing epoch directory.".red());
-            return;
-        }
-    };
-
-    // #3 Initialize LP directory.
-    let lp_dir: LP_DIRECTORY = match LPDirectory::new(chain) {
-        Some(dir) => dir,
-        None => {
-            println!("{}", "Error initializing LP directory.".red());
-            return;
-        }
-    };
 
     // #4 Initialize Registery.
     let registery: REGISTERY_MANAGER = match RegisteryManager::new(chain) {
@@ -99,8 +65,6 @@ pub async fn run(key_holder: KeyHolder, chain: Chain, rpc_holder: BitcoinRPCHold
         let chain = chain.clone();
         let key_holder = key_holder.clone();
         let rpc_holder = rpc_holder.clone();
-        let epoch_dir = Arc::clone(&epoch_dir);
-        let lp_dir = Arc::clone(&lp_dir);
         let registery = Arc::clone(&registery);
         let sync_manager = Arc::clone(&sync_manager);
         let coin_set = Arc::clone(&coin_set);
@@ -110,8 +74,6 @@ pub async fn run(key_holder: KeyHolder, chain: Chain, rpc_holder: BitcoinRPCHold
                     chain,
                     &rpc_holder,
                     &key_holder,
-                    &epoch_dir,
-                    &lp_dir,
                     &registery,
                     None,
                     &coin_set,
@@ -154,77 +116,19 @@ pub async fn run(key_holder: KeyHolder, chain: Chain, rpc_holder: BitcoinRPCHold
     }
 
     // #14 Initialize peer manager.
-    let operator_set = {
-        let _epoch_dir = epoch_dir.lock().await;
-        _epoch_dir.operator_set().into_xpoint_vec().expect("")
-    };
-    let mut peer_manager: PEER_MANAGER =
-        match PeerManager::new(chain, &nns_client, PeerKind::Operator, &operator_set).await {
-            Some(manager) => manager,
-            None => return eprintln!("{}", "Error initializing Peer manager.".red()),
-        };
 
     // #15 Initialize DKG Manager.
-    let mut dkg_manager: DKG_MANAGER = match DKGManager::new(&lp_dir) {
-        Some(manager) => manager,
-        None => return eprintln!("{}", "Error initializing DKG manager.".red()),
-    };
 
     // #16 Run background preprocessing for the DKG Manager.
-    dkg_manager.run_preprocessing(&mut peer_manager).await;
-
-    // #17 Construct blacklist directory.
-    let mut blacklist_dir: BLIST_DIRECTORY = match BlacklistDirectory::new(chain) {
-        Some(blacklist_dir) => blacklist_dir,
-        None => {
-            eprintln!(
-                "{}",
-                "Unexpected error: Failed to create blaming directory.".red()
-            );
-            return;
-        }
-    };
 
     // #18 Construct CSession.
-    let csession_ctx: CSESSION_CTX =
-        CSessionCtx::construct(&dkg_manager, &peer_manager, &blacklist_dir, &registery);
-
-    // #19 Run CSession.
-    {
-        let csession_ctx = Arc::clone(&csession_ctx);
-        let _ = tokio::spawn(async move {
-            csession_ctx.run().await;
-        });
-    }
 
     // #20 Run TCP server.
-    {
-        let nns_client = nns_client.clone();
-        let dkg_manager = Arc::clone(&dkg_manager);
-        let csession_ctx = Arc::clone(&csession_ctx);
-
-        let _ = tokio::spawn(async move {
-            let _ = tcp::server::run(
-                mode,
-                chain,
-                &nns_client,
-                &key_holder,
-                &dkg_manager,
-                Some(csession_ctx),
-            )
-            .await;
-        });
-    }
 
     // #21 Initialize CLI.
-    cli(&mut peer_manager, &mut dkg_manager, &mut blacklist_dir).await;
 }
 
-pub async fn cli(
-    peer_manager: &mut PEER_MANAGER,
-    dkg_manager: &mut DKG_MANAGER,
-    blacklist_dir: &mut BLIST_DIRECTORY,
-) {
+pub async fn cli(peer_manager: &mut PEER_MANAGER) {
     println!(
         "{}",
         "Enter command (type help for options, type exit to quit):".cyan()
@@ -252,9 +156,7 @@ pub async fn cli(
             // Main commands:
             "exit" => break,
             "clear" => ccli::clear::clear_command(),
-            "dkg" => ccli::dkg::dkg_command(parts, peer_manager, dkg_manager).await,
             "ops" => ccli::ops::ops_command(peer_manager).await,
-            "blist" => ccli::blist::blist_command(parts, blacklist_dir).await,
             _ => eprintln!("{}", format!("Unknown commmand.").yellow()),
         }
     }

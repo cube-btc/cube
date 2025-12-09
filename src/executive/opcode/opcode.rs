@@ -69,10 +69,11 @@ use crate::executive::opcode::opcodes::{
     },
     storage::{op_sread::OP_SREAD, op_swrite::OP_SWRITE},
 };
+use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display};
 
 /// The set of opcodes that can be used in the stack.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Opcode {
     // Push
     OP_FALSE(OP_FALSE),

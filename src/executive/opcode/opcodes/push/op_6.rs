@@ -2,9 +2,10 @@ use crate::executive::{
     opcode::ops::OP_6_OPS,
     stack::{stack_error::StackError, stack_holder::StackHolder, stack_item::StackItem},
 };
+use serde::{Deserialize, Serialize};
 
 /// Pushes number 6 (0x06) to the main stack.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_6;
 

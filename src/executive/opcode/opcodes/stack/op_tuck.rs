@@ -2,9 +2,10 @@ use crate::executive::{
     opcode::ops::OP_TUCK_OPS,
     stack::{stack_error::StackError, stack_holder::StackHolder},
 };
+use serde::{Deserialize, Serialize};
 
 /// The item at the top of the stack is copied and inserted before the second-to-top item.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_TUCK;
 

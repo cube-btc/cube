@@ -2,9 +2,10 @@ use crate::executive::{
     opcode::ops::OP_0NOTEQUAL_OPS,
     stack::{stack_error::StackError, stack_holder::StackHolder, stack_item::StackItem},
 };
+use serde::{Deserialize, Serialize};
 
 /// Returns 0 if the input is 0. 1 otherwise.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_0NOTEQUAL;
 

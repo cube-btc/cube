@@ -2,9 +2,9 @@ use crate::executive::{
     opcode::ops::OP_2OVER_OPS,
     stack::{stack_error::StackError, stack_holder::StackHolder},
 };
-
+use serde::{Deserialize, Serialize};
 /// Copies the pair of items two spaces back in the stack to the front.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_2OVER;
 

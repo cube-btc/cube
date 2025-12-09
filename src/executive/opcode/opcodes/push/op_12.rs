@@ -2,9 +2,10 @@ use crate::executive::{
     opcode::ops::OP_12_OPS,
     stack::{stack_error::StackError, stack_holder::StackHolder, stack_item::StackItem},
 };
+use serde::{Deserialize, Serialize};
 
 /// Pushes number 12 (0x0c) to the main stack.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_12;
 

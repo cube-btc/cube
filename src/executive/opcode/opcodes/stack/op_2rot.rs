@@ -2,9 +2,10 @@ use crate::executive::{
     opcode::ops::OP_2ROT_OPS,
     stack::{stack_error::StackError, stack_holder::StackHolder},
 };
+use serde::{Deserialize, Serialize};
 
 /// The fifth and sixth items back are moved to the top of the stack.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_2ROT;
 

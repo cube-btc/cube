@@ -3,9 +3,10 @@ use crate::executive::stack::{
 };
 use bitcoin::hashes::sha1;
 use bitcoin::hashes::Hash;
+use serde::{Deserialize, Serialize};
 
 /// The input is hashed using SHA-1.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_SHA1;
 

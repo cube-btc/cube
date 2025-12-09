@@ -4,9 +4,10 @@ use crate::executive::stack::{
 use bitcoin::hashes::ripemd160;
 use bitcoin::hashes::sha256;
 use bitcoin::hashes::Hash;
+use serde::{Deserialize, Serialize};
 
 /// The input is hashed twice: first with SHA-256 and then with RIPEMD-160.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_HASH160;
 

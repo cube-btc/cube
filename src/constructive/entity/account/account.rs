@@ -1,87 +1,120 @@
-use crate::constructive::valtype::val::short_val::short_val::ShortVal;
-use secp::Point;
+use crate::constructive::entity::account::{
+    registered_account::{
+        flame_config::flame_config::FlameConfig, registered_account::RegisteredAccount,
+    },
+    unregistered_account::unregistered_account::UnregisteredAccount,
+};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 /// Represents an account; a user of the system.
-#[derive(Clone, Copy, Serialize, Deserialize, Hash, Debug)]
-pub struct Account {
-    pub key: Point,
-    pub registery_index: Option<ShortVal>,
-    pub rank: Option<ShortVal>,
+#[derive(Clone, Serialize, Deserialize)]
+pub enum Account {
+    // A registered and possibly configured account.
+    RegisteredAccount(RegisteredAccount),
+
+    // A fresh, unregistered (thus unranked), and unconfigured account.
+    UnregisteredAccount(UnregisteredAccount),
 }
 
 impl Account {
-    /// Creates a new account.
-    pub fn new(key: Point, registery_index: Option<u32>, rank: Option<u32>) -> Option<Account> {
-        let is_odd: bool = key.parity().into();
-
-        if is_odd {
-            return None;
-        }
-
-        // Convert the registery index to a ShortVal.
-        let registery_index = match registery_index {
-            Some(index) => Some(ShortVal::new(index)),
-            None => None,
-        };
-
-        // Convert the rank to a ShortVal.
-        let rank = match rank {
-            Some(rank) => Some(ShortVal::new(rank)),
-            None => None,
-        };
-
-        let account = Account {
+    /// Creates a new registered account.
+    pub fn new_registered_account(
+        key: [u8; 32],
+        registery_index: u64,
+        rank: Option<u64>,
+        bls_key: Option<[u8; 48]>,
+        secondary_aggregation_key: Option<Vec<u8>>,
+        flame_config: Option<FlameConfig>,
+    ) -> Self {
+        // 1 Construct the registered account.
+        let registered_account = RegisteredAccount::new(
             key,
             registery_index,
             rank,
-        };
+            bls_key,
+            secondary_aggregation_key,
+            flame_config,
+        );
 
-        Some(account)
+        // 2 Return the registered account.
+        Self::RegisteredAccount(registered_account)
     }
 
-    /// Returns the registery index of the account.
-    pub fn registery_index(&self) -> Option<u32> {
-        self.registery_index.map(|index| index.value())
+    /// Creates a new unregistered account.
+    pub fn new_unregistered_account(key: [u8; 32]) -> Self {
+        // 1 Construct the unregistered account.
+        let unregistered_account = UnregisteredAccount::new(key);
+
+        // 2 Return the unregistered account.
+        Self::UnregisteredAccount(unregistered_account)
     }
 
-    /// Sets the registery index of the account.
-    pub fn set_registery_index(&mut self, registery_index: u32) {
-        self.registery_index = Some(ShortVal::new(registery_index));
+    /// Returns whether the account is registered.
+    pub fn is_registered(&self) -> bool {
+        match self {
+            // The account is registered.
+            Self::RegisteredAccount(_) => true,
+
+            // The account is not registered.
+            Self::UnregisteredAccount(_) => false,
+        }
     }
 
-    /// Returns the rank (if set).
-    pub fn rank(&self) -> Option<u32> {
-        self.rank.map(|rank| rank.value())
+    /// Returns the account's secp256k1 public key.
+    pub fn account_key(&self) -> [u8; 32] {
+        match self {
+            // The account is registered.
+            Self::RegisteredAccount(registered_account) => registered_account.key,
+
+            // The account is not registered.
+            Self::UnregisteredAccount(unregistered_account) => unregistered_account.key,
+        }
     }
 
-    /// Sets the rank index.
-    pub fn set_rank(&mut self, rank: Option<u32>) {
-        self.rank = rank.map(|rank| ShortVal::new(rank));
+    /// Returns the account's rank.
+    pub fn rank(&self) -> Option<u64> {
+        match self {
+            // The account is registered.
+            Self::RegisteredAccount(registered_account) => registered_account.rank.to_owned(),
+
+            // The account is not registered.
+            Self::UnregisteredAccount(_) => None,
+        }
     }
 
-    /// Returns the key of the account.
-    pub fn key(&self) -> Point {
-        self.key
+    /// Sets or updates the rank of the account.
+    pub fn set_or_update_rank(&mut self, rank: u64) -> bool {
+        match self {
+            // The account is registered.
+            Self::RegisteredAccount(registered_account) => {
+                // Update the rank.
+                registered_account.rank = Some(rank);
+
+                // Return success.
+                true
+            }
+
+            // The account is not registered.
+            Self::UnregisteredAccount(_) => false,
+        }
     }
 
-    /// Returns true if the key is odd.
-    pub fn is_odd_key(&self) -> bool {
-        self.key.parity().into()
-    }
+    /// Returns the account as a JSON object.
+    pub fn json(&self) -> Value {
+        match self {
+            // The account is a registered account.
+            Self::RegisteredAccount(registered_account) => registered_account.json(),
 
-    /// Serializes the account.
-    pub fn serialize(&self) -> Vec<u8> {
-        match serde_json::to_vec(self) {
-            Ok(bytes) => bytes,
-            Err(_) => vec![],
+            // The account is an unregistered account.
+            Self::UnregisteredAccount(unregistered_account) => unregistered_account.json(),
         }
     }
 }
 
 impl PartialEq for Account {
     fn eq(&self, other: &Self) -> bool {
-        self.key == other.key
+        self.account_key() == other.account_key()
     }
 }
 

@@ -5,9 +5,10 @@ use crate::executive::stack::{
     stack_uint::{SafeConverter, StackItemUintExt},
 };
 use secp::MaybePoint;
+use serde::{Deserialize, Serialize};
 
 /// Multiplies a secp point by a secp scalar.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_SECPPOINTMUL;
 

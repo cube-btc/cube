@@ -7,9 +7,10 @@ use crate::executive::{
         stack_uint::{SafeConverter, StackItemUintExt, StackUint},
     },
 };
+use serde::{Deserialize, Serialize};
 
 /// Pushes the string length of the top element of the stack (without popping it).
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_SIZE;
 

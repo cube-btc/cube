@@ -1,15 +1,14 @@
-use crate::{
-    executive::stack::{
-        stack_error::StackError,
-        stack_holder::StackHolder,
-        stack_item::StackItem,
-        stack_uint::{SafeConverter, StackItemUintExt, StackUint},
-    },
-    inscriptive::coin_manager::coin_manager::COIN_MANAGER,
+use crate::executive::stack::{
+    stack_error::StackError,
+    stack_holder::StackHolder,
+    stack_item::StackItem,
+    stack_uint::{SafeConverter, StackItemUintExt, StackUint},
 };
+use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
+use serde::{Deserialize, Serialize};
 
 /// Returns the number of total shadow allocations of the contract.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_SHADOW_NUM_ALLOCS;
 

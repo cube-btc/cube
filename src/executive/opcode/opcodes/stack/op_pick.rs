@@ -6,9 +6,10 @@ use crate::executive::{
         stack_uint::StackItemUintExt,
     },
 };
+use serde::{Deserialize, Serialize};
 
 /// Retrieves an item from the main stack by cloning it to the top of the stack.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_PICK;
 

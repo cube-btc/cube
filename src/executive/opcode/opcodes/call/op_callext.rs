@@ -4,9 +4,10 @@ use crate::executive::stack::{
     stack_item::StackItem,
     stack_uint::{SafeConverter, StackItemUintExt},
 };
+use serde::{Deserialize, Serialize};
 
 /// Calls an external contract method.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_CALLEXT;
 

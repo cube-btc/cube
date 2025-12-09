@@ -7,9 +7,10 @@ use crate::executive::{
         stack_uint::StackItemUintExt,
     },
 };
+use serde::{Deserialize, Serialize};
 
 /// Returns 1 if x is within the specified range (left-inclusive), 0 otherwise.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_WITHIN;
 

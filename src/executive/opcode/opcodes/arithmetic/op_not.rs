@@ -2,9 +2,10 @@ use crate::executive::{
     opcode::ops::OP_NOT_OPS,
     stack::{stack_error::StackError, stack_holder::StackHolder, stack_item::StackItem},
 };
+use serde::{Deserialize, Serialize};
 
 /// If the input is 0 or 1, it is flipped. Otherwise the output will be 0.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_NOT;
 

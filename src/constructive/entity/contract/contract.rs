@@ -1,65 +1,131 @@
-use crate::constructive::valtype::val::short_val::short_val::ShortVal;
+use crate::constructive::entity::contract::deployed_contract::deployed_contract::DeployedContract;
+use crate::constructive::entity::contract::undeployed_contract::undeployed_contract::UndeployedContract;
+use crate::executive::executable::executable::Executable;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
-/// Represents a contract; a program that can be executed on Cube.
-#[derive(Clone, Copy, Serialize, Deserialize, Hash, Debug)]
-pub struct Contract {
-    pub contract_id: [u8; 32],
-    pub registery_index: ShortVal,
-    pub rank: Option<ShortVal>,
+#[derive(Clone, Serialize, Deserialize)]
+/// A contract is a program that can be called by an account.
+pub enum Contract {
+    // A deployed contract, registered with the 'Registery Manager'.
+    DeployedContract(DeployedContract),
+
+    // An undeployed contract, not registered or yet to be registered with the 'Registery Manager'.
+    UndeployedContract(UndeployedContract),
 }
 
 impl Contract {
-    /// Creates a new contract.
-    pub fn new(contract_id: [u8; 32], registery_index: u32, rank: Option<u32>) -> Contract {
-        // Convert the registery index to a ShortVal.
-        let registery_index = ShortVal::new(registery_index);
+    pub fn new_deployed_contract(
+        contract_id: [u8; 32],
+        executable: Executable,
+        registery_index: u64,
+        rank: Option<u64>,
+    ) -> Contract {
+        // 1 Construct the deployed contract.
+        let deployed_contract =
+            DeployedContract::new(contract_id, executable, registery_index, rank);
 
-        // Convert the rank to a ShortVal.
-        let rank = match rank {
-            Some(rank) => Some(ShortVal::new(rank)),
-            None => None,
-        };
+        // 2 Return the deployed contract.
+        Contract::DeployedContract(deployed_contract)
+    }
 
-        Contract {
-            contract_id,
-            registery_index,
-            rank,
+    pub fn new_undeployed_contract(contract_id: [u8; 32], executable: Executable) -> Contract {
+        // 1 Construct the undeployed contract.
+        let undeployed_contract = UndeployedContract::new(contract_id, executable);
+
+        // 2 Return the undeployed contract.
+        Contract::UndeployedContract(undeployed_contract)
+    }
+
+    /// Returns whether the contract is deployed.
+    pub fn is_deployed(&self) -> bool {
+        match self {
+            // The contract is deployed.
+            Contract::DeployedContract(_) => true,
+
+            // The contract is not deployed.
+            Contract::UndeployedContract(_) => false,
         }
     }
 
     /// Returns the contract id.
     pub fn contract_id(&self) -> [u8; 32] {
-        self.contract_id
+        match self {
+            // The contract is deployed.
+            Contract::DeployedContract(deployed_contract) => deployed_contract.contract_id,
+
+            // The contract is not deployed.
+            Contract::UndeployedContract(undeployed_contract) => undeployed_contract.contract_id,
+        }
     }
 
-    /// Returns the registery index.
-    pub fn registery_index(&self) -> u32 {
-        self.registery_index.value()
+    /// Returns the executable of the contract.
+    pub fn executable(&self) -> &Executable {
+        match self {
+            // The contract is deployed.
+            Contract::DeployedContract(deployed_contract) => &deployed_contract.executable,
+
+            // The contract is not deployed.
+            Contract::UndeployedContract(undeployed_contract) => &undeployed_contract.executable,
+        }
     }
 
-    /// Returns the rank (if set).
-    pub fn rank(&self) -> Option<u32> {
-        self.rank.map(|rank| rank.value())
+    /// Returns the registery index of the contract.
+    pub fn registery_index(&self) -> Option<u64> {
+        match self {
+            Contract::DeployedContract(deployed_contract) => {
+                // Return the registery index.
+                Some(deployed_contract.registery_index)
+            }
+
+            // The contract is not deployed.
+            Contract::UndeployedContract(_) => None,
+        }
     }
 
-    /// Sets the rank index.
-    pub fn set_rank(&mut self, rank: Option<u32>) {
-        self.rank = rank.map(|rank| ShortVal::new(rank));
+    /// Returns the rank of the contract.
+    pub fn rank(&self) -> Option<u64> {
+        match self {
+            // The contract is deployed.
+            Contract::DeployedContract(deployed_contract) => deployed_contract.rank,
+
+            // The contract is not deployed.
+            Contract::UndeployedContract(_) => None,
+        }
     }
 
-    /// Serializes the contract.
-    pub fn serialize(&self) -> Vec<u8> {
-        match serde_json::to_vec(self) {
-            Ok(bytes) => bytes,
-            Err(_) => vec![],
+    /// Sets or updates the rank of the contract.
+    pub fn set_or_update_rank(&mut self, rank: u64) -> bool {
+        match self {
+            // The contract is deployed.
+            Contract::DeployedContract(deployed_contract) => {
+                // Update the rank.
+                deployed_contract.rank = Some(rank);
+
+                // Return success.
+                true
+            }
+
+            // The contract is not deployed.
+            Contract::UndeployedContract(_) => false,
+        }
+    }
+
+    /// Returns the contract as a JSON object.
+    pub fn json(&self) -> Value {
+        match self {
+            // The contract is deployed.
+            Contract::DeployedContract(deployed_contract) => deployed_contract.json(),
+
+            // The contract is not deployed.
+            Contract::UndeployedContract(undeployed_contract) => undeployed_contract.json(),
         }
     }
 }
 
 impl PartialEq for Contract {
     fn eq(&self, other: &Self) -> bool {
-        self.contract_id == other.contract_id
+        self.contract_id() == other.contract_id()
     }
 }
 

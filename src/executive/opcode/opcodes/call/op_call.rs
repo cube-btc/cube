@@ -4,9 +4,10 @@ use crate::executive::stack::{
     stack_item::StackItem,
     stack_uint::{SafeConverter, StackItemUintExt},
 };
+use serde::{Deserialize, Serialize};
 
 /// Calls an internal contract method.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_CALL;
 
@@ -15,6 +16,7 @@ pub const CALL_OPS: u32 = 5;
 
 /// Method index to be called.
 type MethodIndexToBeCalled = u8;
+
 /// Call arguments.
 type CallArguments = Vec<StackItem>;
 

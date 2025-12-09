@@ -5,7 +5,7 @@ use serde_json::{Map, Value};
 #[derive(Clone)]
 pub struct RMContractBody {
     // Assigned registery index of a deployed contract.
-    pub registery_index: u32,
+    pub registery_index: u64,
 
     // Ever-increasing call counter of a contract.
     pub call_counter: u64,
@@ -16,7 +16,7 @@ pub struct RMContractBody {
 
 impl RMContractBody {
     /// Constructs a fresh new contract body.
-    pub fn new(registery_index: u32, call_counter: u64, executable: Executable) -> Self {
+    pub fn new(registery_index: u64, call_counter: u64, executable: Executable) -> Self {
         Self {
             registery_index,
             call_counter,

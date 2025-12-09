@@ -7,9 +7,10 @@ use crate::{
     },
     inscriptive::coin_manager::coin_manager::COIN_MANAGER,
 };
+use serde::{Deserialize, Serialize};
 
 /// Pushes the BTC balance of the underlying contract into the stack.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_SELF_BALANCE;
 

@@ -2,9 +2,10 @@ use crate::executive::stack::{
     stack_error::StackError, stack_holder::StackHolder, stack_item::StackItem,
 };
 use secp::Point;
+use serde::{Deserialize, Serialize};
 
 /// Pushes the generator point into the stack.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_PUSHSECPGENERATORPOINT;
 

@@ -1,14 +1,13 @@
-use crate::{
-    executive::stack::{
-        stack_error::{SchnorrError, StackError},
-        stack_holder::StackHolder,
-        stack_item::StackItem,
-    },
-    transmutative::secp::schnorr::{self, SchnorrSigningMode},
+use crate::executive::stack::{
+    stack_error::{SchnorrError, StackError},
+    stack_holder::StackHolder,
+    stack_item::StackItem,
 };
+use crate::transmutative::secp::schnorr::{self, SchnorrSigningMode};
+use serde::{Deserialize, Serialize};
 
 /// Checks a schnorr signature according to the 'BIP340/challenge' tag.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_CHECKSCHNORRSIGBIP340;
 

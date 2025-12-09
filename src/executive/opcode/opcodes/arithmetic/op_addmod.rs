@@ -7,9 +7,10 @@ use crate::executive::{
         stack_uint::{StackItemUintExt, StackUint},
     },
 };
+use serde::{Deserialize, Serialize};
 
 /// Adds two items on the main stack and returns the result modulo MAX::U256.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_ADDMOD;
 

@@ -7,9 +7,10 @@ use crate::{
     },
     inscriptive::state_manager::state_manager::STATE_MANAGER,
 };
+use serde::{Deserialize, Serialize};
 
 /// The `OP_SREAD` opcode.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_SREAD;
 

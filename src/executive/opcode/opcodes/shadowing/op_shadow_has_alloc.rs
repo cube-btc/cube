@@ -1,14 +1,13 @@
-use crate::{
-    executive::stack::{
-        stack_error::{ShadowOpsError, StackError},
-        stack_holder::StackHolder,
-        stack_item::StackItem,
-    },
-    inscriptive::coin_manager::coin_manager::COIN_MANAGER,
+use crate::executive::stack::{
+    stack_error::{ShadowOpsError, StackError},
+    stack_holder::StackHolder,
+    stack_item::StackItem,
 };
+use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
+use serde::{Deserialize, Serialize};
 
 /// Checks if an account has an allocation within the contract shadow space.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_SHADOW_HAS_ALLOC;
 

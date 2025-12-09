@@ -6,10 +6,6 @@ use crate::communicative::peer::peer::PEER;
 use crate::communicative::rpc::bitcoin_rpc::bitcoin_rpc::validate_rpc;
 use crate::communicative::rpc::bitcoin_rpc::bitcoin_rpc_holder::BitcoinRPCHolder;
 use crate::constructive::entity::account::account::Account;
-use crate::inscriptive::epoch::dir::EpochDirectory;
-use crate::inscriptive::epoch::dir::EPOCH_DIRECTORY;
-use crate::inscriptive::lp::dir::LPDirectory;
-use crate::inscriptive::lp::dir::LP_DIRECTORY;
 use crate::inscriptive::registery_manager::registery_manager::RegisteryManager;
 use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
 use crate::inscriptive::set::set::CoinSet;
@@ -50,22 +46,8 @@ pub async fn run(key_holder: KeyHolder, chain: Chain, rpc_holder: BitcoinRPCHold
     };
 
     // #3 Initialize Epoch directory.
-    let epoch_dir: EPOCH_DIRECTORY = match EpochDirectory::new(chain) {
-        Some(epoch_dir) => epoch_dir,
-        None => {
-            println!("{}", "Error initializing epoch directory.".red());
-            return;
-        }
-    };
 
     // #4 Initialize LP directory.
-    let lp_dir: LP_DIRECTORY = match LPDirectory::new(chain) {
-        Some(dir) => dir,
-        None => {
-            println!("{}", "Error initializing LP directory.".red());
-            return;
-        }
-    };
 
     // #5 Initialize Registery manager.
     let registery: REGISTERY_MANAGER = match RegisteryManager::new(chain) {
@@ -99,8 +81,7 @@ pub async fn run(key_holder: KeyHolder, chain: Chain, rpc_holder: BitcoinRPCHold
         let chain = chain.clone();
         let key_holder = key_holder.clone();
         let rpc_holder = rpc_holder.clone();
-        let epoch_dir = Arc::clone(&epoch_dir);
-        let lp_dir = Arc::clone(&lp_dir);
+
         let registery = Arc::clone(&registery);
         let wallet = Arc::clone(&wallet);
         let sync_manager = Arc::clone(&sync_manager);
@@ -112,8 +93,6 @@ pub async fn run(key_holder: KeyHolder, chain: Chain, rpc_holder: BitcoinRPCHold
                     chain,
                     &rpc_holder,
                     &key_holder,
-                    &epoch_dir,
-                    &lp_dir,
                     &registery,
                     Some(&wallet),
                     &coin_set,
@@ -162,24 +141,15 @@ pub async fn run(key_holder: KeyHolder, chain: Chain, rpc_holder: BitcoinRPCHold
     };
 
     // #13 CLI.
-    cli(
-        chain,
-        &coordinator,
-        &key_holder,
-        &account,
-        &wallet,
-        &epoch_dir,
-    )
-    .await;
+    cli(chain, &coordinator, &key_holder, &account, &wallet).await;
 }
 
 pub async fn cli(
-    chain: Chain,
+    _chain: Chain,
     coordinator_conn: &PEER,
     key_holder: &KeyHolder,
     _account: &Account,
     wallet: &WALLET,
-    epoch_dir: &EPOCH_DIRECTORY,
 ) {
     println!(
         "{}",
@@ -211,8 +181,6 @@ pub async fn cli(
             "conn" => ncli::conn::conn_command(coordinator_conn).await,
             "ping" => ncli::ping::ping_command(coordinator_conn).await,
             "npub" => ncli::npub::npub_command(key_holder).await,
-            "addr" => ncli::addr::addr_command(chain, epoch_dir, key_holder).await,
-            "lift" => ncli::lift::lift_command(wallet, epoch_dir, chain, key_holder, parts).await,
             "decomp" => ncli::decomp::decomp_command(parts),
             "move" => {
                 ncli::r#move::move_command(

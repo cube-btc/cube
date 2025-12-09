@@ -7,9 +7,10 @@ use crate::executive::{
         stack_uint::{SafeConverter, StackItemUintExt},
     },
 };
+use serde::{Deserialize, Serialize};
 
 /// Keeps only characters left of the specified point in a string.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_LEFT;
 

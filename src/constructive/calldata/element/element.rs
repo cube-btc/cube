@@ -8,7 +8,7 @@ use crate::executive::stack::stack_uint::{SafeConverter, StackItemUintExt, Stack
 use serde::{Deserialize, Serialize};
 
 // Represents a single element of calldata.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum CallElement {
     U8(u8),
     U16(u16),
@@ -106,7 +106,7 @@ impl CallElement {
                 false => StackItem::false_item(),
             },
             // 32 bytes in stack.
-            CallElement::Account(value) => StackItem::new(value.key().serialize_xonly().to_vec()),
+            CallElement::Account(value) => StackItem::new(value.account_key().to_vec()),
             // 32 bytes in stack.
             CallElement::Contract(value) => StackItem::new(value.contract_id().to_vec()),
             // 1-256 bytes in stack.

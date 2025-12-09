@@ -1,5 +1,5 @@
+use crate::constructive::entity::account::registered_account::flame_config::flame_config::FlameConfig;
 use crate::executive::executable::executable::Executable;
-use crate::inscriptive::registery_manager::bodies::account_body::flame_config::flame_config::FlameConfig;
 use std::collections::HashMap;
 
 /// secp256k1 public key of an account.

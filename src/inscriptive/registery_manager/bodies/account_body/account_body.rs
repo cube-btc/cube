@@ -1,4 +1,4 @@
-use super::flame_config::flame_config::FlameConfig;
+use crate::constructive::entity::account::registered_account::flame_config::flame_config::FlameConfig;
 use serde_json::{Map, Value};
 
 /// BLS key of an account.
@@ -11,7 +11,7 @@ type AccountSecondaryAggregationKey = Vec<u8>;
 #[derive(Clone)]
 pub struct RMAccountBody {
     // Assigned registery index of an account.
-    pub registery_index: u32,
+    pub registery_index: u64,
 
     // Ever-increasing call counter of an account.
     pub call_counter: u64,
@@ -29,7 +29,7 @@ pub struct RMAccountBody {
 impl RMAccountBody {
     /// Constructs a fresh new account body.
     pub fn new(
-        registery_index: u32,
+        registery_index: u64,
         call_counter: u64,
         primary_bls_key: Option<AccountBLSKey>,
         secondary_aggregation_key: Option<AccountSecondaryAggregationKey>,

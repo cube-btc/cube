@@ -7,9 +7,10 @@ use crate::executive::{
         stack_uint::{SafeConverter, StackItemUintExt},
     },
 };
+use serde::{Deserialize, Serialize};
 
 /// Splits the byte array into two stack items at the index.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_SPLIT;
 

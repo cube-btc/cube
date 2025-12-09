@@ -7,9 +7,10 @@ use crate::executive::{
         stack_uint::{SafeConverter, StackItemUintExt, StackUint},
     },
 };
+use serde::{Deserialize, Serialize};
 
 /// Divides the top item on the main stack by 2. Returns the modulo and division result.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_2DIV;
 

@@ -2,9 +2,10 @@ use crate::executive::{
     opcode::ops::OP_EQUAL_OPS,
     stack::{stack_error::StackError, stack_holder::StackHolder, stack_item::StackItem},
 };
+use serde::{Deserialize, Serialize};
 
 /// Returns 1 if the inputs are exactly equal, 0 otherwise.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_EQUAL;
 

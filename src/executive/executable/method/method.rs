@@ -16,10 +16,11 @@ use crate::{
         },
     },
 };
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
 /// A method of an executable.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ExecutableMethod {
     /// The method name.
     method_name: String,

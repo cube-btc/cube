@@ -7,11 +7,12 @@ use super::method::method_type::MethodType;
 use crate::constructive::valtype::val::atomic_val::atomic_val::AtomicVal;
 use crate::executive::executable::compiler::compiler::ExecutableCompiler;
 use crate::transmutative::hash::{Hash, HashTag};
+use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::collections::HashSet;
 
 /// The executable associated with a `Contract`.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Executable {
     /// The executable name.
     executable_name: String,

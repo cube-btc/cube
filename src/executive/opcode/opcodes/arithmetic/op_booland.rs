@@ -2,9 +2,10 @@ use crate::executive::{
     opcode::ops::OP_BOOLAND_OPS,
     stack::{stack_error::StackError, stack_holder::StackHolder, stack_item::StackItem},
 };
+use serde::{Deserialize, Serialize};
 
 /// If both a and b are not 0, the output is 1. Otherwise 0.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_BOOLAND;
 

@@ -6,9 +6,10 @@ use crate::executive::{
         stack_holder::StackHolder,
     },
 };
+use serde::{Deserialize, Serialize};
 
 /// The `OP_IF` opcode.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_IF;
 

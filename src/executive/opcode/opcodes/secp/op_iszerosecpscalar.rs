@@ -4,9 +4,10 @@ use crate::executive::stack::{
     stack_item::StackItem,
     stack_uint::{SafeConverter, StackItemUintExt},
 };
+use serde::{Deserialize, Serialize};
 
 /// Checks if a secp scalar is zero.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_ISZEROSECPSCALAR;
 

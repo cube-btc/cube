@@ -7,9 +7,10 @@ use crate::{
     },
     inscriptive::coin_manager::coin_manager::COIN_MANAGER,
 };
+use serde::{Deserialize, Serialize};
 
 /// Returns the allocation value of an account within the contract shadow space.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_SHADOW_ALLOC_VAL;
 

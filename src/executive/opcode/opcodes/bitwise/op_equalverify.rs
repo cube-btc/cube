@@ -5,9 +5,10 @@ use crate::executive::{
         stack_holder::StackHolder,
     },
 };
+use serde::{Deserialize, Serialize};
 
 /// Same as OP_EQUAL, but runs OP_VERIFY afterward.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_EQUALVERIFY;
 

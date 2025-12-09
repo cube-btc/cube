@@ -1,14 +1,13 @@
-use crate::{
-    executive::stack::{
-        limits::{MAX_KEY_LENGTH, MIN_KEY_LENGTH, MIN_VALUE_LENGTH},
-        stack_error::{StackError, StorageError},
-        stack_holder::StackHolder,
-    },
-    inscriptive::state_manager::state_manager::STATE_MANAGER,
+use crate::executive::stack::{
+    limits::{MAX_KEY_LENGTH, MIN_KEY_LENGTH, MIN_VALUE_LENGTH},
+    stack_error::{StackError, StorageError},
+    stack_holder::StackHolder,
 };
+use crate::inscriptive::state_manager::state_manager::STATE_MANAGER;
+use serde::{Deserialize, Serialize};
 
 /// The `OP_SWRITE` opcode.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_SWRITE;
 

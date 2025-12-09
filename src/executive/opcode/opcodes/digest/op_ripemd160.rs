@@ -3,9 +3,10 @@ use crate::executive::stack::{
 };
 use bitcoin::hashes::ripemd160;
 use bitcoin::hashes::Hash;
+use serde::{Deserialize, Serialize};
 
 /// The input is hashed using RIPEMD-160.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_RIPEMD160;
 

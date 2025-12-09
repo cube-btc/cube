@@ -5,8 +5,7 @@ use crate::{
     },
     constructive::{taproot::P2TR, txo::lift::Lift},
     inscriptive::{
-        baked, epoch::dir::EPOCH_DIRECTORY, lp::dir::LP_DIRECTORY,
-        registery_manager::registery_manager::REGISTERY_MANAGER, set::set::COIN_SET,
+        baked, registery_manager::registery_manager::REGISTERY_MANAGER, set::set::COIN_SET,
         sync_manager::sync_manager::SYNC_MANAGER, wallet::wallet::WALLET,
     },
     operative::Chain,
@@ -26,18 +25,13 @@ const BLOCK_DEPTH_FOR_FINALITY: u64 = 5;
 type LiftSPK = Vec<u8>;
 
 /// Returns the list of Taproot scriptpubkeys to scan.
-pub async fn lifts_spks_to_scan(
-    key_holder: &KeyHolder,
-    epoch_dir: &EPOCH_DIRECTORY,
-) -> Option<Vec<(LiftSPK, Point)>> {
+pub async fn lifts_spks_to_scan(key_holder: &KeyHolder) -> Option<Vec<(LiftSPK, Point)>> {
     let mut spks = Vec::<(LiftSPK, Point)>::new();
 
     let self_key = key_holder.public_key();
 
-    let group_keys = {
-        let _epoch_dir = epoch_dir.lock().await;
-        _epoch_dir.active_group_keys()
-    };
+    // TODO
+    let group_keys: Vec<Point> = vec![];
 
     for operator_group_key in group_keys.iter() {
         let lift = Lift::new(self_key, operator_group_key.to_owned(), None, None);
@@ -58,8 +52,6 @@ pub trait RollupSync {
         chain: Chain,
         rpc_holder: &BitcoinRPCHolder,
         key_holder: &KeyHolder,
-        _epoch_dir: &EPOCH_DIRECTORY,
-        _lp_dir: &LP_DIRECTORY,
         _registery: &REGISTERY_MANAGER,
         wallet: Option<&WALLET>,
         coin_set: &COIN_SET,
@@ -90,8 +82,6 @@ impl RollupSync for SYNC_MANAGER {
         chain: Chain,
         rpc_holder: &BitcoinRPCHolder,
         key_holder: &KeyHolder,
-        epoch_dir: &EPOCH_DIRECTORY,
-        _lp_dir: &LP_DIRECTORY,
         _registery: &REGISTERY_MANAGER,
         wallet: Option<&WALLET>,
         coin_set: &COIN_SET,
@@ -265,7 +255,7 @@ impl RollupSync for SYNC_MANAGER {
 
                     // Retrieve the lift spks to scan.
                     let lift_spks_to_scan = match wallet {
-                        Some(_) => match lifts_spks_to_scan(key_holder, epoch_dir).await {
+                        Some(_) => match lifts_spks_to_scan(key_holder).await {
                             Some(spks) => spks,
                             None => vec![],
                         },

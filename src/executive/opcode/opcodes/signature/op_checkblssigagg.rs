@@ -1,15 +1,14 @@
-use crate::{
-    executive::stack::{
-        stack_error::{BLSError, StackError, StackUintError},
-        stack_holder::StackHolder,
-        stack_item::StackItem,
-        stack_uint::StackItemUintExt,
-    },
-    transmutative::bls::{key::BLSPublicKey, verify::bls_verify_aggregate},
+use crate::executive::stack::{
+    stack_error::{BLSError, StackError, StackUintError},
+    stack_holder::StackHolder,
+    stack_item::StackItem,
+    stack_uint::StackItemUintExt,
 };
+use crate::transmutative::bls::{key::BLSPublicKey, verify::bls_verify_aggregate};
+use serde::{Deserialize, Serialize};
 
 /// Checks a BLS aggregate signature against a set of keys and messages.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_CHECKBLSSIGAGG;
 

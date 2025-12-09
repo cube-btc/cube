@@ -6,13 +6,8 @@ use crate::communicative::peer::peer::PeerKind;
 use crate::communicative::peer::peer::PEER;
 use crate::communicative::rpc::bitcoin_rpc::bitcoin_rpc::validate_rpc;
 use crate::communicative::rpc::bitcoin_rpc::bitcoin_rpc_holder::BitcoinRPCHolder;
-use crate::communicative::tcp;
 use crate::communicative::tcp::tcp::open_port;
 use crate::communicative::tcp::tcp::port_number;
-use crate::inscriptive::epoch::dir::EpochDirectory;
-use crate::inscriptive::epoch::dir::EPOCH_DIRECTORY;
-use crate::inscriptive::lp::dir::LPDirectory;
-use crate::inscriptive::lp::dir::LP_DIRECTORY;
 use crate::inscriptive::registery_manager::registery_manager::RegisteryManager;
 use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
 use crate::inscriptive::set::set::CoinSet;
@@ -24,8 +19,6 @@ use crate::operative::sync::sync::RollupSync;
 use crate::operative::Chain;
 use crate::operative::OperatingMode;
 use crate::transmutative::key::KeyHolder;
-use crate::transmutative::noist::manager::DKGManager;
-use crate::transmutative::noist::manager::DKG_MANAGER;
 use colored::Colorize;
 use std::io::{self, BufRead};
 use std::sync::Arc;
@@ -44,22 +37,8 @@ pub async fn run(key_holder: KeyHolder, chain: Chain, rpc_holder: BitcoinRPCHold
     println!("{}", "Initializing operator..");
 
     // #2 Initialize Epoch directory.
-    let epoch_dir: EPOCH_DIRECTORY = match EpochDirectory::new(chain) {
-        Some(epoch_dir) => epoch_dir,
-        None => {
-            println!("{}", "Error initializing epoch directory.".red());
-            return;
-        }
-    };
 
     // #3 Initialize LP directory.
-    let lp_dir: LP_DIRECTORY = match LPDirectory::new(chain) {
-        Some(dir) => dir,
-        None => {
-            println!("{}", "Error initializing LP directory.".red());
-            return;
-        }
-    };
 
     // #4 Initialize Registery manager.
     let registery: REGISTERY_MANAGER = match RegisteryManager::new(chain) {
@@ -93,8 +72,6 @@ pub async fn run(key_holder: KeyHolder, chain: Chain, rpc_holder: BitcoinRPCHold
         let chain = chain.clone();
         let key_holder = key_holder.clone();
         let rpc_holder = rpc_holder.clone();
-        let epoch_dir = Arc::clone(&epoch_dir);
-        let lp_dir = Arc::clone(&lp_dir);
         let registery = Arc::clone(&registery);
         let sync_manager = Arc::clone(&sync_manager);
         let coin_set = Arc::clone(&coin_set);
@@ -105,8 +82,6 @@ pub async fn run(key_holder: KeyHolder, chain: Chain, rpc_holder: BitcoinRPCHold
                     chain,
                     &rpc_holder,
                     &key_holder,
-                    &epoch_dir,
-                    &lp_dir,
                     &registery,
                     None,
                     &coin_set,
@@ -123,7 +98,7 @@ pub async fn run(key_holder: KeyHolder, chain: Chain, rpc_holder: BitcoinRPCHold
     println!("{}", "Syncing complete.");
 
     // #10 Construct account.
-    let account = {
+    let _account = {
         let _registery_manager = registery.lock().await;
 
         match _registery_manager.get_account_by_key(key_holder.public_key().serialize_xonly()) {
@@ -136,25 +111,6 @@ pub async fn run(key_holder: KeyHolder, chain: Chain, rpc_holder: BitcoinRPCHold
     };
 
     // #11 Check if this account is a liquidity provider or an operator.
-    {
-        let is_lp = {
-            let _lp_dir = lp_dir.lock().await;
-            _lp_dir.is_lp(account)
-        };
-
-        let is_operator = {
-            let _epoch_dir = epoch_dir.lock().await;
-            _epoch_dir.is_operator(account)
-        };
-
-        if !is_lp && !is_operator {
-            eprintln!(
-                "{}",
-                "This account is not an active liquidity provider or operator.".red()
-            );
-            return;
-        }
-    }
 
     // #12 Initialize NNS client.
     let nns_client = NNSClient::new(&key_holder).await;
@@ -196,27 +152,14 @@ pub async fn run(key_holder: KeyHolder, chain: Chain, rpc_holder: BitcoinRPCHold
     };
 
     // #16 Initialize DKG Manager.
-    let mut dkg_manager: DKG_MANAGER = match DKGManager::new(&lp_dir) {
-        Some(manager) => manager,
-        None => return eprintln!("{}", "Error initializing DKG manager.".red()),
-    };
 
     // #17 Run TCP server.
-    {
-        let nns_client = nns_client.clone();
-        let dkg_manager = Arc::clone(&dkg_manager);
-
-        let _ = tokio::spawn(async move {
-            let _ =
-                tcp::server::run(mode, chain, &nns_client, &key_holder, &dkg_manager, None).await;
-        });
-    }
 
     // #18 CLI.
-    cli(&mut dkg_manager, &coordinator).await;
+    cli(&coordinator).await;
 }
 
-pub async fn cli(dkg_manager: &mut DKG_MANAGER, coordinator: &PEER) {
+pub async fn cli(_coordinator: &PEER) {
     println!(
         "{}",
         "Enter command (type help for options, type exit to quit):".cyan()
@@ -244,7 +187,6 @@ pub async fn cli(dkg_manager: &mut DKG_MANAGER, coordinator: &PEER) {
             // Main commands:
             "exit" => break,
             "clear" => ocli::clear::clear_command(),
-            "dkg" => ocli::dkg::dkg_command(parts, coordinator, dkg_manager).await,
             _ => eprintln!("{}", format!("Unknown commmand.").yellow()),
         }
     }

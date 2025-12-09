@@ -6,12 +6,13 @@ use crate::executive::stack::{
 };
 use blake2::digest::{Update, VariableOutput};
 use blake2::Blake2bVar;
+use serde::{Deserialize, Serialize};
 
 // The maximum output size for the BLAKE2b variable output.
 const BLAKE2B_VAR_MAX_OUTPUT_SIZE: usize = 64;
 
 /// The input is hashed with a variable length output using BLAKE2b.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_BLAKE2BVAR;
 

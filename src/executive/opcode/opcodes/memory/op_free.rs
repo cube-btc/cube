@@ -1,15 +1,14 @@
-use crate::executive::{
-    opcode::ops::OP_MFREE_OPS,
-    stack::{
-        limits::{MAX_KEY_LENGTH, MIN_KEY_LENGTH},
-        stack_error::{MemoryError, StackError},
-        stack_holder::StackHolder,
-        stack_item::StackItem,
-    },
+use crate::executive::opcode::ops::OP_MFREE_OPS;
+use crate::executive::stack::{
+    limits::{MAX_KEY_LENGTH, MIN_KEY_LENGTH},
+    stack_error::{MemoryError, StackError},
+    stack_holder::StackHolder,
+    stack_item::StackItem,
 };
+use serde::{Deserialize, Serialize};
 
 /// The `OP_MFREE` opcode.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(non_camel_case_types)]
 pub struct OP_MFREE;
 
