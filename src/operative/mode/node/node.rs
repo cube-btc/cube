@@ -17,6 +17,7 @@ use crate::inscriptive::wallet::wallet::WALLET;
 use crate::operative::mode::ncli;
 use crate::operative::sync::sync::RollupSync;
 use crate::operative::Chain;
+use crate::operative::OperatingKind;
 use crate::operative::OperatingMode;
 use crate::transmutative::key::KeyHolder;
 use colored::Colorize;
@@ -25,8 +26,13 @@ use std::sync::Arc;
 use std::time::Duration;
 
 #[tokio::main]
-pub async fn run(key_holder: KeyHolder, chain: Chain, rpc_holder: BitcoinRPCHolder) {
-    let _operating_mode = OperatingMode::Node;
+pub async fn run(
+    key_holder: KeyHolder,
+    chain: Chain,
+    rpc_holder: BitcoinRPCHolder,
+    _operating_mode: OperatingMode,
+) {
+    let _operating_kind = OperatingKind::Node;
 
     // #1 Validate Bitcoin RPC.
     if let Err(err) = validate_rpc(&rpc_holder, chain) {

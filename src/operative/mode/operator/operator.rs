@@ -17,6 +17,7 @@ use crate::inscriptive::sync_manager::sync_manager::SYNC_MANAGER;
 use crate::operative::mode::ocli;
 use crate::operative::sync::sync::RollupSync;
 use crate::operative::Chain;
+use crate::operative::OperatingKind;
 use crate::operative::OperatingMode;
 use crate::transmutative::key::KeyHolder;
 use colored::Colorize;
@@ -25,8 +26,13 @@ use std::sync::Arc;
 use std::time::Duration;
 
 #[tokio::main]
-pub async fn run(key_holder: KeyHolder, chain: Chain, rpc_holder: BitcoinRPCHolder) {
-    let mode = OperatingMode::Operator;
+pub async fn run(
+    key_holder: KeyHolder,
+    chain: Chain,
+    rpc_holder: BitcoinRPCHolder,
+    _operating_mode: OperatingMode,
+) {
+    let operating_kind = OperatingKind::Operator;
 
     // #1 Validate Bitcoin RPC.
     if let Err(err) = validate_rpc(&rpc_holder, chain) {
@@ -128,7 +134,7 @@ pub async fn run(key_holder: KeyHolder, chain: Chain, rpc_holder: BitcoinRPCHold
     {
         let nns_client = nns_client.clone();
         let _ = tokio::spawn(async move {
-            let _ = nns::server::run(&nns_client, mode).await;
+            let _ = nns::server::run(&nns_client, operating_kind).await;
         });
     }
 

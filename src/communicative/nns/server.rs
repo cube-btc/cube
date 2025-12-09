@@ -1,5 +1,5 @@
 use super::client::NNSClient;
-use crate::{communicative::tcp::tcp::TCP_RESPONSE_TIMEOUT, operative::OperatingMode};
+use crate::{communicative::tcp::tcp::TCP_RESPONSE_TIMEOUT, operative::OperatingKind};
 use colored::Colorize;
 use std::{
     fs::{self, OpenOptions},
@@ -18,11 +18,11 @@ const IP_ADDR_FILE_PATH: &str = "nns_ip_address.txt";
 /// If a change is detected, it posts the update to Nostr,
 /// allowing NNS clients to retrieve it via the well-known npub.
 ///
-pub async fn run(nns_client: &NNSClient, mode: OperatingMode) {
-    match mode {
-        OperatingMode::Coordinator => (),
-        OperatingMode::Operator => (),
-        OperatingMode::Node => return, // Refular nodes do not run the server.
+pub async fn run(nns_client: &NNSClient, operating_kind: OperatingKind) {
+    match operating_kind {
+        OperatingKind::Coordinator => (),
+        OperatingKind::Operator => (),
+        OperatingKind::Node => return, // Refular nodes do not run the server.
     }
 
     // Check if ip.txt exists. Create it otherwise.

@@ -3,21 +3,22 @@ use cube::{
     communicative::rpc::bitcoin_rpc::bitcoin_rpc_holder::BitcoinRPCHolder,
     operative::{
         mode::{coordinator::coordinator, node::node, operator::operator},
-        Chain, OperatingMode,
+        Chain, OperatingKind, OperatingMode,
     },
     transmutative::key::{FromNostrKeyStr, KeyHolder},
 };
 use std::{env, io::BufRead};
 
 fn main() {
+    // 1 Parse arguments.
     let args: Vec<String> = env::args().collect();
 
-    // Ensure at least 6 arguments: program name, network, mode, rpc-url, rpc-user, rpc-password.
-    if args.len() < 6 {
+    // 2 Validate arguments.
+    if args.len() < 7 {
         eprintln!(
             "{}",
             format!(
-                "Usage: {} <network> <mode> <rpc-url> <rpc-user> <rpc-password>",
+                "Usage: {} <mode> <chain> <kind> <bitcoin-rpc-url> <bitcoin-rpc-user> <bitcoin-rpc-password>",
                 args[0]
             )
             .red()
@@ -25,8 +26,18 @@ fn main() {
         return;
     }
 
-    // Network arg
-    let network = match args[1].to_lowercase().as_str() {
+    // 3 Parse operating mode.
+    let operating_mode = match args[1].to_lowercase().as_str() {
+        "pruned" => OperatingMode::Pruned,
+        "archival" => OperatingMode::Archival,
+        _ => {
+            println!("{}", "Invalid <mode>.".red());
+            return;
+        }
+    };
+
+    // 4 Parse chain.
+    let chain = match args[2].to_lowercase().as_str() {
         "signet" => Chain::Signet,
         "mainnet" => Chain::Mainnet,
         "testbed" => {
@@ -34,27 +45,27 @@ fn main() {
             return;
         }
         _ => {
-            println!("{}", "Invalid <network>.".red());
+            println!("{}", "Invalid <chain>.".red());
             return;
         }
     };
 
-    // Operating mode arg
-    let operating_mode = match args[2].to_lowercase().as_str() {
-        "node" => OperatingMode::Node,
-        "engine" => OperatingMode::Operator,
-        "coordinator" => OperatingMode::Coordinator,
+    // 5 Parse operating kind.
+    let operating_kind = match args[3].to_lowercase().as_str() {
+        "node" => OperatingKind::Node,
+        "engine" => OperatingKind::Operator,
+        "coordinator" => OperatingKind::Coordinator,
         _ => {
-            println!("{}", "Invalid <mode>.".red());
+            println!("{}", "Invalid <kind>.".red());
             return;
         }
     };
 
-    // RPC args
+    // 6 Parse RPC.
     let rpc_holder =
-        BitcoinRPCHolder::new(args[3].to_owned(), args[4].to_owned(), args[5].to_owned());
+        BitcoinRPCHolder::new(args[4].to_owned(), args[5].to_owned(), args[6].to_owned());
 
-    // Key holder
+    // 7 Parse key holder.
     let key_holder = {
         println!("{}", "Enter nsec:".magenta());
 
@@ -95,10 +106,17 @@ fn main() {
         key_holder
     };
 
-    // Match run
-    match operating_mode {
-        OperatingMode::Node => node::run(key_holder, network, rpc_holder),
-        OperatingMode::Operator => operator::run(key_holder, network, rpc_holder),
-        OperatingMode::Coordinator => coordinator::run(key_holder, network, rpc_holder),
+    // 8 Run the appropriate mode.
+    match operating_kind {
+        // 8.1 Run as a node.
+        OperatingKind::Node => node::run(key_holder, chain, rpc_holder, operating_mode),
+
+        // 8.2 Run as an operator.
+        OperatingKind::Operator => operator::run(key_holder, chain, rpc_holder, operating_mode),
+
+        // 8.3 Run as a coordinator.
+        OperatingKind::Coordinator => {
+            coordinator::run(key_holder, chain, rpc_holder, operating_mode)
+        }
     }
 }

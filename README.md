@@ -15,15 +15,18 @@ cd cube
 Run the program with the following command:
 
 ```sh
-cargo run <chain> <mode> <bitcoin-rpc-url> <bitcoin-rpc-user> <bitcoin-rpc-password>
+cargo run <mode> <chain> <kind> <bitcoin-rpc-url> <bitcoin-rpc-user> <bitcoin-rpc-password>
 ```
 
 ### Parameters:
 
+- `<mode>`: Whether to run in pruned or archival mode. Supported values:
+  - `pruned`: For running in pruned mode.
+  - `archival`: For running in archival node.
 - `<chain>`: The Bitcoin network to use. Supported values:
   - `signet`
   - `mainnet`
-- `<mode>`: The mode in which the program runs. Supported values:
+- `<kind>`: The kind of running mode. Supported values:
   - `node`: For running a Cube node.
   - `engine`: For network operators.
 - `<bitcoin-rpc-url>`: The RPC URL of the Bitcoin node.
@@ -33,7 +36,7 @@ cargo run <chain> <mode> <bitcoin-rpc-url> <bitcoin-rpc-user> <bitcoin-rpc-passw
 ### Example:
 
 ```sh
-cargo run signet node http://127.0.0.1:38332 user password
+cargo run pruned signet node http://127.0.0.1:38332 user password
 ```
 
 ## License

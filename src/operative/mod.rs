@@ -22,10 +22,17 @@ impl ToString for Chain {
     }
 }
 
-/// Operating mode type.
+/// Operating kind type.
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum OperatingMode {
+pub enum OperatingKind {
     Node,
     Operator,
     Coordinator,
+}
+
+/// Operating mode type.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum OperatingMode {
+    Pruned,
+    Archival,
 }

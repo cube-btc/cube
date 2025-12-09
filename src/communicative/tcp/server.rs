@@ -3,7 +3,7 @@ use super::tcp::{self, port_number};
 use crate::communicative::nns::client::NNSClient;
 use crate::communicative::peer::manager::coordinator_key;
 use crate::communicative::peer::peer::SOCKET;
-use crate::operative::{Chain, OperatingMode};
+use crate::operative::{Chain, OperatingKind};
 use crate::transmutative::key::{KeyHolder, ToNostrKeyStr};
 use colored::Colorize;
 use std::sync::Arc;
@@ -24,7 +24,12 @@ pub const PAYLOAD_READ_TIMEOUT: Duration = Duration::from_millis(3000);
 #[allow(non_camel_case_types)]
 pub const PAYLOAD_WRITE_TIMEOUT: Duration = Duration::from_millis(10_000);
 
-pub async fn run(mode: OperatingMode, chain: Chain, nns_client: &NNSClient, keys: &KeyHolder) {
+pub async fn run(
+    operating_kind: OperatingKind,
+    chain: Chain,
+    nns_client: &NNSClient,
+    keys: &KeyHolder,
+) {
     let port_number = port_number(chain);
     let addr = format!("{}:{}", "0.0.0.0", port_number);
     let listener = match TcpListener::bind(&addr).await {
@@ -36,8 +41,8 @@ pub async fn run(mode: OperatingMode, chain: Chain, nns_client: &NNSClient, keys
         }
     };
 
-    match mode {
-        OperatingMode::Coordinator => loop {
+    match operating_kind {
+        OperatingKind::Coordinator => loop {
             let (socket_, _) = match listener.accept().await {
                 Ok(conn) => (conn.0, conn.1),
                 Err(_) => continue,
@@ -50,11 +55,11 @@ pub async fn run(mode: OperatingMode, chain: Chain, nns_client: &NNSClient, keys
                 let keys = keys.clone();
 
                 async move {
-                    handle_socket(&socket, None, mode, &keys).await;
+                    handle_socket(&socket, None, operating_kind, &keys).await;
                 }
             });
         },
-        OperatingMode::Operator => {
+        OperatingKind::Operator => {
             let coordinator_key = coordinator_key(chain);
             let coordinator_npub = match coordinator_key.to_npub() {
                 Some(npub) => npub,
@@ -84,7 +89,8 @@ pub async fn run(mode: OperatingMode, chain: Chain, nns_client: &NNSClient, keys
                             let keys = keys.clone();
 
                             async move {
-                                handle_socket(&socket, Some(&socket_alive), mode, &keys).await;
+                                handle_socket(&socket, Some(&socket_alive), operating_kind, &keys)
+                                    .await;
                             }
                         });
 
@@ -107,14 +113,14 @@ pub async fn run(mode: OperatingMode, chain: Chain, nns_client: &NNSClient, keys
                 }
             }
         }
-        OperatingMode::Node => return,
+        OperatingKind::Node => return,
     }
 }
 
 async fn handle_socket(
     socket: &SOCKET,
     alive: Option<&Arc<Mutex<bool>>>,
-    mode: OperatingMode,
+    operating_kind: OperatingKind,
     keys: &KeyHolder,
 ) {
     loop {
@@ -194,7 +200,7 @@ async fn handle_socket(
         };
 
         // Process the request kind.
-        handle_package(package, socket, mode, keys).await;
+        handle_package(package, socket, operating_kind, keys).await;
     }
 
     // Remove the client from the list upon disconnection.
@@ -209,20 +215,20 @@ async fn handle_socket(
 async fn handle_package(
     package: TCPPackage,
     socket: &SOCKET,
-    mode: OperatingMode,
+    operating_kind: OperatingKind,
     _keys: &KeyHolder,
 ) {
     let response_package_ = {
-        match mode {
-            OperatingMode::Coordinator => match package.kind() {
+        match operating_kind {
+            OperatingKind::Coordinator => match package.kind() {
                 PackageKind::Ping => handle_ping(package.timestamp(), &package.payload()).await,
                 _ => return,
             },
-            OperatingMode::Operator => match package.kind() {
+            OperatingKind::Operator => match package.kind() {
                 PackageKind::Ping => handle_ping(package.timestamp(), &package.payload()).await,
                 _ => return,
             },
-            OperatingMode::Node => return,
+            OperatingKind::Node => return,
         }
     };
 
