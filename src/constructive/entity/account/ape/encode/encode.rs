@@ -26,6 +26,12 @@ impl Account {
         match self.is_registered() {
             // 2.a The `Account` is registered.
             true => {
+                //
+                // When the `Account` is registered, we encode the `Account`'s rank value as a `LongVal` or a `ShortVal`.
+                // If the `Account` has a rank, we encode the rank value as a `LongVal` or a `ShortVal` to indicate that the `Account` is registered.
+                // If the `Account` has no rank, we return an error because it is not a valid registered `Account`.
+                //
+
                 // 2.a.1 Get the rank value.
                 let rank = match self.rank() {
                     // 2.a.1.a The `Account` has a rank.
@@ -59,22 +65,42 @@ impl Account {
                     }
                 }
             }
+
             // 2.b The `Account` is not registered.
             false => {
-                // 2.b.1 Construct a zero `ShortVal`.
-                let zero_as_shortval = ShortVal::new(0);
+                //
+                // When the `Account` is not registered, we encode a zero rank value as a `LongVal` or a `ShortVal` to indicate that the `Account` is unregistered.
+                // and right afterwards we encode the full 256 public key bits of the `Account`'s public key to register it with the `RegisteryManager`.
+                //
 
-                // 2.b.2 Extend the APE bit vector with the zero value.
-                // This lets the decoder know that the `Account` is not registered.
-                bits.extend(zero_as_shortval.encode_ape());
+                // 2.b.1 Match on whether to encode the zero rank value as a `LongVal` or a `ShortVal`.
+                match encode_rank_as_longval {
+                    // 2.b.1.a The zero rank value is to be encoded as a `LongVal`.
+                    true => {
+                        // 2.b.1.a.1 Construct a zero `LongVal` for the zero rank value.
+                        let zero_as_longval = LongVal::new(0);
 
-                // 2.b.3 Get the `Account`'s public key bytes.
+                        // 2.b.1.a.2 Extend the APE bit vector with the zero `LongVal` for the zero rank value.
+                        bits.extend(zero_as_longval.encode_ape());
+                    }
+
+                    // 2.b.1.b The zero rank value is to be encoded as a `ShortVal`.
+                    false => {
+                        // 2.b.1.b.1 Construct a zero `ShortVal` for the zero rank value.
+                        let zero_as_shortval = ShortVal::new(0);
+
+                        // 2.b.1.b.2 Extend the APE bit vector with the zero `ShortVal` for the zero rank value.
+                        bits.extend(zero_as_shortval.encode_ape());
+                    }
+                }
+
+                // 2.b.2 Get the `Account`'s public key bytes.
                 let public_key = self.account_key();
 
-                // 2.b.4 Get the `Account`'s public key bits.
+                // 2.b.3 Get the `Account`'s public key bits.
                 let public_key_bits = BitVec::from_bytes(&public_key);
 
-                // 2.b.5 Extend the APE bit vector with the `Account`'s public key bits.
+                // 2.b.4 Extend the APE bit vector with the `Account`'s public key bits.
                 bits.extend(public_key_bits);
             }
         }
