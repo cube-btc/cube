@@ -70,6 +70,11 @@ impl Contract {
         }
     }
 
+    /// Returns the methods length of the contract.
+    pub fn methods_len(&self) -> usize {
+        self.executable().methods_len()
+    }
+
     /// Returns the registery index of the contract.
     pub fn registery_index(&self) -> Option<u64> {
         match self {

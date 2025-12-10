@@ -3,7 +3,7 @@
 
 Cube employs 10 core `Entry` types:
 
-| Entry Type       | Description                                                           |
+| Entry            | Description                                                           |
 |:-----------------|:----------------------------------------------------------------------|
 | Move 💸          | Moves coins from an `Account` to another `Account`.                   |
 | Call 📡          | Calls a `Contract`. This may internally involve moving coins.         |

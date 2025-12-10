@@ -1,5 +1,5 @@
 use crate::{
-    constructive::entry::call::call::Call,
+    constructive::entry::entries::call::call::Call,
     executive::{
         exec::{caller::Caller, exec::execute, exec_error::ExecutionError},
         stack::stack_item::StackItem,
@@ -62,10 +62,10 @@ impl ExecCtx {
         let internal = false;
 
         // The caller is the account key.
-        let caller = Caller::new_account(call.account_key());
+        let caller = Caller::new_account(call.account().account_key());
 
         // The contract id is the contract id of the called contract.
-        let contract_id = call.contract_id();
+        let contract_id = call.contract().contract_id();
 
         // The method index is the method index of the called contract.
         let method_index = call.method_index();

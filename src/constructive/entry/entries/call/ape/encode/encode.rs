@@ -1,7 +1,7 @@
-use crate::constructive::entry::call::ape::encode::error::encode_error::CallAPEEncodeError;
+use crate::constructive::entry::entries::call::ape::encode::error::encode_error::CallAPEEncodeError;
 use crate::{
     constructive::{
-        entry::call::call::Call,
+        entry::entries::call::call::Call,
         valtype::{val::atomic_val::atomic_val::AtomicVal, val::short_val::short_val::ShortVal},
     },
     inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER,
@@ -21,53 +21,39 @@ impl Call {
     /// * `ops_price_base` - The base ops price of the `Call`.
     pub async fn encode_ape(
         &self,
-        account_key: [u8; 32],
-        registery_manager: &REGISTERY_MANAGER,
         ops_price_base: u32,
         encode_account_rank_as_longval: bool,
         encode_contract_rank_as_longval: bool,
     ) -> Result<BitVec, CallAPEEncodeError> {
-        // Initialize empty bit vector.
+        // 1 Initialize the `Call` APE bit vector.
         let mut bits = BitVec::new();
 
-        // Match the account key.
-        if account_key != self.account_key {
-            return Err(CallAPEEncodeError::AccountKeyMismatch(
-                account_key,
-                self.account_key,
-            ));
+        // 2 Encode the `Account` into an APE bit vector.
+        {
+            // 2.1 Encode the `Account` into an APE bit vector.
+            let account_bit_vector = self
+                .account
+                .encode_ape(encode_account_rank_as_longval)
+                .map_err(|e| CallAPEEncodeError::AccountAPEEncodeError(e))?;
+
+            // 2.2 Extend the `Entry` APE bit vector with the `Account` APE bit vector.
+            bits.extend(account_bit_vector);
         }
 
-        // Contract rank
-        let contract_rank = {
-            let _registery_manager = registery_manager.lock().await;
-            _registery_manager.get_rank_by_contract_id(self.contract_id)
+        // 3 Encode the `Contract` into an APE bit vector.
+        {
+            // 3.1 Encode the `Contract` into an APE bit vector.
+            let contract_bit_vector = self
+                .contract
+                .encode_ape(encode_contract_rank_as_longval)
+                .map_err(|e| CallAPEEncodeError::ContractAPEEncodeError(e))?;
+
+            // 3.2 Extend the `Call` APE bit vector with the `Contract` APE bit vector.
+            bits.extend(contract_bit_vector);
         }
-        .ok_or(CallAPEEncodeError::ContractRankNotFoundAtContractId(
-            self.contract_id,
-        ))?;
 
-        // Contract rank as shortval
-        let contract_rank_as_shortval = ShortVal::new(contract_rank as u32);
-
-        // Extend the contract rank as shortval.
-        bits.extend(contract_rank_as_shortval.encode_ape());
-
-        // Methods length
-        let contract_methods_count = {
-            // Lock the registery manager.
-            let _registery_manager = registery_manager.lock().await;
-
-            // Get the contract body by contract id.
-            let contract_body = _registery_manager
-                .get_contract_body_by_contract_id(self.contract_id)
-                .ok_or(CallAPEEncodeError::ContractBodyNotFoundAtContractId(
-                    self.contract_id,
-                ))?;
-
-            // Get the methods length.
-            contract_body.executable.methods_len() as u8
-        };
+        // 4 Get the `Contract` methods length.
+        let contract_methods_count = self.contract.methods_len() as u8;
 
         // Method index as atomic value
         let method_index_as_atomicval = AtomicVal::new(self.method_index, contract_methods_count);
