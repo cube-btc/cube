@@ -3,7 +3,7 @@ use std::fmt;
 
 /// Represents the type of a single element of calldata.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum CallElementType {
+pub enum CalldataElementType {
     // Represents an unsigned 8-bit integer.
     U8,
     // Represents an unsigned 16-bit integer.
@@ -29,23 +29,23 @@ pub enum CallElementType {
     Payable,
 }
 
-impl CallElementType {
+impl CalldataElementType {
     /// Returns the bytecode of the element type.
     pub fn bytecode(&self) -> Vec<u8> {
         match self {
-            CallElementType::U8 => vec![0x00],
-            CallElementType::U16 => vec![0x01],
-            CallElementType::U32 => vec![0x02],
-            CallElementType::U64 => vec![0x03],
-            CallElementType::Bool => vec![0x04],
-            CallElementType::Account => vec![0x05],
-            CallElementType::Contract => vec![0x06],
-            CallElementType::Bytes(index) => {
+            CalldataElementType::U8 => vec![0x00],
+            CalldataElementType::U16 => vec![0x01],
+            CalldataElementType::U32 => vec![0x02],
+            CalldataElementType::U64 => vec![0x03],
+            CalldataElementType::Bool => vec![0x04],
+            CalldataElementType::Account => vec![0x05],
+            CalldataElementType::Contract => vec![0x06],
+            CalldataElementType::Bytes(index) => {
                 // Return the bytes.
                 vec![0x07, index.to_owned()]
             }
-            CallElementType::Varbytes => vec![0x08],
-            CallElementType::Payable => vec![0x09],
+            CalldataElementType::Varbytes => vec![0x08],
+            CalldataElementType::Payable => vec![0x09],
         }
     }
 
@@ -55,36 +55,36 @@ impl CallElementType {
         I: Iterator<Item = u8>,
     {
         match bytecode_stream.next() {
-            Some(0x00) => Some(CallElementType::U8),
-            Some(0x01) => Some(CallElementType::U16),
-            Some(0x02) => Some(CallElementType::U32),
-            Some(0x03) => Some(CallElementType::U64),
-            Some(0x04) => Some(CallElementType::Bool),
-            Some(0x05) => Some(CallElementType::Account),
-            Some(0x06) => Some(CallElementType::Contract),
+            Some(0x00) => Some(CalldataElementType::U8),
+            Some(0x01) => Some(CalldataElementType::U16),
+            Some(0x02) => Some(CalldataElementType::U32),
+            Some(0x03) => Some(CalldataElementType::U64),
+            Some(0x04) => Some(CalldataElementType::Bool),
+            Some(0x05) => Some(CalldataElementType::Account),
+            Some(0x06) => Some(CalldataElementType::Contract),
             Some(0x07) => bytecode_stream
                 .next()
-                .map(|index| CallElementType::Bytes(index)),
-            Some(0x08) => Some(CallElementType::Varbytes),
-            Some(0x09) => Some(CallElementType::Payable),
+                .map(|index| CalldataElementType::Bytes(index)),
+            Some(0x08) => Some(CalldataElementType::Varbytes),
+            Some(0x09) => Some(CalldataElementType::Payable),
             _ => None,
         }
     }
 }
 
-impl fmt::Display for CallElementType {
+impl fmt::Display for CalldataElementType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            CallElementType::U8 => write!(f, "U8"),
-            CallElementType::U16 => write!(f, "U16"),
-            CallElementType::U32 => write!(f, "U32"),
-            CallElementType::U64 => write!(f, "U64"),
-            CallElementType::Bool => write!(f, "Bool"),
-            CallElementType::Account => write!(f, "Account"),
-            CallElementType::Contract => write!(f, "Contract"),
-            CallElementType::Bytes(index) => write!(f, "Bytes{}", (index + 1)),
-            CallElementType::Varbytes => write!(f, "Varbytes"),
-            CallElementType::Payable => write!(f, "Payable"),
+            CalldataElementType::U8 => write!(f, "U8"),
+            CalldataElementType::U16 => write!(f, "U16"),
+            CalldataElementType::U32 => write!(f, "U32"),
+            CalldataElementType::U64 => write!(f, "U64"),
+            CalldataElementType::Bool => write!(f, "Bool"),
+            CalldataElementType::Account => write!(f, "Account"),
+            CalldataElementType::Contract => write!(f, "Contract"),
+            CalldataElementType::Bytes(index) => write!(f, "Bytes{}", (index + 1)),
+            CalldataElementType::Varbytes => write!(f, "Varbytes"),
+            CalldataElementType::Payable => write!(f, "Payable"),
         }
     }
 }

@@ -14,7 +14,7 @@ type VarbytesByteLength = u16;
 
 /// Enum to represent errors that can occur when decoding a `CallElement` from an Airly Payload Encoding (APE) bit stream.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum CallAPEDecodeError {
+pub enum CalldataElementAPEDecodeError {
     U8(U8APEDecodeError),
     U16(U16APEDecodeError),
     U32(U32APEDecodeError),

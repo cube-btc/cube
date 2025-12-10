@@ -1,4 +1,4 @@
-use crate::constructive::calldata::element::element::CallElement;
+use crate::constructive::calldata::element::element::CalldataElement;
 use crate::constructive::entity::account::account::Account;
 use crate::constructive::entity::contract::contract::Contract;
 use crate::constructive::entry::entries::call::call::Call;
@@ -27,19 +27,19 @@ impl Entry {
         account: Account,
         contract: Contract,
         method_index: u8,
-        args: Vec<CallElement>,
-        ops_budget: u32,
+        calldata_elements: Vec<CalldataElement>,
+        ops_budget: Option<u32>,
         ops_price_base: u32,
-        ops_price_extra_in: Option<u32>,
+        ops_price_overhead: Option<u32>,
     ) -> Self {
         Self::Call(Call::new(
             account,
             contract,
             method_index,
-            args,
+            calldata_elements,
             ops_budget,
             ops_price_base,
-            ops_price_extra_in,
+            ops_price_overhead,
         ))
     }
 }

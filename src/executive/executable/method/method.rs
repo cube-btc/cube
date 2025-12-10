@@ -7,7 +7,7 @@ use super::{
     method_type::MethodType,
 };
 use crate::{
-    constructive::calldata::element_type::CallElementType,
+    constructive::calldata::element_type::CalldataElementType,
     executive::{
         opcode::{opcode::Opcode, opcodes::push::op_pushdata::OP_PUSHDATA},
         stack::{
@@ -27,7 +27,7 @@ pub struct ExecutableMethod {
     /// The type of method.
     method_type: MethodType,
     /// Call element types.
-    arg_types: Vec<CallElementType>,
+    arg_types: Vec<CalldataElementType>,
     /// The script to execute.
     script: Vec<Opcode>,
 }
@@ -37,7 +37,7 @@ impl ExecutableMethod {
     pub fn new(
         method_name: String,
         method_type: MethodType,
-        arg_types: Vec<CallElementType>,
+        arg_types: Vec<CalldataElementType>,
         script: Vec<Opcode>,
     ) -> Result<Self, MethodConstructionError> {
         // Check method name byte length.
@@ -89,7 +89,7 @@ impl ExecutableMethod {
     }
 
     /// Returns the call element types.
-    pub fn arg_types(&self) -> Vec<CallElementType> {
+    pub fn arg_types(&self) -> Vec<CalldataElementType> {
         self.arg_types.clone()
     }
 
@@ -132,52 +132,52 @@ impl ExecutableMethod {
 
             // Check if the arg matches the arg type by looking at the byte size.
             match arg_type {
-                CallElementType::U8 => {
+                CalldataElementType::U8 => {
                     if arg.len() > 1 {
                         return false;
                     }
                 }
-                CallElementType::U16 => {
+                CalldataElementType::U16 => {
                     if arg.len() > 2 {
                         return false;
                     }
                 }
-                CallElementType::U32 => {
+                CalldataElementType::U32 => {
                     if arg.len() > 4 {
                         return false;
                     }
                 }
-                CallElementType::U64 => {
+                CalldataElementType::U64 => {
                     if arg.len() > 8 {
                         return false;
                     }
                 }
-                CallElementType::Bool => {
+                CalldataElementType::Bool => {
                     if arg.len() > 1 {
                         return false;
                     }
                 }
-                CallElementType::Account => {
+                CalldataElementType::Account => {
                     if arg.len() != 32 {
                         return false;
                     }
                 }
-                CallElementType::Contract => {
+                CalldataElementType::Contract => {
                     if arg.len() != 32 {
                         return false;
                     }
                 }
-                CallElementType::Bytes(index) => {
+                CalldataElementType::Bytes(index) => {
                     if arg.len() != *index as u32 + 1 {
                         return false;
                     }
                 }
-                CallElementType::Varbytes => {
+                CalldataElementType::Varbytes => {
                     if arg.len() > 4096 {
                         return false;
                     }
                 }
-                CallElementType::Payable => {
+                CalldataElementType::Payable => {
                     if arg.len() > 4 {
                         return false;
                     }
@@ -193,7 +193,7 @@ impl ExecutableMethod {
         // Get the payable arg value.
         for (index, arg_type) in self.arg_types.iter().enumerate() {
             // Check if the arg type is a payable.
-            if *arg_type == CallElementType::Payable {
+            if *arg_type == CalldataElementType::Payable {
                 // Get the payable arg.
                 let payable_arg = match args.get(index) {
                     Some(arg) => arg,
@@ -226,7 +226,7 @@ impl ExecutableMethod {
         // More than ONE payable is not allowed.
         self.arg_types
             .iter()
-            .filter(|arg| **arg == CallElementType::Payable)
+            .filter(|arg| **arg == CalldataElementType::Payable)
             .count()
             <= 1
     }

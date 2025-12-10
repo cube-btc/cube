@@ -1,5 +1,5 @@
 use crate::{
-    constructive::calldata::element_type::CallElementType,
+    constructive::calldata::element_type::CalldataElementType,
     executive::{
         executable::method::{
             compiler::compiler_error::{MethodCompileError, MethodDecompileError},
@@ -101,12 +101,12 @@ impl MethodCompiler for ExecutableMethod {
             .ok_or(MethodDecompileError::NumberOfCallElementTypesByteCollectError)?;
 
         // Collect call element types.
-        let mut call_element_types = Vec::<CallElementType>::new();
+        let mut calldata_element_types = Vec::<CalldataElementType>::new();
         for _ in 0..number_of_call_element_types {
-            let call_element_type = CallElementType::from_bytecode(&mut bytecode_stream)
+            let call_element_type = CalldataElementType::from_bytecode(&mut bytecode_stream)
                 .ok_or(MethodDecompileError::InvalidCallElementType)?;
 
-            call_element_types.push(call_element_type);
+            calldata_element_types.push(call_element_type);
         }
 
         // Collect two bytes for opcodes count.
@@ -125,7 +125,7 @@ impl MethodCompiler for ExecutableMethod {
         }
 
         // Construct the method.
-        let method = ExecutableMethod::new(method_name, method_type, call_element_types, opcodes)
+        let method = ExecutableMethod::new(method_name, method_type, calldata_element_types, opcodes)
             .map_err(|e| MethodDecompileError::MethodConstructError(e))?;
 
         // Return the method.

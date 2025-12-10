@@ -72,16 +72,19 @@ impl ExecCtx {
 
         // Convert arg values to stack items.
         let args_as_stack_items = call
-            .args()
+            .calldata_elements()
             .iter()
-            .map(|arg| arg.into_stack_item())
+            .map(|calldata_element| calldata_element.into_stack_item())
             .collect::<Vec<StackItem>>();
 
         // The timestamp is the timestamp of the execution context.
         let timestamp = self.timestamp;
 
         // The ops budget is the ops budget of the call.
-        let ops_budget = call.ops_budget();
+        let ops_budget = match call.ops_budget() {
+            Some(ops_budget) => ops_budget,
+            None => 0,
+        };
 
         // Check if the base ops price is the same as the base ops price of the call.
         if call.ops_price_base() != self.base_ops_price {

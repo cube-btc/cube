@@ -1,4 +1,4 @@
-use crate::constructive::calldata::element::element::CallElement;
+use crate::constructive::calldata::element::element::CalldataElement;
 use crate::constructive::entity::account::account::Account;
 use crate::constructive::entity::contract::contract::Contract;
 use serde::{Deserialize, Serialize};
@@ -13,13 +13,13 @@ pub struct Call {
     /// The method index.
     pub method_index: u8,
     /// The arguments.
-    pub args: Vec<CallElement>,
+    pub calldata_elements: Vec<CalldataElement>,
     /// The ops budget.
-    pub ops_budget: u32,
+    pub ops_budget: Option<u32>,
     /// The base ops price.
     pub ops_price_base: u32,
     /// The extra ops price.
-    pub ops_price_extra_in: Option<u32>,
+    pub ops_price_overhead: Option<u32>,
 }
 
 impl Call {
@@ -28,19 +28,19 @@ impl Call {
         account: Account,
         contract: Contract,
         method_index: u8,
-        args: Vec<CallElement>,
-        ops_budget: u32,
+        calldata_elements: Vec<CalldataElement>,
+        ops_budget: Option<u32>,
         ops_price_base: u32,
-        ops_price_extra_in: Option<u32>,
+        ops_price_overhead: Option<u32>,
     ) -> Self {
         Self {
             account,
             contract,
             method_index,
-            args,
+            calldata_elements,
             ops_budget,
             ops_price_base,
-            ops_price_extra_in,
+            ops_price_overhead,
         }
     }
 
@@ -60,12 +60,12 @@ impl Call {
     }
 
     /// Returns the arguments.
-    pub fn args(&self) -> Vec<CallElement> {
-        self.args.clone()
+    pub fn calldata_elements(&self) -> Vec<CalldataElement> {
+        self.calldata_elements.clone()
     }
 
     /// Returns the ops budget.
-    pub fn ops_budget(&self) -> u32 {
+    pub fn ops_budget(&self) -> Option<u32> {
         self.ops_budget
     }
 
@@ -75,13 +75,13 @@ impl Call {
     }
 
     /// Returns the extra ops price.
-    pub fn ops_price_extra_in(&self) -> Option<u32> {
-        self.ops_price_extra_in
+    pub fn ops_price_overhead(&self) -> Option<u32> {
+        self.ops_price_overhead
     }
 
     /// Returns the total ops price.
     pub fn ops_price_total(&self) -> u32 {
-        self.ops_price_base + self.ops_price_extra_in.unwrap_or(0)
+        self.ops_price_base + self.ops_price_overhead.unwrap_or(0)
     }
 
     /// Validation from the broader Entry context.

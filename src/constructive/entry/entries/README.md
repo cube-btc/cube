@@ -1,4 +1,4 @@
-### Entries
+# Entries
 Cube employs 10 core `Entry` types:
 
 | Entry            | Description                                                           |

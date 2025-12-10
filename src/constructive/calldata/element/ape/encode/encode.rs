@@ -1,8 +1,8 @@
-use crate::constructive::calldata::element::ape::encode::error::encode_error::CallElementAPEEncodeError;
-use crate::constructive::calldata::element::element::CallElement;
+use crate::constructive::calldata::element::ape::encode::error::encode_error::CalldataElementAPEEncodeError;
+use crate::constructive::calldata::element::element::CalldataElement;
 use bit_vec::BitVec;
 
-impl CallElement {
+impl CalldataElement {
     /// Encodes the `CallElement` as an Airly Payload Encoding (APE) bit vector.
     ///
     /// This function encodes the `CallElement` as an Airly Payload Encoding (APE) bit vector.
@@ -17,10 +17,10 @@ impl CallElement {
         &self,
         encode_account_rank_as_longval: bool,
         encode_contract_rank_as_longval: bool,
-    ) -> Result<BitVec, CallElementAPEEncodeError> {
+    ) -> Result<BitVec, CalldataElementAPEEncodeError> {
         // Match on the element type.
         match self {
-            CallElement::U8(u8_value) => {
+            CalldataElement::U8(u8_value) => {
                 // Get the u8 value.
                 let value = *u8_value;
 
@@ -33,7 +33,7 @@ impl CallElement {
                 // Return the bits.
                 Ok(bits)
             }
-            CallElement::U16(u16_value) => {
+            CalldataElement::U16(u16_value) => {
                 // Get the u16 value.
                 let value = *u16_value;
 
@@ -46,21 +46,21 @@ impl CallElement {
                 // Return the bits.
                 Ok(bits)
             }
-            CallElement::U32(short_val) => {
+            CalldataElement::U32(short_val) => {
                 // Encode the `ShortVal`.
                 let bits = short_val.encode_ape();
 
                 // Return the bits.
                 Ok(bits)
             }
-            CallElement::U64(long_val) => {
+            CalldataElement::U64(long_val) => {
                 // Encode the `LongVal`.
                 let bits = long_val.encode_ape();
 
                 // Return the bits.
                 Ok(bits)
             }
-            CallElement::Bool(value) => {
+            CalldataElement::Bool(value) => {
                 // Get the bool value.
                 let bool = *value;
 
@@ -73,32 +73,32 @@ impl CallElement {
                 // Return the bits.
                 Ok(bits)
             }
-            CallElement::Account(account) => {
+            CalldataElement::Account(account) => {
                 // Encode the `Account`.
                 let bits = account
                     .encode_ape(encode_account_rank_as_longval)
-                    .map_err(|e| CallElementAPEEncodeError::AccountAPEEncodeError(e))?;
+                    .map_err(|e| CalldataElementAPEEncodeError::AccountAPEEncodeError(e))?;
 
                 // Return the bits.
                 Ok(bits)
             }
-            CallElement::Contract(contract) => {
+            CalldataElement::Contract(contract) => {
                 // Encode the `Contract`.
                 let bits = contract
                     .encode_ape(encode_contract_rank_as_longval)
-                    .map_err(|e| CallElementAPEEncodeError::ContractAPEEncodeError(e))?;
+                    .map_err(|e| CalldataElementAPEEncodeError::ContractAPEEncodeError(e))?;
 
                 // Return the bits.
                 Ok(bits)
             }
-            CallElement::Bytes(bytes) => {
+            CalldataElement::Bytes(bytes) => {
                 // Encode the bytes.
                 let bits = BitVec::from_bytes(bytes);
 
                 // Return the bits.
                 Ok(bits)
             }
-            CallElement::Varbytes(bytes) => {
+            CalldataElement::Varbytes(bytes) => {
                 // Initialize bit vector to fill with length plus data.
                 let mut bits = BitVec::new();
 
@@ -126,7 +126,7 @@ impl CallElement {
                 // Return the bits.
                 Ok(bits)
             }
-            CallElement::Payable(short_val) => {
+            CalldataElement::Payable(short_val) => {
                 // Encode the `ShortVal`.
                 let bits = short_val.encode_ape();
 

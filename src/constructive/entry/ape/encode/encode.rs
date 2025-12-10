@@ -12,9 +12,8 @@ impl Entry {
     /// * `ops_price_base` - The base ops price of the `Entry`.
     /// * `encode_account_rank_as_longval` - Whether to encode the account rank as a `LongVal` or a `ShortVal`.
     /// * `encode_contract_rank_as_longval` - Whether to encode the contract rank as a `LongVal` or a `ShortVal`.
-    pub async fn encode_ape(
+    pub fn encode_ape(
         &self,
-        ops_price_base: u32,
         encode_account_rank_as_longval: bool,
         encode_contract_rank_as_longval: bool,
     ) -> Result<BitVec, EntryAPEEncodeError> {
@@ -25,17 +24,19 @@ impl Entry {
         match self {
             // 2.a The `Entry` is a `Call`.
             Entry::Call(call) => {
-                // 2.a.1 Encode the `Call` into an APE bit vector.
+                // 2.a.1 Push 01 for the `Call` entry type.
+                bits.push(false);
+                bits.push(true);
+
+                // 2.a.2 Encode the `Call`.
                 let call_bits = call
                     .encode_ape(
-                        ops_price_base,
                         encode_account_rank_as_longval,
                         encode_contract_rank_as_longval,
                     )
-                    .await
                     .map_err(|e| EntryAPEEncodeError::CallAPEEncodeError(e))?;
 
-                // 2.a.2 Extend the `Entry` APE bit vector with the `Call` APE bit vector.
+                // 2.a.3 Extend the `Entry` APE bit vector with the `Call` APE bit vector.
                 bits.extend(call_bits);
             }
         }

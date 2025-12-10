@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod executable_and_method_tests {
     use cube::{
-        constructive::calldata::element_type::CallElementType,
+        constructive::calldata::element_type::CalldataElementType,
         executive::{
             executable::{
                 compiler::compiler::ExecutableCompiler,
@@ -29,7 +29,7 @@ mod executable_and_method_tests {
         {
             let method_name = "a".to_string();
             let method_type = MethodType::Callable;
-            let call_element_types = vec![CallElementType::U32, CallElementType::Account];
+            let call_element_types = vec![CalldataElementType::U32, CalldataElementType::Account];
             let script = vec![
                 Opcode::OP_TRUE(OP_TRUE),
                 Opcode::OP_2(OP_2),
@@ -49,23 +49,23 @@ mod executable_and_method_tests {
             let method_type = MethodType::Callable;
             // Push more than the maximum (16) allowed call element types; 17
             let call_element_types = vec![
-                CallElementType::U32,
-                CallElementType::U32,
-                CallElementType::U32,
-                CallElementType::U32,
-                CallElementType::U32,
-                CallElementType::U32,
-                CallElementType::U32,
-                CallElementType::U32,
-                CallElementType::U32,
-                CallElementType::U32,
-                CallElementType::U32,
-                CallElementType::U32,
-                CallElementType::U32,
-                CallElementType::U32,
-                CallElementType::U32,
-                CallElementType::U32,
-                CallElementType::U32,
+                CalldataElementType::U32,
+                CalldataElementType::U32,
+                CalldataElementType::U32,
+                CalldataElementType::U32,
+                CalldataElementType::U32,
+                CalldataElementType::U32,
+                CalldataElementType::U32,
+                CalldataElementType::U32,
+                CalldataElementType::U32,
+                CalldataElementType::U32,
+                CalldataElementType::U32,
+                CalldataElementType::U32,
+                CalldataElementType::U32,
+                CalldataElementType::U32,
+                CalldataElementType::U32,
+                CalldataElementType::U32,
+                CalldataElementType::U32,
             ];
             let script = vec![
                 Opcode::OP_TRUE(OP_TRUE),
@@ -84,7 +84,7 @@ mod executable_and_method_tests {
         {
             let method_name = "test_method".to_string();
             let method_type = MethodType::Callable;
-            let call_element_types = vec![CallElementType::U32, CallElementType::Account];
+            let call_element_types = vec![CalldataElementType::U32, CalldataElementType::Account];
             // Push less than the minimum (4) allowed opcodes; 3
             let script = vec![
                 Opcode::OP_TRUE(OP_TRUE),
@@ -102,7 +102,7 @@ mod executable_and_method_tests {
         {
             let method_name = "test_method".to_string();
             let method_type = MethodType::Callable;
-            let call_element_types = vec![CallElementType::U32, CallElementType::Account];
+            let call_element_types = vec![CalldataElementType::U32, CalldataElementType::Account];
             // Push a non minimal push data.
             let script = vec![
                 Opcode::OP_TRUE(OP_TRUE),
@@ -121,7 +121,7 @@ mod executable_and_method_tests {
         {
             let method_name = "test_method".to_string();
             let method_type = MethodType::Callable;
-            let call_element_types = vec![CallElementType::U32, CallElementType::Account];
+            let call_element_types = vec![CalldataElementType::U32, CalldataElementType::Account];
             let script = vec![
                 Opcode::OP_TRUE(OP_TRUE),
                 Opcode::OP_2(OP_2),
@@ -141,7 +141,7 @@ mod executable_and_method_tests {
     fn method_compiler_test() -> Result<(), String> {
         let method_name = "test_method".to_string();
         let method_type = MethodType::Callable;
-        let call_element_types = vec![CallElementType::U32, CallElementType::Account];
+        let call_element_types = vec![CalldataElementType::U32, CalldataElementType::Account];
         let script = vec![
             Opcode::OP_TRUE(OP_TRUE),
             Opcode::OP_2(OP_2),
@@ -181,7 +181,8 @@ mod executable_and_method_tests {
             let method = {
                 let method_name = "test_method".to_string();
                 let method_type = MethodType::Callable;
-                let call_element_types = vec![CallElementType::U32, CallElementType::Account];
+                let call_element_types =
+                    vec![CalldataElementType::U32, CalldataElementType::Account];
                 let script = vec![
                     Opcode::OP_TRUE(OP_TRUE),
                     Opcode::OP_TRUE(OP_TRUE),
@@ -206,7 +207,8 @@ mod executable_and_method_tests {
             let method_1 = {
                 let method_name = "test_method".to_string();
                 let method_type = MethodType::Callable;
-                let call_element_types = vec![CallElementType::U32, CallElementType::Account];
+                let call_element_types =
+                    vec![CalldataElementType::U32, CalldataElementType::Account];
                 let script = vec![
                     Opcode::OP_TRUE(OP_TRUE),
                     Opcode::OP_TRUE(OP_TRUE),
@@ -219,7 +221,8 @@ mod executable_and_method_tests {
             let method_2 = {
                 let method_name = "test_method".to_string();
                 let method_type = MethodType::Callable;
-                let call_element_types = vec![CallElementType::U32, CallElementType::Account];
+                let call_element_types =
+                    vec![CalldataElementType::U32, CalldataElementType::Account];
                 let script = vec![
                     Opcode::OP_FALSE(OP_FALSE),
                     Opcode::OP_FALSE(OP_FALSE),
@@ -244,7 +247,8 @@ mod executable_and_method_tests {
             let method_1 = {
                 let method_name = "test_method_1".to_string();
                 let method_type = MethodType::Internal;
-                let call_element_types = vec![CallElementType::U32, CallElementType::Account];
+                let call_element_types =
+                    vec![CalldataElementType::U32, CalldataElementType::Account];
                 let script = vec![
                     Opcode::OP_TRUE(OP_TRUE),
                     Opcode::OP_TRUE(OP_TRUE),
@@ -257,7 +261,8 @@ mod executable_and_method_tests {
             let method_2 = {
                 let method_name = "test_method_2".to_string();
                 let method_type = MethodType::Internal;
-                let call_element_types = vec![CallElementType::U32, CallElementType::Account];
+                let call_element_types =
+                    vec![CalldataElementType::U32, CalldataElementType::Account];
                 let script = vec![
                     Opcode::OP_TRUE(OP_TRUE),
                     Opcode::OP_TRUE(OP_TRUE),
@@ -282,7 +287,8 @@ mod executable_and_method_tests {
             let method_1 = {
                 let method_name = "test_method_1".to_string();
                 let method_type = MethodType::Internal;
-                let call_element_types = vec![CallElementType::U32, CallElementType::Account];
+                let call_element_types =
+                    vec![CalldataElementType::U32, CalldataElementType::Account];
                 let script = vec![
                     Opcode::OP_TRUE(OP_TRUE),
                     Opcode::OP_TRUE(OP_TRUE),
@@ -296,7 +302,8 @@ mod executable_and_method_tests {
             let method_2 = {
                 let method_name = "test_method_2".to_string();
                 let method_type = MethodType::Callable;
-                let call_element_types = vec![CallElementType::U32, CallElementType::Account];
+                let call_element_types =
+                    vec![CalldataElementType::U32, CalldataElementType::Account];
                 let script = vec![
                     Opcode::OP_FALSE(OP_FALSE),
                     Opcode::OP_FALSE(OP_FALSE),
@@ -324,7 +331,7 @@ mod executable_and_method_tests {
         let method_1 = {
             let method_name = "test_method_1".to_string();
             let method_type = MethodType::Internal;
-            let call_element_types = vec![CallElementType::U32, CallElementType::Account];
+            let call_element_types = vec![CalldataElementType::U32, CalldataElementType::Account];
             let script = vec![
                 Opcode::OP_TRUE(OP_TRUE),
                 Opcode::OP_TRUE(OP_TRUE),
@@ -338,7 +345,7 @@ mod executable_and_method_tests {
         let method_2 = {
             let method_name = "test_method_2".to_string();
             let method_type = MethodType::Callable;
-            let call_element_types = vec![CallElementType::U32, CallElementType::Account];
+            let call_element_types = vec![CalldataElementType::U32, CalldataElementType::Account];
             let script = vec![
                 Opcode::OP_FALSE(OP_FALSE),
                 Opcode::OP_FALSE(OP_FALSE),
