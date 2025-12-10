@@ -1,35 +1,46 @@
 ### Entry
-An `Entry` acts as a container for specific actions, such as calling smart contracts or transferring value.
+`Entry` acts as a container for specific actions, such as calling smart contracts or moving coins.
 
-## Entry Tree
+Cube employs 10 core `Entry` types:
+
+| Combinator       | Description                                                           |
+|:-----------------|:----------------------------------------------------------------------|
+| Move 💸          | Moves coins from an `Account` to another `Account`.                   |
+| Call 📡          | Calls a `Contract`. This may internally involve moving coins.         |
+| Add ➕           | Adds liquidity to `Engine`.                                           |
+| Sub ➖           | Removes liquidity from `Engine`.                                      |
+| Lift 🛗          | Lifts one or more `Lift` Bitcoin previous transaction outputs.        |
+| Swap 🚪          | Swaps `Account`'s coins 1:1 into a bare Bitcoin transaction output.   |
+| Deploy 🏗        | Deploys a `Contract`.                                                 |
+| Config ⚙️        | Configures or re-configures an `Account`.                             |
+| Nop 📁           | Does nothing. Reserved for future upgrades.                           |
+| Fail 📁          | Fails the `Entry`. Reserved for future upgrades.                      |
+
+## Entry Airly Payload Encoding (APE) Tree
                                                     
-     ┌────────────────────────┐                              ┌────────────────────────┐     
-     │ Uppermost Left Branch  │                              │ Uppermost Right Branch │
-     │ b:0 => off             │                              │ b:0 => off             │
-     │ b:1 => on              │                              │ b:1 => on              │
-     └────────────────────────┘                              └────────────────────────┘        
-            ┌────┘└────┐                        ┌────────────────────────┘└────────────────────────┐
-    ┌────────────┐┌────────────┐    ┌──────────────────────┐                            ┌──────────────────────┐
-    │ Liftup     ││ Recharge   │    │ Transactive Branch   │                            │ Upper Right Branch   │  
-    │ b:0 => off ││ b:0 => off │    │ b:0                  │                            │ b:1                  │
-    │ b:1 => on  ││ b:1 => on  │    └──────────────────────┘                            └──────────────────────┘
-    └────────────┘└────────────┘          ┌────┘└────┐                       ┌─────────────────────┘└─────────────────────┐
-                                    ┌──────────┐┌──────────┐     ┌──────────────────────┐                     ┌──────────────────────┐
-                                    │ Move     ││ Call     │     │ Liquidity Branch     │                     │ Right Branch         │  
-                                    │ b:0      ││ b:1      │     │ b:0                  │                     │ b:1                  │
-                                    └──────────┘└──────────┘     └──────────────────────┘                     └──────────────────────┘
-                                                                       ┌────┘└────┐                    ┌─────────────────┘└─────────────────┐
-                                                                 ┌──────────┐┌──────────┐  ┌──────────────────────┐              ┌──────────────────────┐
-                                                                 │ Add      ││ Sub      │  │ Lower Left Branch    │              │ Lower Right Branch   │
-                                                                 │ b:0      ││ b:1      │  │ b:0                  │              │ b:1                  │
-                                                                 └──────────┘└──────────┘  └──────────────────────┘              └──────────────────────┘
-                                                                                                 ┌────┘└────┐                   ┌───────────┘└───────────┐         
-                                                                                           ┌──────────┐┌──────────┐ ┌──────────────────────┐ ┌──────────────────────┐
-                                                                                           │ Deploy   ││ Swapout  │ │ Recovery Branch      │ │ Reserved             │
-                                                                                           │ b:0      ││ b:1      │ │ b:0                  │ │ b:1                  │
-                                                                                           └──────────┘└──────────┘ └──────────────────────┘ └──────────────────────┘
-                                                                                                                          ┌────┘└────┐       
-                                                                                                                    ┌──────────┐┌──────────┐ 
-                                                                                                                    │ Revive   ││ Claim    │ 
-                                                                                                                    │ b:0      ││ b:1      │ 
-                                                                                                                    └──────────┘└──────────┘ 
+     ┌────────────────────────┐                               ┌────────────────────────┐     
+     │ Common Branch          │                               │ Uncommon Branch        │
+     │ b:0                    │                               │ b:1                    │
+     └────────────────────────┘                               └────────────────────────┘        
+            ┌────┘└────┐                        ┌─────────────────────────┘└─────────────────────────┐
+     ┌───────────┐┌───────────┐    ┌────────────────────────┐                            ┌────────────────────────┐
+     │ Move      ││ Call      │    │ Liquidity Branch       │                            │ Outer Branch           │  
+     │ b:0       ││ b:1       │    │ b:0                    │                            │ b:1                    │
+     └───────────┘└───────────┘    └────────────────────────┘                            └────────────────────────┘
+                                           ┌────┘└────┐                         ┌─────────────────────┘└─────────────────────┐
+                                   ┌───────────┐┌───────────┐     ┌────────────────────────┐                     ┌────────────────────────┐
+                                   │ Add       ││ Sub       │     │ Gateway Branch         │                     │ Outer Right Branch     │  
+                                   │ b:0       ││ b:1       │     │ b:0                    │                     │ b:1                    │
+                                   └───────────┘└───────────┘     └────────────────────────┘                     └────────────────────────┘
+                                                                         ┌────┘└────┐                      ┌─────────────────┘└─────────────────┐
+                                                                  ┌───────────┐┌───────────┐  ┌────────────────────────┐              ┌────────────────────────┐
+                                                                  │ Lift      ││ Swap      │  │ Outer Lowermost Branch │              │ Reserved Branch        │
+                                                                  │ b:0       ││ b:1       │  │ b:0                    │              │ b:1                    │
+                                                                  └───────────┘└───────────┘  └────────────────────────┘              └────────────────────────┘
+                                                                                                     ┌────┘└────┐                            ┌────┘└────┐            
+                                                                                              ┌───────────┐┌───────────┐              ┌───────────┐┌───────────┐
+                                                                                              │ Deploy    ││ Config    │              │ Nop       ││ Fail      │
+                                                                                              │ b:0       ││ b:1       │              │ b:0       ││ b:1       │
+                                                                                              └───────────┘└───────────┘              └───────────┘└───────────┘
+
+
