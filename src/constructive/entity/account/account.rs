@@ -1,7 +1,5 @@
 use crate::constructive::entity::account::{
-    registered_account::{
-        flame_config::flame_config::FlameConfig, registered_account::RegisteredAccount,
-    },
+    registered_account::registered_account::RegisteredAccount,
     unregistered_account::unregistered_account::UnregisteredAccount,
 };
 use serde::{Deserialize, Serialize};
@@ -25,7 +23,6 @@ impl Account {
         rank: Option<u64>,
         bls_key: Option<[u8; 48]>,
         secondary_aggregation_key: Option<Vec<u8>>,
-        flame_config: Option<FlameConfig>,
     ) -> Self {
         // 1 Construct the registered account.
         let registered_account = RegisteredAccount::new(
@@ -34,7 +31,6 @@ impl Account {
             rank,
             bls_key,
             secondary_aggregation_key,
-            flame_config,
         );
 
         // 2 Return the registered account.

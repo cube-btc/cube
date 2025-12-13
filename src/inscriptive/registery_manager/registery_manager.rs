@@ -1,10 +1,10 @@
 use crate::constructive::entity::account::account::Account;
-use crate::constructive::entity::account::registered_account::flame_config::flame_config::FlameConfig;
 use crate::constructive::entity::account::registered_account::registered_account::RegisteredAccount;
 use crate::constructive::entity::contract::contract::Contract;
 use crate::constructive::entity::contract::deployed_contract::deployed_contract::DeployedContract;
 use crate::executive::executable::compiler::compiler::ExecutableCompiler;
 use crate::executive::executable::executable::Executable;
+use crate::inscriptive::flame_manager::flame_config::flame_config::FlameConfig;
 use crate::inscriptive::registery_manager::bodies::account_body::account_body::RMAccountBody;
 use crate::inscriptive::registery_manager::bodies::contract_body::contract_body::RMContractBody;
 use crate::inscriptive::registery_manager::delta::delta::RMDelta;
@@ -534,7 +534,6 @@ impl RegisteryManager {
             Some(rank as u64),
             account_body.primary_bls_key,
             account_body.secondary_aggregation_key,
-            account_body.flame_config,
         );
 
         // 4 Construct the account.

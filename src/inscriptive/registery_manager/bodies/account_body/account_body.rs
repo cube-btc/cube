@@ -1,4 +1,4 @@
-use crate::constructive::entity::account::registered_account::flame_config::flame_config::FlameConfig;
+use crate::inscriptive::flame_manager::flame_config::flame_config::FlameConfig;
 use serde_json::{Map, Value};
 
 /// BLS key of an account.

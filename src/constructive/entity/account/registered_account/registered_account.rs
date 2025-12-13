@@ -1,4 +1,3 @@
-use super::flame_config::flame_config::FlameConfig;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::{Map, Value};
 
@@ -26,9 +25,6 @@ pub struct RegisteredAccount {
 
     /// The secondary aggregation key of the account.
     pub secondary_aggregation_key: Option<Vec<u8>>,
-
-    /// The flame config of the account.
-    pub flame_config: Option<FlameConfig>,
 }
 
 impl RegisteredAccount {
@@ -39,7 +35,6 @@ impl RegisteredAccount {
         rank: Option<u64>,
         bls_key: Option<[u8; 48]>,
         secondary_aggregation_key: Option<Vec<u8>>,
-        flame_config: Option<FlameConfig>,
     ) -> Self {
         Self {
             key,
@@ -47,7 +42,6 @@ impl RegisteredAccount {
             rank,
             bls_key,
             secondary_aggregation_key,
-            flame_config,
         }
     }
     pub fn json(&self) -> Value {
@@ -98,16 +92,7 @@ impl RegisteredAccount {
             },
         );
 
-        // 8 Insert the flame config.
-        obj.insert(
-            "flame_config".to_string(),
-            match &self.flame_config {
-                Some(flame_config) => flame_config.json(),
-                None => Value::Null,
-            },
-        );
-
-        // 9 Return the JSON object.
+        // 8 Return the JSON object.
         Value::Object(obj)
     }
 }
