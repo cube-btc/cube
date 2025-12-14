@@ -8,8 +8,8 @@ use std::sync::{Arc, Mutex};
 /// Account key.
 type AccountKey = [u8; 32];
 
-/// Rollup height.
-type AtRollupHeight = u64;
+/// Projector height.
+type ProjectorHeight = u64;
 
 /// Flame index.
 pub type FlameIndex = u32;
@@ -21,13 +21,14 @@ const ACCOUNT_FLAME_CONFIG_SPECIAL_DB_KEY: [u8; 1] = [0x00; 1];
 #[allow(dead_code)]
 pub struct FlameManager {
     // In-memory account flame configs.
-    account_flame_configs: HashMap<AccountKey, FMAccountFlameConfig>,
+    in_memory_account_flame_configs: HashMap<AccountKey, FMAccountFlameConfig>,
 
     // In-memory account flame sets.
-    account_flame_sets: HashMap<AccountKey, HashMap<AtRollupHeight, Vec<(FlameIndex, Flame)>>>,
+    in_memory_account_flame_sets:
+        HashMap<AccountKey, HashMap<ProjectorHeight, Vec<(FlameIndex, Flame)>>>,
 
     // In-memory projected flames.
-    projected_flames: HashMap<AtRollupHeight, Vec<(FlameIndex, Flame)>>,
+    in_memory_projected_flames: HashMap<ProjectorHeight, Vec<(FlameIndex, Flame)>>,
 
     // On-disk accounts database.
     on_disk_accounts: sled::Db,
@@ -55,8 +56,10 @@ impl FlameManager {
             .map_err(FMConstructionError::ProjectedFlamesDBOpenError)?;
 
         // 3 Initialize the in-memory account flame configs and sets.
-        let mut account_flame_configs = HashMap::<AccountKey, FMAccountFlameConfig>::new();
-        let mut account_flame_sets = HashMap::<AccountKey, HashMap<AtRollupHeight, Vec<(FlameIndex, Flame)>>>::new();
+        let mut in_memory_account_flame_configs =
+            HashMap::<AccountKey, FMAccountFlameConfig>::new();
+        let mut in_memory_account_flame_sets =
+            HashMap::<AccountKey, HashMap<ProjectorHeight, Vec<(FlameIndex, Flame)>>>::new();
 
         // 4 Collect account flame configs and sets from the accounts database.
         for tree_name in accounts_db.tree_names() {
@@ -76,7 +79,8 @@ impl FlameManager {
 
             // 4.3 Initialize the account flame config and flames grouped by rollup height.
             let mut account_flame_config: Option<FMAccountFlameConfig> = None;
-            let mut account_flames_by_height: HashMap<AtRollupHeight, Vec<(FlameIndex, Flame)>> = HashMap::new();
+            let mut account_flames_by_height: HashMap<ProjectorHeight, Vec<(FlameIndex, Flame)>> =
+                HashMap::new();
 
             // 4.4 Iterate over all items in the tree.
             for item in tree.iter() {
@@ -114,35 +118,26 @@ impl FlameManager {
                     }
                 }
 
-                // 4.4.3 Convert the tree key to a 4-byte index.
-                let flame_index_bytes: [u8; 4] = match key.as_ref().try_into() {
-                    Ok(idx) => idx,
-                    Err(_) => {
-                        return Err(FMConstructionError::InvalidAccountDbKeyByte(
-                            account_key,
-                            key.to_vec(),
-                        ));
-                    }
-                };
-                let flame_index = u32::from_le_bytes(flame_index_bytes);
-
-                // 4.4.4 Deserialize the value: first 8 bytes are AtRollupHeight, rest are Flame bytes.
-                if value.as_ref().len() < 8 {
-                    return Err(FMConstructionError::UnableToDeserializeAccountFlameSetBytesFromTreeValue(
+                // 4.4.3 Convert the tree key to 12 bytes: 8-byte height + 4-byte index.
+                if key.as_ref().len() != 12 {
+                    return Err(FMConstructionError::InvalidAccountDbKeyByte(
                         account_key,
-                        value.to_vec(),
+                        key.to_vec(),
                     ));
                 }
 
-                let rollup_height_bytes: [u8; 8] = value.as_ref()[0..8].try_into().unwrap();
+                let rollup_height_bytes: [u8; 8] = key.as_ref()[0..8].try_into().unwrap();
                 let rollup_height = u64::from_le_bytes(rollup_height_bytes);
 
-                let flame_bytes = &value.as_ref()[8..];
-                let flame = Flame::from_bytes(flame_bytes).ok_or(
+                let flame_index_bytes: [u8; 4] = key.as_ref()[8..12].try_into().unwrap();
+                let flame_index = u32::from_le_bytes(flame_index_bytes);
+
+                // 4.4.4 Deserialize the value: literal flame bytes (no prefix).
+                let flame = Flame::from_bytes(value.as_ref()).ok_or(
                     FMConstructionError::UnableToDeserializeAccountFlameSetBytesFromTreeValue(
                         account_key,
                         value.to_vec(),
-                    )
+                    ),
                 )?;
 
                 // 4.4.5 Store the flame grouped by rollup height.
@@ -154,7 +149,7 @@ impl FlameManager {
 
             // 4.5 Insert the account flame config if it exists.
             if let Some(config) = account_flame_config {
-                account_flame_configs.insert(account_key, config);
+                in_memory_account_flame_configs.insert(account_key, config);
             }
 
             // 4.6 Sort flames by index within each rollup height and insert.
@@ -162,12 +157,13 @@ impl FlameManager {
                 for flames in account_flames_by_height.values_mut() {
                     flames.sort_by_key(|(flame_index, _)| *flame_index);
                 }
-                account_flame_sets.insert(account_key, account_flames_by_height);
+                in_memory_account_flame_sets.insert(account_key, account_flames_by_height);
             }
         }
 
         // 5 Initialize the in-memory projected flames.
-        let mut projected_flames = HashMap::<AtRollupHeight, Vec<(FlameIndex, Flame)>>::new();
+        let mut in_memory_projected_flames =
+            HashMap::<ProjectorHeight, Vec<(FlameIndex, Flame)>>::new();
 
         // 6 Collect projected flames from the projected flames database.
         for tree_name in projected_flames_db.tree_names() {
@@ -214,7 +210,7 @@ impl FlameManager {
                 };
                 let flame_index = u32::from_le_bytes(flame_index_bytes);
 
-                // 6.4.3 Deserialize the flame from the value bytes.
+                // 6.4.3 Deserialize the value: literal flame bytes (no prefix, index is in the key).
                 let flame = Flame::from_bytes(value.as_ref()).ok_or(
                     FMConstructionError::UnableToDeserializeProjectedFlameBytesFromTreeValue(
                         rollup_height,
@@ -226,15 +222,18 @@ impl FlameManager {
                 flames_with_indices.push((flame_index, flame));
             }
 
-            // 6.5 Insert the projected flames for this rollup height.
-            projected_flames.insert(rollup_height, flames_with_indices);
+            // 6.5 Sort flames by index and insert for this rollup height.
+            if !flames_with_indices.is_empty() {
+                flames_with_indices.sort_by_key(|(flame_index, _)| *flame_index);
+                in_memory_projected_flames.insert(rollup_height, flames_with_indices);
+            }
         }
 
         // 7 Construct the flame manager.
         let flame_manager = FlameManager {
-            account_flame_configs,
-            account_flame_sets,
-            projected_flames,
+            in_memory_account_flame_configs,
+            in_memory_account_flame_sets,
+            in_memory_projected_flames,
             on_disk_accounts: accounts_db,
             on_disk_projected_flames: projected_flames_db,
         };
