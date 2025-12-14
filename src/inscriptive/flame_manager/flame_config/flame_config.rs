@@ -9,7 +9,7 @@ type ZKTLCScriptPubKey = Vec<u8>;
 
 /// Flame config of an account containing various ZKTLC-value tiers.
 #[derive(Clone, Serialize, Deserialize)]
-pub struct FlameConfig {
+pub struct FMAccountFlameConfig {
     pub zktlc_tier_1_hundred_satoshis: Option<ZKTLCScriptPubKey>,
     pub zktlc_tier_2_thousand_satoshis: Option<ZKTLCScriptPubKey>,
     pub zktlc_tier_3_ten_thousand_satoshis: Option<ZKTLCScriptPubKey>,
@@ -20,7 +20,7 @@ pub struct FlameConfig {
     pub zktlc_tier_any_amount: Option<ZKTLCScriptPubKey>,
 }
 
-impl FlameConfig {
+impl FMAccountFlameConfig {
     /// Constructs a fresh new flame config.
     pub fn fresh_new() -> Self {
         Self {
@@ -157,7 +157,7 @@ impl FlameConfig {
     }
 
     /// Constructs flame config from database value bytes.
-    pub fn from_db_value_bytes(bytes: &[u8]) -> Option<FlameConfig> {
+    pub fn from_db_value_bytes(bytes: &[u8]) -> Option<FMAccountFlameConfig> {
         // 1 Create a cursor to track position in the bytes.
         let mut cursor = 0;
 
@@ -367,7 +367,7 @@ impl FlameConfig {
         }
 
         // 11 Construct the flame config.
-        let flame_config = FlameConfig {
+        let flame_config = FMAccountFlameConfig {
             zktlc_tier_1_hundred_satoshis,
             zktlc_tier_2_thousand_satoshis,
             zktlc_tier_3_ten_thousand_satoshis: zktlc_tier_3_ten_thousand_satoshis,

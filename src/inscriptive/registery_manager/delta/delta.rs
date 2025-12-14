@@ -1,5 +1,5 @@
 use crate::executive::executable::executable::Executable;
-use crate::inscriptive::flame_manager::flame_config::flame_config::FlameConfig;
+use crate::inscriptive::flame_manager::flame_config::flame_config::FMAccountFlameConfig;
 use std::collections::HashMap;
 
 /// secp256k1 public key of an account.
@@ -27,7 +27,7 @@ pub struct RMDelta {
         AccountKey,
         Option<AccountBLSKey>,
         Option<AccountSecondaryAggregationKey>,
-        Option<FlameConfig>,
+        Option<FMAccountFlameConfig>,
     )>,
 
     // Updated account call counters for a given account.
@@ -40,7 +40,7 @@ pub struct RMDelta {
     pub updated_secondary_aggregation_keys: HashMap<AccountKey, AccountSecondaryAggregationKey>,
 
     // Updated flame configs for a given account.
-    pub updated_flame_configs: HashMap<AccountKey, FlameConfig>,
+    pub updated_flame_configs: HashMap<AccountKey, FMAccountFlameConfig>,
 
     // CONTRACT RELATED VALUES ///
     /// ------------------------------------------------------------
@@ -96,7 +96,7 @@ impl RMDelta {
         account_key: AccountKey,
         primary_bls_key: Option<AccountBLSKey>,
         secondary_aggregation_key: Option<AccountSecondaryAggregationKey>,
-        flame_config: Option<FlameConfig>,
+        flame_config: Option<FMAccountFlameConfig>,
     ) {
         self.new_accounts_to_register.push((
             account_key,
@@ -187,7 +187,7 @@ impl RMDelta {
     pub fn epheremally_update_account_flame_config(
         &mut self,
         account_key: AccountKey,
-        flame_config: FlameConfig,
+        flame_config: FMAccountFlameConfig,
     ) {
         self.updated_flame_configs.insert(account_key, flame_config);
     }

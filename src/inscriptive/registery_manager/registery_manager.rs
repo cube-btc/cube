@@ -4,7 +4,7 @@ use crate::constructive::entity::contract::contract::Contract;
 use crate::constructive::entity::contract::deployed_contract::deployed_contract::DeployedContract;
 use crate::executive::executable::compiler::compiler::ExecutableCompiler;
 use crate::executive::executable::executable::Executable;
-use crate::inscriptive::flame_manager::flame_config::flame_config::FlameConfig;
+use crate::inscriptive::flame_manager::flame_config::flame_config::FMAccountFlameConfig;
 use crate::inscriptive::registery_manager::bodies::account_body::account_body::RMAccountBody;
 use crate::inscriptive::registery_manager::bodies::contract_body::contract_body::RMContractBody;
 use crate::inscriptive::registery_manager::delta::delta::RMDelta;
@@ -119,7 +119,7 @@ impl RegisteryManager {
             let mut secondary_aggregation_key: Option<Vec<u8>> = None;
 
             // 4.5 Initialize the flame config to a fresh new flame config.
-            let mut flame_config: Option<FlameConfig> = None;
+            let mut flame_config: Option<FMAccountFlameConfig> = None;
 
             // 4.3 Open the tree associated with the account.
             let tree = accounts_db
@@ -195,7 +195,7 @@ impl RegisteryManager {
                     FLAME_CONFIG_SPECIAL_DB_KEY => {
                         if value.as_ref().len() > 0 {
                             // Deserialize the flame config from bytes.
-                            let flame_config_deserialized = FlameConfig::from_db_value_bytes(value.as_ref()).ok_or(RMConstructionError::UnableToDeserializeAccountFlameConfigBytesFromTreeValue(account_key, value.to_vec()))?;
+                            let flame_config_deserialized = FMAccountFlameConfig::from_db_value_bytes(value.as_ref()).ok_or(RMConstructionError::UnableToDeserializeAccountFlameConfigBytesFromTreeValue(account_key, value.to_vec()))?;
 
                             // Update the flame config.
                             flame_config = Some(flame_config_deserialized);
@@ -598,7 +598,7 @@ impl RegisteryManager {
         account_key: AccountKey,
         bls_key: Option<AccountBLSKey>,
         secondary_aggregation_key: Option<AccountSecondaryAggregationKey>,
-        flame_config: Option<FlameConfig>,
+        flame_config: Option<FMAccountFlameConfig>,
     ) -> Result<(), RMRegisterAccountError> {
         // 1 Check if the account has just been epheremally registered in the delta.
         if self.delta.is_account_epheremally_registered(account_key) {
@@ -712,7 +712,7 @@ impl RegisteryManager {
         account_key: AccountKey,
         bls_key: Option<AccountBLSKey>,
         secondary_aggregation_key: Option<AccountSecondaryAggregationKey>,
-        flame_config: Option<FlameConfig>,
+        flame_config: Option<FMAccountFlameConfig>,
     ) -> Result<(), RMReconfigAccountError> {
         // 1 Check if the account is permanently registered.
         let account_body = self

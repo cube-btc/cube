@@ -1,4 +1,4 @@
-use crate::inscriptive::flame_manager::flame_config::flame_config::FlameConfig;
+use crate::inscriptive::flame_manager::flame_config::flame_config::FMAccountFlameConfig;
 use serde_json::{Map, Value};
 
 /// BLS key of an account.
@@ -23,7 +23,7 @@ pub struct RMAccountBody {
     pub secondary_aggregation_key: Option<AccountSecondaryAggregationKey>,
 
     // Flame config of an account.
-    pub flame_config: Option<FlameConfig>,
+    pub flame_config: Option<FMAccountFlameConfig>,
 }
 
 impl RMAccountBody {
@@ -33,7 +33,7 @@ impl RMAccountBody {
         call_counter: u64,
         primary_bls_key: Option<AccountBLSKey>,
         secondary_aggregation_key: Option<AccountSecondaryAggregationKey>,
-        flame_config: Option<FlameConfig>,
+        flame_config: Option<FMAccountFlameConfig>,
     ) -> Self {
         Self {
             registery_index,
