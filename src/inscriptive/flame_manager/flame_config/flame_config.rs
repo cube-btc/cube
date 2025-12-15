@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
+use crate::inscriptive::flame_manager::flame::{flame::Flame, flame_tier::flame_tier::FlameTier};
+
 /// Satoshi amount.
 type SatoshiAmount = u64;
 
@@ -8,7 +10,7 @@ type SatoshiAmount = u64;
 type ZKTLCScriptPubKey = Vec<u8>;
 
 /// Flame config of an account containing various ZKTLC-value tiers.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct FMAccountFlameConfig {
     pub zktlc_tier_1_hundred_satoshis: Option<ZKTLCScriptPubKey>,
     pub zktlc_tier_2_thousand_satoshis: Option<ZKTLCScriptPubKey>,
@@ -33,6 +35,170 @@ impl FMAccountFlameConfig {
             zktlc_tier_7_hundred_million_satoshis: None,
             zktlc_tier_any_amount: None,
         }
+    }
+
+    /// Returns the ZKTLCs to fund from a given satoshi amount.
+    pub fn retrieve_flames_to_fund(
+        &self,
+        target_flame_sum_value_in_satoshis: SatoshiAmount,
+        current_flame_set_sum_value_in_satoshis: SatoshiAmount,
+    ) -> Option<Vec<Flame>> {
+        // 1 Check if all tiers are none.
+        if self.zktlc_tier_1_hundred_satoshis.is_none()
+            && self.zktlc_tier_2_thousand_satoshis.is_none()
+            && self.zktlc_tier_3_ten_thousand_satoshis.is_none()
+            && self.zktlc_tier_4_hundred_thousand_satoshis.is_none()
+            && self.zktlc_tier_5_one_million_satoshis.is_none()
+            && self.zktlc_tier_6_ten_million_satoshis.is_none()
+            && self.zktlc_tier_7_hundred_million_satoshis.is_none()
+            && self.zktlc_tier_any_amount.is_none()
+        {
+            // 1.1 All tiers are none. Return none.
+            return None;
+        }
+
+        // 2 Calculate the delta.
+        let delta: SatoshiAmount = match target_flame_sum_value_in_satoshis
+            .checked_sub(current_flame_set_sum_value_in_satoshis)
+        {
+            // 2.1 Delta is none. Return none.
+            None => return None,
+
+            // 2.2 Delta is some. Return the delta.
+            Some(delta) => delta,
+        };
+
+        // 3 Initialize the list of flames to return.
+        let mut flames = Vec::<Flame>::new();
+
+        // 4 Match on the ZKTLC tier any amount.
+        match &self.zktlc_tier_any_amount {
+            // 4.a Any amount tier is set.
+            Some(script_pubkey) => {
+                // 4.a.1 Construct the flame tier.
+                let flame_tier = FlameTier::TierAnyAmount(delta);
+
+                // 4.a.2 Construct the flame.
+                let flame = Flame::new(flame_tier, script_pubkey.to_owned());
+
+                // 4.a.3 Push the flame to the list of flames to return.
+                flames.push(flame);
+            }
+            // 4.b Any amount tier is not set. We have to push a set of flames.
+            None => {
+                // 4.b.1 Collect available tiers with their values and script pubkeys.
+                // We'll store them as (tier_value, script_pubkey, tier_enum) tuples.
+                let mut available_tiers: Vec<(SatoshiAmount, ZKTLCScriptPubKey, FlameTier)> =
+                    Vec::new();
+
+                // 4.b.1.1 Check tier 7 (hundred million satoshis = 100000000).
+                if let Some(script_pubkey) = &self.zktlc_tier_7_hundred_million_satoshis {
+                    available_tiers.push((
+                        100000000,
+                        script_pubkey.clone(),
+                        FlameTier::Tier7HundredMillionSatoshis,
+                    ));
+                }
+
+                // 4.b.1.2 Check tier 6 (ten million satoshis = 10000000).
+                if let Some(script_pubkey) = &self.zktlc_tier_6_ten_million_satoshis {
+                    available_tiers.push((
+                        10000000,
+                        script_pubkey.clone(),
+                        FlameTier::Tier6TenMillionSatoshis,
+                    ));
+                }
+
+                // 4.b.1.3 Check tier 5 (one million satoshis = 1000000).
+                if let Some(script_pubkey) = &self.zktlc_tier_5_one_million_satoshis {
+                    available_tiers.push((
+                        1000000,
+                        script_pubkey.clone(),
+                        FlameTier::Tier5HundredThousandSatoshis,
+                    ));
+                }
+
+                // 4.b.1.4 Check tier 4 (hundred thousand satoshis = 100000).
+                if let Some(script_pubkey) = &self.zktlc_tier_4_hundred_thousand_satoshis {
+                    available_tiers.push((
+                        100000,
+                        script_pubkey.clone(),
+                        FlameTier::Tier4TenThousandSatoshis,
+                    ));
+                }
+
+                // 4.b.1.5 Check tier 3 (ten thousand satoshis = 10000).
+                if let Some(script_pubkey) = &self.zktlc_tier_3_ten_thousand_satoshis {
+                    available_tiers.push((
+                        10000,
+                        script_pubkey.clone(),
+                        FlameTier::Tier3ThousandSatoshis,
+                    ));
+                }
+
+                // 4.b.1.6 Check tier 2 (thousand satoshis = 1000).
+                if let Some(script_pubkey) = &self.zktlc_tier_2_thousand_satoshis {
+                    available_tiers.push((
+                        1000,
+                        script_pubkey.clone(),
+                        FlameTier::Tier2ThousandSatoshis,
+                    ));
+                }
+
+                // 4.b.1.7 Check tier 1 (hundred satoshis = 100).
+                if let Some(script_pubkey) = &self.zktlc_tier_1_hundred_satoshis {
+                    available_tiers.push((
+                        100,
+                        script_pubkey.clone(),
+                        FlameTier::Tier1HundredSatoshis,
+                    ));
+                }
+
+                // 4.b.1.8 If no tiers are available, return None.
+                if available_tiers.is_empty() {
+                    return None;
+                }
+
+                // 4.b.2 Sort tiers in descending order by value (largest first).
+                available_tiers.sort_by(|a, b| b.0.cmp(&a.0));
+
+                // 4.b.2.1 Store the smallest tier for rounding up if needed.
+                let smallest_tier = available_tiers.last().cloned();
+
+                // 4.b.3 Greedily select tiers to round up the delta.
+                let mut remaining_delta = delta;
+                for (tier_value, script_pubkey, flame_tier) in &available_tiers {
+                    // 4.b.3.1 Calculate how many of this tier we need.
+                    let count = remaining_delta / tier_value;
+
+                    // 4.b.3.2 If we need at least one of this tier, add them.
+                    if count > 0 {
+                        for _ in 0..count {
+                            let flame = Flame::new(*flame_tier, script_pubkey.clone());
+                            flames.push(flame);
+                        }
+                        remaining_delta -= count * tier_value;
+                    }
+
+                    // 4.b.3.3 If we've covered the delta, we're done.
+                    if remaining_delta == 0 {
+                        break;
+                    }
+                }
+
+                // 4.b.4 If there's still remaining delta, we need to round up by adding one more of the smallest available tier.
+                if remaining_delta > 0 {
+                    // 4.b.4.1 Use the smallest available tier we stored earlier.
+                    if let Some((_, script_pubkey, flame_tier)) = smallest_tier {
+                        let flame = Flame::new(flame_tier, script_pubkey);
+                        flames.push(flame);
+                    }
+                }
+            }
+        }
+
+        // 5 Return the list of flames to return.
+        Some(flames)
     }
 
     /// Serializes flame config to bytes for the database.
@@ -380,24 +546,6 @@ impl FMAccountFlameConfig {
 
         // 12 Return the flame config.
         Some(flame_config)
-    }
-
-    /// Returns the ZKTLCs to fund from a given satoshi amount.
-    pub fn zktlcs_to_fund_from_amount(
-        &self,
-        amount: SatoshiAmount,
-    ) -> Vec<(SatoshiAmount, ZKTLCScriptPubKey)> {
-        // If any amount exists, directly return it.
-        match &self.zktlc_tier_any_amount {
-            // If any amount exists, directly return it.
-            Some(script_pubkey) => vec![(amount, script_pubkey.to_owned())],
-            // Otherwise, run an algorithm to find the most efficient ZKTLCs with rounding up.
-            None => {
-                // TODO!!!
-                // For now, return an empty vector.
-                Vec::<(SatoshiAmount, ZKTLCScriptPubKey)>::new()
-            }
-        }
     }
 
     /// Returns the flame config as a JSON object.

@@ -125,4 +125,29 @@ impl CMDelta {
             .or_insert_with(Vec::new)
             .push(account_key);
     }
+
+    /// Returns the list of accounts that are affected by the `CoinManager`.
+    pub fn affected_accounts_list(&self) -> Vec<AccountKey> {
+        // 1 Initialize the affected accounts list.
+        let mut affected_accounts: Vec<AccountKey> = Vec::new();
+
+        // 2 Add the accounts that have their balances updated.
+        for (account_key, _) in self.updated_account_balances.iter() {
+            // 2.1 Insert if not already present.
+            if !affected_accounts.contains(account_key) {
+                affected_accounts.push(account_key.to_owned());
+            }
+        }
+
+        // 3 Now do for shadow allocs sums.
+        for (account_key, _) in self.updated_shadow_allocs_sums.iter() {
+            // 3.1 Insert if not already present.
+            if !affected_accounts.contains(account_key) {
+                affected_accounts.push(account_key.to_owned());
+            }
+        }
+
+        // 4 Return the affected accounts list.
+        affected_accounts
+    }
 }

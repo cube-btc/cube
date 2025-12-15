@@ -18,11 +18,12 @@ pub enum FMConstructionError {
     UnableToDeserializeAccountFlameSetBytesFromTreeValue(AccountKey, Vec<u8>),
     InvalidAccountDbKeyByte(AccountKey, Vec<u8>),
 
-    /// Projected flames database related errors.
+    /// Global flame set database related errors.
     /// ------------------------------------------------------------
-    ProjectedFlamesDBOpenError(sled::Error),
+    GlobalFlameSetDBOpenError(sled::Error),
     UnableToDeserializeRollupHeightBytesFromTreeName(Vec<u8>),
-    ProjectedFlamesTreeOpenError(AtRollupHeight, sled::Error),
-    ProjectedFlamesTreeIterError(AtRollupHeight, sled::Error),
-    UnableToDeserializeProjectedFlameBytesFromTreeValue(AtRollupHeight, Vec<u8>),
+    GlobalFlameSetTreeOpenError(AtRollupHeight, sled::Error),
+    GlobalFlameSetTreeIterError(AtRollupHeight, sled::Error),
+    UnableToDeserializeFlameIndexBytesFromTreeKey(AtRollupHeight, Vec<u8>),
+    UnableToDeserializeFlameBytesFromTreeValue(AtRollupHeight, Vec<u8>),
 }

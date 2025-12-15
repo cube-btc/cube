@@ -1,3 +1,4 @@
+pub mod delta;
 pub mod errors;
 pub mod flame;
 pub mod flame_config;

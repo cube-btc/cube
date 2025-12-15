@@ -1,9 +1,11 @@
 use super::flame_tier::flame_tier::FlameTier;
+use serde::{Deserialize, Serialize};
 
 /// ZKTLC script pubkey.
 type ScriptPubKey = Vec<u8>;
 
 /// Account flame set.
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Flame {
     /// Flame tier.
     pub flame_tier: FlameTier,
@@ -19,6 +21,11 @@ impl Flame {
             flame_tier,
             script_pubkey,
         }
+    }
+
+    /// Returns the satoshi amount of the flame.
+    pub fn satoshi_amount(&self) -> u64 {
+        self.flame_tier.satoshi_amount()
     }
 
     /// Serializes the flame to bytes.

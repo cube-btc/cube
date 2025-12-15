@@ -457,6 +457,26 @@ impl CoinManager {
         Some(satoshi_value as u64)
     }
 
+    /// Returns the account's overall flame sum value (owned and owed value sum) in satoshis.
+    pub fn get_account_target_flame_value_in_satoshis(
+        &self,
+        account_key: AccountKey,
+    ) -> Option<u64> {
+        // 1 Get the account's balance in satoshis.
+        let account_balance_in_satoshis: u64 = self.get_account_balance(account_key)?;
+
+        // 2 Get the account's shadow allocs sum in satoshis.
+        let account_shadow_allocs_sum_in_satoshis: u64 =
+            self.get_account_shadow_allocs_sum_in_satoshis(account_key)?;
+
+        // 3 Calculate the account's overall owned and owed value in satoshis.
+        let account_overall_owned_and_owed_value_in_satoshis: u64 =
+            account_balance_in_satoshis + account_shadow_allocs_sum_in_satoshis;
+
+        // 4 Return the result.
+        Some(account_overall_owned_and_owed_value_in_satoshis)
+    }
+
     /// Returns the sum of all shadow allocation values of a given contract's shadow space in satoshis.
     pub fn get_contract_shadow_allocs_sum_in_satoshis(&self, contract_id: [u8; 32]) -> Option<u64> {
         // 1 Try to read from the delta first.
@@ -1387,6 +1407,11 @@ impl CoinManager {
 
         // 15 Return the number of affected accounts.
         Ok(individual_update_values_in_sati_satoshis.len() as u64)
+    }
+
+    /// Returns the list of accounts that are affected by the `CoinManager`.
+    pub fn get_affected_accounts_list(&self) -> Vec<AccountKey> {
+        self.delta.affected_accounts_list()
     }
 
     /// Reverts the epheremal changes associated with the last execution.
