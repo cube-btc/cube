@@ -4,8 +4,8 @@ use crate::inscriptive::flame_manager::flame_config::flame_config::FMAccountFlam
 /// Satoshi amount.
 type SatoshiAmount = u64;
 
-/// Taproot witness program of a flame.
-type ZKTLCScriptPubKey = Vec<u8>;
+/// Flame script pubkey.
+type FlameScriptPubKey = Vec<u8>;
 
 /// Returns the flames to fund from a given target value and current flame set sum value.
 pub fn return_flames_to_fund(
@@ -52,7 +52,7 @@ pub fn return_flames_to_fund(
         None => {
             // 4.b.1 Collect available tiers with their values and script pubkeys.
             // We'll store them as (tier_value, script_pubkey, tier_enum) tuples.
-            let mut available_tiers: Vec<(SatoshiAmount, ZKTLCScriptPubKey, FlameTier)> =
+            let mut available_tiers: Vec<(SatoshiAmount, FlameScriptPubKey, FlameTier)> =
                 Vec::new();
 
             // 4.b.1.1 Check tier 7 (hundred million satoshis = 100000000).
