@@ -12,7 +12,6 @@ pub enum RMApplyChangesError {
     AccountCallCounterInsertError(AccountKey, u64, sled::Error),
     AccountBLSKeyInsertError(AccountKey, sled::Error),
     AccountSecondaryAggregationKeyInsertError(AccountKey, sled::Error),
-    AccountFlameConfigInsertError(AccountKey, sled::Error),
     AccountNotFoundInMemory(AccountKey),
     AccountCallCounterUpdateError(AccountKey, u64, sled::Error),
     ContractTreeOpenError(ContractId, sled::Error),

@@ -4,7 +4,6 @@ use crate::constructive::entity::contract::contract::Contract;
 use crate::constructive::entity::contract::deployed_contract::deployed_contract::DeployedContract;
 use crate::executive::executable::compiler::compiler::ExecutableCompiler;
 use crate::executive::executable::executable::Executable;
-use crate::inscriptive::flame_manager::flame_config::flame_config::FMAccountFlameConfig;
 use crate::inscriptive::registery_manager::bodies::account_body::account_body::RMAccountBody;
 use crate::inscriptive::registery_manager::bodies::contract_body::contract_body::RMContractBody;
 use crate::inscriptive::registery_manager::delta::delta::RMDelta;
@@ -12,9 +11,9 @@ use crate::inscriptive::registery_manager::errors::apply_changes_error::RMApplyC
 use crate::inscriptive::registery_manager::errors::construction_error::RMConstructionError;
 use crate::inscriptive::registery_manager::errors::increment_account_call_counter_error::RMIncrementAccountCallCounterError;
 use crate::inscriptive::registery_manager::errors::increment_contract_call_counter_error::RMIncrementContractCallCounterError;
-use crate::inscriptive::registery_manager::errors::reconfig_account_error::RMReconfigAccountError;
 use crate::inscriptive::registery_manager::errors::register_account_error::RMRegisterAccountError;
 use crate::inscriptive::registery_manager::errors::register_contract_error::RMRegisterContractError;
+use crate::inscriptive::registery_manager::errors::update_account_aggregation_keys_error::RMUpdateAccountAggregationKeysError;
 use crate::operative::Chain;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
@@ -50,9 +49,6 @@ const BLS_KEY_SPECIAL_DB_KEY: [u8; 1] = [0x03; 1];
 
 /// Special db key for the secondary aggregation key (0x04..).
 const SECONDARY_AGGREGATION_KEY_SPECIAL_DB_KEY: [u8; 1] = [0x04; 1];
-
-/// Special db key for the flame config (0x05..).
-const FLAME_CONFIG_SPECIAL_DB_KEY: [u8; 1] = [0x05; 1];
 
 /// A struct for managing the registery of accounts and contracts.
 #[allow(dead_code)]
@@ -118,10 +114,7 @@ impl RegisteryManager {
             // 4.4 Initialize the secondary aggregation key to None.
             let mut secondary_aggregation_key: Option<Vec<u8>> = None;
 
-            // 4.5 Initialize the flame config to a fresh new flame config.
-            let mut flame_config: Option<FMAccountFlameConfig> = None;
-
-            // 4.3 Open the tree associated with the account.
+            // 4.5 Open the tree associated with the account.
             let tree = accounts_db
                 .open_tree(&tree_name)
                 .map_err(|e| RMConstructionError::AccountsTreeOpenError(account_key, e))?;
@@ -191,16 +184,6 @@ impl RegisteryManager {
                             }
                         }
                     }
-                    // 0x05 key byte represents the flame config.
-                    FLAME_CONFIG_SPECIAL_DB_KEY => {
-                        if value.as_ref().len() > 0 {
-                            // Deserialize the flame config from bytes.
-                            let flame_config_deserialized = FMAccountFlameConfig::from_db_value_bytes(value.as_ref()).ok_or(RMConstructionError::UnableToDeserializeAccountFlameConfigBytesFromTreeValue(account_key, value.to_vec()))?;
-
-                            // Update the flame config.
-                            flame_config = Some(flame_config_deserialized);
-                        }
-                    }
                     // Invalid db key byte.
                     _ => {
                         return Err(RMConstructionError::InvalidAccountDbKeyByte(
@@ -217,7 +200,6 @@ impl RegisteryManager {
                 call_counter,
                 bls_key,
                 secondary_aggregation_key,
-                flame_config,
             );
 
             // 4.6 Insert the account body into the in-memory list of accounts.
@@ -598,7 +580,6 @@ impl RegisteryManager {
         account_key: AccountKey,
         bls_key: Option<AccountBLSKey>,
         secondary_aggregation_key: Option<AccountSecondaryAggregationKey>,
-        flame_config: Option<FMAccountFlameConfig>,
     ) -> Result<(), RMRegisterAccountError> {
         // 1 Check if the account has just been epheremally registered in the delta.
         if self.delta.is_account_epheremally_registered(account_key) {
@@ -613,12 +594,8 @@ impl RegisteryManager {
         }
 
         // 3 Epheremally register the account in the delta.
-        self.delta.epheremally_register_account(
-            account_key,
-            bls_key,
-            secondary_aggregation_key,
-            flame_config,
-        );
+        self.delta
+            .epheremally_register_account(account_key, bls_key, secondary_aggregation_key);
 
         // 4 Return the result.
         Ok(())
@@ -704,21 +681,19 @@ impl RegisteryManager {
         Ok(())
     }
 
-    /// Epheremally configures or reconfigures an account.
+    /// Epheremally updates an account's aggregation keys (BLS key and/or secondary aggregation key).
     ///
     /// NOTE: These changes are saved with the use of the `apply_changes` function.
-    pub fn epheremally_configure_or_reconfigure_account(
+    pub fn epheremally_update_account_aggregation_keys(
         &mut self,
         account_key: AccountKey,
         bls_key: Option<AccountBLSKey>,
         secondary_aggregation_key: Option<AccountSecondaryAggregationKey>,
-        flame_config: Option<FMAccountFlameConfig>,
-    ) -> Result<(), RMReconfigAccountError> {
+    ) -> Result<(), RMUpdateAccountAggregationKeysError> {
         // 1 Check if the account is permanently registered.
-        let account_body = self
-            .in_memory_accounts
-            .get(&account_key)
-            .ok_or(RMReconfigAccountError::AccountIsNotRegistered(account_key))?;
+        let account_body = self.in_memory_accounts.get(&account_key).ok_or(
+            RMUpdateAccountAggregationKeysError::AccountIsNotRegistered(account_key),
+        )?;
 
         // 2 Check if the BLS is to be set.
         if let Some(bls_key) = bls_key {
@@ -726,9 +701,9 @@ impl RegisteryManager {
 
             // 2.1 Check if the BLS key has already been set.
             if account_body.primary_bls_key.is_some() {
-                return Err(RMReconfigAccountError::BLSKeyIsAlreadyPermanentlySet(
-                    account_key,
-                ));
+                return Err(
+                    RMUpdateAccountAggregationKeysError::BLSKeyIsAlreadyPermanentlySet(account_key),
+                );
             }
 
             // 2.2 Update the BLS key in the delta.
@@ -736,10 +711,12 @@ impl RegisteryManager {
                 .delta
                 .epheremally_set_account_bls_key(account_key, bls_key)
             {
-                return Err(RMReconfigAccountError::BLSKeyIsAlreadyEpheremallySet(
-                    account_key,
-                    existing_bls_key,
-                ));
+                return Err(
+                    RMUpdateAccountAggregationKeysError::BLSKeyIsAlreadyEpheremallySet(
+                        account_key,
+                        existing_bls_key,
+                    ),
+                );
             }
         }
 
@@ -755,16 +732,7 @@ impl RegisteryManager {
                 );
         }
 
-        // 4 Check if the flame config is to be set.
-        if let Some(flame_config) = flame_config {
-            // NOTE: We allow flame config to be updated multiple times.
-
-            // 4.1 Update the flame config in the delta.
-            self.delta
-                .epheremally_update_account_flame_config(account_key, flame_config);
-        }
-
-        // 5 Return the result.
+        // 4 Return the result.
         Ok(())
     }
 
@@ -798,7 +766,7 @@ impl RegisteryManager {
         let contract_registery_index_height = self.in_memory_contracts.len() as u64;
 
         // 1 Register new accounts.
-        for (index, (account_key, bls_key, secondary_aggregation_key, flame_config)) in
+        for (index, (account_key, bls_key, secondary_aggregation_key)) in
             self.delta.new_accounts_to_register.iter().enumerate()
         {
             // 1.1 Calculate the registery index for the new account.
@@ -862,15 +830,6 @@ impl RegisteryManager {
                         )
                     })?;
                 }
-
-                // 1.3.6 Insert the flame config on-disk if present.
-                if let Some(flame_config) = flame_config {
-                    let flame_config_bytes = flame_config.to_db_value_bytes();
-                    tree.insert(FLAME_CONFIG_SPECIAL_DB_KEY, flame_config_bytes)
-                        .map_err(|e| {
-                            RMApplyChangesError::AccountFlameConfigInsertError(*account_key, e)
-                        })?;
-                }
             }
 
             // 1.4 In-memory insertion.
@@ -881,7 +840,6 @@ impl RegisteryManager {
                     initial_call_counter,
                     *bls_key,
                     secondary_aggregation_key.clone(),
-                    flame_config.clone(),
                 );
 
                 // 1.4.2 Insert the account body into the in-memory list.
@@ -1106,55 +1064,22 @@ impl RegisteryManager {
             }
         }
 
-        // 7 Update account flame configs.
-        for (account_key, flame_config) in self.delta.updated_flame_configs.iter() {
-            // 7.1 Get the mutable account body from the in-memory list.
-            let mut_account_body = self
-                .in_memory_accounts
-                .get_mut(account_key)
-                .ok_or(RMApplyChangesError::AccountNotFoundInMemory(*account_key))?;
-
-            // 7.2 On-disk update.
-            {
-                // 7.2.1 Open the tree for the account.
-                let tree = self
-                    .on_disk_accounts
-                    .open_tree(account_key)
-                    .map_err(|e| RMApplyChangesError::AccountTreeOpenError(*account_key, e))?;
-
-                // 7.2.2 Serialize the flame config to bytes.
-                let flame_config_bytes = flame_config.to_db_value_bytes();
-
-                // 7.2.3 Update the flame config on-disk.
-                tree.insert(FLAME_CONFIG_SPECIAL_DB_KEY, flame_config_bytes)
-                    .map_err(|e| {
-                        RMApplyChangesError::AccountFlameConfigInsertError(*account_key, e)
-                    })?;
-            }
-
-            // 7.3 In-memory update.
-            {
-                // 7.3.1 Update the flame config.
-                mut_account_body.flame_config = Some(flame_config.clone());
-            }
-        }
-
-        // 8 Re-rank accounts after all changes.
+        // 7 Re-rank accounts after all changes.
         {
             let new_ranked_accounts = Self::rank_accounts(&self.in_memory_accounts);
             self.in_memory_account_ranks = new_ranked_accounts;
         }
 
-        // 9 Re-rank contracts after all changes.
+        // 8 Re-rank contracts after all changes.
         {
             let new_ranked_contracts = Self::rank_contracts(&self.in_memory_contracts);
             self.in_memory_contract_ranks = new_ranked_contracts;
         }
 
-        // 10 Flush the delta.
+        // 9 Flush the delta.
         self.flush_delta();
 
-        // 11 Return the result.
+        // 10 Return the result.
         Ok(())
     }
 

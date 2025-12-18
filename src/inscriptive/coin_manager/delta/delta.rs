@@ -126,28 +126,39 @@ impl CMDelta {
             .push(account_key);
     }
 
-    /// Returns the list of accounts that are affected by the `CoinManager`.
-    pub fn affected_accounts_list(&self) -> Vec<AccountKey> {
+    /// Returns the list of accounts whose coin balances or allocations are changed in one way or another.
+    pub fn coingap_accounts_list(&self) -> Vec<AccountKey> {
         // 1 Initialize the affected accounts list.
         let mut affected_accounts: Vec<AccountKey> = Vec::new();
 
-        // 2 Add the accounts that have their balances updated.
-        for (account_key, _) in self.updated_account_balances.iter() {
-            // 2.1 Insert if not already present.
-            if !affected_accounts.contains(account_key) {
-                affected_accounts.push(account_key.to_owned());
+        // 2 Add the newly registered accounts with non-zero initial balances.
+        for (account_key, initial_balance) in self.new_accounts_to_register.iter() {
+            // 2.1 Check if the initial balance is non-zero.
+            if *initial_balance != 0 {
+                // 2.1.1 Insert if not already present.
+                if !affected_accounts.contains(account_key) {
+                    affected_accounts.push(account_key.to_owned());
+                }
             }
         }
 
-        // 3 Now do for shadow allocs sums.
-        for (account_key, _) in self.updated_shadow_allocs_sums.iter() {
+        // 3 Add the accounts that have their balances updated.
+        for (account_key, _) in self.updated_account_balances.iter() {
             // 3.1 Insert if not already present.
             if !affected_accounts.contains(account_key) {
                 affected_accounts.push(account_key.to_owned());
             }
         }
 
-        // 4 Return the affected accounts list.
+        // 4 Now do for shadow allocs sums.
+        for (account_key, _) in self.updated_shadow_allocs_sums.iter() {
+            // 4.1 Insert if not already present.
+            if !affected_accounts.contains(account_key) {
+                affected_accounts.push(account_key.to_owned());
+            }
+        }
+
+        // 5 Return the affected accounts list.
         affected_accounts
     }
 }

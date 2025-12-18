@@ -1,5 +1,4 @@
 use crate::executive::executable::executable::Executable;
-use crate::inscriptive::flame_manager::flame_config::flame_config::FMAccountFlameConfig;
 use std::collections::HashMap;
 
 /// secp256k1 public key of an account.
@@ -27,7 +26,6 @@ pub struct RMDelta {
         AccountKey,
         Option<AccountBLSKey>,
         Option<AccountSecondaryAggregationKey>,
-        Option<FMAccountFlameConfig>,
     )>,
 
     // Updated account call counters for a given account.
@@ -38,9 +36,6 @@ pub struct RMDelta {
 
     // Updated secondary aggregation keys for a given account.
     pub updated_secondary_aggregation_keys: HashMap<AccountKey, AccountSecondaryAggregationKey>,
-
-    // Updated flame configs for a given account.
-    pub updated_flame_configs: HashMap<AccountKey, FMAccountFlameConfig>,
 
     // CONTRACT RELATED VALUES ///
     /// ------------------------------------------------------------
@@ -59,7 +54,6 @@ impl RMDelta {
             updated_account_call_counters: HashMap::new(),
             updated_bls_keys: HashMap::new(),
             updated_secondary_aggregation_keys: HashMap::new(),
-            updated_flame_configs: HashMap::new(),
             new_contracts_to_register: Vec::new(),
             updated_contract_call_counters: HashMap::new(),
         }
@@ -71,7 +65,6 @@ impl RMDelta {
         self.updated_account_call_counters.clear();
         self.updated_bls_keys.clear();
         self.updated_secondary_aggregation_keys.clear();
-        self.updated_flame_configs.clear();
         self.new_contracts_to_register.clear();
         self.updated_contract_call_counters.clear();
     }
@@ -80,7 +73,7 @@ impl RMDelta {
     pub fn is_account_epheremally_registered(&self, account_key: AccountKey) -> bool {
         self.new_accounts_to_register
             .iter()
-            .any(|(key, _, _, _)| key == &account_key)
+            .any(|(key, _, _)| key == &account_key)
     }
 
     /// Checks if a contract has just been epheremally registered in the delta.
@@ -96,13 +89,11 @@ impl RMDelta {
         account_key: AccountKey,
         primary_bls_key: Option<AccountBLSKey>,
         secondary_aggregation_key: Option<AccountSecondaryAggregationKey>,
-        flame_config: Option<FMAccountFlameConfig>,
     ) {
         self.new_accounts_to_register.push((
             account_key,
             primary_bls_key,
             secondary_aggregation_key,
-            flame_config,
         ));
     }
 
@@ -181,14 +172,5 @@ impl RMDelta {
     ) {
         self.updated_secondary_aggregation_keys
             .insert(account_key, secondary_aggregation_key);
-    }
-
-    /// Epheremally updates an account's flame config.
-    pub fn epheremally_update_account_flame_config(
-        &mut self,
-        account_key: AccountKey,
-        flame_config: FMAccountFlameConfig,
-    ) {
-        self.updated_flame_configs.insert(account_key, flame_config);
     }
 }

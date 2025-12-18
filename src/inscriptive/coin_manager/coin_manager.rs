@@ -1409,9 +1409,9 @@ impl CoinManager {
         Ok(individual_update_values_in_sati_satoshis.len() as u64)
     }
 
-    /// Returns the list of accounts that are affected by the `CoinManager`.
-    pub fn get_affected_accounts_list(&self) -> Vec<AccountKey> {
-        self.delta.affected_accounts_list()
+    /// Returns the list of accounts whose coin balances or allocations are changed in one way or another.
+    pub fn get_coingap_accounts_list(&self) -> Vec<AccountKey> {
+        self.delta.coingap_accounts_list()
     }
 
     /// Reverts the epheremal changes associated with the last execution.

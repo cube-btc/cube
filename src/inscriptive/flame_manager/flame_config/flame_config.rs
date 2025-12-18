@@ -1,204 +1,179 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::inscriptive::flame_manager::flame::{flame::Flame, flame_tier::flame_tier::FlameTier};
+/// Flame version.
+type FlameVersion = u8;
 
-/// Satoshi amount.
-type SatoshiAmount = u64;
+/// Flame script pubkey.
+type FlameScriptPubKey = Vec<u8>;
 
-/// Taproot witness program of a ZKTLC.
-type ZKTLCScriptPubKey = Vec<u8>;
+/// Tier flame configuration containing version and script pubkey.
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct TierFlameConfig {
+    /// Flame version.
+    pub version: FlameVersion,
 
-/// Flame config of an account containing various ZKTLC-value tiers.
+    /// Script pubkey.
+    pub script_pubkey: FlameScriptPubKey,
+}
+
+/// Flame config of an account containing various flame-value tiers.
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct FMAccountFlameConfig {
-    pub zktlc_tier_1_hundred_satoshis: Option<ZKTLCScriptPubKey>,
-    pub zktlc_tier_2_thousand_satoshis: Option<ZKTLCScriptPubKey>,
-    pub zktlc_tier_3_ten_thousand_satoshis: Option<ZKTLCScriptPubKey>,
-    pub zktlc_tier_4_hundred_thousand_satoshis: Option<ZKTLCScriptPubKey>,
-    pub zktlc_tier_5_one_million_satoshis: Option<ZKTLCScriptPubKey>,
-    pub zktlc_tier_6_ten_million_satoshis: Option<ZKTLCScriptPubKey>,
-    pub zktlc_tier_7_hundred_million_satoshis: Option<ZKTLCScriptPubKey>,
-    pub zktlc_tier_any_amount: Option<ZKTLCScriptPubKey>,
+    // Tier #1 corresponding to 100 satoshis.
+    pub tier_1_hundred_satoshis: Option<TierFlameConfig>,
+
+    // Tier #2 corresponding to 1,000 satoshis.
+    pub tier_2_thousand_satoshis: Option<TierFlameConfig>,
+
+    // Tier #3 corresponding to 10,000 satoshis.
+    pub tier_3_ten_thousand_satoshis: Option<TierFlameConfig>,
+
+    // Tier #4 corresponding to 100,000 satoshis.
+    pub tier_4_hundred_thousand_satoshis: Option<TierFlameConfig>,
+
+    // Tier #5 corresponding to 1,000,000 satoshis.
+    pub tier_5_one_million_satoshis: Option<TierFlameConfig>,
+
+    // Tier #6 corresponding to 10,000,000 satoshis.
+    pub tier_6_ten_million_satoshis: Option<TierFlameConfig>,
+
+    // Tier #7 corresponding to 100,000,000 satoshis.
+    pub tier_7_hundred_million_satoshis: Option<TierFlameConfig>,
+
+    // Tier #8 corresponding to any satoshi amount.
+    // This tier, if present, becomes the default tier and thus precedes all other 7 tiers.
+    // Implemented but intended for potential future use.
+    pub tier_any_amount: Option<TierFlameConfig>,
 }
 
 impl FMAccountFlameConfig {
     /// Constructs a fresh new flame config.
     pub fn fresh_new() -> Self {
         Self {
-            zktlc_tier_1_hundred_satoshis: None,
-            zktlc_tier_2_thousand_satoshis: None,
-            zktlc_tier_3_ten_thousand_satoshis: None,
-            zktlc_tier_4_hundred_thousand_satoshis: None,
-            zktlc_tier_5_one_million_satoshis: None,
-            zktlc_tier_6_ten_million_satoshis: None,
-            zktlc_tier_7_hundred_million_satoshis: None,
-            zktlc_tier_any_amount: None,
+            tier_1_hundred_satoshis: None,
+            tier_2_thousand_satoshis: None,
+            tier_3_ten_thousand_satoshis: None,
+            tier_4_hundred_thousand_satoshis: None,
+            tier_5_one_million_satoshis: None,
+            tier_6_ten_million_satoshis: None,
+            tier_7_hundred_million_satoshis: None,
+            tier_any_amount: None,
         }
     }
 
-    /// Returns the ZKTLCs to fund from a given satoshi amount.
-    pub fn retrieve_flames_to_fund(
-        &self,
-        target_flame_sum_value_in_satoshis: SatoshiAmount,
-        current_flame_set_sum_value_in_satoshis: SatoshiAmount,
-    ) -> Option<Vec<Flame>> {
-        // 1 Check if all tiers are none.
-        if self.zktlc_tier_1_hundred_satoshis.is_none()
-            && self.zktlc_tier_2_thousand_satoshis.is_none()
-            && self.zktlc_tier_3_ten_thousand_satoshis.is_none()
-            && self.zktlc_tier_4_hundred_thousand_satoshis.is_none()
-            && self.zktlc_tier_5_one_million_satoshis.is_none()
-            && self.zktlc_tier_6_ten_million_satoshis.is_none()
-            && self.zktlc_tier_7_hundred_million_satoshis.is_none()
-            && self.zktlc_tier_any_amount.is_none()
-        {
-            // 1.1 All tiers are none. Return none.
-            return None;
+    /// Constructs a new flame config.
+    pub fn new(
+        // Tier #1
+        tier_1: Option<(FlameVersion, FlameScriptPubKey)>,
+
+        // Tier #2
+        tier_2: Option<(FlameVersion, FlameScriptPubKey)>,
+
+        // Tier #3
+        tier_3: Option<(FlameVersion, FlameScriptPubKey)>,
+
+        // Tier #4
+        tier_4: Option<(FlameVersion, FlameScriptPubKey)>,
+
+        // Tier #5
+        tier_5: Option<(FlameVersion, FlameScriptPubKey)>,
+
+        // Tier #6
+        tier_6: Option<(FlameVersion, FlameScriptPubKey)>,
+
+        // Tier #7
+        tier_7: Option<(FlameVersion, FlameScriptPubKey)>,
+
+        // Tier #8
+        tier_any_amount: Option<(FlameVersion, FlameScriptPubKey)>,
+    ) -> FMAccountFlameConfig {
+        // 1 Construct a fresh new flame config.
+        let mut flame_config = Self::fresh_new();
+
+        // 2 Match on the tier 1.
+        if let Some((version, script_pubkey)) = tier_1 {
+            flame_config.tier_1_hundred_satoshis = Some(TierFlameConfig {
+                version,
+                script_pubkey,
+            });
         }
 
-        // 2 Calculate the delta.
-        let delta: SatoshiAmount = match target_flame_sum_value_in_satoshis
-            .checked_sub(current_flame_set_sum_value_in_satoshis)
-        {
-            // 2.1 Delta is none. Return none.
-            None => return None,
-
-            // 2.2 Delta is some. Return the delta.
-            Some(delta) => delta,
-        };
-
-        // 3 Initialize the list of flames to return.
-        let mut flames = Vec::<Flame>::new();
-
-        // 4 Match on the ZKTLC tier any amount.
-        match &self.zktlc_tier_any_amount {
-            // 4.a Any amount tier is set.
-            Some(script_pubkey) => {
-                // 4.a.1 Construct the flame tier.
-                let flame_tier = FlameTier::TierAnyAmount(delta);
-
-                // 4.a.2 Construct the flame.
-                let flame = Flame::new(flame_tier, script_pubkey.to_owned());
-
-                // 4.a.3 Push the flame to the list of flames to return.
-                flames.push(flame);
-            }
-            // 4.b Any amount tier is not set. We have to push a set of flames.
-            None => {
-                // 4.b.1 Collect available tiers with their values and script pubkeys.
-                // We'll store them as (tier_value, script_pubkey, tier_enum) tuples.
-                let mut available_tiers: Vec<(SatoshiAmount, ZKTLCScriptPubKey, FlameTier)> =
-                    Vec::new();
-
-                // 4.b.1.1 Check tier 7 (hundred million satoshis = 100000000).
-                if let Some(script_pubkey) = &self.zktlc_tier_7_hundred_million_satoshis {
-                    available_tiers.push((
-                        100000000,
-                        script_pubkey.clone(),
-                        FlameTier::Tier7HundredMillionSatoshis,
-                    ));
-                }
-
-                // 4.b.1.2 Check tier 6 (ten million satoshis = 10000000).
-                if let Some(script_pubkey) = &self.zktlc_tier_6_ten_million_satoshis {
-                    available_tiers.push((
-                        10000000,
-                        script_pubkey.clone(),
-                        FlameTier::Tier6TenMillionSatoshis,
-                    ));
-                }
-
-                // 4.b.1.3 Check tier 5 (one million satoshis = 1000000).
-                if let Some(script_pubkey) = &self.zktlc_tier_5_one_million_satoshis {
-                    available_tiers.push((
-                        1000000,
-                        script_pubkey.clone(),
-                        FlameTier::Tier5HundredThousandSatoshis,
-                    ));
-                }
-
-                // 4.b.1.4 Check tier 4 (hundred thousand satoshis = 100000).
-                if let Some(script_pubkey) = &self.zktlc_tier_4_hundred_thousand_satoshis {
-                    available_tiers.push((
-                        100000,
-                        script_pubkey.clone(),
-                        FlameTier::Tier4TenThousandSatoshis,
-                    ));
-                }
-
-                // 4.b.1.5 Check tier 3 (ten thousand satoshis = 10000).
-                if let Some(script_pubkey) = &self.zktlc_tier_3_ten_thousand_satoshis {
-                    available_tiers.push((
-                        10000,
-                        script_pubkey.clone(),
-                        FlameTier::Tier3ThousandSatoshis,
-                    ));
-                }
-
-                // 4.b.1.6 Check tier 2 (thousand satoshis = 1000).
-                if let Some(script_pubkey) = &self.zktlc_tier_2_thousand_satoshis {
-                    available_tiers.push((
-                        1000,
-                        script_pubkey.clone(),
-                        FlameTier::Tier2ThousandSatoshis,
-                    ));
-                }
-
-                // 4.b.1.7 Check tier 1 (hundred satoshis = 100).
-                if let Some(script_pubkey) = &self.zktlc_tier_1_hundred_satoshis {
-                    available_tiers.push((
-                        100,
-                        script_pubkey.clone(),
-                        FlameTier::Tier1HundredSatoshis,
-                    ));
-                }
-
-                // 4.b.1.8 If no tiers are available, return None.
-                if available_tiers.is_empty() {
-                    return None;
-                }
-
-                // 4.b.2 Sort tiers in descending order by value (largest first).
-                available_tiers.sort_by(|a, b| b.0.cmp(&a.0));
-
-                // 4.b.2.1 Store the smallest tier for rounding up if needed.
-                let smallest_tier = available_tiers.last().cloned();
-
-                // 4.b.3 Greedily select tiers to round up the delta.
-                let mut remaining_delta = delta;
-                for (tier_value, script_pubkey, flame_tier) in &available_tiers {
-                    // 4.b.3.1 Calculate how many of this tier we need.
-                    let count = remaining_delta / tier_value;
-
-                    // 4.b.3.2 If we need at least one of this tier, add them.
-                    if count > 0 {
-                        for _ in 0..count {
-                            let flame = Flame::new(*flame_tier, script_pubkey.clone());
-                            flames.push(flame);
-                        }
-                        remaining_delta -= count * tier_value;
-                    }
-
-                    // 4.b.3.3 If we've covered the delta, we're done.
-                    if remaining_delta == 0 {
-                        break;
-                    }
-                }
-
-                // 4.b.4 If there's still remaining delta, we need to round up by adding one more of the smallest available tier.
-                if remaining_delta > 0 {
-                    // 4.b.4.1 Use the smallest available tier we stored earlier.
-                    if let Some((_, script_pubkey, flame_tier)) = smallest_tier {
-                        let flame = Flame::new(flame_tier, script_pubkey);
-                        flames.push(flame);
-                    }
-                }
-            }
+        // 3 Match on the tier 2.
+        if let Some((version, script_pubkey)) = tier_2 {
+            flame_config.tier_2_thousand_satoshis = Some(TierFlameConfig {
+                version,
+                script_pubkey,
+            });
         }
 
-        // 5 Return the list of flames to return.
-        Some(flames)
+        // 4 Match on the tier 3.
+        if let Some((version, script_pubkey)) = tier_3 {
+            flame_config.tier_3_ten_thousand_satoshis = Some(TierFlameConfig {
+                version,
+                script_pubkey,
+            });
+        }
+
+        // 5 Match on the tier 4.
+        if let Some((version, script_pubkey)) = tier_4 {
+            flame_config.tier_4_hundred_thousand_satoshis = Some(TierFlameConfig {
+                version,
+                script_pubkey,
+            });
+        }
+
+        // 6 Match on the tier 5.
+        if let Some((version, script_pubkey)) = tier_5 {
+            flame_config.tier_5_one_million_satoshis = Some(TierFlameConfig {
+                version,
+                script_pubkey,
+            });
+        }
+
+        // 7 Match on the tier 6.
+        if let Some((version, script_pubkey)) = tier_6 {
+            flame_config.tier_6_ten_million_satoshis = Some(TierFlameConfig {
+                version,
+                script_pubkey,
+            });
+        }
+
+        // 8 Match on the tier 7.
+        if let Some((version, script_pubkey)) = tier_7 {
+            flame_config.tier_7_hundred_million_satoshis = Some(TierFlameConfig {
+                version,
+                script_pubkey,
+            });
+        }
+
+        // 9 Match on the tier any amount.
+        if let Some((version, script_pubkey)) = tier_any_amount {
+            flame_config.tier_any_amount = Some(TierFlameConfig {
+                version,
+                script_pubkey,
+            });
+        }
+
+        // 10 Return the flame config.
+        flame_config
+    }
+
+    /// Checks if the flame config is ready to be used.
+    pub fn is_ready(&self) -> bool {
+        // 1 Check if any of the first 5 tiers are set.
+        if self.tier_1_hundred_satoshis.is_some()
+            || self.tier_2_thousand_satoshis.is_some()
+            || self.tier_3_ten_thousand_satoshis.is_some()
+            || self.tier_4_hundred_thousand_satoshis.is_some()
+            || self.tier_5_one_million_satoshis.is_some()
+        {
+            // 1.1 Any of the first 5 tiers are set. Return true.
+            return true;
+        }
+
+        // 1.2 Otherwise, return false.
+        false
     }
 
     /// Serializes flame config to bytes for the database.
@@ -206,13 +181,14 @@ impl FMAccountFlameConfig {
         // 1 Construct the bytes.
         let mut bytes = Vec::<u8>::new();
 
-        // 2 Match on the ZKTLC tier 1 hundred satoshis.
-        match &self.zktlc_tier_1_hundred_satoshis {
-            // 2.1 If set, push 0x01 and serialize the script pubkey.
-            Some(script_pubkey) => {
+        // 2 Match on the tier 1 hundred satoshis.
+        match &self.tier_1_hundred_satoshis {
+            // 2.1 If set, push 0x01, serialize the version, and serialize the script pubkey.
+            Some(tier_config) => {
                 bytes.push(0x01);
-                bytes.extend_from_slice(&((script_pubkey.len() as u16).to_le_bytes()));
-                bytes.extend_from_slice(&script_pubkey);
+                bytes.push(tier_config.version);
+                bytes.extend_from_slice(&((tier_config.script_pubkey.len() as u16).to_le_bytes()));
+                bytes.extend_from_slice(&tier_config.script_pubkey);
             }
             // 2.2 If not set, push 0x00.
             None => {
@@ -220,13 +196,14 @@ impl FMAccountFlameConfig {
             }
         }
 
-        // 3 Match on the ZKTLC tier 2 thousand satoshis.
-        match &self.zktlc_tier_2_thousand_satoshis {
-            // 3.1 If set, push 0x01 and serialize the script pubkey.
-            Some(script_pubkey) => {
+        // 3 Match on the tier 2 thousand satoshis.
+        match &self.tier_2_thousand_satoshis {
+            // 3.1 If set, push 0x01, serialize the version, and serialize the script pubkey.
+            Some(tier_config) => {
                 bytes.push(0x01);
-                bytes.extend_from_slice(&((script_pubkey.len() as u16).to_le_bytes()));
-                bytes.extend_from_slice(&script_pubkey);
+                bytes.push(tier_config.version);
+                bytes.extend_from_slice(&((tier_config.script_pubkey.len() as u16).to_le_bytes()));
+                bytes.extend_from_slice(&tier_config.script_pubkey);
             }
             // 3.2 If not set, push 0x00.
             None => {
@@ -234,13 +211,14 @@ impl FMAccountFlameConfig {
             }
         }
 
-        // 4 Match on the ZKTLC tier 3 ten thousand satoshis.
-        match &self.zktlc_tier_3_ten_thousand_satoshis {
-            // 4.1 If set, push 0x01 and serialize the script pubkey.
-            Some(script_pubkey) => {
+        // 4 Match on the tier 3 ten thousand satoshis.
+        match &self.tier_3_ten_thousand_satoshis {
+            // 4.1 If set, push 0x01, serialize the version, and serialize the script pubkey.
+            Some(tier_config) => {
                 bytes.push(0x01);
-                bytes.extend_from_slice(&((script_pubkey.len() as u16).to_le_bytes()));
-                bytes.extend_from_slice(&script_pubkey);
+                bytes.push(tier_config.version);
+                bytes.extend_from_slice(&((tier_config.script_pubkey.len() as u16).to_le_bytes()));
+                bytes.extend_from_slice(&tier_config.script_pubkey);
             }
             // 4.2 If not set, push 0x00.
             None => {
@@ -248,13 +226,14 @@ impl FMAccountFlameConfig {
             }
         }
 
-        // 5 Match on the ZKTLC tier 4 hundred thousand satoshis.
-        match &self.zktlc_tier_4_hundred_thousand_satoshis {
-            // 5.1 If set, push 0x01 and serialize the script pubkey.
-            Some(script_pubkey) => {
+        // 5 Match on the tier 4 hundred thousand satoshis.
+        match &self.tier_4_hundred_thousand_satoshis {
+            // 5.1 If set, push 0x01, serialize the version, and serialize the script pubkey.
+            Some(tier_config) => {
                 bytes.push(0x01);
-                bytes.extend_from_slice(&((script_pubkey.len() as u16).to_le_bytes()));
-                bytes.extend_from_slice(&script_pubkey);
+                bytes.push(tier_config.version);
+                bytes.extend_from_slice(&((tier_config.script_pubkey.len() as u16).to_le_bytes()));
+                bytes.extend_from_slice(&tier_config.script_pubkey);
             }
             // 5.2 If not set, push 0x00.
             None => {
@@ -262,13 +241,14 @@ impl FMAccountFlameConfig {
             }
         }
 
-        // 6 Match on the ZKTLC tier 5 one million satoshis.
-        match &self.zktlc_tier_5_one_million_satoshis {
-            // 6.1 If set, push 0x01 and serialize the script pubkey.
-            Some(script_pubkey) => {
+        // 6 Match on the tier 5 one million satoshis.
+        match &self.tier_5_one_million_satoshis {
+            // 6.1 If set, push 0x01, serialize the version, and serialize the script pubkey.
+            Some(tier_config) => {
                 bytes.push(0x01);
-                bytes.extend_from_slice(&((script_pubkey.len() as u16).to_le_bytes()));
-                bytes.extend_from_slice(&script_pubkey);
+                bytes.push(tier_config.version);
+                bytes.extend_from_slice(&((tier_config.script_pubkey.len() as u16).to_le_bytes()));
+                bytes.extend_from_slice(&tier_config.script_pubkey);
             }
             // 6.2 If not set, push 0x00.
             None => {
@@ -276,13 +256,14 @@ impl FMAccountFlameConfig {
             }
         }
 
-        // 7 Match on the ZKTLC tier 6 ten million satoshis.
-        match &self.zktlc_tier_6_ten_million_satoshis {
-            // 7.1 If set, push 0x01 and serialize the script pubkey.
-            Some(script_pubkey) => {
+        // 7 Match on the tier 6 ten million satoshis.
+        match &self.tier_6_ten_million_satoshis {
+            // 7.1 If set, push 0x01, serialize the version, and serialize the script pubkey.
+            Some(tier_config) => {
                 bytes.push(0x01);
-                bytes.push(script_pubkey.len() as u8);
-                bytes.extend_from_slice(&script_pubkey);
+                bytes.push(tier_config.version);
+                bytes.push(tier_config.script_pubkey.len() as u8);
+                bytes.extend_from_slice(&tier_config.script_pubkey);
             }
             // 7.2 If not set, push 0x00.
             None => {
@@ -290,13 +271,14 @@ impl FMAccountFlameConfig {
             }
         }
 
-        // 8 Match on the ZKTLC tier 7 hundred million satoshis.
-        match &self.zktlc_tier_7_hundred_million_satoshis {
-            // 8.1 If set, push 0x01 and serialize the script pubkey.
-            Some(script_pubkey) => {
+        // 8 Match on the tier 7 hundred million satoshis.
+        match &self.tier_7_hundred_million_satoshis {
+            // 8.1 If set, push 0x01, serialize the version, and serialize the script pubkey.
+            Some(tier_config) => {
                 bytes.push(0x01);
-                bytes.extend_from_slice(&((script_pubkey.len() as u16).to_le_bytes()));
-                bytes.extend_from_slice(&script_pubkey);
+                bytes.push(tier_config.version);
+                bytes.extend_from_slice(&((tier_config.script_pubkey.len() as u16).to_le_bytes()));
+                bytes.extend_from_slice(&tier_config.script_pubkey);
             }
             // 8.2 If not set, push 0x00.
             None => {
@@ -304,13 +286,14 @@ impl FMAccountFlameConfig {
             }
         }
 
-        // 9 Match on the ZKTLC tier any amount.
-        match &self.zktlc_tier_any_amount {
-            // 9.1 If set, push 0x01 and serialize the script pubkey.
-            Some(script_pubkey) => {
+        // 9 Match on the tier any amount.
+        match &self.tier_any_amount {
+            // 9.1 If set, push 0x01, serialize the version, and serialize the script pubkey.
+            Some(tier_config) => {
                 bytes.push(0x01);
-                bytes.extend_from_slice(&((script_pubkey.len() as u16).to_le_bytes()));
-                bytes.extend_from_slice(&script_pubkey);
+                bytes.push(tier_config.version);
+                bytes.extend_from_slice(&((tier_config.script_pubkey.len() as u16).to_le_bytes()));
+                bytes.extend_from_slice(&tier_config.script_pubkey);
             }
             // 9.2 If not set, push 0x00.
             None => {
@@ -327,10 +310,15 @@ impl FMAccountFlameConfig {
         // 1 Create a cursor to track position in the bytes.
         let mut cursor = 0;
 
-        // 2 Read the ZKTLC tier 1 hundred satoshis.
-        let zktlc_tier_1_hundred_satoshis = match bytes.get(cursor) {
-            // 2.1 If set, read the length and script pubkey.
+        // 2 Read the tier 1 hundred satoshis.
+        let tier_1_hundred_satoshis = match bytes.get(cursor) {
+            // 2.1 If set, read the version, length and script pubkey.
             Some(&0x01) => {
+                cursor += 1;
+                if cursor >= bytes.len() {
+                    return None;
+                }
+                let version = bytes[cursor];
                 cursor += 1;
                 if cursor + 2 > bytes.len() {
                     return None;
@@ -342,7 +330,10 @@ impl FMAccountFlameConfig {
                 }
                 let script_pubkey = bytes[cursor..cursor + length].to_vec();
                 cursor += length;
-                Some(script_pubkey)
+                Some(TierFlameConfig {
+                    version,
+                    script_pubkey,
+                })
             }
             // 2.2 If not set, skip.
             Some(&0x00) => {
@@ -352,10 +343,15 @@ impl FMAccountFlameConfig {
             _ => return None,
         };
 
-        // 3 Read the ZKTLC tier 2 thousand satoshis.
-        let zktlc_tier_2_thousand_satoshis = match bytes.get(cursor) {
-            // 3.1 If set, read the length and script pubkey.
+        // 3 Read the tier 2 thousand satoshis.
+        let tier_2_thousand_satoshis = match bytes.get(cursor) {
+            // 3.1 If set, read the version, length and script pubkey.
             Some(&0x01) => {
+                cursor += 1;
+                if cursor >= bytes.len() {
+                    return None;
+                }
+                let version = bytes[cursor];
                 cursor += 1;
                 if cursor + 2 > bytes.len() {
                     return None;
@@ -367,7 +363,10 @@ impl FMAccountFlameConfig {
                 }
                 let script_pubkey = bytes[cursor..cursor + length].to_vec();
                 cursor += length;
-                Some(script_pubkey)
+                Some(TierFlameConfig {
+                    version,
+                    script_pubkey,
+                })
             }
             // 3.2 If not set, skip.
             Some(&0x00) => {
@@ -377,10 +376,15 @@ impl FMAccountFlameConfig {
             _ => return None,
         };
 
-        // 4 Read the ZKTLC tier 3 ten thousand satoshis.
-        let zktlc_tier_3_ten_thousand_satoshis = match bytes.get(cursor) {
-            // 4.1 If set, read the length and script pubkey.
+        // 4 Read the tier 3 ten thousand satoshis.
+        let tier_3_ten_thousand_satoshis = match bytes.get(cursor) {
+            // 4.1 If set, read the version, length and script pubkey.
             Some(&0x01) => {
+                cursor += 1;
+                if cursor >= bytes.len() {
+                    return None;
+                }
+                let version = bytes[cursor];
                 cursor += 1;
                 if cursor + 2 > bytes.len() {
                     return None;
@@ -392,7 +396,10 @@ impl FMAccountFlameConfig {
                 }
                 let script_pubkey = bytes[cursor..cursor + length].to_vec();
                 cursor += length;
-                Some(script_pubkey)
+                Some(TierFlameConfig {
+                    version,
+                    script_pubkey,
+                })
             }
             // 4.2 If not set, skip.
             Some(&0x00) => {
@@ -402,10 +409,15 @@ impl FMAccountFlameConfig {
             _ => return None,
         };
 
-        // 5 Read the ZKTLC tier 4 hundred thousand satoshis.
-        let zktlc_tier_4_hundred_thousand_satoshis = match bytes.get(cursor) {
-            // 5.1 If set, read the length and script pubkey.
+        // 5 Read the tier 4 hundred thousand satoshis.
+        let tier_4_hundred_thousand_satoshis = match bytes.get(cursor) {
+            // 5.1 If set, read the version, length and script pubkey.
             Some(&0x01) => {
+                cursor += 1;
+                if cursor >= bytes.len() {
+                    return None;
+                }
+                let version = bytes[cursor];
                 cursor += 1;
                 if cursor + 2 > bytes.len() {
                     return None;
@@ -417,7 +429,10 @@ impl FMAccountFlameConfig {
                 }
                 let script_pubkey = bytes[cursor..cursor + length].to_vec();
                 cursor += length;
-                Some(script_pubkey)
+                Some(TierFlameConfig {
+                    version,
+                    script_pubkey,
+                })
             }
             // 5.2 If not set, skip.
             Some(&0x00) => {
@@ -427,10 +442,15 @@ impl FMAccountFlameConfig {
             _ => return None,
         };
 
-        // 6 Read the ZKTLC tier 5 one million satoshis.
-        let zktlc_tier_5_one_million_satoshis = match bytes.get(cursor) {
-            // 6.1 If set, read the length and script pubkey.
+        // 6 Read the tier 5 one million satoshis.
+        let tier_5_one_million_satoshis = match bytes.get(cursor) {
+            // 6.1 If set, read the version, length and script pubkey.
             Some(&0x01) => {
+                cursor += 1;
+                if cursor >= bytes.len() {
+                    return None;
+                }
+                let version = bytes[cursor];
                 cursor += 1;
                 if cursor + 2 > bytes.len() {
                     return None;
@@ -442,7 +462,10 @@ impl FMAccountFlameConfig {
                 }
                 let script_pubkey = bytes[cursor..cursor + length].to_vec();
                 cursor += length;
-                Some(script_pubkey)
+                Some(TierFlameConfig {
+                    version,
+                    script_pubkey,
+                })
             }
             // 6.2 If not set, skip.
             Some(&0x00) => {
@@ -452,10 +475,15 @@ impl FMAccountFlameConfig {
             _ => return None,
         };
 
-        // 7 Read the ZKTLC tier 6 ten million satoshis.
-        let zktlc_tier_6_ten_million_satoshis = match bytes.get(cursor) {
-            // 7.1 If set, read the length and script pubkey.
+        // 7 Read the tier 6 ten million satoshis.
+        let tier_6_ten_million_satoshis = match bytes.get(cursor) {
+            // 7.1 If set, read the version, length and script pubkey.
             Some(&0x01) => {
+                cursor += 1;
+                if cursor >= bytes.len() {
+                    return None;
+                }
+                let version = bytes[cursor];
                 cursor += 1;
                 if cursor >= bytes.len() {
                     return None;
@@ -467,7 +495,10 @@ impl FMAccountFlameConfig {
                 }
                 let script_pubkey = bytes[cursor..cursor + length].to_vec();
                 cursor += length;
-                Some(script_pubkey)
+                Some(TierFlameConfig {
+                    version,
+                    script_pubkey,
+                })
             }
             // 7.2 If not set, skip.
             Some(&0x00) => {
@@ -477,10 +508,15 @@ impl FMAccountFlameConfig {
             _ => return None,
         };
 
-        // 8 Read the ZKTLC tier 7 hundred million satoshis.
-        let zktlc_tier_7_hundred_million_satoshis = match bytes.get(cursor) {
-            // 8.1 If set, read the length and script pubkey.
+        // 8 Read the tier 7 hundred million satoshis.
+        let tier_7_hundred_million_satoshis = match bytes.get(cursor) {
+            // 8.1 If set, read the version, length and script pubkey.
             Some(&0x01) => {
+                cursor += 1;
+                if cursor >= bytes.len() {
+                    return None;
+                }
+                let version = bytes[cursor];
                 cursor += 1;
                 if cursor + 2 > bytes.len() {
                     return None;
@@ -492,7 +528,10 @@ impl FMAccountFlameConfig {
                 }
                 let script_pubkey = bytes[cursor..cursor + length].to_vec();
                 cursor += length;
-                Some(script_pubkey)
+                Some(TierFlameConfig {
+                    version,
+                    script_pubkey,
+                })
             }
             // 8.2 If not set, skip.
             Some(&0x00) => {
@@ -502,10 +541,15 @@ impl FMAccountFlameConfig {
             _ => return None,
         };
 
-        // 9 Read the ZKTLC tier any amount.
-        let zktlc_tier_any_amount = match bytes.get(cursor) {
-            // 9.1 If set, read the length and script pubkey.
+        // 9 Read the tier any amount.
+        let tier_any_amount = match bytes.get(cursor) {
+            // 9.1 If set, read the version, length and script pubkey.
             Some(&0x01) => {
+                cursor += 1;
+                if cursor >= bytes.len() {
+                    return None;
+                }
+                let version = bytes[cursor];
                 cursor += 1;
                 if cursor + 2 > bytes.len() {
                     return None;
@@ -517,7 +561,10 @@ impl FMAccountFlameConfig {
                 }
                 let script_pubkey = bytes[cursor..cursor + length].to_vec();
                 cursor += length;
-                Some(script_pubkey)
+                Some(TierFlameConfig {
+                    version,
+                    script_pubkey,
+                })
             }
             // 9.2 If not set, skip.
             Some(&0x00) => {
@@ -534,14 +581,14 @@ impl FMAccountFlameConfig {
 
         // 11 Construct the flame config.
         let flame_config = FMAccountFlameConfig {
-            zktlc_tier_1_hundred_satoshis,
-            zktlc_tier_2_thousand_satoshis,
-            zktlc_tier_3_ten_thousand_satoshis: zktlc_tier_3_ten_thousand_satoshis,
-            zktlc_tier_4_hundred_thousand_satoshis,
-            zktlc_tier_5_one_million_satoshis,
-            zktlc_tier_6_ten_million_satoshis,
-            zktlc_tier_7_hundred_million_satoshis: zktlc_tier_7_hundred_million_satoshis,
-            zktlc_tier_any_amount: zktlc_tier_any_amount,
+            tier_1_hundred_satoshis,
+            tier_2_thousand_satoshis,
+            tier_3_ten_thousand_satoshis,
+            tier_4_hundred_thousand_satoshis,
+            tier_5_one_million_satoshis,
+            tier_6_ten_million_satoshis,
+            tier_7_hundred_million_satoshis,
+            tier_any_amount,
         };
 
         // 12 Return the flame config.
@@ -553,74 +600,130 @@ impl FMAccountFlameConfig {
         // 1 Construct the flame config JSON object.
         let mut obj = Map::new();
 
-        // 2 Insert the ZKTLC tier 1 hundred satoshis.
+        // 2 Insert the tier 1 hundred satoshis.
         obj.insert(
-            "zktlc_tier_1_spk".to_string(),
-            match &self.zktlc_tier_1_hundred_satoshis {
-                Some(script_pubkey) => Value::String(hex::encode(script_pubkey)),
+            "tier_1_spk".to_string(),
+            match &self.tier_1_hundred_satoshis {
+                Some(tier_config) => Value::String(hex::encode(&tier_config.script_pubkey)),
+                None => Value::Null,
+            },
+        );
+        obj.insert(
+            "tier_1_version".to_string(),
+            match &self.tier_1_hundred_satoshis {
+                Some(tier_config) => Value::Number(tier_config.version.into()),
                 None => Value::Null,
             },
         );
 
-        // 3 Insert the ZKTLC tier 2 thousand satoshis.
+        // 3 Insert the tier 2 thousand satoshis.
         obj.insert(
-            "zktlc_tier_2_spk".to_string(),
-            match &self.zktlc_tier_2_thousand_satoshis {
-                Some(script_pubkey) => Value::String(hex::encode(script_pubkey)),
+            "tier_2_spk".to_string(),
+            match &self.tier_2_thousand_satoshis {
+                Some(tier_config) => Value::String(hex::encode(&tier_config.script_pubkey)),
+                None => Value::Null,
+            },
+        );
+        obj.insert(
+            "tier_2_version".to_string(),
+            match &self.tier_2_thousand_satoshis {
+                Some(tier_config) => Value::Number(tier_config.version.into()),
                 None => Value::Null,
             },
         );
 
-        // 4 Insert the ZKTLC tier 3 ten thousand satoshis.
+        // 4 Insert the tier 3 ten thousand satoshis.
         obj.insert(
-            "zktlc_tier_3_spk".to_string(),
-            match &self.zktlc_tier_3_ten_thousand_satoshis {
-                Some(script_pubkey) => Value::String(hex::encode(script_pubkey)),
+            "tier_3_spk".to_string(),
+            match &self.tier_3_ten_thousand_satoshis {
+                Some(tier_config) => Value::String(hex::encode(&tier_config.script_pubkey)),
+                None => Value::Null,
+            },
+        );
+        obj.insert(
+            "tier_3_version".to_string(),
+            match &self.tier_3_ten_thousand_satoshis {
+                Some(tier_config) => Value::Number(tier_config.version.into()),
                 None => Value::Null,
             },
         );
 
-        // 5 Insert the ZKTLC tier 4 hundred thousand satoshis.
+        // 5 Insert the tier 4 hundred thousand satoshis.
         obj.insert(
-            "zktlc_tier_4_spk".to_string(),
-            match &self.zktlc_tier_4_hundred_thousand_satoshis {
-                Some(script_pubkey) => Value::String(hex::encode(script_pubkey)),
+            "tier_4_spk".to_string(),
+            match &self.tier_4_hundred_thousand_satoshis {
+                Some(tier_config) => Value::String(hex::encode(&tier_config.script_pubkey)),
+                None => Value::Null,
+            },
+        );
+        obj.insert(
+            "tier_4_version".to_string(),
+            match &self.tier_4_hundred_thousand_satoshis {
+                Some(tier_config) => Value::Number(tier_config.version.into()),
                 None => Value::Null,
             },
         );
 
-        // 6 Insert the ZKTLC tier 5 one million satoshis.
+        // 6 Insert the tier 5 one million satoshis.
         obj.insert(
-            "zktlc_tier_5_spk".to_string(),
-            match &self.zktlc_tier_5_one_million_satoshis {
-                Some(script_pubkey) => Value::String(hex::encode(script_pubkey)),
+            "tier_5_spk".to_string(),
+            match &self.tier_5_one_million_satoshis {
+                Some(tier_config) => Value::String(hex::encode(&tier_config.script_pubkey)),
+                None => Value::Null,
+            },
+        );
+        obj.insert(
+            "tier_5_version".to_string(),
+            match &self.tier_5_one_million_satoshis {
+                Some(tier_config) => Value::Number(tier_config.version.into()),
                 None => Value::Null,
             },
         );
 
-        // 7 Insert the ZKTLC tier 6 ten million satoshis.
+        // 7 Insert the tier 6 ten million satoshis.
         obj.insert(
-            "zktlc_tier_6_spk".to_string(),
-            match &self.zktlc_tier_6_ten_million_satoshis {
-                Some(script_pubkey) => Value::String(hex::encode(script_pubkey)),
+            "tier_6_spk".to_string(),
+            match &self.tier_6_ten_million_satoshis {
+                Some(tier_config) => Value::String(hex::encode(&tier_config.script_pubkey)),
+                None => Value::Null,
+            },
+        );
+        obj.insert(
+            "tier_6_version".to_string(),
+            match &self.tier_6_ten_million_satoshis {
+                Some(tier_config) => Value::Number(tier_config.version.into()),
                 None => Value::Null,
             },
         );
 
-        // 8 Insert the ZKTLC tier 7 hundred million satoshis.
+        // 8 Insert the tier 7 hundred million satoshis.
         obj.insert(
-            "zktlc_tier_7_spk".to_string(),
-            match &self.zktlc_tier_7_hundred_million_satoshis {
-                Some(script_pubkey) => Value::String(hex::encode(script_pubkey)),
+            "tier_7_spk".to_string(),
+            match &self.tier_7_hundred_million_satoshis {
+                Some(tier_config) => Value::String(hex::encode(&tier_config.script_pubkey)),
+                None => Value::Null,
+            },
+        );
+        obj.insert(
+            "tier_7_version".to_string(),
+            match &self.tier_7_hundred_million_satoshis {
+                Some(tier_config) => Value::Number(tier_config.version.into()),
                 None => Value::Null,
             },
         );
 
-        // 9 Insert the ZKTLC tier any amount.
+        // 9 Insert the tier any amount.
         obj.insert(
-            "zktlc_tier_any_amount_spk".to_string(),
-            match &self.zktlc_tier_any_amount {
-                Some(script_pubkey) => Value::String(hex::encode(script_pubkey)),
+            "tier_any_amount_spk".to_string(),
+            match &self.tier_any_amount {
+                Some(tier_config) => Value::String(hex::encode(&tier_config.script_pubkey)),
+                None => Value::Null,
+            },
+        );
+        obj.insert(
+            "tier_any_amount_version".to_string(),
+            match &self.tier_any_amount {
+                Some(tier_config) => Value::Number(tier_config.version.into()),
                 None => Value::Null,
             },
         );
