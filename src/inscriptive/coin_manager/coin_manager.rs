@@ -1420,15 +1420,6 @@ impl CoinManager {
         self.restore_delta();
     }
 
-    /// Clears all epheremal changes from the delta.
-    pub fn flush_delta(&mut self) {
-        // Clear the ephemeral states.
-        self.delta.flush();
-
-        // Clear the ephemeral states backup.
-        self.backup_of_delta.flush();
-    }
-
     /// Applies all epheremal changes from the delta into the permanent in-memory & on-disk.
     pub fn apply_changes(&mut self) -> Result<(), CMApplyChangesError> {
         // 1 Register new accounts in-memory and on-disk.
@@ -1816,11 +1807,17 @@ impl CoinManager {
             }
         }
 
-        // 8 Flush the delta.
-        self.flush_delta();
-
-        // 9 Return the result.
+        // 8 Return the result.
         Ok(())
+    }
+
+    /// Clears all epheremal changes from the delta.
+    pub fn flush_delta(&mut self) {
+        // Clear the ephemeral states.
+        self.delta.flush();
+
+        // Clear the ephemeral states backup.
+        self.backup_of_delta.flush();
     }
 
     // Return as json the whole state of the coin manager.

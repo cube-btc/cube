@@ -247,15 +247,6 @@ impl StateManager {
         self.restore_delta();
     }
 
-    /// Clears all epheremal changes from the delta.
-    pub fn flush_delta(&mut self) {
-        // Clear the ephemeral states.
-        self.delta.flush();
-
-        // Clear the ephemeral states backup.
-        self.backup_of_delta.flush();
-    }
-
     /// Applies the changes to the 'StateManager'.
     pub fn apply_changes(&mut self) -> Result<(), SMApplyChangesError> {
         // 1 Apply the new contracts to register.
@@ -354,11 +345,17 @@ impl StateManager {
             }
         }
 
-        // 4 Flush the delta.
-        self.flush_delta();
-
-        // 5 Return the result.
+        // 4 Return the result.
         Ok(())
+    }
+
+    /// Clears all epheremal changes from the delta.
+    pub fn flush_delta(&mut self) {
+        // Clear the ephemeral states.
+        self.delta.flush();
+
+        // Clear the ephemeral states backup.
+        self.backup_of_delta.flush();
     }
 
     /// Returns the state manager as a JSON object.

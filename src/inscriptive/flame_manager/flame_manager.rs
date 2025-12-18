@@ -324,17 +324,6 @@ impl FlameManager {
         self.restore_delta();
     }
 
-    /// Clears all epheremal changes from the delta.
-    ///
-    /// NOTE: Used by the Engine.
-    pub fn flush_delta(&mut self) {
-        // Clear the epheremal changes from the delta.
-        self.delta.flush();
-
-        // Clear the epheremal changes from the backup.
-        self.backup_of_delta.flush();
-    }
-
     /// Applies the changes to the flame manager.
     pub async fn apply_changes(
         &mut self,
@@ -645,10 +634,16 @@ impl FlameManager {
             }
         }
 
-        // 8 Flush the delta.
-        self.flush_delta();
-
-        // 9 Return the result.
+        // 8 Return the result.
         Ok(sorted_new_flames_to_insert)
+    }
+
+    /// Clears all epheremal changes from the delta.
+    pub fn flush_delta(&mut self) {
+        // Clear the epheremal changes from the delta.
+        self.delta.flush();
+
+        // Clear the epheremal changes from the backup.
+        self.backup_of_delta.flush();
     }
 }

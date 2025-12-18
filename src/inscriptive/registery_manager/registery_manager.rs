@@ -744,17 +744,6 @@ impl RegisteryManager {
         self.restore_delta();
     }
 
-    /// Clears all epheremal changes from the delta.
-    ///
-    /// NOTE: Used by the Engine.
-    pub fn flush_delta(&mut self) {
-        // Clear the epheremal changes from the delta.
-        self.delta.flush();
-
-        // Clear the epheremal changes from the backup.
-        self.backup_of_delta.flush();
-    }
-
     /// Applies the changes to the registery manager.
     ///
     /// NOTE: Used by the Engine.
@@ -1076,11 +1065,17 @@ impl RegisteryManager {
             self.in_memory_contract_ranks = new_ranked_contracts;
         }
 
-        // 9 Flush the delta.
-        self.flush_delta();
-
-        // 10 Return the result.
+        // 9 Return the result.
         Ok(())
+    }
+
+    /// Clears all epheremal changes from the delta.
+    pub fn flush_delta(&mut self) {
+        // Clear the epheremal changes from the delta.
+        self.delta.flush();
+
+        // Clear the epheremal changes from the backup.
+        self.backup_of_delta.flush();
     }
 
     /// Returns the registery manager as a JSON object.
