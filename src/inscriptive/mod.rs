@@ -1,6 +1,7 @@
 pub mod baked;
 pub mod coin_manager;
 pub mod flame_manager;
+pub mod params_manager;
 pub mod registery_manager;
 pub mod set;
 pub mod state_manager;

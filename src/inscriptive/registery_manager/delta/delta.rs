@@ -164,13 +164,13 @@ impl RMDelta {
         self.updated_bls_keys.insert(account_key, bls_key)
     }
 
-    /// Epheremally updates an account's secondary aggregation key.
-    pub fn epheremally_update_account_secondary_aggregation_key(
+    /// Epheremally sets or updates an account's secondary aggregation key.
+    pub fn epheremally_set_or_update_account_secondary_aggregation_key(
         &mut self,
         account_key: AccountKey,
         secondary_aggregation_key: AccountSecondaryAggregationKey,
-    ) {
+    ) -> Option<AccountSecondaryAggregationKey> {
         self.updated_secondary_aggregation_keys
-            .insert(account_key, secondary_aggregation_key);
+            .insert(account_key, secondary_aggregation_key)
     }
 }

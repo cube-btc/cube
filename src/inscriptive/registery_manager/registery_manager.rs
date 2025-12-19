@@ -13,7 +13,8 @@ use crate::inscriptive::registery_manager::errors::increment_account_call_counte
 use crate::inscriptive::registery_manager::errors::increment_contract_call_counter_error::RMIncrementContractCallCounterError;
 use crate::inscriptive::registery_manager::errors::register_account_error::RMRegisterAccountError;
 use crate::inscriptive::registery_manager::errors::register_contract_error::RMRegisterContractError;
-use crate::inscriptive::registery_manager::errors::update_account_aggregation_keys_error::RMUpdateAccountAggregationKeysError;
+use crate::inscriptive::registery_manager::errors::update_account_bls_key_error::RMUpdateAccountBLSKeyError;
+use crate::inscriptive::registery_manager::errors::update_account_secondary_aggregation_key_error::RMUpdateAccountSecondaryAggregationKeyError;
 use crate::operative::Chain;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
@@ -681,59 +682,77 @@ impl RegisteryManager {
         Ok(())
     }
 
-    /// Epheremally updates an account's aggregation keys (BLS key and/or secondary aggregation key).
+    /// Epheremally sets an account's BLS key.
     ///
     /// NOTE: These changes are saved with the use of the `apply_changes` function.
-    pub fn epheremally_update_account_aggregation_keys(
+    pub fn epheremally_set_account_bls_key(
         &mut self,
         account_key: AccountKey,
-        bls_key: Option<AccountBLSKey>,
-        secondary_aggregation_key: Option<AccountSecondaryAggregationKey>,
-    ) -> Result<(), RMUpdateAccountAggregationKeysError> {
+        bls_key: AccountBLSKey,
+    ) -> Result<(), RMUpdateAccountBLSKeyError> {
+        // NOTE: We allot BLS key to be set only once, and for that it should not have been set yet.
+
         // 1 Check if the account is permanently registered.
         let account_body = self.in_memory_accounts.get(&account_key).ok_or(
-            RMUpdateAccountAggregationKeysError::AccountIsNotRegistered(account_key),
+            RMUpdateAccountBLSKeyError::AccountIsNotRegistered(account_key),
         )?;
 
-        // 2 Check if the BLS is to be set.
-        if let Some(bls_key) = bls_key {
-            // NOTE: We allot BLS key to be set only once, and for that it should not have been set yet.
-
-            // 2.1 Check if the BLS key has already been set.
-            if account_body.primary_bls_key.is_some() {
-                return Err(
-                    RMUpdateAccountAggregationKeysError::BLSKeyIsAlreadyPermanentlySet(account_key),
-                );
-            }
-
-            // 2.2 Update the BLS key in the delta.
-            if let Some(existing_bls_key) = self
-                .delta
-                .epheremally_set_account_bls_key(account_key, bls_key)
-            {
-                return Err(
-                    RMUpdateAccountAggregationKeysError::BLSKeyIsAlreadyEpheremallySet(
-                        account_key,
-                        existing_bls_key,
-                    ),
-                );
-            }
+        // 2 Make sure the BLS key has not been already permanently set.
+        if account_body.primary_bls_key.is_some() {
+            return Err(RMUpdateAccountBLSKeyError::BLSKeyIsAlreadyPermanentlySet(
+                account_key,
+            ));
         }
 
-        // 3 Check if the secondary aggregation key is to be set.
-        if let Some(secondary_aggregation_key) = secondary_aggregation_key {
-            // NOTE: We allow secondary aggregation key to be updated multiple times.
-
-            // 3.1 Update the secondary aggregation key in the delta.
-            self.delta
-                .epheremally_update_account_secondary_aggregation_key(
-                    account_key,
-                    secondary_aggregation_key,
-                );
+        // 3 Update the BLS key in the delta, and return an error if it has already been epheremally set in the same execution.
+        if let Some(existing_bls_key) = self
+            .delta
+            .epheremally_set_account_bls_key(account_key, bls_key)
+        {
+            return Err(RMUpdateAccountBLSKeyError::BLSKeyIsAlreadyEpheremallySet(
+                account_key,
+                existing_bls_key,
+            ));
         }
 
         // 4 Return the result.
         Ok(())
+    }
+
+    /// Epheremally sets or updates an account's secondary aggregation key.
+    ///
+    /// NOTE: These changes are saved with the use of the `apply_changes` function.
+    pub fn epheremally_set_or_update_account_secondary_aggregation_key(
+        &mut self,
+        account_key: AccountKey,
+        secondary_aggregation_key: AccountSecondaryAggregationKey,
+    ) -> Result<Option<AccountSecondaryAggregationKey>, RMUpdateAccountSecondaryAggregationKeyError>
+    {
+        // 1 Check if the account is registered and return it's body.
+        let account_body = self.in_memory_accounts.get(&account_key).ok_or(
+            RMUpdateAccountSecondaryAggregationKeyError::AccountIsNotRegistered(account_key),
+        )?;
+
+        // 2 Get the existing secondary aggregation key if it was set before.
+        let previous_secondary_aggregation_key: Option<AccountSecondaryAggregationKey> =
+            account_body.secondary_aggregation_key.to_owned();
+
+        // 3 Update the secondary aggregation key in the delta, and return an error if it has already been epheremally updated in the same execution.
+        if let Some(secondary_aggregation_key) = self
+            .delta
+            .epheremally_set_or_update_account_secondary_aggregation_key(
+                account_key,
+                secondary_aggregation_key,
+            )
+        {
+            return Err(RMUpdateAccountSecondaryAggregationKeyError::SecondaryAggregationKeyIsAlreadyEpheremallyUpdated(
+                    account_key,
+                    secondary_aggregation_key,
+                ));
+        }
+
+        // 4 Return the previous secondary aggregation key.
+        Ok(previous_secondary_aggregation_key)
     }
 
     /// Reverts the epheremal changes associated with the last execution.
