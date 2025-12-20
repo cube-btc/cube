@@ -29,6 +29,86 @@ fn main() {
     }
 }
 
+/// Prints the nsec in a decorative frame with WoT branding.
+fn print_nsec_frame(nsec: &str) {
+    let width = 70;
+    let corner_tl = "╔";
+    let corner_tr = "╗";
+    let corner_bl = "╚";
+    let corner_br = "╝";
+    let horizontal = "═";
+    let vertical = "║";
+    let ornament = "✦";
+    let flower = "✿";
+    
+    // Top border with WoT
+    // Format: "{}{} {} {} {} {}{}" = corner + padding + " " + ornament + " " + text + " " + ornament + " " + padding + corner
+    // Spaces: 1 + 1 + 1 + 1 + 1 = 5 spaces total
+    // Total: 1 + padding + 1 + 1 + 1 + text_len + 1 + 1 + 1 + right_padding + 1 = padding + right_padding + text_len + 9
+    let wot = "WoT";
+    let wot_len = wot.len();
+    let fixed = 2 + 5 + 2 + wot_len; // 2 corners + 5 spaces + 2 ornaments + text = 9 + text_len
+    let total_padding = width - fixed;
+    let padding = total_padding / 2;
+    let right_padding = total_padding - padding;
+    let top_line = format!(
+        "{}{} {} {} {} {}{}",
+        corner_tl,
+        horizontal.repeat(padding),
+        ornament,
+        wot,
+        ornament,
+        horizontal.repeat(right_padding),
+        corner_tr
+    );
+    println!("{}", top_line.magenta());
+    
+    // Empty line with flowers
+    println!("{}{}{}{}{}", vertical.magenta(), flower.magenta(), " ".repeat(width - 5), flower.magenta(), vertical.magenta());
+    
+    // Nsec line - centered with flowers
+    let inner_width = width - 5; // Account for 2 verticals + 2 flowers + 1 extra space
+    let nsec_len = nsec.chars().count();
+    let nsec_padding = (inner_width - nsec_len) / 2;
+    let nsec_right = inner_width - nsec_padding - nsec_len;
+    let nsec_line = format!(
+        "{}{}{}{}{}{}{}",
+        vertical.magenta(),
+        flower.magenta(),
+        " ".repeat(nsec_padding),
+        nsec.magenta(),
+        " ".repeat(nsec_right),
+        flower.magenta(),
+        vertical.magenta()
+    );
+    println!("{}", nsec_line);
+    
+    // Empty line with flowers
+    println!("{}{}{}{}{}", vertical.magenta(), flower.magenta(), " ".repeat(width - 5), flower.magenta(), vertical.magenta());
+    
+    // Bottom border with In Identity We Trust
+    // Format: same as top - corner + padding + " " + ornament + " " + text + " " + ornament + " " + padding + corner
+    // Spaces: 5 total
+    // Total: padding + right_padding + text_len + 9
+    let trust_text = "In Identity We Trust";
+    let trust_len = trust_text.len();
+    let fixed = 2 + 5 + 2 + trust_len; // 2 corners + 5 spaces + 2 ornaments + text = 9 + text_len
+    let total_padding = width - fixed;
+    let padding = total_padding / 2;
+    let right_padding = total_padding - padding;
+    let bottom_line = format!(
+        "{}{} {} {} {} {}{}",
+        corner_bl,
+        horizontal.repeat(padding),
+        ornament,
+        trust_text,
+        ornament,
+        horizontal.repeat(right_padding),
+        corner_br
+    );
+    println!("{}", bottom_line.magenta());
+}
+
 /// Generates a random secret key and prints it as an nsec.
 fn gensec(args: &Vec<String>) {
     // 1 Match the argument name.
@@ -50,8 +130,8 @@ fn gensec(args: &Vec<String>) {
                 }
             };
 
-            // 1.a.3 Print the nsec.
-            println!("{}", nsec.magenta());
+            // 1.a.3 Print the nsec in a decorative frame.
+            print_nsec_frame(&nsec);
         }
 
         // 1.b Command is invalid.
