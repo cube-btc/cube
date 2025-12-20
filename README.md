@@ -10,6 +10,18 @@ git clone https://github.com/cube-btc/cube
 cd cube
 ```
 
+## Generating a Secret Key
+
+If you don't already have a secret key, you can optionally generate a new one by running:
+
+```sh
+cargo run gensec
+```
+
+This will generate a random secret key and print it as an nsec string, which you'll need when running the program.
+
+Cube abides by the [NIP-19](https://nips.nostr.com/19) format for secret keys, which uses bech32-encoded `nsec` strings for private keys.
+
 ## Usage
 
 Run the program with the following command:

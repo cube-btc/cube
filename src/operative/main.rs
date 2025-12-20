@@ -5,7 +5,10 @@ use cube::{
         mode::{coordinator::coordinator, node::node, operator::operator},
         Chain, OperatingKind, OperatingMode,
     },
-    transmutative::key::{FromNostrKeyStr, KeyHolder},
+    transmutative::{
+        key::{FromNostrKeyStr, KeyHolder, ToNostrKeyStr},
+        secp::schnorr::generate_secret,
+    },
 };
 use std::{env, io::BufRead};
 
@@ -13,20 +16,52 @@ fn main() {
     // 1 Parse arguments.
     let args: Vec<String> = env::args().collect();
 
-    // 2 Validate arguments.
-    if args.len() < 7 {
-        eprintln!(
-            "{}",
-            format!(
-                "Usage: {} <mode> <chain> <kind> <bitcoin-rpc-url> <bitcoin-rpc-user> <bitcoin-rpc-password>",
-                args[0]
-            )
-            .red()
-        );
-        return;
-    }
+    // 2 Match the arguments length.
+    match args.len() {
+        // 2.a Generate a random secret key and print it as an nsec.
+        2 => gensec(&args),
 
-    // 3 Parse operating mode.
+        // 2.b Run the appropriate mode based on the arguments.
+        7 => run(&args),
+
+        // 2.c Invalid arguments.
+        _ => print_correct_usage(),
+    }
+}
+
+/// Generates a random secret key and prints it as an nsec.
+fn gensec(args: &Vec<String>) {
+    // 1 Match the argument name.
+    match args[1].to_lowercase().as_str() {
+        // 1.a Command is 'gensec'.
+        "gensec" => {
+            // 1.a.1 Generate a random secret key.
+            let secret_key_bytes = generate_secret();
+
+            // 1.a.2 Secret key as nsec.
+            let nsec = match secret_key_bytes.to_nsec() {
+                // 1.a.2.a Success.
+                Some(nsec) => nsec,
+
+                // 1.a.2.b This not possible.
+                None => {
+                    println!("{}", "Failed to convert secret key to nsec.".red());
+                    return;
+                }
+            };
+
+            // 1.a.3 Print the nsec.
+            println!("{}", nsec.magenta());
+        }
+
+        // 1.b Command is invalid.
+        _ => print_correct_usage(),
+    }
+}
+
+/// Runs the appropriate mode based on the arguments.
+fn run(args: &Vec<String>) {
+    // 1 Parse operating mode.
     let operating_mode = match args[1].to_lowercase().as_str() {
         "pruned" => OperatingMode::Pruned,
         "archival" => OperatingMode::Archival,
@@ -36,7 +71,7 @@ fn main() {
         }
     };
 
-    // 4 Parse chain.
+    // 2 Parse chain.
     let chain = match args[2].to_lowercase().as_str() {
         "signet" => Chain::Signet,
         "mainnet" => Chain::Mainnet,
@@ -50,7 +85,7 @@ fn main() {
         }
     };
 
-    // 5 Parse operating kind.
+    // 3 Parse operating kind.
     let operating_kind = match args[3].to_lowercase().as_str() {
         "node" => OperatingKind::Node,
         "engine" => OperatingKind::Operator,
@@ -61,11 +96,11 @@ fn main() {
         }
     };
 
-    // 6 Parse RPC.
+    // 4 Parse RPC.
     let rpc_holder =
         BitcoinRPCHolder::new(args[4].to_owned(), args[5].to_owned(), args[6].to_owned());
 
-    // 7 Parse key holder.
+    // 5 Parse key holder.
     let key_holder = {
         println!("{}", "Enter nsec:".magenta());
 
@@ -106,17 +141,29 @@ fn main() {
         key_holder
     };
 
-    // 8 Run the appropriate mode.
+    // 6 Run the appropriate mode.
     match operating_kind {
-        // 8.1 Run as a node.
+        // 6.1 Run as a node.
         OperatingKind::Node => node::run(key_holder, chain, rpc_holder, operating_mode),
 
-        // 8.2 Run as an operator.
+        // 6.2 Run as an operator.
         OperatingKind::Operator => operator::run(key_holder, chain, rpc_holder, operating_mode),
 
-        // 8.3 Run as a coordinator.
+        // 6.3 Run as a coordinator.
         OperatingKind::Coordinator => {
             coordinator::run(key_holder, chain, rpc_holder, operating_mode)
         }
     }
+}
+
+/// Prints the correct usage of the command.
+fn print_correct_usage() {
+    eprintln!(
+        "{}",
+        format!(
+            "Usage: <mode> <chain> <kind> <bitcoin-rpc-url> <bitcoin-rpc-user> <bitcoin-rpc-password>"
+        )
+        .red()
+    );
+    return;
 }
