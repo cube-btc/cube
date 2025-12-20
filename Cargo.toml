@@ -22,7 +22,6 @@ nostr-sdk = "0.37.0"
 rand = "0.8.5"
 reqwest = "0.12.9"
 secp = { version = "0.4.1", default-features = false, features = ["k256", "serde"] }
-secrecy = "0.10.3"
 serde = "1.0.216"
 serde_json = "1.0.134"
 sha2 = "0.10.8"
