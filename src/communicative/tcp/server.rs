@@ -28,7 +28,7 @@ pub async fn run(
     operating_kind: OperatingKind,
     chain: Chain,
     nns_client: &NNSClient,
-    keys: &KeyHolder,
+    keys: Arc<KeyHolder>,
 ) {
     let port_number = port_number(chain);
     let addr = format!("{}:{}", "0.0.0.0", port_number);
@@ -52,7 +52,7 @@ pub async fn run(
 
             tokio::spawn({
                 let socket = Arc::clone(&socket);
-                let keys = keys.clone();
+                let keys = Arc::clone(&keys);
 
                 async move {
                     handle_socket(&socket, None, operating_kind, &keys).await;
@@ -86,7 +86,7 @@ pub async fn run(
                         tokio::spawn({
                             let socket = Arc::clone(&socket);
                             let socket_alive = Arc::clone(&socket_alive);
-                            let keys = keys.clone();
+                            let keys = Arc::clone(&keys);
 
                             async move {
                                 handle_socket(&socket, Some(&socket_alive), operating_kind, &keys)

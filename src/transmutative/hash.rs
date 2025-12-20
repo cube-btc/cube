@@ -1,5 +1,5 @@
 use crate::inscriptive::baked;
-use sha2::{Digest, Sha256};
+use sha2::{Digest, Sha256, Sha512};
 
 #[derive(Clone, PartialEq)]
 pub enum HashTag {
@@ -69,8 +69,18 @@ pub fn sha256(preimage: &[u8]) -> [u8; 32] {
     hash_array
 }
 
+pub fn sha512(preimage: &[u8]) -> [u8; 64] {
+    let mut hasher = Sha512::new();
+    hasher.update(preimage);
+    let result = hasher.finalize();
+    let mut hash_array = [0u8; 64];
+    hash_array.copy_from_slice(&result);
+    hash_array
+}
+
 pub trait Hash {
     fn hash(&self, tag: Option<HashTag>) -> [u8; 32];
+    fn long_hash(&self, tag: Option<HashTag>) -> [u8; 64];
 }
 
 impl<T> Hash for T
@@ -94,4 +104,23 @@ where
 
         sha256(&preimage)
     }
+
+    fn long_hash(&self, tag: Option<HashTag>) -> [u8; 64] {
+        let tag_hash = match tag {
+            Some(tag) => match tag {
+                HashTag::CustomBytes(tag) => sha512(tag.as_slice()),
+                _ => sha512(tag.as_str().as_bytes()),
+            },
+            None => [0xffu8; 64],
+        };
+
+        let mut preimage = Vec::<u8>::new();
+
+        preimage.extend(tag_hash);
+        preimage.extend(tag_hash);
+        preimage.extend(self.as_ref());
+
+        sha512(&preimage)
+    }
 }
+

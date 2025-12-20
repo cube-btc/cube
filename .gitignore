@@ -1,6 +1,20 @@
 /storage
 /target
 .DS_Store
-Dockerfile
-.dockerignore
 nns_ip_address.txt
+
+# Editor and IDE files
+*.orig
+*.bak
+*.swp
+.vscode/
+.idea/
+
+# Docker
+# Note: Dockerfile and .dockerignore are tracked (they're part of the repo)
+docker-compose.yml
+docker-compose.override.yml
+*.docker-compose.yml
+.docker/
+docker-data/
+docker-volumes/

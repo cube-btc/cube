@@ -3,8 +3,8 @@ mod bls_test {
     use cube::transmutative::bls::{
         agg::bls_aggregate,
         key::{
-            secret_key_bytes_to_bls_secret_key, secret_key_to_bls_public_key, BLSPublicKey,
-            BLSSecretKey,
+            bls_secret_key_bytes_to_bls_secret_key, bls_secret_key_to_bls_public_key,
+            secp_secret_key_bytes_to_bls_secret_key_bytes, BLSPublicKey, BLSSecretKey,
         },
         sign::bls_sign,
         verify::{bls_verify, bls_verify_aggregate},
@@ -19,14 +19,19 @@ mod bls_test {
             0x64, 0x73, 0xd2, 0x16,
         ];
 
+        let bls_secret_key_bytes: [u8; 48] =
+            secp_secret_key_bytes_to_bls_secret_key_bytes(&secret_key_bytes);
+
         // Convert the secret key to a BLS public key.
-        let public_key: [u8; 48] =
-            secret_key_to_bls_public_key(secret_key_bytes_to_bls_secret_key(secret_key_bytes))
-                .try_into()
-                .unwrap();
+        let public_key: [u8; 48] = bls_secret_key_to_bls_public_key(
+            bls_secret_key_bytes_to_bls_secret_key(bls_secret_key_bytes),
+        )
+        .unwrap()
+        .try_into()
+        .unwrap();
 
         // Convert the expected public key to a BLS public key.
-        let expected_public_key: [u8; 48] = hex::decode("87499a10e183cd2e32398ea3bf75e477723ab24f0f891821ffe3b1286e13da99b13b45161d2cc90b9d7f9c1053f9be3c")
+        let expected_public_key: [u8; 48] = hex::decode("8c68fce91a1e95147e15947de3f2d82147e83ead638624784d9d4629c142a63135822fdaa5ec70fbf1d63d724bc26b98")
             .unwrap()
             .try_into()
             .unwrap();
@@ -56,15 +61,28 @@ mod bls_test {
                 .try_into()
                 .unwrap();
 
+        let bls_secret_key_bytes_1: [u8; 48] =
+            secp_secret_key_bytes_to_bls_secret_key_bytes(&secret_key_bytes_1);
+        let bls_secret_key_bytes_2: [u8; 48] =
+            secp_secret_key_bytes_to_bls_secret_key_bytes(&secret_key_bytes_2);
+        let bls_secret_key_bytes_3: [u8; 48] =
+            secp_secret_key_bytes_to_bls_secret_key_bytes(&secret_key_bytes_3);
+
         // Convert the secret keys to BLS secret keys.
-        let bls_secret_key_1: BLSSecretKey = secret_key_bytes_to_bls_secret_key(secret_key_bytes_1);
-        let bls_secret_key_2: BLSSecretKey = secret_key_bytes_to_bls_secret_key(secret_key_bytes_2);
-        let bls_secret_key_3: BLSSecretKey = secret_key_bytes_to_bls_secret_key(secret_key_bytes_3);
+        let bls_secret_key_1: BLSSecretKey =
+            bls_secret_key_bytes_to_bls_secret_key(bls_secret_key_bytes_1);
+        let bls_secret_key_2: BLSSecretKey =
+            bls_secret_key_bytes_to_bls_secret_key(bls_secret_key_bytes_2);
+        let bls_secret_key_3: BLSSecretKey =
+            bls_secret_key_bytes_to_bls_secret_key(bls_secret_key_bytes_3);
 
         // Convert the BLS secret keys to BLS public keys.
-        let bls_public_key_1: BLSPublicKey = secret_key_to_bls_public_key(bls_secret_key_1);
-        let bls_public_key_2: BLSPublicKey = secret_key_to_bls_public_key(bls_secret_key_2);
-        let bls_public_key_3: BLSPublicKey = secret_key_to_bls_public_key(bls_secret_key_3);
+        let bls_public_key_1: BLSPublicKey =
+            bls_secret_key_to_bls_public_key(bls_secret_key_1).unwrap();
+        let bls_public_key_2: BLSPublicKey =
+            bls_secret_key_to_bls_public_key(bls_secret_key_2).unwrap();
+        let bls_public_key_3: BLSPublicKey =
+            bls_secret_key_to_bls_public_key(bls_secret_key_3).unwrap();
 
         // Message to sign.
         let message_1: [u8; 32] = [0xffu8; 32];

@@ -17,16 +17,19 @@ colored = "2.2.0"
 easy-upnp = "0.2.0"
 futures = "0.3.31"
 hex = "0.4.3"
+libc = "0.2.178"
 nostr-sdk = "0.37.0"
 rand = "0.8.5"
 reqwest = "0.12.9"
 secp = { version = "0.4.1", default-features = false, features = ["k256", "serde"] }
+secrecy = "0.10.3"
 serde = "1.0.216"
 serde_json = "1.0.134"
 sha2 = "0.10.8"
 sled = "0.34.7"
 tokio = { version = "1.40.0", features = ["full"] }
 uint = { version = "0.9", default-features = false }
+zeroize = "1.8.2"
 
 [lib]
 name = "cube"

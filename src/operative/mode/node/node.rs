@@ -32,6 +32,9 @@ pub async fn run(
     rpc_holder: BitcoinRPCHolder,
     _operating_mode: OperatingMode,
 ) {
+    // Wrap KeyHolder in Arc for safe sharing across async tasks.
+    // This avoids cloning secrets and maintains a single copy in memory.
+    let key_holder = Arc::new(key_holder);
     let _operating_kind = OperatingKind::Node;
 
     // #1 Validate Bitcoin RPC.
@@ -43,7 +46,7 @@ pub async fn run(
     println!("{}", "Initializing node.");
 
     // #2 Initialize  wallet.
-    let wallet: WALLET = match Wallet::new(chain, key_holder.public_key()) {
+    let wallet: WALLET = match Wallet::new(chain, key_holder.secp_public_key_point()) {
         Some(wallet) => wallet,
         None => {
             println!("{}", "Error initializing wallet.".red());
@@ -85,7 +88,7 @@ pub async fn run(
     // #8 Spawn syncer
     {
         let chain = chain.clone();
-        let key_holder = key_holder.clone();
+        let key_holder = Arc::clone(&key_holder);
         let rpc_holder = rpc_holder.clone();
 
         let registery = Arc::clone(&registery);
@@ -118,7 +121,9 @@ pub async fn run(
     let account = {
         let _registery_manager = registery.lock().await;
 
-        match _registery_manager.get_account_by_key(key_holder.public_key().serialize_xonly()) {
+        match _registery_manager
+            .get_account_by_key(key_holder.secp_public_key_point().serialize_xonly())
+        {
             Some(account) => account,
             None => {
                 println!("{}", "Error constructing account.".red());
@@ -192,8 +197,8 @@ pub async fn cli(
                 ncli::r#move::move_command(
                     coordinator_conn,
                     wallet,
-                    key_holder.secret_key(),
-                    key_holder.public_key(),
+                    key_holder.secp_secret_key_scalar(),
+                    key_holder.secp_public_key_point(),
                 )
                 .await
             }

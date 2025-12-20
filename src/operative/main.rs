@@ -40,7 +40,7 @@ fn print_nsec_frame(nsec: &str) {
     let vertical = "║";
     let ornament = "✦";
     let flower = "✿";
-    
+
     // Top border with WoT
     // Format: "{}{} {} {} {} {}{}" = corner + padding + " " + ornament + " " + text + " " + ornament + " " + padding + corner
     // Spaces: 1 + 1 + 1 + 1 + 1 = 5 spaces total
@@ -62,10 +62,17 @@ fn print_nsec_frame(nsec: &str) {
         corner_tr
     );
     println!("{}", top_line.magenta());
-    
+
     // Empty line with flowers
-    println!("{}{}{}{}{}", vertical.magenta(), flower.magenta(), " ".repeat(width - 5), flower.magenta(), vertical.magenta());
-    
+    println!(
+        "{}{}{}{}{}",
+        vertical.magenta(),
+        flower.magenta(),
+        " ".repeat(width - 5),
+        flower.magenta(),
+        vertical.magenta()
+    );
+
     // Nsec line - centered with flowers
     let inner_width = width - 5; // Account for 2 verticals + 2 flowers + 1 extra space
     let nsec_len = nsec.chars().count();
@@ -82,10 +89,17 @@ fn print_nsec_frame(nsec: &str) {
         vertical.magenta()
     );
     println!("{}", nsec_line);
-    
+
     // Empty line with flowers
-    println!("{}{}{}{}{}", vertical.magenta(), flower.magenta(), " ".repeat(width - 5), flower.magenta(), vertical.magenta());
-    
+    println!(
+        "{}{}{}{}{}",
+        vertical.magenta(),
+        flower.magenta(),
+        " ".repeat(width - 5),
+        flower.magenta(),
+        vertical.magenta()
+    );
+
     // Bottom border with In Identity We Trust
     // Format: same as top - corner + padding + " " + ornament + " " + text + " " + ornament + " " + padding + corner
     // Spaces: 5 total
@@ -115,23 +129,32 @@ fn gensec(args: &Vec<String>) {
     match args[1].to_lowercase().as_str() {
         // 1.a Command is 'gensec'.
         "gensec" => {
-            // 1.a.1 Generate a random secret key.
-            let secret_key_bytes = generate_secret();
+            // 1.a.1 Generate a random nsec.
+            let nsec = {
+                // 1.a.1.1 Generate a random secret key.
+                let secret_key_bytes = generate_secret();
 
-            // 1.a.2 Secret key as nsec.
-            let nsec = match secret_key_bytes.to_nsec() {
-                // 1.a.2.a Success.
-                Some(nsec) => nsec,
+                // 1.a.1.2 Convert the secret key to an nsec.
+                match secret_key_bytes.to_nsec() {
+                    // 1.a.1.2.a Success.
+                    Some(nsec) => nsec,
 
-                // 1.a.2.b This not possible.
-                None => {
-                    println!("{}", "Failed to convert secret key to nsec.".red());
-                    return;
+                    // 1.a.2.b This not possible.
+                    None => {
+                        println!("{}", "Failed to convert secret key to nsec.".red());
+                        return;
+                    }
                 }
             };
 
-            // 1.a.3 Print the nsec in a decorative frame.
+            // 1.a.2 Print the nsec in a decorative frame.
             print_nsec_frame(&nsec);
+
+            // 1.a.3 Drop the nsec.
+            drop(nsec);
+
+            // 1.a.4 Return.
+            return;
         }
 
         // 1.b Command is invalid.
@@ -182,35 +205,72 @@ fn run(args: &Vec<String>) {
 
     // 5 Parse key holder.
     let key_holder = {
+        // 5.1 Print the prompt.
         println!("{}", "Enter nsec:".magenta());
 
-        let mut secret_key_bytes = [0xffu8; 32];
+        // 5.2 Parse the secret key.
+        let secret_key: [u8; 32] = {
+            // 5.2.1 Initialize the secret key bytes.
+            let mut secret_key_bytes = [0xffu8; 32];
 
-        let stdin = std::io::stdin();
-        let handle = stdin.lock();
+            //
+            // DANGER ZONE BEGIN: reading private key from stdin.
+            //
+            {
+                // 5.2.2 Read the input from stdin.
+                let stdin = std::io::stdin();
 
-        for line in handle.lines() {
-            let line = line.unwrap();
-            let parts: Vec<&str> = line.trim().split_whitespace().collect();
+                // 5.2.3 Get the handle.
+                let handle = stdin.lock();
 
-            if parts.len() != 1 {
-                println!("{}", "Invalid nsec.".yellow());
-            }
+                // 5.2.4 Drop stdin.
+                drop(stdin);
 
-            let nsec = parts[0];
+                // 5.2.5 Parse the input.
+                for line in handle.lines() {
+                    // 5.2.5.1 Unwrap the line.
+                    let line = line.unwrap();
 
-            secret_key_bytes = match nsec.from_nsec() {
-                Some(secret_key) => secret_key,
-                None => {
-                    eprintln!("{}", "Invalid nsec.".red());
-                    return;
+                    // 5.2.5.2 Parse the parts.
+                    let parts: Vec<&str> = line.trim().split_whitespace().collect();
+
+                    // 5.2.5.3 Check if the parts length is valid.
+                    if parts.len() != 1 {
+                        println!("{}", "Invalid nsec.".yellow());
+                    }
+
+                    // 5.2.5.4 Parse the nsec.
+                    let nsec: String = parts[0].to_owned();
+
+                    // 5.2.5.5 Drop the parts.
+                    drop(parts);
+
+                    // 5.2.5.6 Convert the nsec to a secret key.
+                    secret_key_bytes = match nsec.as_str().from_nsec() {
+                        Some(secret_key) => secret_key,
+                        None => {
+                            eprintln!("{}", "Invalid nsec.".red());
+                            return;
+                        }
+                    };
+
+                    // 5.2.5.7 Drop the nsec.
+                    drop(nsec);
+
+                    // 5.2.5.8 Break the loop.
+                    break;
                 }
-            };
+            }
+            //
+            // DANGER ZONE END: reading private key from stdin.
+            //
 
-            break;
-        }
+            // 5.2.4 Return the secret key bytes.
+            secret_key_bytes
+        };
 
-        let key_holder = match KeyHolder::new(secret_key_bytes) {
+        // 5.3 Create the key holder from the secret key bytes.
+        let key_holder = match KeyHolder::new(secret_key) {
             Some(key_holder) => key_holder,
             None => {
                 eprintln!("{}", "Invalid nsec.".red());
@@ -218,6 +278,7 @@ fn run(args: &Vec<String>) {
             }
         };
 
+        // 5.4 Return the key holder.
         key_holder
     };
 

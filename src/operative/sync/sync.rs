@@ -28,7 +28,7 @@ type LiftSPK = Vec<u8>;
 pub async fn lifts_spks_to_scan(key_holder: &KeyHolder) -> Option<Vec<(LiftSPK, Point)>> {
     let mut spks = Vec::<(LiftSPK, Point)>::new();
 
-    let self_key = key_holder.public_key();
+    let self_key = key_holder.secp_public_key_point();
 
     // TODO
     let group_keys: Vec<Point> = vec![];
@@ -315,7 +315,7 @@ impl RollupSync for SYNC_MANAGER {
                             if let Some(wallet) = wallet {
                                 for (lift_spk, operator_group_key) in lift_spks_to_scan.iter() {
                                     if &txn_output_spk == lift_spk {
-                                        let self_key = key_holder.public_key();
+                                        let self_key = key_holder.secp_public_key_point();
                                         let operator_key = operator_group_key.to_owned();
 
                                         let lift = Lift::new(

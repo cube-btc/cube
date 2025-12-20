@@ -1,0 +1,47 @@
+# Build artifacts
+/target
+/storage
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDE and editor files
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Documentation (optional - remove if you want docs in image)
+*.md
+!README.md
+
+# Test files
+/tests
+*.test
+*.spec
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Environment and secrets
+.env
+.env.local
+*.pem
+*.key
+*.crt
+nns_ip_address.txt
+
+# Docker files (don't copy into image)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Other
+*.log
+*.tmp
