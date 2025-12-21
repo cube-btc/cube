@@ -11,7 +11,8 @@ nns_ip_address.txt
 .idea/
 
 # Docker
-# Note: Dockerfile and .dockerignore are tracked (they're part of the repo)
+.dockerignore
+Dockerfile
 docker-compose.yml
 docker-compose.override.yml
 *.docker-compose.yml
