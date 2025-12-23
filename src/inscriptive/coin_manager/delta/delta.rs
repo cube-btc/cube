@@ -28,8 +28,8 @@ pub struct CMDelta {
     // Updated account balances for a given account.
     pub updated_account_balances: HashMap<AccountKey, SatoshiAmount>,
 
-    // Updated shadow allocs sums for a given account.
-    pub updated_shadow_allocs_sums: HashMap<AccountKey, SatiSatoshiAmount>,
+    // Updated global shadow allocs sums for a given account (sum across all contracts).
+    pub updated_global_shadow_allocs_sums: HashMap<AccountKey, SatiSatoshiAmount>,
 
     /// CONTRACT RELATED VALUES ///
     /// ------------------------------------------------------------
@@ -55,7 +55,7 @@ impl CMDelta {
         Self {
             new_accounts_to_register: HashMap::new(),
             updated_account_balances: HashMap::new(),
-            updated_shadow_allocs_sums: HashMap::new(),
+            updated_global_shadow_allocs_sums: HashMap::new(),
             new_contracts_to_register: HashMap::new(),
             allocs_list: HashMap::new(),
             deallocs_list: HashMap::new(),
@@ -68,7 +68,7 @@ impl CMDelta {
     pub fn flush(&mut self) {
         self.new_accounts_to_register.clear();
         self.updated_account_balances.clear();
-        self.updated_shadow_allocs_sums.clear();
+        self.updated_global_shadow_allocs_sums.clear();
         self.new_contracts_to_register.clear();
         self.allocs_list.clear();
         self.deallocs_list.clear();
@@ -88,14 +88,14 @@ impl CMDelta {
         self.updated_account_balances.insert(account_key, balance);
     }
 
-    /// Epheremally updates an account's shadow allocs sum.
-    pub fn epheremally_update_account_shadow_allocs_sum(
+    /// Epheremally updates an account's global shadow allocs sum.
+    pub fn epheremally_update_account_global_shadow_allocs_sum(
         &mut self,
         account_key: AccountKey,
-        shadow_allocs_sum: SatiSatoshiAmount,
+        global_shadow_allocs_sum: SatiSatoshiAmount,
     ) {
-        self.updated_shadow_allocs_sums
-            .insert(account_key, shadow_allocs_sum);
+        self.updated_global_shadow_allocs_sums
+            .insert(account_key, global_shadow_allocs_sum);
     }
 
     /// CONTRACT RELATED METHODS ///
@@ -150,8 +150,8 @@ impl CMDelta {
             }
         }
 
-        // 4 Now do for shadow allocs sums.
-        for (account_key, _) in self.updated_shadow_allocs_sums.iter() {
+        // 4 Now do for global shadow allocs sums.
+        for (account_key, _) in self.updated_global_shadow_allocs_sums.iter() {
             // 4.1 Insert if not already present.
             if !affected_accounts.contains(account_key) {
                 affected_accounts.push(account_key.to_owned());

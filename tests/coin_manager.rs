@@ -673,7 +673,8 @@ mod coin_manager_tests {
 
             // 27.2 Get shadow alloc overall sum of the first contract.
             let shadow_alloc_overall_sum =
-                _coin_manager.get_account_shadow_allocs_sum_in_satoshis(ACCOUNT_KEY_1);
+                _coin_manager.get_account_global_shadow_allocs_sum_in_satoshis(ACCOUNT_KEY_1);
+
             assert_eq!(shadow_alloc_overall_sum, Some(1613));
         }
 
@@ -701,7 +702,7 @@ mod coin_manager_tests {
 
             // 29.2 Get shadow alloc overall sum of the first contract.
             let shadow_alloc_overall_sum =
-                _coin_manager.get_account_shadow_allocs_sum_in_satoshis(ACCOUNT_KEY_1);
+                _coin_manager.get_account_global_shadow_allocs_sum_in_satoshis(ACCOUNT_KEY_1);
             assert_eq!(shadow_alloc_overall_sum, Some(1616)); // Has increased by 3.
         }
 

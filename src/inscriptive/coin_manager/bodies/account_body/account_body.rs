@@ -14,16 +14,16 @@ pub struct CMAccountBody {
     // Account's BTC balance.
     pub balance: SatoshiAmount,
 
-    // Account's shadow allocs sum.
-    pub shadow_allocs_sum: SatiSatoshiAmount,
+    // Account's global shadow allocs sum (sum of all allocations across all contracts).
+    pub global_shadow_allocs_sum: SatiSatoshiAmount,
 }
 
 impl CMAccountBody {
     /// Constructs a fresh new account body.
-    pub fn new(balance: SatoshiAmount, shadow_allocs_sum: SatiSatoshiAmount) -> Self {
+    pub fn new(balance: SatoshiAmount, global_shadow_allocs_sum: SatiSatoshiAmount) -> Self {
         Self {
             balance: balance,
-            shadow_allocs_sum: shadow_allocs_sum,
+            global_shadow_allocs_sum: global_shadow_allocs_sum,
         }
     }
 
@@ -32,9 +32,9 @@ impl CMAccountBody {
         self.balance = balance;
     }
 
-    /// Updates the account shadow allocs sum.
-    pub fn update_shadow_allocs_sum(&mut self, shadow_allocs_sum: SatiSatoshiAmount) {
-        self.shadow_allocs_sum = shadow_allocs_sum;
+    /// Updates the account's global shadow allocs sum.
+    pub fn update_global_shadow_allocs_sum(&mut self, global_shadow_allocs_sum: SatiSatoshiAmount) {
+        self.global_shadow_allocs_sum = global_shadow_allocs_sum;
     }
 
     /// Returns the account body as a JSON object.
@@ -48,10 +48,10 @@ impl CMAccountBody {
             Value::String(self.balance.to_string()),
         );
 
-        // 3 Insert the shadow allocs sum.
+        // 3 Insert the global shadow allocs sum.
         obj.insert(
-            "shadow_allocs_sum".to_string(),
-            Value::String(self.shadow_allocs_sum.to_string()),
+            "global_shadow_allocs_sum".to_string(),
+            Value::String(self.global_shadow_allocs_sum.to_string()),
         );
 
         // 4 Return the JSON object.

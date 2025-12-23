@@ -21,6 +21,10 @@ pub struct ShadowSpace {
 
     // 2 Allocated BTC values of each account.
     pub allocs: HashMap<ACCOUNT_KEY, SATI_SATOSHI_AMOUNT>,
+
+    // 3 Accumulated deferred proportional change from shadow_up_all/down_all operations (in satoshis).
+    // Positive values indicate up_all operations, negative values indicate down_all operations.
+    pub shadow_up_all_down_alls: i64,
 }
 
 impl ShadowSpace {
@@ -29,6 +33,7 @@ impl ShadowSpace {
         Self {
             allocs_sum: 0,
             allocs: HashMap::new(),
+            shadow_up_all_down_alls: 0,
         }
     }
     /// Constructs a fresh new shadow space.
@@ -40,6 +45,7 @@ impl ShadowSpace {
         let shadow_space = Self {
             allocs_sum: allocs_sum,
             allocs: allocs,
+            shadow_up_all_down_alls: 0,
         };
 
         // 2 Return the shadow space.
@@ -69,6 +75,19 @@ impl ShadowSpace {
             Some(_) => true,
             None => false,
         }
+    }
+
+    /// Adds a deferred proportional change to the shadow space.
+    /// Positive values for up_all operations, negative values for down_all operations.
+    pub fn add_deferred_proportional_change(&mut self, change_in_satoshis: i64) {
+        // 1 Add the change to the accumulated deferred proportional change.
+        self.shadow_up_all_down_alls += change_in_satoshis;
+    }
+
+    /// Clears the deferred proportional change.
+    pub fn clear_deferred_proportional_change(&mut self) {
+        // 1 Clear the deferred proportional change.
+        self.shadow_up_all_down_alls = 0;
     }
 
     /// Returns the shadow space as a JSON object.
