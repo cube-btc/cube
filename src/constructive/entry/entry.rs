@@ -1,7 +1,8 @@
-use crate::constructive::calldata::element::element::CalldataElement;
-use crate::constructive::entity::account::account::Account;
 use crate::constructive::entity::contract::contract::Contract;
 use crate::constructive::entry::entries::call::call::Call;
+use crate::constructive::{
+    calldata::element::element::CalldataElement, entity::account::account::account::Account,
+};
 use serde::{Deserialize, Serialize};
 
 /// Represents an `Entry`.

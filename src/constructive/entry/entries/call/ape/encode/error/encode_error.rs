@@ -1,5 +1,5 @@
 use crate::constructive::calldata::element::ape::encode::error::encode_error::CalldataElementAPEEncodeError;
-use crate::constructive::entity::account::ape::encode::error::encode_error::AccountAPEEncodeError;
+use crate::constructive::entity::account::account::ape::encode::error::encode_error::AccountAPEEncodeError;
 use crate::constructive::entity::contract::ape::encode::error::encode_error::ContractAPEEncodeError;
 use crate::constructive::valtype::val::atomic_val::ape::encode::error::encode_error::AtomicValAPEEncodeError;
 

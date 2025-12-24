@@ -1,6 +1,6 @@
 use crate::constructive::entity::account::{
-    registered_account::registered_account::RegisteredAccount,
-    unregistered_account::unregistered_account::UnregisteredAccount,
+    account::registered_account::registered_account::RegisteredAccount,
+    account::unregistered_account::unregistered_account::UnregisteredAccount,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

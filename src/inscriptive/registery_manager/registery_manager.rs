@@ -1,5 +1,5 @@
-use crate::constructive::entity::account::account::Account;
-use crate::constructive::entity::account::registered_account::registered_account::RegisteredAccount;
+use crate::constructive::entity::account::account::account::Account;
+use crate::constructive::entity::account::account::registered_account::registered_account::RegisteredAccount;
 use crate::constructive::entity::contract::contract::Contract;
 use crate::constructive::entity::contract::deployed_contract::deployed_contract::DeployedContract;
 use crate::executive::executable::compiler::compiler::ExecutableCompiler;

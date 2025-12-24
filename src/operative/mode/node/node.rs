@@ -5,7 +5,7 @@ use crate::communicative::peer::peer::PeerKind;
 use crate::communicative::peer::peer::PEER;
 use crate::communicative::rpc::bitcoin_rpc::bitcoin_rpc::validate_rpc;
 use crate::communicative::rpc::bitcoin_rpc::bitcoin_rpc_holder::BitcoinRPCHolder;
-use crate::constructive::entity::account::account::Account;
+use crate::constructive::entity::account::account::account::Account;
 use crate::inscriptive::registery_manager::registery_manager::RegisteryManager;
 use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
 use crate::inscriptive::set::set::CoinSet;
