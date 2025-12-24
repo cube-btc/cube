@@ -1,5 +1,5 @@
 use crate::constructive::calldata::element::element::CalldataElement;
-use crate::constructive::entity::account::account::account::Account;
+use crate::constructive::entity::account::root_account::root_account::RootAccount;
 use crate::constructive::entity::contract::contract::Contract;
 use serde::{Deserialize, Serialize};
 
@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Call {
     /// The account.
-    pub account: Account,
+    pub account: RootAccount,
     /// The contract id.
     pub contract: Contract,
     /// The method index.
@@ -25,7 +25,7 @@ pub struct Call {
 impl Call {
     /// Creates a new call holder.
     pub fn new(
-        account: Account,
+        account: RootAccount,
         contract: Contract,
         method_index: u8,
         calldata_elements: Vec<CalldataElement>,
@@ -45,7 +45,7 @@ impl Call {
     }
 
     /// Returns the `Account`.
-    pub fn account(&self) -> &Account {
+    pub fn account(&self) -> &RootAccount {
         &self.account
     }
 

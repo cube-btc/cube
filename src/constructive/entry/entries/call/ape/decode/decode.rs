@@ -1,13 +1,12 @@
 use crate::constructive::calldata::element::element::CalldataElement;
 use crate::constructive::calldata::element_type::CalldataElementType;
-use crate::constructive::entity::account::account::account::Account;
+use crate::constructive::entity::account::root_account::root_account::RootAccount;
 use crate::constructive::entity::contract::contract::Contract;
 use crate::constructive::entry::entries::call::ape::decode::error::decode_error::CallEntryAPEDecodeError;
 use crate::constructive::entry::entries::call::call::Call;
 use crate::constructive::valtype::val::atomic_val::atomic_val::AtomicVal;
 use crate::constructive::valtype::val::short_val::short_val::ShortVal;
 use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
-
 
 impl Call {
     /// Decodes a `Call` as an Airly Payload Encoding (APE) bit vector.
@@ -28,8 +27,8 @@ impl Call {
         decode_account_rank_as_longval: bool,
         decode_contract_rank_as_longval: bool,
     ) -> Result<Call, CallEntryAPEDecodeError> {
-        // 1 Decode the `Account` from the APE bitstream.
-        let account: Account = Account::decode_ape(
+        // 1 Decode the `RootAccount` from the APE bitstream.
+        let account: RootAccount = RootAccount::decode_ape(
             bit_stream,
             registery_manager,
             decode_account_rank_as_longval,

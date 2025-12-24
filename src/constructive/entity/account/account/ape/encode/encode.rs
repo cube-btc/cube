@@ -2,6 +2,7 @@ use crate::constructive::entity::account::account::account::Account;
 use crate::constructive::entity::account::account::ape::encode::error::encode_error::AccountAPEEncodeError;
 use crate::constructive::valtype::val::long_val::long_val::LongVal;
 use crate::constructive::valtype::val::short_val::short_val::ShortVal;
+use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
 use bit_vec::BitVec;
 
 impl Account {
@@ -14,9 +15,11 @@ impl Account {
     ///
     /// # Arguments
     /// * `&self` - The `Account` to encode.
+    /// * `registery_manager` - The guarded `RegisteryManager` to get the `Account`'s rank value.
     /// * `encode_rank_as_longval` - Whether to encode the `Account`'s rank value as a `LongVal` or a `ShortVal`.
-    pub fn encode_ape(
+    pub async fn encode_ape(
         &self,
+        registery_manager: &REGISTERY_MANAGER,
         encode_rank_as_longval: bool,
     ) -> Result<BitVec, AccountAPEEncodeError> {
         // 1 Initialize the APE bit vector.
@@ -33,15 +36,18 @@ impl Account {
                 //
 
                 // 2.a.1 Get the rank value.
-                let rank = match self.rank() {
-                    // 2.a.1.a The `Account` has a rank.
-                    Some(rank) => rank,
+                let rank = {
+                    // 2.a.1.1 Lock the `Registery Manager`.
+                    let _registery_manager = registery_manager.lock().await;
 
-                    // 2.a.1.b The `Account` has no rank.
-                    None => {
-                        // 2.a.1.b.1 Return an error if the `Account` has no rank.
-                        return Err(AccountAPEEncodeError::RankNotFoundError(self.account_key()));
-                    }
+                    // 2.a.1.2 Get the `Account`'s rank value from the `Registery Manager`.
+                    _registery_manager
+                        .get_rank_by_account_key(self.account_key())
+                        .ok_or(
+                            AccountAPEEncodeError::UnableToRetrieveRankValueFromRegisteryManager(
+                                self.account_key(),
+                            ),
+                        )?
                 };
 
                 // 2.a.2 Match on whether to encode the rank value as a `LongVal` or a `ShortVal`.

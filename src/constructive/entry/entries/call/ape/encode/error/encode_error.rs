@@ -1,5 +1,5 @@
 use crate::constructive::calldata::element::ape::encode::error::encode_error::CalldataElementAPEEncodeError;
-use crate::constructive::entity::account::account::ape::encode::error::encode_error::AccountAPEEncodeError;
+use crate::constructive::entity::account::root_account::ape::encode::error::encode_error::RootAccountAPEEncodeError;
 use crate::constructive::entity::contract::ape::encode::error::encode_error::ContractAPEEncodeError;
 use crate::constructive::valtype::val::atomic_val::ape::encode::error::encode_error::AtomicValAPEEncodeError;
 
@@ -10,7 +10,7 @@ type FoundBaseOpsPrice = u32;
 /// Airly Payload Encoding (APE) encoding error for `Call`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CallAPEEncodeError {
-    AccountAPEEncodeError(AccountAPEEncodeError),
+    AccountAPEEncodeError(RootAccountAPEEncodeError),
     ContractAPEEncodeError(ContractAPEEncodeError),
     MethodCallAPEEncodeError(AtomicValAPEEncodeError),
     CalldataElementAPEEncodeError(CalldataElementAPEEncodeError),

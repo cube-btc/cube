@@ -1,7 +1,8 @@
 use crate::constructive::entity::contract::contract::Contract;
 use crate::constructive::entry::entries::call::call::Call;
 use crate::constructive::{
-    calldata::element::element::CalldataElement, entity::account::account::account::Account,
+    calldata::element::element::CalldataElement,
+    entity::account::root_account::root_account::RootAccount,
 };
 use serde::{Deserialize, Serialize};
 
@@ -25,7 +26,7 @@ pub enum Entry {
 impl Entry {
     /// Returns the account key.
     pub fn new_call(
-        account: Account,
+        account: RootAccount,
         contract: Contract,
         method_index: u8,
         calldata_elements: Vec<CalldataElement>,

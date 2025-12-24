@@ -1,3 +1,5 @@
+use crate::transmutative::hash::Hash;
+use crate::transmutative::hash::HashTag;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
@@ -176,8 +178,8 @@ impl FMAccountFlameConfig {
         false
     }
 
-    /// Serializes flame config to bytes for the database.
-    pub fn to_db_value_bytes(&self) -> Vec<u8> {
+    /// Serializes the flame config to bytes.
+    pub fn to_bytes(&self) -> Vec<u8> {
         // 1 Construct the bytes.
         let mut bytes = Vec::<u8>::new();
 
@@ -305,8 +307,8 @@ impl FMAccountFlameConfig {
         bytes
     }
 
-    /// Constructs flame config from database value bytes.
-    pub fn from_db_value_bytes(bytes: &[u8]) -> Option<FMAccountFlameConfig> {
+    /// Deserializes the flame config from bytes.
+    pub fn from_bytes(bytes: &[u8]) -> Option<FMAccountFlameConfig> {
         // 1 Create a cursor to track position in the bytes.
         let mut cursor = 0;
 
@@ -593,6 +595,15 @@ impl FMAccountFlameConfig {
 
         // 12 Return the flame config.
         Some(flame_config)
+    }
+
+    /// Hashes the flame config.
+    pub fn hash(&self) -> [u8; 32] {
+        // 1 Convert the flame config to bytes.
+        let bytes = self.to_bytes();
+
+        // 2 Hash the bytes.
+        bytes.hash(Some(HashTag::FlameConfig))
     }
 
     /// Returns the flame config as a JSON object.

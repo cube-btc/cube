@@ -19,11 +19,9 @@ impl Contract {
         contract_id: [u8; 32],
         executable: Executable,
         registery_index: u64,
-        rank: Option<u64>,
     ) -> Contract {
         // 1 Construct the deployed contract.
-        let deployed_contract =
-            DeployedContract::new(contract_id, executable, registery_index, rank);
+        let deployed_contract = DeployedContract::new(contract_id, executable, registery_index);
 
         // 2 Return the deployed contract.
         Contract::DeployedContract(deployed_contract)
@@ -85,34 +83,6 @@ impl Contract {
 
             // The contract is not deployed.
             Contract::UndeployedContract(_) => None,
-        }
-    }
-
-    /// Returns the rank of the contract.
-    pub fn rank(&self) -> Option<u64> {
-        match self {
-            // The contract is deployed.
-            Contract::DeployedContract(deployed_contract) => deployed_contract.rank,
-
-            // The contract is not deployed.
-            Contract::UndeployedContract(_) => None,
-        }
-    }
-
-    /// Sets or updates the rank of the contract.
-    pub fn set_or_update_rank(&mut self, rank: u64) -> bool {
-        match self {
-            // The contract is deployed.
-            Contract::DeployedContract(deployed_contract) => {
-                // Update the rank.
-                deployed_contract.rank = Some(rank);
-
-                // Return success.
-                true
-            }
-
-            // The contract is not deployed.
-            Contract::UndeployedContract(_) => false,
         }
     }
 

@@ -13,24 +13,15 @@ pub struct DeployedContract {
 
     // The registery index of the contract.
     pub registery_index: u64,
-
-    // The rank of the contract.
-    pub rank: Option<u64>,
 }
 
 impl DeployedContract {
     /// Constructs a new deployed contract.
-    pub fn new(
-        contract_id: [u8; 32],
-        executable: Executable,
-        registery_index: u64,
-        rank: Option<u64>,
-    ) -> Self {
+    pub fn new(contract_id: [u8; 32], executable: Executable, registery_index: u64) -> Self {
         Self {
             contract_id,
             executable,
             registery_index,
-            rank,
         }
     }
 
@@ -57,16 +48,7 @@ impl DeployedContract {
             Value::String(self.registery_index.to_string()),
         );
 
-        // 6 Insert the rank.
-        obj.insert(
-            "rank".to_string(),
-            match &self.rank {
-                Some(rank) => Value::String(rank.to_string()),
-                None => Value::Null,
-            },
-        );
-
-        // 7 Return the JSON object.
+        // 6 Return the JSON object.
         Value::Object(obj)
     }
 }

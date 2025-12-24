@@ -3,6 +3,7 @@ use crate::constructive::{
     entry::entries::call::call::Call,
     valtype::{val::atomic_val::atomic_val::AtomicVal, val::short_val::short_val::ShortVal},
 };
+use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
 use bit_vec::BitVec;
 
 impl Call {
@@ -13,11 +14,12 @@ impl Call {
     ///
     /// # Arguments
     /// * `&self` - The `Call` to encode.
-    /// * `account_key` - The account key of the `Call`.
+    /// * `registery_manager` - The guarded `RegisteryManager` to get the `Account`'s rank value.
     /// * `registery_manager` - The registery manager to get the contract rank and body.
     /// * `ops_price_base` - The base ops price of the `Call`.
-    pub fn encode_ape(
+    pub async fn encode_ape(
         &self,
+        registery_manager: &REGISTERY_MANAGER,
         encode_account_rank_as_longval: bool,
         encode_contract_rank_as_longval: bool,
     ) -> Result<BitVec, CallAPEEncodeError> {
@@ -29,7 +31,8 @@ impl Call {
             // 2.1 Encode the `Account` into an APE bit vector.
             let account_bit_vector = self
                 .account
-                .encode_ape(encode_account_rank_as_longval)
+                .encode_ape(registery_manager, encode_account_rank_as_longval)
+                .await
                 .map_err(|e| CallAPEEncodeError::AccountAPEEncodeError(e))?;
 
             // 2.2 Extend the `Entry` APE bit vector with the `Account` APE bit vector.
@@ -41,7 +44,8 @@ impl Call {
             // 3.1 Encode the `Contract` into an APE bit vector.
             let contract_bit_vector = self
                 .contract
-                .encode_ape(encode_contract_rank_as_longval)
+                .encode_ape(registery_manager, encode_contract_rank_as_longval)
+                .await
                 .map_err(|e| CallAPEEncodeError::ContractAPEEncodeError(e))?;
 
             // 3.2 Extend the `Call` APE bit vector with the `Contract` APE bit vector.
@@ -73,9 +77,11 @@ impl Call {
                 // 4.1.1 Encode the `CalldataElement` into an APE bit vector.
                 let calldata_element_bits = calldata_element
                     .encode_ape(
+                        registery_manager,
                         encode_account_rank_as_longval,
                         encode_contract_rank_as_longval,
                     )
+                    .await
                     .map_err(|e| CallAPEEncodeError::CalldataElementAPEEncodeError(e))?;
 
                 // 4.1.2 Extend the `Call` APE bit vector with the `CalldataElement` APE bit vector.

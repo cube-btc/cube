@@ -110,7 +110,7 @@ impl FlameManager {
                         // 3.4.2.2.1 Check if the value is not empty.
                         if value.as_ref().len() > 0 {
                             // 3.4.2.2.1.1 Deserialize the flame config from bytes.
-                            let flame_config_deserialized = FMAccountFlameConfig::from_db_value_bytes(value.as_ref())
+                            let flame_config_deserialized = FMAccountFlameConfig::from_bytes(value.as_ref())
                                 .ok_or(FMConstructionError::UnableToDeserializeAccountFlameConfigBytesFromTreeValue(
                                     account_key,
                                     value.to_vec(),
@@ -343,7 +343,7 @@ impl FlameManager {
                 // 1.1.2 Insert the flame config on-disk if present.
                 if let Some(flame_config) = flame_config {
                     // 1.1.2.1 Serialize the flame config to bytes.
-                    let flame_config_bytes = flame_config.to_db_value_bytes();
+                    let flame_config_bytes = flame_config.to_bytes();
 
                     // 1.1.2.2 Insert the flame config on-disk.
                     tree.insert(ACCOUNT_FLAME_CONFIG_SPECIAL_DB_KEY, flame_config_bytes)
@@ -390,7 +390,7 @@ impl FlameManager {
                 })?;
 
                 // 2.2.2 Serialize the flame config to bytes.
-                let flame_config_bytes = flame_config.to_db_value_bytes();
+                let flame_config_bytes = flame_config.to_bytes();
 
                 // 2.2.3 Update the flame config on-disk.
                 tree.insert(ACCOUNT_FLAME_CONFIG_SPECIAL_DB_KEY, flame_config_bytes)

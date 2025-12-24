@@ -1,1 +1,0 @@
-pub mod registered_and_bls_configured_root_account;

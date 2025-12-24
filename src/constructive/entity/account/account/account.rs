@@ -3,35 +3,22 @@ use crate::constructive::entity::account::{
     account::unregistered_account::unregistered_account::UnregisteredAccount,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 /// Represents an account; a user of the system.
 #[derive(Clone, Serialize, Deserialize)]
 pub enum Account {
-    // A registered and possibly configured account.
+    // A registered account.
     RegisteredAccount(RegisteredAccount),
 
-    // A fresh, unregistered (thus unranked), and unconfigured account.
+    // A unregistered account.
     UnregisteredAccount(UnregisteredAccount),
 }
 
 impl Account {
     /// Creates a new registered account.
-    pub fn new_registered_account(
-        key: [u8; 32],
-        registery_index: u64,
-        rank: Option<u64>,
-        bls_key: Option<[u8; 48]>,
-        secondary_aggregation_key: Option<Vec<u8>>,
-    ) -> Self {
+    pub fn new_registered_account(account_key: [u8; 32], registery_index: u64) -> Self {
         // 1 Construct the registered account.
-        let registered_account = RegisteredAccount::new(
-            key,
-            registery_index,
-            rank,
-            bls_key,
-            secondary_aggregation_key,
-        );
+        let registered_account = RegisteredAccount::new(account_key, registery_index);
 
         // 2 Return the registered account.
         Self::RegisteredAccount(registered_account)
@@ -61,56 +48,21 @@ impl Account {
     pub fn account_key(&self) -> [u8; 32] {
         match self {
             // The account is registered.
-            Self::RegisteredAccount(registered_account) => registered_account.key,
+            Self::RegisteredAccount(registered_account) => registered_account.account_key,
 
             // The account is not registered.
-            Self::UnregisteredAccount(unregistered_account) => unregistered_account.key,
-        }
-    }
-
-    /// Returns the account's rank.
-    pub fn rank(&self) -> Option<u64> {
-        match self {
-            // The account is registered.
-            Self::RegisteredAccount(registered_account) => registered_account.rank.to_owned(),
-
-            // The account is not registered.
-            Self::UnregisteredAccount(_) => None,
-        }
-    }
-
-    /// Sets or updates the rank of the account.
-    pub fn set_or_update_rank(&mut self, rank: u64) -> bool {
-        match self {
-            // The account is registered.
-            Self::RegisteredAccount(registered_account) => {
-                // Update the rank.
-                registered_account.rank = Some(rank);
-
-                // Return success.
-                true
-            }
-
-            // The account is not registered.
-            Self::UnregisteredAccount(_) => false,
-        }
-    }
-
-    /// Returns the account as a JSON object.
-    pub fn json(&self) -> Value {
-        match self {
-            // The account is a registered account.
-            Self::RegisteredAccount(registered_account) => registered_account.json(),
-
-            // The account is an unregistered account.
-            Self::UnregisteredAccount(unregistered_account) => unregistered_account.json(),
+            Self::UnregisteredAccount(unregistered_account) => unregistered_account.account_key,
         }
     }
 }
 
 impl PartialEq for Account {
     fn eq(&self, other: &Self) -> bool {
-        self.account_key() == other.account_key()
+        match (self, other) {
+            (Self::RegisteredAccount(a), Self::RegisteredAccount(b)) => a == b,
+            (Self::UnregisteredAccount(a), Self::UnregisteredAccount(b)) => a == b,
+            _ => false,
+        }
     }
 }
 

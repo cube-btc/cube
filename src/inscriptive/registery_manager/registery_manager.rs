@@ -475,6 +475,21 @@ impl RegisteryManager {
             .and_then(|account_key| self.in_memory_accounts.get(account_key).cloned())
     }
 
+    /// Returns the BLS key by its account key.
+    pub fn get_bls_key_by_account_key(&self, account_key: AccountKey) -> Option<AccountBLSKey> {
+        self.in_memory_accounts.get(&account_key).and_then(|account_body| account_body.primary_bls_key)
+    }
+
+    /// Returns the account key and BLS key by its rank.
+    pub fn get_account_key_and_bls_key_by_rank(
+        &self,
+        rank: Rank,
+    ) -> Option<(AccountKey, Option<AccountBLSKey>)> {
+        let account_key = self.get_account_key_by_rank(rank)?;
+        let account_body = self.get_account_body_by_account_key(account_key)?;
+        Some((account_key, account_body.primary_bls_key))
+    }
+
     /// Returns the contract body by its rank.
     pub fn get_contract_body_by_rank(&self, rank: Rank) -> Option<RMContractBody> {
         self.in_memory_contract_ranks
@@ -507,22 +522,13 @@ impl RegisteryManager {
         // 1 Get the account body by its key.
         let account_body = self.get_account_body_by_account_key(account_key)?;
 
-        // 2 Get the rank by its account key.
-        let rank = self.get_rank_by_account_key(account_key)?;
+        // 2 Construct registered account.
+        let registered_account = RegisteredAccount::new(account_key, account_body.registery_index);
 
-        // 3 Construct registered account.
-        let registered_account = RegisteredAccount::new(
-            account_key,
-            account_body.registery_index,
-            Some(rank as u64),
-            account_body.primary_bls_key,
-            account_body.secondary_aggregation_key,
-        );
-
-        // 4 Construct the account.
+        // 3 Construct the account.
         let account = Account::RegisteredAccount(registered_account);
 
-        // 5 Return the account.
+        // 4 Return the account.
         Some(account)
     }
 
@@ -531,21 +537,17 @@ impl RegisteryManager {
         // 1 Get the contract body by its id.
         let contract_body = self.get_contract_body_by_contract_id(contract_id)?;
 
-        // 2 Get the rank by its contract id.
-        let rank = self.get_rank_by_contract_id(contract_id)?;
-
-        // 3 Construct the contract.
+        // 2 Construct the deployed contract.
         let deployed_contract = DeployedContract::new(
             contract_id,
             contract_body.executable,
             contract_body.registery_index,
-            Some(rank as u64),
         );
 
-        // 4 Construct the contract.
+        // 3 Construct the contract.
         let contract = Contract::DeployedContract(deployed_contract);
 
-        // 5 Return the contract.
+        // 4 Return the contract.
         Some(contract)
     }
 
@@ -571,6 +573,22 @@ impl RegisteryManager {
 
         // 3 Return the contract.
         Some(contract)
+    }
+
+    /// Checks if a BLS key is conflicting with an already registered BLS key.
+    pub fn bls_key_is_conflicting_with_an_already_registered_bls_key(
+        &self,
+        bls_key: AccountBLSKey,
+    ) -> bool {
+        // 1 Iterate over the in-memory accounts and check if the BLS key is conflicting with an already registered BLS key.
+        for (_, account_body) in self.in_memory_accounts.iter() {
+            if account_body.primary_bls_key == Some(bls_key) {
+                return true;
+            }
+        }
+
+        // 2 Return false.
+        false
     }
 
     /// Epheremally registers an account.

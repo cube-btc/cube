@@ -1,1 +1,0 @@
-pub mod registered_but_bls_unconfigured_root_account;

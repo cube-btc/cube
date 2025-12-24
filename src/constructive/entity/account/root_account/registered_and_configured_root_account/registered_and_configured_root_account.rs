@@ -2,11 +2,11 @@ use crate::constructive::ser::{deserialize_bls_key, serialize_bls_key};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct RegisteredAndBLSConfiguredRootAccount {
-    /// The secp256k1 public key of the account.
+pub struct RegisteredAndConfiguredRootAccount {
+    /// The Schnorr public key of the account.
     pub account_key: [u8; 32],
 
-    /// The BLS key of the account.
+    /// The BLS public key of the account.
     #[serde(
         serialize_with = "serialize_bls_key",
         deserialize_with = "deserialize_bls_key"
@@ -14,7 +14,7 @@ pub struct RegisteredAndBLSConfiguredRootAccount {
     pub bls_key: [u8; 48],
 }
 
-impl RegisteredAndBLSConfiguredRootAccount {
+impl RegisteredAndConfiguredRootAccount {
     pub fn new(account_key: [u8; 32], bls_key: [u8; 48]) -> Self {
         Self {
             account_key,
@@ -22,3 +22,11 @@ impl RegisteredAndBLSConfiguredRootAccount {
         }
     }
 }
+
+impl PartialEq for RegisteredAndConfiguredRootAccount {
+    fn eq(&self, other: &Self) -> bool {
+        self.account_key == other.account_key
+    }
+}
+
+impl Eq for RegisteredAndConfiguredRootAccount {}

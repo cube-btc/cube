@@ -1,4 +1,5 @@
-pub mod registered_and_bls_configured_root_account;
-pub mod registered_but_bls_unconfigured_root_account;
+pub mod ape;
+pub mod registered_and_configured_root_account;
+pub mod registered_but_unconfigured_root_account;
 pub mod root_account;
 pub mod unregistered_root_account;

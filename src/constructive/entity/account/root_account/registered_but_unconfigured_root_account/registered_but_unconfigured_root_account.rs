@@ -1,14 +1,16 @@
-use crate::constructive::ser::{
-    deserialize_bls_key, deserialize_schnorr_signature, serialize_bls_key,
-    serialize_schnorr_signature,
+use crate::{
+    constructive::ser::{
+        deserialize_bls_key, deserialize_schnorr_signature, serialize_bls_key,
+        serialize_schnorr_signature,
+    },
+    inscriptive::flame_manager::flame_config::flame_config::FMAccountFlameConfig,
 };
-use crate::inscriptive::flame_manager::flame_config::flame_config::FMAccountFlameConfig;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct UnregisteredRootAccount {
+pub struct RegisteredButUnconfiguredRootAccount {
     /// The Schnorr public key of the account.
-    pub account_key_to_be_registered: [u8; 32],
+    pub account_key: [u8; 32],
 
     /// The BLS public key of the account.
     #[serde(
@@ -28,15 +30,15 @@ pub struct UnregisteredRootAccount {
     pub authentication_signature: [u8; 64],
 }
 
-impl UnregisteredRootAccount {
+impl RegisteredButUnconfiguredRootAccount {
     pub fn new(
-        account_key_to_be_registered: [u8; 32],
+        account_key: [u8; 32],
         bls_key_to_be_configured: [u8; 48],
         flame_config_to_be_configured: Option<FMAccountFlameConfig>,
         authentication_signature: [u8; 64],
     ) -> Self {
         Self {
-            account_key_to_be_registered,
+            account_key,
             bls_key_to_be_configured,
             flame_config_to_be_configured,
             authentication_signature,
@@ -44,10 +46,10 @@ impl UnregisteredRootAccount {
     }
 }
 
-impl PartialEq for UnregisteredRootAccount {
+impl PartialEq for RegisteredButUnconfiguredRootAccount {
     fn eq(&self, other: &Self) -> bool {
-        self.account_key_to_be_registered == other.account_key_to_be_registered
+        self.account_key == other.account_key
     }
 }
 
-impl Eq for UnregisteredRootAccount {}
+impl Eq for RegisteredButUnconfiguredRootAccount {}

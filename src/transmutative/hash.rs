@@ -29,6 +29,10 @@ pub enum HashTag {
     CustomBytes(Vec<u8>),
     // Method ID
     ContractID,
+    // RootAccount
+    RootAccountBLSPublicKeyAuthenticationMessage,
+    // FlameConfig
+    FlameConfig,
 }
 
 impl HashTag {
@@ -56,6 +60,12 @@ impl HashTag {
             HashTag::CustomString(tag) => tag.clone(),
             HashTag::CustomBytes(tag) => tag.clone().into_iter().map(|b| b as char).collect(),
             HashTag::ContractID => format!("{}/{}", baked::PROJECT_TAG, "contractid"),
+            HashTag::RootAccountBLSPublicKeyAuthenticationMessage => format!(
+                "{}/{}",
+                baked::PROJECT_TAG,
+                "rootaccount/blspublickeyauthenticationmessage"
+            ),
+            HashTag::FlameConfig => format!("{}/{}", baked::PROJECT_TAG, "flameconfig"),
         }
     }
 }
@@ -123,4 +133,3 @@ where
         sha512(&preimage)
     }
 }
-
