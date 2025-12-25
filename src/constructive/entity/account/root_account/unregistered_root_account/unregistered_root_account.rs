@@ -5,6 +5,7 @@ use crate::constructive::ser::{
 };
 use crate::inscriptive::flame_manager::flame_config::flame_config::FMAccountFlameConfig;
 use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
+use crate::transmutative::secp::schnorr::Bytes32;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -58,36 +59,40 @@ impl UnregisteredRootAccount {
 
     /// Checks whether the `UnregisteredRootAccount` is indeed a valid unregistered account.
     pub async fn validate(&self, registery_manager: &REGISTERY_MANAGER) -> bool {
-        // 1 Verify that the account is not already registered.
-        {
-            // 1.1 Lock the registery manager.
-            let _registery_manager = registery_manager.lock().await;
-
-            // 1.2 Check if the account is already registered.
-            if _registery_manager.is_account_registered(self.account_key_to_be_registered) {
-                return false;
-            }
+        // 1 Verify that the account key is indeed a valid Schnorr public key.
+        if self.account_key_to_be_registered.to_even_point().is_none() {
+            return false;
         }
 
-        // 2 Verify that the BLS key is not already registered.
+        // 2 Verify that the BLS key is indeed a valid BLS public key.
         {
-            // 2.1 Lock the registery manager.
-            let _registery_manager = registery_manager.lock().await;
-
-            // 2.2 Check if the BLS key is already registered.
-            if _registery_manager.bls_key_is_conflicting_with_an_already_registered_bls_key(
-                self.bls_key_to_be_configured,
-            ) {
-                return false;
-            }
+            // TODO.
         }
 
-        // 3 Verify the authorization signature.
+        // 3 Lock the registery manager.
+        let _registery_manager = registery_manager.lock().await;
+
+        // 4 Check if the account is already registered.
+        if _registery_manager.is_account_registered(self.account_key_to_be_registered) {
+            return false;
+        }
+
+        // 5 Check if the BLS key is not already registered.
+        if _registery_manager.bls_key_is_conflicting_with_an_already_registered_bls_key(
+            self.bls_key_to_be_configured,
+        ) {
+            return false;
+        }
+
+        // 6 Drop the registery manager.
+        drop(_registery_manager);
+
+        // 7 Verify the authorization signature.
         if !self.verify_authorization_signature() {
             return false;
         }
 
-        // 4 Return true.
+        // 8 Return true.
         true
     }
 }
