@@ -88,7 +88,12 @@ impl RegisteredButUnconfiguredRootAccount {
                     return false;
                 }
 
-                // 2.a.3 Return true.
+                // 2.a.3 Verify that the BLS key is indeed a valid BLS public key.
+                {
+                    // TODO.
+                }
+
+                // 2.a.4 Return true.
                 true
             }
 
