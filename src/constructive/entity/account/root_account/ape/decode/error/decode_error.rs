@@ -25,10 +25,10 @@ pub enum RootAccountAPEDecodeError {
     FlameConfigLengthBytesConversionError,
     FlameConfigBitsCollectError,
     FailedToDecodeFlameConfigError,
-    // Authentication signature decoding errors.
-    AuthenticationSignatureBitsLengthError,
-    AuthenticationSignatureBytesConversionError,
-    AuthenticationSignatureVerificationFailed,
+    // Authorization signature decoding errors.
+    AuthorizationSignatureBitsLengthError,
+    AuthorizationSignatureBytesConversionError,
+    AuthorizationSignatureVerificationFailed,
     // Root account body retrieval errors.
     FailedToRetrieveRMAccountBodyByRank(Rank),
 }

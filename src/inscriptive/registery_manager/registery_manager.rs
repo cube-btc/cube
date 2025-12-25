@@ -36,6 +36,9 @@ type ContractId = [u8; 32];
 /// Rank of an account or contract.
 type Rank = u64;
 
+/// Registery index of an account.
+type RegisteryIndex = u64;
+
 /// Special db key for the registery index (0x00..).
 const REGISTERY_INDEX_SPECIAL_DB_KEY: [u8; 1] = [0x00; 1];
 
@@ -433,65 +436,87 @@ impl RegisteryManager {
     }
 
     /// Checks if an account is permanently registered.
-    pub fn is_account_registered(&self, account_key: AccountKey) -> bool {
+    pub fn is_account_registered(&self, account_key: [u8; 32]) -> bool {
         self.in_memory_accounts.contains_key(&account_key)
     }
 
     /// Checks if a contract is permanently registered.
-    pub fn is_contract_registered(&self, contract_id: ContractId) -> bool {
+    pub fn is_contract_registered(&self, contract_id: [u8; 32]) -> bool {
         self.in_memory_contracts.contains_key(&contract_id)
     }
 
     /// Returns the account body by its key.
-    pub fn get_account_body_by_account_key(
-        &self,
-        account_key: AccountKey,
-    ) -> Option<RMAccountBody> {
+    pub fn get_account_body_by_account_key(&self, account_key: [u8; 32]) -> Option<RMAccountBody> {
         self.in_memory_accounts.get(&account_key).cloned()
     }
 
     /// Returns the contract body by its identifier.
     pub fn get_contract_body_by_contract_id(
         &self,
-        contract_id: ContractId,
+        contract_id: [u8; 32],
     ) -> Option<RMContractBody> {
         self.in_memory_contracts.get(&contract_id).cloned()
     }
 
     /// Returns the account key by its rank.
-    pub fn get_account_key_by_rank(&self, rank: Rank) -> Option<AccountKey> {
+    pub fn get_account_key_by_rank(&self, rank: u64) -> Option<AccountKey> {
         self.in_memory_account_ranks.get(&rank).cloned()
     }
 
     /// Returns the contract id by its rank.
-    pub fn get_contract_id_by_rank(&self, rank: Rank) -> Option<ContractId> {
+    pub fn get_contract_id_by_rank(&self, rank: u64) -> Option<ContractId> {
         self.in_memory_contract_ranks.get(&rank).cloned()
     }
 
     /// Returns the account body by its rank.
-    pub fn get_account_body_by_rank(&self, rank: Rank) -> Option<RMAccountBody> {
+    pub fn get_account_body_by_rank(&self, rank: u64) -> Option<RMAccountBody> {
         self.in_memory_account_ranks
             .get(&rank)
             .and_then(|account_key| self.in_memory_accounts.get(account_key).cloned())
     }
 
-    /// Returns the BLS key by its account key.
-    pub fn get_bls_key_by_account_key(&self, account_key: AccountKey) -> Option<AccountBLSKey> {
-        self.in_memory_accounts.get(&account_key).and_then(|account_body| account_body.primary_bls_key)
+    /// Returns the account info by its rank.
+    pub fn get_account_info_by_rank(
+        &self,
+        rank: u64,
+    ) -> Option<(AccountKey, Option<AccountBLSKey>, RegisteryIndex, Rank)> {
+        // 1 Get the account key by its rank.
+        let account_key = self.get_account_key_by_rank(rank)?;
+
+        // 2 Get the account body by its key.
+        let account_body = self.get_account_body_by_account_key(account_key)?;
+
+        // 3 Return the account info.
+        Some((
+            account_key,
+            account_body.primary_bls_key,
+            account_body.registery_index,
+            rank,
+        ))
     }
 
-    /// Returns the account key and BLS key by its rank.
-    pub fn get_account_key_and_bls_key_by_rank(
+    /// Returns the account info by its account key.
+    pub fn get_account_info_by_account_key(
         &self,
-        rank: Rank,
-    ) -> Option<(AccountKey, Option<AccountBLSKey>)> {
-        let account_key = self.get_account_key_by_rank(rank)?;
+        account_key: [u8; 32],
+    ) -> Option<(AccountKey, Option<AccountBLSKey>, RegisteryIndex, Rank)> {
+        // 1 Get the rank by its account key.
+        let rank = self.get_rank_by_account_key(account_key)?;
+
+        // 2 Get the account body by its key.
         let account_body = self.get_account_body_by_account_key(account_key)?;
-        Some((account_key, account_body.primary_bls_key))
+
+        // 3 Return the account info.
+        Some((
+            account_key,
+            account_body.primary_bls_key,
+            account_body.registery_index,
+            rank,
+        ))
     }
 
     /// Returns the contract body by its rank.
-    pub fn get_contract_body_by_rank(&self, rank: Rank) -> Option<RMContractBody> {
+    pub fn get_contract_body_by_rank(&self, rank: u64) -> Option<RMContractBody> {
         self.in_memory_contract_ranks
             .get(&rank)
             .and_then(|contract_id| self.in_memory_contracts.get(contract_id).cloned())
@@ -500,7 +525,7 @@ impl RegisteryManager {
     /// Returns the rank by its account key.
     ///
     /// NOTE: Used by the Engine.
-    pub fn get_rank_by_account_key(&self, account_key: AccountKey) -> Option<Rank> {
+    pub fn get_rank_by_account_key(&self, account_key: [u8; 32]) -> Option<Rank> {
         self.in_memory_account_ranks
             .iter()
             .find(|(_, key)| *key == &account_key)
@@ -510,7 +535,7 @@ impl RegisteryManager {
     /// Returns the rank by its contract id.
     ///
     /// NOTE: Used by the Engine.
-    pub fn get_rank_by_contract_id(&self, contract_id: ContractId) -> Option<Rank> {
+    pub fn get_rank_by_contract_id(&self, contract_id: [u8; 32]) -> Option<Rank> {
         self.in_memory_contract_ranks
             .iter()
             .find(|(_, key)| *key == &contract_id)
@@ -518,7 +543,7 @@ impl RegisteryManager {
     }
 
     /// Returns the account by its key.
-    pub fn get_account_by_key(&self, account_key: AccountKey) -> Option<Account> {
+    pub fn get_account_by_key(&self, account_key: [u8; 32]) -> Option<Account> {
         // 1 Get the account body by its key.
         let account_body = self.get_account_body_by_account_key(account_key)?;
 
@@ -533,7 +558,7 @@ impl RegisteryManager {
     }
 
     /// Returns the contract by its id.
-    pub fn get_contract_by_contract_id(&self, contract_id: ContractId) -> Option<Contract> {
+    pub fn get_contract_by_contract_id(&self, contract_id: [u8; 32]) -> Option<Contract> {
         // 1 Get the contract body by its id.
         let contract_body = self.get_contract_body_by_contract_id(contract_id)?;
 
@@ -552,7 +577,7 @@ impl RegisteryManager {
     }
 
     /// Returns the account by its rank.
-    pub fn get_account_by_rank(&self, rank: Rank) -> Option<Account> {
+    pub fn get_account_by_rank(&self, rank: u64) -> Option<Account> {
         // 1 Get the account key by its rank.
         let account_key = self.get_account_key_by_rank(rank)?;
 
@@ -564,7 +589,7 @@ impl RegisteryManager {
     }
 
     /// Returns the contract by its rank.
-    pub fn get_contract_by_rank(&self, rank: Rank) -> Option<Contract> {
+    pub fn get_contract_by_rank(&self, rank: u64) -> Option<Contract> {
         // 1 Get the contract id by its rank.
         let contract_id = self.get_contract_id_by_rank(rank)?;
 

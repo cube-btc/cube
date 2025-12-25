@@ -84,18 +84,18 @@ impl RootAccount {
                     }
                 }
 
-                // 2.a.4 Encode the authentication signature.
+                // 2.a.4 Encode the authorization signature.
                 {
-                    // 2.a.4.1 Get the authentication signature bytes to encode.
-                    let authentication_signature_bytes_to_encode =
-                        unregistered_root_account.authentication_signature;
+                    // 2.a.4.1 Get the authorization signature bytes to encode.
+                    let authorization_signature_bytes_to_encode =
+                        unregistered_root_account.authorization_signature;
 
-                    // 2.a.4.2 Convert the authentication signature bytes to bits.
-                    let authentication_signature_bits =
-                        BitVec::from_bytes(&authentication_signature_bytes_to_encode);
+                    // 2.a.4.2 Convert the authorization signature bytes to bits.
+                    let authorization_signature_bits =
+                        BitVec::from_bytes(&authorization_signature_bytes_to_encode);
 
-                    // 2.a.4.3 Extend the APE bit vector with the authentication signature bits.
-                    bits.extend(authentication_signature_bits);
+                    // 2.a.4.3 Extend the APE bit vector with the authorization signature bits.
+                    bits.extend(authorization_signature_bits);
                 }
             }
             // 2.b Encode the `RootAccount` as a `RegisteredButBLSUnconfiguredRootAccount`.
@@ -184,18 +184,18 @@ impl RootAccount {
                     }
                 }
 
-                // 2.b.4 Encode the authentication signature.
+                // 2.b.4 Encode the authorization signature.
                 {
-                    // 2.b.4.1 Get the authentication signature bytes to encode.
-                    let authentication_signature_bytes_to_encode =
-                        registered_but_unconfigured_root_account.authentication_signature;
+                    // 2.b.4.1 Get the authorization signature bytes to encode.
+                    let authorization_signature_bytes_to_encode =
+                        registered_but_unconfigured_root_account.authorization_signature;
 
-                    // 2.b.4.2 Convert the authentication signature bytes to bits.
-                    let authentication_signature_bits =
-                        BitVec::from_bytes(&authentication_signature_bytes_to_encode);
+                    // 2.b.4.2 Convert the authorization signature bytes to bits.
+                    let authorization_signature_bits =
+                        BitVec::from_bytes(&authorization_signature_bytes_to_encode);
 
-                    // 2.b.4.3 Extend the APE bit vector with the authentication signature bits.
-                    bits.extend(authentication_signature_bits);
+                    // 2.b.4.3 Extend the APE bit vector with the authorization signature bits.
+                    bits.extend(authorization_signature_bits);
                 }
             }
             // 2.c Encode the `RootAccount` as a `RegisteredAndBLSConfiguredRootAccount`.

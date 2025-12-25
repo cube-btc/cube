@@ -7,9 +7,9 @@ use crate::constructive::valtype::val::long_val::long_val::LongVal;
 use crate::constructive::valtype::val::short_val::short_val::ShortVal;
 use crate::inscriptive::flame_manager::flame_config::flame_config::FMAccountFlameConfig;
 use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
-use crate::transmutative::hash::{Hash, HashTag};
-use crate::transmutative::secp::schnorr::{self, Bytes32, SchnorrSigningMode};
+use crate::transmutative::secp::schnorr::Bytes32;
 use bit_vec::BitVec;
+use crate::constructive::entity::account::root_account::root_account::verify_bls_key_authorization_signature;
 
 impl RootAccount {
     /// Decodes a `RootAccount` from an Airly Payload Encoding (APE) bit vector.
@@ -205,75 +205,41 @@ impl RootAccount {
                     }
                 };
 
-                // 2.a.4 Decode the authentication signature from the APE bitstream.
-                let authentication_signature_bytes: [u8; 64] = {
-                    // 2.a.4.1 Collect exactly 512 bits for the `RootAccount`'s authentication signature.
-                    let authentication_signature_bits: BitVec =
+                // 2.a.4 Decode the authorization signature from the APE bitstream.
+                let authorization_signature_bytes: [u8; 64] = {
+                    // 2.a.4.1 Collect exactly 512 bits for the `RootAccount`'s authorization signature.
+                    let authorization_signature_bits: BitVec =
                         bit_stream.by_ref().take(512).collect();
 
-                    // 2.a.4.2 Ensure the collected bits are the correct length for a authentication signature bytes.
-                    if authentication_signature_bits.len() != 512 {
+                    // 2.a.4.2 Ensure the collected bits are the correct length for a authorization signature bytes.
+                    if authorization_signature_bits.len() != 512 {
                         return Err(
-                            RootAccountAPEDecodeError::AuthenticationSignatureBitsLengthError,
+                            RootAccountAPEDecodeError::AuthorizationSignatureBitsLengthError,
                         );
                     }
 
-                    // 2.a.4.3 Convert the `RootAccount`'s authentication signature bits to an even authentication signature bytes.
-                    let authentication_signature_bytes: [u8; 64] = authentication_signature_bits
+                    // 2.a.4.3 Convert the `RootAccount`'s authorization signature bits to an even authorization signature bytes.
+                    let authorization_signature_bytes: [u8; 64] = authorization_signature_bits
                         .to_bytes()
                         .try_into()
                         .map_err(|_| {
-                            RootAccountAPEDecodeError::AuthenticationSignatureBytesConversionError
+                            RootAccountAPEDecodeError::AuthorizationSignatureBytesConversionError
                         })?;
 
-                    // 2.a.4.4 Return the `RootAccount`'s authentication signature bytes.
-                    authentication_signature_bytes
+                    // 2.a.4.4 Return the `RootAccount`'s authorization signature bytes.
+                    authorization_signature_bytes
                 };
 
-                // 2.a.5 Authenticate the `RootAccount`'s authentication signature.
-                {
-                    // 2.a.5.1 Construct the message to authenticate the `RootAccount`'s authentication signature.
-                    let message: [u8; 32] = {
-                        // 2.a.5.1.1 Construct the preimage for the message to authenticate the `RootAccount`'s authentication signature.
-                        let mut preimage = Vec::<u8>::with_capacity(32 + 48 + 32);
-
-                        // 2.a.5.1.2 Extend the preimage with the `RootAccount`'s account key bytes.
-                        preimage.extend(account_key_bytes);
-
-                        // 2.a.5.1.3 Extend the preimage with the `RootAccount`'s bls key bytes.
-                        preimage.extend(bls_key_bytes);
-
-                        // 2.a.5.1.4 Get the `RootAccount`'s flame config hash.
-                        let flame_config_hash: [u8; 32] = match &flame_config {
-                            // 2.a.5.1.4.a The flame config is present.
-                            Some(flame_config) => flame_config.hash(),
-
-                            // 2.a.5.1.4.b The flame config is not present.
-                            None => [0x00u8; 32],
-                        };
-
-                        // 2.a.5.1.5 Extend the preimage with the `RootAccount`'s flame config hash.
-                        preimage.extend(flame_config_hash);
-
-                        // 2.a.5.1.6 Hash the preimage to get the message.
-                        let message = preimage
-                            .hash(Some(HashTag::RootAccountBLSPublicKeyAuthenticationMessage));
-
-                        // 2.a.5.1.7 Return the message.
-                        message
-                    };
-
-                    // 2.a.5.2 Verify the `RootAccount`'s authentication signature.
-                    if !schnorr::verify_xonly(
-                        account_key_bytes,
-                        message,
-                        authentication_signature_bytes,
-                        SchnorrSigningMode::Cube,
-                    ) {
-                        return Err(
-                            RootAccountAPEDecodeError::AuthenticationSignatureVerificationFailed,
-                        );
-                    }
+                // 2.a.5 Verify the BLS key authorization signature.
+                if !verify_bls_key_authorization_signature(
+                    account_key_bytes,
+                    bls_key_bytes,
+                    &flame_config,
+                    authorization_signature_bytes,
+                ) {
+                    return Err(
+                        RootAccountAPEDecodeError::AuthorizationSignatureVerificationFailed,
+                    );
                 }
 
                 // 2.a.6 Construct the unregistered `RootAccount`.
@@ -281,7 +247,7 @@ impl RootAccount {
                     account_key_bytes,
                     bls_key_bytes,
                     flame_config,
-                    authentication_signature_bytes,
+                    authorization_signature_bytes,
                 );
 
                 // 2.a.7 Return the unregistered `RootAccount`.
@@ -293,17 +259,15 @@ impl RootAccount {
 
             // 2.b The `RootAccount` is registered.
             _ => {
-                // 2.b.1 Get account key and BLS key by rank.
-                let (account_key, bls_key): ([u8; 32], Option<[u8; 48]>) = {
+                // 2.b.1 Get account info by rank.
+                let (account_key, bls_key, registery_index, _) = {
                     // 2.b.1.1 Lock the `Registery Manager`.
                     let _registery_manager = registery_manager.lock().await;
 
                     // 2.b.1.2 Get RMAccountBody by rank.
-                    _registery_manager
-                        .get_account_key_and_bls_key_by_rank(rank)
-                        .ok_or(
-                            RootAccountAPEDecodeError::FailedToRetrieveRMAccountBodyByRank(rank),
-                        )?
+                    _registery_manager.get_account_info_by_rank(rank).ok_or(
+                        RootAccountAPEDecodeError::FailedToRetrieveRMAccountBodyByRank(rank),
+                    )?
                 };
 
                 // 2.b.2 Match on whether the BLS key is configured or not.
@@ -312,7 +276,11 @@ impl RootAccount {
                     Some(bls_key) => {
                         // 2.b.2.a.1 Construct the `RegisteredAndConfiguredRootAccount`.
                         let registered_and_configured_root_account =
-                            RegisteredAndConfiguredRootAccount::new(account_key, bls_key);
+                            RegisteredAndConfiguredRootAccount::new(
+                                account_key,
+                                registery_index,
+                                bls_key,
+                            );
 
                         // 2.b.2.a.2 Construct the `RootAccount`.
                         let root_account = RootAccount::RegisteredAndConfiguredRootAccount(
@@ -436,85 +404,51 @@ impl RootAccount {
                             }
                         };
 
-                        // 2.b.2.b.3 Decode the authentication signature from the APE bitstream.
-                        let authentication_signature_bytes: [u8; 64] = {
-                            // 2.b.2.b.3.1 Collect exactly 512 bits for the `RootAccount`'s authentication signature.
-                            let authentication_signature_bits: BitVec =
+                        // 2.b.2.b.3 Decode the authorization signature from the APE bitstream.
+                        let authorization_signature_bytes: [u8; 64] = {
+                            // 2.b.2.b.3.1 Collect exactly 512 bits for the `RootAccount`'s authorization signature.
+                            let authorization_signature_bits: BitVec =
                                 bit_stream.by_ref().take(512).collect();
 
-                            // 2.b.2.b.3.2 Ensure the collected bits are the correct length for a authentication signature bytes.
-                            if authentication_signature_bits.len() != 512 {
+                            // 2.b.2.b.3.2 Ensure the collected bits are the correct length for a authorization signature bytes.
+                            if authorization_signature_bits.len() != 512 {
                                 return Err(
-                            RootAccountAPEDecodeError::AuthenticationSignatureBitsLengthError,
+                            RootAccountAPEDecodeError::AuthorizationSignatureBitsLengthError,
                         );
                             }
 
-                            // 2.b.2.b.3.3 Convert the `RootAccount`'s authentication signature bits to an even authentication signature bytes.
-                            let authentication_signature_bytes: [u8; 64] = authentication_signature_bits
+                            // 2.b.2.b.3.3 Convert the `RootAccount`'s authorization signature bits to an even authorization signature bytes.
+                            let authorization_signature_bytes: [u8; 64] = authorization_signature_bits
                         .to_bytes()
                         .try_into()
                         .map_err(|_| {
-                            RootAccountAPEDecodeError::AuthenticationSignatureBytesConversionError
+                            RootAccountAPEDecodeError::AuthorizationSignatureBytesConversionError
                         })?;
 
-                            // 2.b.2.b.3.4 Return the `RootAccount`'s authentication signature bytes.
-                            authentication_signature_bytes
+                            // 2.b.2.b.3.4 Return the `RootAccount`'s authorization signature bytes.
+                            authorization_signature_bytes
                         };
 
-                        // 2.b.2.b.4 Authenticate the `RootAccount`'s authentication signature.
-                        {
-                            // 2.b.2.b.4.1 Construct the message to authenticate the `RootAccount`'s authentication signature.
-                            let message: [u8; 32] = {
-                                // 2.b.2.b.4.1.1 Construct the preimage for the message to authenticate the `RootAccount`'s authentication signature.
-                                let mut preimage = Vec::<u8>::with_capacity(32 + 48 + 32);
-
-                                // 2.b.2.b.4.1.2 Extend the preimage with the `RootAccount`'s account key bytes.
-                                preimage.extend(account_key);
-
-                                // 2.b.2.b.4.1.3 Extend the preimage with the `RootAccount`'s bls key bytes.
-                                preimage.extend(bls_key_bytes);
-
-                                // 2.b.2.b.4.1.4 Get the `RootAccount`'s flame config hash.
-                                let flame_config_hash: [u8; 32] = match &flame_config {
-                                    // 2.b.2.b.4.1.4.a The flame config is present.
-                                    Some(flame_config) => flame_config.hash(),
-
-                                    // 2.b.2.b.4.1.4.b The flame config is not present.
-                                    None => [0x00u8; 32],
-                                };
-
-                                // 2.b.2.b.4.1.5 Extend the preimage with the `RootAccount`'s flame config hash.
-                                preimage.extend(flame_config_hash);
-
-                                // 2.b.2.b.4.1.6 Hash the preimage to get the message.
-                                let message = preimage.hash(Some(
-                                    HashTag::RootAccountBLSPublicKeyAuthenticationMessage,
-                                ));
-
-                                // 2.b.2.b.4.1.7 Return the message.
-                                message
-                            };
-
-                            // 2.b.2.b.4.2 Verify the `RootAccount`'s authentication signature.
-                            if !schnorr::verify_xonly(
-                                account_key,
-                                message,
-                                authentication_signature_bytes,
-                                SchnorrSigningMode::Cube,
-                            ) {
-                                return Err(
-                            RootAccountAPEDecodeError::AuthenticationSignatureVerificationFailed,
-                        );
-                            }
+                        // 2.b.2.b.4 Verify the BLS key authorization signature.
+                        if !verify_bls_key_authorization_signature(
+                            account_key,
+                            bls_key_bytes,
+                            &flame_config,
+                            authorization_signature_bytes,
+                        ) {
+                            return Err(
+                                RootAccountAPEDecodeError::AuthorizationSignatureVerificationFailed,
+                            );
                         }
 
                         // 2.b.2.b.5 Construct the registered but unconfigured `RootAccount`.
                         let registered_but_unconfigured_root_account =
                             RegisteredButUnconfiguredRootAccount::new(
                                 account_key,
+                                registery_index,
                                 bls_key_bytes,
                                 flame_config,
-                                authentication_signature_bytes,
+                                authorization_signature_bytes,
                             );
 
                         // 2.b.2.b.6 Construct the `RootAccount`.

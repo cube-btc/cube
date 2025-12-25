@@ -30,7 +30,7 @@ pub enum HashTag {
     // Method ID
     ContractID,
     // RootAccount
-    RootAccountBLSPublicKeyAuthenticationMessage,
+    BLSKeyAuthorizationMessage,
     // FlameConfig
     FlameConfig,
 }
@@ -60,11 +60,9 @@ impl HashTag {
             HashTag::CustomString(tag) => tag.clone(),
             HashTag::CustomBytes(tag) => tag.clone().into_iter().map(|b| b as char).collect(),
             HashTag::ContractID => format!("{}/{}", baked::PROJECT_TAG, "contractid"),
-            HashTag::RootAccountBLSPublicKeyAuthenticationMessage => format!(
-                "{}/{}",
-                baked::PROJECT_TAG,
-                "rootaccount/blspublickeyauthenticationmessage"
-            ),
+            HashTag::BLSKeyAuthorizationMessage => {
+                format!("{}/{}", baked::PROJECT_TAG, "bls/keyauth")
+            }
             HashTag::FlameConfig => format!("{}/{}", baked::PROJECT_TAG, "flameconfig"),
         }
     }
