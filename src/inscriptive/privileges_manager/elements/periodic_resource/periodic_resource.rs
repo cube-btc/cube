@@ -109,11 +109,6 @@ impl PeriodicResource {
         Some(new_amount)
     }
 
-    /// Updates the latest consumption timestamp.
-    pub fn update_latest_consumption_timestamp(&mut self, new_latest_consumption_timestamp: u64) {
-        self.latest_consumption_timestamp = new_latest_consumption_timestamp;
-    }
-
     /// Serializes the periodic resource to bytes.
     pub fn to_bytes(&self) -> Vec<u8> {
         // 1 Create an empty byte vector.
