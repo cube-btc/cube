@@ -1,6 +1,7 @@
 use crate::inscriptive::privileges_manager::elements::account_hierarchy::account_hierarchy::AccountHierarchy;
-use crate::inscriptive::privileges_manager::elements::account_spend_credit::account_spend_credit::AccountSpendCredit;
 use crate::inscriptive::privileges_manager::elements::liveness_flag::liveness_flag::LivenessFlag;
+use crate::inscriptive::privileges_manager::elements::account_txfee_privileges::account_txfee_privileges::AccountTxFeePrivileges;
+use crate::inscriptive::privileges_manager::elements::account_transacting_limits::account_transacting_limits::AccountTransactingLimits;
 
 /// A struct for containing the privileges of an account.
 #[derive(Clone)]
@@ -14,6 +15,15 @@ pub struct PMAccountBody {
     // The last activity timestamp of the account.
     pub last_activity_timestamp: u64,
 
-    // The spending credit of the account (VIP cards).
-    pub spend_credit: AccountSpendCredit,
+    // The transaction fee privileges of the account (credit, discount, etc.).
+    pub txfee_privileges: AccountTxFeePrivileges,
+
+    // The account transacting limits (number of entries and ops per period).
+    pub transacting_limits: AccountTransactingLimits,
+
+    // Whether the account can deploy liquidity (liquidity provider).
+    pub can_deploy_liquidity: bool,
+
+    // Whether the account can deploy a contract (developer).
+    pub can_deploy_contract: bool,
 }

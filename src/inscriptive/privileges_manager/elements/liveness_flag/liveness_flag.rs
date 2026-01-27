@@ -32,8 +32,48 @@ impl LivenessFlag {
     }
 
     /// Returns whether the liveness flag is operational.
-    pub fn is_operational(&self) -> bool {
-        matches!(self, Self::Operational)
+    pub fn is_operational(&self, current_timestamp: u64) -> bool {
+        // 1 Match on the liveness flag.
+        match self {
+            // 1.a If the liveness flag is operational.
+            Self::Operational => true,
+
+            // 1.b If the liveness flag is to be frozen.
+            Self::ToBeFrozen(takes_effect_at_timestamp) => {
+                match current_timestamp >= *takes_effect_at_timestamp {
+                    true => false,
+                    false => true,
+                }
+            }
+
+            // 1.c If the liveness flag is to be destroyed.
+            Self::ToBeDestroyed(takes_effect_at_timestamp) => {
+                match current_timestamp >= *takes_effect_at_timestamp {
+                    true => false,
+                    false => true,
+                }
+            }
+        }
+    }
+
+    /// Returns whether the account or contract should be destroyed.
+    pub fn should_be_destroyed(&self, current_timestamp: u64) -> bool {
+        // 1 Match on the liveness flag.
+        match self {
+            // 1.a Account/contract is to be destroyed.
+            Self::ToBeDestroyed(takes_effect_at_timestamp) => {
+                match current_timestamp >= *takes_effect_at_timestamp {
+                    // 1.a.1 Must be destroyed now.
+                    true => true,
+
+                    // 1.a.2 Not yet, but soon.
+                    false => false,
+                }
+            }
+
+            // 1.b Account/contract is operational or to be frozen.
+            _ => false,
+        }
     }
 
     /// Returns the timestamp when the freeze or destroy action takes effect.
