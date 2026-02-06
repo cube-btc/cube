@@ -1,6 +1,7 @@
 pub mod baked;
 pub mod coin_manager;
 pub mod flame_manager;
+pub mod graveyard;
 pub mod params_manager;
 pub mod privileges_manager;
 pub mod registery_manager;
