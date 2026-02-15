@@ -12,8 +12,8 @@ use tokio::sync::Mutex;
 /// Account key.
 type AccountKey = [u8; 32];
 
-/// Satoshi redemption amount.
-type SatoshiRedemptionAmount = u64;
+/// Redemption amount in satoshis.
+type RedemptionAmountInSatoshis = u64;
 
 /// Minimum redemption amount (dust).
 pub const MIN_REDEMPTION_AMOUNT: u64 = 500;
@@ -26,7 +26,7 @@ pub const MIN_REDEMPTION_AMOUNT: u64 = 500;
 /// Upon redemption, we reset the amount to zero, and still keep the records for historic-record-keeping so that they cannot be re-registered.
 pub struct Graveyard {
     // In-memory burried accounts.
-    in_memory_burried_accounts: HashMap<AccountKey, SatoshiRedemptionAmount>,
+    in_memory_burried_accounts: HashMap<AccountKey, RedemptionAmountInSatoshis>,
 
     // On-disk db for storing the burried accounts.
     on_disk_burried_accounts: sled::Db,
@@ -50,7 +50,8 @@ impl Graveyard {
             sled::open(graveyard_db_path).map_err(GraveyardConstructionError::DBOpenError)?;
 
         // 2 Initialize the in-memory burried accounts.
-        let mut in_memory_burried_accounts = HashMap::<AccountKey, SatoshiRedemptionAmount>::new();
+        let mut in_memory_burried_accounts =
+            HashMap::<AccountKey, RedemptionAmountInSatoshis>::new();
 
         // 3 Iterate over all items in the graveyard db to collect the burried accounts.
         for lookup in graveyard_db.iter() {
@@ -295,9 +296,7 @@ impl Graveyard {
                     .map(|(account_key, redemption_amount)| {
                         (
                             hex::encode(account_key),
-                            Value::Number(
-                                serde_json::Number::from(*redemption_amount),
-                            ),
+                            Value::Number(serde_json::Number::from(*redemption_amount)),
                         )
                     })
                     .collect(),
