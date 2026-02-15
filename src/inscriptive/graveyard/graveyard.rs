@@ -4,6 +4,7 @@ use crate::inscriptive::graveyard::errors::burry_account_error::GraveyardBurryAc
 use crate::inscriptive::graveyard::errors::construction_error::GraveyardConstructionError;
 use crate::inscriptive::graveyard::errors::redeem_account_coins_error::GraveyardRedeemAccountCoinsError;
 use crate::operative::Chain;
+use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -18,6 +19,11 @@ type SatoshiRedemptionAmount = u64;
 pub const MIN_REDEMPTION_AMOUNT: u64 = 500;
 
 /// Local storage manager for the storing destroyed accounts.
+///
+/// High Level Overview: The graveyard is used to store the accounts (plebs and residents) that have been destroyed.
+/// Esentially, it is a list of accounts that have been destroyed and the amount of coins (BTC) they are owed for redemption.
+/// The amount part is the variable part of the database which is updated to zero upon redemption.
+/// Upon redemption, we reset the amount to zero, and still keep the records for historic-record-keeping so that they cannot be re-registered.
 pub struct Graveyard {
     // In-memory burried accounts.
     in_memory_burried_accounts: HashMap<AccountKey, SatoshiRedemptionAmount>,
@@ -52,22 +58,22 @@ impl Graveyard {
             if let Ok((key, val)) = lookup {
                 // 3.1.1 Deserialize the account key.
                 let account_key: [u8; 32] = key.as_ref().try_into().map_err(|_| {
-                    GraveyardConstructionError::UnableToDeserializeAccountKeyBytesFromTreeName(
+                    GraveyardConstructionError::UnableToDeserializeAccountKeyBytesFromDBKey(
                         key.to_vec(),
                     )
                 })?;
 
-                // 3.1.2 Deserialize the satoshi redemption amount.
-                let satoshi_redemption_amount: u64 =
+                // 3.1.2 Deserialize the coins redemption amount.
+                let redemption_amount: u64 =
                     u64::from_le_bytes(val.as_ref().try_into().map_err(|_| {
-                        GraveyardConstructionError::UnableToDeserializeSatoshiRedemptionAmountBytesFromTreeValue(
+                        GraveyardConstructionError::UnableToDeserializeRedemptionAmountBytesFromDBValue(
                             key.to_vec(),
                             val.to_vec(),
                         )
                     })?);
 
                 // 3.1.3 Insert the burried account into the in-memory burried accounts.
-                in_memory_burried_accounts.insert(account_key, satoshi_redemption_amount);
+                in_memory_burried_accounts.insert(account_key, redemption_amount);
             }
         }
 
@@ -135,31 +141,31 @@ impl Graveyard {
         self.in_memory_burried_accounts.get(&account_key).cloned()
     }
 
-    /// Burries an account to the graveyard.
+    /// Burries an account to the graveyard with their corresponding owed redemption amount in satoshis.
     ///
     /// NOTE: These changes are saved with the use of the `apply_changes` function.
     pub fn burry_account(
         &mut self,
         account_key: [u8; 32],
-        satoshi_redemption_amount: u64,
+        redemption_amount: u64,
     ) -> Result<(), GraveyardBurryAccountError> {
         // 1 Check if the account has just been epheremally burried.
         if self.delta.is_account_epheremally_burried(account_key) {
             return Err(
-                GraveyardBurryAccountError::AccountIsAlreadyEpheremallyBurried(account_key),
+                GraveyardBurryAccountError::AccountHasJustBeenEpheremallyBurried(account_key),
             );
         }
 
-        // 2 Check if the account has already been burried.
+        // 2 Check if the account has already been permanently burried.
         if self.in_memory_burried_accounts.contains_key(&account_key) {
             return Err(
-                GraveyardBurryAccountError::AccountISalreadyPermanentlyBurried(account_key),
+                GraveyardBurryAccountError::AccountIsAlreadyPermanentlyBurried(account_key),
             );
         }
 
         // 3 Epheremally burry the account in the delta.
         self.delta
-            .epheremally_burry_account(account_key, satoshi_redemption_amount);
+            .epheremally_burry_account(account_key, redemption_amount);
 
         // 4 Return the result.
         Ok(())
@@ -182,6 +188,7 @@ impl Graveyard {
         }
 
         // 2 Check if the account has just been epheremally burried.
+        // We do not allow coin redemption upon burrying the account in the same execution. Must wait for the next state transition.
         if self.delta.is_account_epheremally_burried(account_key) {
             return Err(
                 GraveyardRedeemAccountCoinsError::ThisAccountHasJustBeenEphemerallyBurried(
@@ -190,15 +197,21 @@ impl Graveyard {
             );
         }
 
-        // 3 Get the redemption amount for the account.
-        let redemption_amount = self.get_redemption_amount(account_key).ok_or(
-            GraveyardRedeemAccountCoinsError::RedemptionAmountNotFound(account_key),
+        // 3 Get the redemption amount of the account.
+        let redemption_amount = self
+            .in_memory_burried_accounts
+            .get(&account_key)
+            .cloned()
+            .ok_or(
+            GraveyardRedeemAccountCoinsError::CouldNotRetrieveRedemptionAmountBecauseTheAccountIsNotBurried(
+                account_key,
+            ),
         )?;
 
         // 4 Check if the redemption amount is less than the minimum redemption amount.
         if redemption_amount < MIN_REDEMPTION_AMOUNT {
             return Err(
-                GraveyardRedeemAccountCoinsError::RedemptionAmountIsLessThanTheMinimumRedemptionAmount(
+                GraveyardRedeemAccountCoinsError::RedemptionAmountIsLessThanTheMinimumLimit(
                     account_key,
                     redemption_amount,
                     MIN_REDEMPTION_AMOUNT,
@@ -206,20 +219,11 @@ impl Graveyard {
             );
         }
 
-        // 5 Check if the account has just been epheremally redeemed.
-        if self.delta.is_account_epheremally_redeemed(account_key) {
-            return Err(
-                GraveyardRedeemAccountCoinsError::AccountCoinsHasAlreadyBeenEphemerallyRedeemed(
-                    account_key,
-                ),
-            );
-        }
-
-        // 6 Epheremally redeem the account coins in the delta.
+        // 5 Epheremally redeem the account coins in the delta.
         self.delta
             .epheremally_redeem_account_coins(account_key, redemption_amount);
 
-        // 7 Return the result.
+        // 6 Return the result.
         Ok(redemption_amount)
     }
 
@@ -243,7 +247,7 @@ impl Graveyard {
             self.on_disk_burried_accounts
                 .insert(account_key, zero_redemption_amount.to_vec())
                 .map_err(|e| {
-                    GraveyardApplyChangesError::RedemptionAmountResetError(*account_key, e)
+                    GraveyardApplyChangesError::RedemptionAmountResetDBError(*account_key, e)
                 })?;
 
             // 1.3 In-memory: Reset the redemption amount to zero.
@@ -251,20 +255,17 @@ impl Graveyard {
         }
 
         // 2 Insert new accounts to burry into in-memory and on-disk.
-        for (account_key, satoshi_redemption_amount) in self.delta.accounts_to_burry.iter() {
+        for (account_key, redemption_amount) in self.delta.accounts_to_burry.iter() {
             // 2.1 On-disk: Insert the buried account.
             self.on_disk_burried_accounts
-                .insert(
-                    account_key,
-                    satoshi_redemption_amount.to_le_bytes().to_vec(),
-                )
+                .insert(account_key, redemption_amount.to_le_bytes().to_vec())
                 .map_err(|e| {
-                    GraveyardApplyChangesError::BuriedAccountInsertError(*account_key, e)
+                    GraveyardApplyChangesError::BurriedAccountInsertDBError(*account_key, e)
                 })?;
 
             // 2.2 In-memory: Insert the buried account.
             self.in_memory_burried_accounts
-                .insert(*account_key, *satoshi_redemption_amount);
+                .insert(*account_key, *redemption_amount);
         }
 
         // 3 Flush the delta.
@@ -278,5 +279,32 @@ impl Graveyard {
     pub fn flush_delta(&mut self) {
         self.delta.flush();
         self.backup_of_delta.flush();
+    }
+
+    /// Returns the graveyard as a JSON object.
+    pub fn json(&self) -> Value {
+        // 1 Construct the graveyard JSON object.
+        let mut obj = Map::new();
+
+        // 2 Insert the in-memory burried accounts.
+        obj.insert(
+            "burried_accounts".to_string(),
+            Value::Object(
+                self.in_memory_burried_accounts
+                    .iter()
+                    .map(|(account_key, redemption_amount)| {
+                        (
+                            hex::encode(account_key),
+                            Value::Number(
+                                serde_json::Number::from(*redemption_amount),
+                            ),
+                        )
+                    })
+                    .collect(),
+            ),
+        );
+
+        // 3 Return the JSON object.
+        Value::Object(obj)
     }
 }

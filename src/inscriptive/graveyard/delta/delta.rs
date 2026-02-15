@@ -3,17 +3,17 @@ use std::collections::HashMap;
 /// Account key.
 type AccountKey = [u8; 32];
 
-/// Satoshi amount.
-type SatoshiRedemptionAmount = u64;
+/// Redemption amount in satoshis.
+type RedemptionAmountInSatoshis = u64;
 
 /// A struct for containing epheremal state differences to be applied for 'Graveyard'.
 #[derive(Clone)]
 pub struct GraveyardDelta {
     // Accounts to be burried and their corresponding redemption amounts owed to them.
-    pub accounts_to_burry: HashMap<AccountKey, SatoshiRedemptionAmount>,
+    pub accounts_to_burry: HashMap<AccountKey, RedemptionAmountInSatoshis>,
 
     // In-graveyard accounts to redeem their coins.
-    pub redemptions: HashMap<AccountKey, SatoshiRedemptionAmount>,
+    pub redemptions: HashMap<AccountKey, RedemptionAmountInSatoshis>,
 }
 
 impl GraveyardDelta {
@@ -42,22 +42,17 @@ impl GraveyardDelta {
     }
 
     /// Epheremally burries an account and the amount of satoshi they are owed for redemption.
-    pub fn epheremally_burry_account(
-        &mut self,
-        account_key: [u8; 32],
-        satoshi_redemption_amount: u64,
-    ) {
+    pub fn epheremally_burry_account(&mut self, account_key: [u8; 32], redemption_amount: u64) {
         self.accounts_to_burry
-            .insert(account_key, satoshi_redemption_amount);
+            .insert(account_key, redemption_amount);
     }
 
     /// Epheremally redeems an account and its corresponding redemption amount.
     pub fn epheremally_redeem_account_coins(
         &mut self,
         account_key: [u8; 32],
-        satoshi_redemption_amount: u64,
+        redemption_amount: u64,
     ) {
-        self.redemptions
-            .insert(account_key, satoshi_redemption_amount);
+        self.redemptions.insert(account_key, redemption_amount);
     }
 }

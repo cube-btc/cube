@@ -5,8 +5,8 @@ type AccountKey = [u8; 32];
 #[derive(Debug, Clone)]
 pub enum GraveyardApplyChangesError {
     /// Error when resetting redemption amount on disk.
-    RedemptionAmountResetError(AccountKey, sled::Error),
+    RedemptionAmountResetDBError(AccountKey, sled::Error),
 
     /// Error when inserting buried account on disk.
-    BuriedAccountInsertError(AccountKey, sled::Error),
+    BurriedAccountInsertDBError(AccountKey, sled::Error),
 }

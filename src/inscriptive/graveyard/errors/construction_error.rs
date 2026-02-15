@@ -2,6 +2,6 @@
 #[derive(Debug, Clone)]
 pub enum GraveyardConstructionError {
     DBOpenError(sled::Error),
-    UnableToDeserializeAccountKeyBytesFromTreeName(Vec<u8>),
-    UnableToDeserializeSatoshiRedemptionAmountBytesFromTreeValue(Vec<u8>, Vec<u8>),
+    UnableToDeserializeAccountKeyBytesFromDBKey(Vec<u8>),
+    UnableToDeserializeRedemptionAmountBytesFromDBValue(Vec<u8>, Vec<u8>),
 }
