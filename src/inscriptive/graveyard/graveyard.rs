@@ -270,14 +270,14 @@ impl Graveyard {
         }
 
         // 3 Flush the delta.
-        self.delta.flush();
+        self.flush_deltas();
 
         // 4 Return success.
         Ok(())
     }
 
     /// Clears all epheremal changes from the delta.
-    pub fn flush_delta(&mut self) {
+    pub fn flush_deltas(&mut self) {
         self.delta.flush();
         self.backup_of_delta.flush();
     }
@@ -306,4 +306,13 @@ impl Graveyard {
         // 3 Return the JSON object.
         Value::Object(obj)
     }
+}
+
+/// Erases the graveyard by db path.
+pub fn erase_graveyard(chain: Chain) {
+    // Graveyard db path.
+    let graveyard_db_path = format!("storage/{}/graveyard", chain.to_string());
+
+    // Erase the path.
+    let _ = std::fs::remove_dir_all(graveyard_db_path);
 }
