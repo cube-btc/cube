@@ -5,7 +5,7 @@ use crate::inscriptive::privileges_manager::elements::account_transacting_limits
 
 /// A struct for containing the privileges of an account.
 #[derive(Clone)]
-pub struct PMAccountBody {
+pub struct PrivilegesManagerAccountBody {
     // The hierarchy of the account.
     pub hierarchy: AccountHierarchy,
 
@@ -26,4 +26,27 @@ pub struct PMAccountBody {
 
     // Whether the account can deploy a contract (developer).
     pub can_deploy_contract: bool,
+}
+
+impl PrivilegesManagerAccountBody {
+    /// Constructs a fresh new account body.
+    pub fn new(
+        hierarchy: AccountHierarchy,
+        liveness_flag: LivenessFlag,
+        last_activity_timestamp: u64,
+        txfee_privileges: AccountTxFeePrivileges,
+        transacting_limits: AccountTransactingLimits,
+        can_deploy_liquidity: bool,
+        can_deploy_contract: bool,
+    ) -> PrivilegesManagerAccountBody {
+        PrivilegesManagerAccountBody {
+            hierarchy,
+            liveness_flag,
+            last_activity_timestamp,
+            txfee_privileges,
+            transacting_limits,
+            can_deploy_liquidity,
+            can_deploy_contract,
+        }
+    }
 }
