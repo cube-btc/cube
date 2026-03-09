@@ -15,16 +15,13 @@ pub enum PrivilegesManagerConstructionError {
     AccountsTreeIterError(AccountKey, sled::Error),
     UnableToDeserializeAccountKeyByteFromTreeKey(AccountKey, Vec<u8>),
     InvalidAccountDbKeyByte(AccountKey, Vec<u8>),
-    // Account elements
     UnableToDeserializeAccountLivenessFlagFromBytes(AccountKey, Vec<u8>),
-
     InvalidAccountHierarchyBytecode(AccountKey, Vec<u8>),
     UnableToDeserializeAccountHierarchyFromBytecode(AccountKey, u8),
     UnableToDeserializeAccountTxFeeExemptionsFromBytes(AccountKey, Vec<u8>),
     UnableToDeserializeAccountCanDeployLiquidityFromBytes(AccountKey, Vec<u8>),
     UnableToDeserializeAccountCanDeployContractFromBytes(AccountKey, Vec<u8>),    
     UnableToDeserializeAccountLastActivityTimestampFromBytes(AccountKey, Vec<u8>),
-    // Not present errors.
     AccountLivenessFlagNotPresent(AccountKey),
     AccountHierarchyNotPresent(AccountKey),
     AccountTxFeeExemptionsNotPresent(AccountKey),
@@ -33,4 +30,18 @@ pub enum PrivilegesManagerConstructionError {
     AccountLastActivityTimestampNotPresent(AccountKey),
     // Contract related errors.
     UnableToDeserializeContractKeyBytesFromTreeName(Vec<u8>),
+    ContractsTreeOpenError(ContractId, sled::Error),
+    ContractsTreeIterError(ContractId, sled::Error),
+    UnableToDeserializeContractKeyByteFromTreeKey(ContractId, Vec<u8>),
+    InvalidContractDbKeyByte(ContractId, Vec<u8>),
+    UnableToDeserializeContractLivenessFlagFromBytes(ContractId, Vec<u8>),
+    InvalidContractImmutabilityBytecode(ContractId, Vec<u8>),
+    UnableToDeserializeContractTaxExemptionsFromBytes(ContractId, Vec<u8>),
+    UnableToDeserializeContractStorageLimitFromBytes(ContractId, Vec<u8>),
+    UnableToDeserializeContractLastActivityTimestampFromBytes(ContractId, Vec<u8>),
+    ContractLivenessFlagNotPresent(ContractId),
+    ContractImmutabilityNotPresent(ContractId),
+    ContractTaxExemptionsNotPresent(ContractId),
+    ContractStorageLimitNotPresent(ContractId),
+    ContractLastActivityTimestampNotPresent(ContractId),
 }

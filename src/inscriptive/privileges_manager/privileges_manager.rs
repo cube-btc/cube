@@ -5,6 +5,7 @@ use crate::inscriptive::privileges_manager::elements::account_hierarchy::account
 use crate::inscriptive::privileges_manager::elements::exemption::exemption::Exemption;
 use crate::inscriptive::privileges_manager::elements::liveness_flag::liveness_flag::LivenessFlag;
 use crate::inscriptive::privileges_manager::elements::timed_switch::timed_switch_bool::timed_switch_bool::TimedSwitchBool;
+use crate::inscriptive::privileges_manager::elements::timed_switch::timed_switch_long_val::timed_switch_long_val::TimedSwitchLongVal;
 use crate::inscriptive::privileges_manager::errors::construction_error::PrivilegesManagerConstructionError;
 use crate::operative::Chain;
 use std::collections::HashMap;
@@ -22,6 +23,11 @@ const ACCOUNT_TXFEE_EXEMPTIONS_SPECIAL_DB_KEY: [u8; 1] = [0x02; 1];
 const ACCOUNT_CAN_DEPLOY_LIQUIDITY_SPECIAL_DB_KEY: [u8; 1] = [0x03; 1];
 const ACCOUNT_CAN_DEPLOY_CONTRACT_SPECIAL_DB_KEY: [u8; 1] = [0x04; 1];
 const ACCOUNT_LAST_ACTIVITY_TIMESTAMP_SPECIAL_DB_KEY: [u8; 1] = [0x05; 1];
+const CONTRACT_LIVENESS_FLAG_SPECIAL_DB_KEY: [u8; 1] = [0x00; 1];
+const CONTRACT_IMMUTABILITY_SPECIAL_DB_KEY: [u8; 1] = [0x01; 1];
+const CONTRACT_TAX_EXEMPTIONS_SPECIAL_DB_KEY: [u8; 1] = [0x02; 1];
+const CONTRACT_STORAGE_LIMIT_SPECIAL_DB_KEY: [u8; 1] = [0x03; 1];
+const CONTRACT_LAST_ACTIVITY_TIMESTAMP_SPECIAL_DB_KEY: [u8; 1] = [0x04; 1];
 
 /// A struct for managing the privileges and fee management resources of accounts and contracts.
 #[allow(dead_code)]
@@ -111,17 +117,13 @@ impl PrivilegesManager {
 
                 // 4.4.3 Match the key byte.
                 match key_byte {
-                    // 4.4.3.a If the key is (0x01), it is a special key that corresponds to the account liveness flag element.
                     ACCOUNT_LIVENESS_FLAG_SPECIAL_DB_KEY => {
-                        // 4.4.3.a.1 Deserialize the accoubt liveness flag from bytes.
                         let account_liveness_flag_deserialized = LivenessFlag::from_bytes(value.as_ref()).ok_or(PrivilegesManagerConstructionError::UnableToDeserializeAccountLivenessFlagFromBytes(account_key, value.to_vec()))?;
 
-                        // 4.4.3.a.2 Update the account liveness flag.
                         account_liveness_flag = Some(account_liveness_flag_deserialized);
                     }
-                    // 4.4.3.b If the key is (0x00), it is a special key that corresponds to the account hierarchy element.
+
                     ACCOUNT_HIERARCHY_SPECIAL_DB_KEY => {
-                        // 4.4.3.b.1 Get the account hierarchy bytecode.
                         let account_hierarchy_bytecode: u8 = match value.len() {
                             0 => return Err(
                                 PrivilegesManagerConstructionError::InvalidAccountHierarchyBytecode(
@@ -138,49 +140,36 @@ impl PrivilegesManager {
                             ),
                         };
 
-                        // 4.4.3.b.2 Deserialize the account hierarchy from the bytecode.
                         let account_hierarchy_deserialized = AccountHierarchy::from_bytecode(account_hierarchy_bytecode).ok_or(PrivilegesManagerConstructionError::UnableToDeserializeAccountHierarchyFromBytecode(account_key, account_hierarchy_bytecode))?;
 
-                        // 4.4.3.b.3 Update the account hierarchy.
                         account_hierarchy = Some(account_hierarchy_deserialized);
                     }
 
-                    // 4.4.3.c If the key is (0x03), it is a special key that corresponds to the account tx fee privileges element.
                     ACCOUNT_TXFEE_EXEMPTIONS_SPECIAL_DB_KEY => {
-                        // 4.4.3.c.1 Deserialize the account tx fee exemptions from bytes.
                         let account_txfee_exemptions_deserialized = Exemption::from_bytes(value.as_ref()).ok_or(PrivilegesManagerConstructionError::UnableToDeserializeAccountTxFeeExemptionsFromBytes(account_key, value.to_vec()))?;
 
-                        // 4.4.3.c.2 Update the account tx fee exemptions.
                         account_txfee_exemptions = Some(account_txfee_exemptions_deserialized);
                     }
 
-                    // 4.4.3.d If the key is (0x05), it is a special key that corresponds to the account can deploy liquidity element.
                     ACCOUNT_CAN_DEPLOY_LIQUIDITY_SPECIAL_DB_KEY => {
-                        // 4.4.3.d.1 Deserialize the account can deploy liquidity from bytes.
                         let account_can_deploy_liquidity_deserialized = TimedSwitchBool::from_bytes(value.as_ref()).ok_or(PrivilegesManagerConstructionError::UnableToDeserializeAccountCanDeployLiquidityFromBytes(account_key, value.to_vec()))?;
 
-                        // 4.4.3.d.2 Update the account can deploy liquidity.
                         account_can_deploy_liquidity =
                             Some(account_can_deploy_liquidity_deserialized);
                     }
 
-                    // 4.4.3.e If the key is (0x06), it is a special key that corresponds to the account can deploy contract element.
                     ACCOUNT_CAN_DEPLOY_CONTRACT_SPECIAL_DB_KEY => {
-                        // 4.4.3.e.1 Deserialize the account can deploy contract from bytes.
                         let account_can_deploy_contract_deserialized = TimedSwitchBool::from_bytes(value.as_ref()).ok_or(PrivilegesManagerConstructionError::UnableToDeserializeAccountCanDeployContractFromBytes(account_key, value.to_vec()))?;
 
-                        // 4.4.3.e.2 Update the account can deploy contract.
                         account_can_deploy_contract =
                             Some(account_can_deploy_contract_deserialized);
                     }
-                    // 4.4.3.f If the key is (0x02), it is a special key that corresponds to the account last activity timestamp element.
+
                     ACCOUNT_LAST_ACTIVITY_TIMESTAMP_SPECIAL_DB_KEY => {
-                        // 4.4.3.f.1 Deserialize the account last activity timestamp from bytes.
                         let account_last_activity_timestamp_deserialized = u64::from_le_bytes(value.as_ref().try_into().map_err(|_| {
                                             PrivilegesManagerConstructionError::UnableToDeserializeAccountLastActivityTimestampFromBytes(account_key, value.to_vec())
                                         })?);
 
-                        // 4.4.3.f.2 Update the account last activity timestamp.
                         account_last_activity_timestamp =
                             Some(account_last_activity_timestamp_deserialized);
                     }
@@ -228,6 +217,152 @@ impl PrivilegesManager {
         }
 
         // 5 Collect contract bodies from the contract database.
+        for tree_name in contracts_db.tree_names() {
+            // 5.1 Convert the tree name to a contract id.
+            let contract_id: [u8; 32] = tree_name.as_ref().try_into().map_err(|_| {
+                PrivilegesManagerConstructionError::UnableToDeserializeContractKeyBytesFromTreeName(
+                    tree_name.to_vec(),
+                )
+            })?;
+
+            // 5.2 Initialize the contract elements.
+            let mut contract_liveness_flag: Option<LivenessFlag> = None;
+            let mut contract_immutability: Option<bool> = None;
+            let mut contract_tax_exemptions: Option<Exemption> = None;
+            let mut contract_storage_limit: Option<TimedSwitchLongVal> = None;
+            let mut contract_last_activity_timestamp: Option<u64> = None;
+
+            // 5.3 Open the tree associated with the contract.
+            let tree = contracts_db.open_tree(&tree_name).map_err(|e| {
+                PrivilegesManagerConstructionError::ContractsTreeOpenError(contract_id, e)
+            })?;
+
+            // 5.4 Iterate over all items in the tree.
+            for item in tree.iter() {
+                // 5.4.1 Get the key and value.
+                let (key, value) = match item {
+                    Ok((k, v)) => (k, v),
+                    Err(e) => {
+                        return Err(PrivilegesManagerConstructionError::ContractsTreeIterError(
+                            contract_id,
+                            e,
+                        ));
+                    }
+                };
+
+                // 5.4.2 Convert the key to a byte.
+                let key_byte: [u8; 1] = key.as_ref().try_into().map_err(|_| {
+                    PrivilegesManagerConstructionError::UnableToDeserializeContractKeyByteFromTreeKey(
+                        contract_id,
+                        key.to_vec(),
+                    )
+                })?;
+
+                // 5.4.3 Match the key byte.
+                match key_byte {
+                    CONTRACT_LIVENESS_FLAG_SPECIAL_DB_KEY => {
+                        let contract_liveness_flag_deserialized = LivenessFlag::from_bytes(value.as_ref()).ok_or(
+                            PrivilegesManagerConstructionError::UnableToDeserializeContractLivenessFlagFromBytes(
+                                contract_id,
+                                value.to_vec(),
+                            ),
+                        )?;
+                        contract_liveness_flag = Some(contract_liveness_flag_deserialized);
+                    }
+                    CONTRACT_IMMUTABILITY_SPECIAL_DB_KEY => {
+                        let immutability_bytecode: u8 = match value.len() {
+                            0 => return Err(
+                                PrivilegesManagerConstructionError::InvalidContractImmutabilityBytecode(
+                                    contract_id,
+                                    value.to_vec(),
+                                ),
+                            ),
+                            1 => value.as_ref()[0],
+                            _ => return Err(
+                                PrivilegesManagerConstructionError::InvalidContractImmutabilityBytecode(
+                                    contract_id,
+                                    value.to_vec(),
+                                ),
+                            ),
+                        };
+                        contract_immutability = Some(match immutability_bytecode {
+                            0 => false,
+                            1 => true,
+                            _ => return Err(
+                                PrivilegesManagerConstructionError::InvalidContractImmutabilityBytecode(
+                                    contract_id,
+                                    value.to_vec(),
+                                ),
+                            ),
+                        });
+                    }
+                    CONTRACT_TAX_EXEMPTIONS_SPECIAL_DB_KEY => {
+                        let contract_tax_exemptions_deserialized = Exemption::from_bytes(value.as_ref()).ok_or(
+                            PrivilegesManagerConstructionError::UnableToDeserializeContractTaxExemptionsFromBytes(
+                                contract_id,
+                                value.to_vec(),
+                            ),
+                        )?;
+                        contract_tax_exemptions = Some(contract_tax_exemptions_deserialized);
+                    }
+                    CONTRACT_STORAGE_LIMIT_SPECIAL_DB_KEY => {
+                        let contract_storage_limit_deserialized = TimedSwitchLongVal::from_bytes(value.as_ref()).ok_or(
+                            PrivilegesManagerConstructionError::UnableToDeserializeContractStorageLimitFromBytes(
+                                contract_id,
+                                value.to_vec(),
+                            ),
+                        )?;
+                        contract_storage_limit = Some(contract_storage_limit_deserialized);
+                    }
+                    CONTRACT_LAST_ACTIVITY_TIMESTAMP_SPECIAL_DB_KEY => {
+                        let contract_last_activity_timestamp_deserialized = u64::from_le_bytes(
+                            value.as_ref().try_into().map_err(|_| {
+                                PrivilegesManagerConstructionError::UnableToDeserializeContractLastActivityTimestampFromBytes(
+                                    contract_id,
+                                    value.to_vec(),
+                                )
+                            })?,
+                        );
+                        contract_last_activity_timestamp =
+                            Some(contract_last_activity_timestamp_deserialized);
+                    }
+                    _ => {
+                        return Err(
+                            PrivilegesManagerConstructionError::InvalidContractDbKeyByte(
+                                contract_id,
+                                key.to_vec(),
+                            ),
+                        );
+                    }
+                }
+            }
+
+            // 5.5 Construct the contract body.
+            let contract_body = PrivilegesManagerContractBody::new(
+                contract_liveness_flag.ok_or(
+                    PrivilegesManagerConstructionError::ContractLivenessFlagNotPresent(contract_id),
+                )?,
+                contract_immutability.ok_or(
+                    PrivilegesManagerConstructionError::ContractImmutabilityNotPresent(contract_id),
+                )?,
+                contract_tax_exemptions.ok_or(
+                    PrivilegesManagerConstructionError::ContractTaxExemptionsNotPresent(
+                        contract_id,
+                    ),
+                )?,
+                contract_storage_limit.ok_or(
+                    PrivilegesManagerConstructionError::ContractStorageLimitNotPresent(contract_id),
+                )?,
+                contract_last_activity_timestamp.ok_or(
+                    PrivilegesManagerConstructionError::ContractLastActivityTimestampNotPresent(
+                        contract_id,
+                    ),
+                )?,
+            );
+
+            // 5.6 Insert the contract body into the in-memory list of contracts.
+            in_memory_contracts.insert(contract_id, contract_body);
+        }
 
         // 6 Construct the privileges manager.
         let privileges_manager = PrivilegesManager {
