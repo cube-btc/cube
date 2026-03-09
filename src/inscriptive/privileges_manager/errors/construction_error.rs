@@ -16,22 +16,21 @@ pub enum PrivilegesManagerConstructionError {
     UnableToDeserializeAccountKeyByteFromTreeKey(AccountKey, Vec<u8>),
     InvalidAccountDbKeyByte(AccountKey, Vec<u8>),
     // Account elements
+    UnableToDeserializeAccountLivenessFlagFromBytes(AccountKey, Vec<u8>),
+
     InvalidAccountHierarchyBytecode(AccountKey, Vec<u8>),
     UnableToDeserializeAccountHierarchyFromBytecode(AccountKey, u8),
-    UnableToDeserializeAccountLivenessFlagFromBytes(AccountKey, Vec<u8>),
+    UnableToDeserializeAccountTxFeeExemptionsFromBytes(AccountKey, Vec<u8>),
+    UnableToDeserializeAccountCanDeployLiquidityFromBytes(AccountKey, Vec<u8>),
+    UnableToDeserializeAccountCanDeployContractFromBytes(AccountKey, Vec<u8>),    
     UnableToDeserializeAccountLastActivityTimestampFromBytes(AccountKey, Vec<u8>),
-    UnableToDeserializeAccountTxFeePrivilegesFromBytes(AccountKey, Vec<u8>),
-    UnableToDeserializeAccountTransactingLimitsFromBytes(AccountKey, Vec<u8>),
-    InvalidAccountCanDeployLiquidityBytes(AccountKey, Vec<u8>),
-    InvalidAccountCanDeployContractBytes(AccountKey, Vec<u8>),
     // Not present errors.
-    AccountHierarchyNotPresent(AccountKey),
     AccountLivenessFlagNotPresent(AccountKey),
-    AccountLastActivityTimestampNotPresent(AccountKey),
-    AccountTxFeePrivilegesNotPresent(AccountKey),
-    AccountTransactingLimitsNotPresent(AccountKey),
+    AccountHierarchyNotPresent(AccountKey),
+    AccountTxFeeExemptionsNotPresent(AccountKey),
     AccountCanDeployLiquidityNotPresent(AccountKey),
     AccountCanDeployContractNotPresent(AccountKey),
+    AccountLastActivityTimestampNotPresent(AccountKey),
     // Contract related errors.
     UnableToDeserializeContractKeyBytesFromTreeName(Vec<u8>),
 }

@@ -2,9 +2,9 @@ use crate::inscriptive::privileges_manager::bodies::account_body::account_body::
 use crate::inscriptive::privileges_manager::bodies::contract_body::contract_body::PrivilegesManagerContractBody;
 use crate::inscriptive::privileges_manager::delta::delta::PrivilegesManagerDelta;
 use crate::inscriptive::privileges_manager::elements::account_hierarchy::account_hierarchy::AccountHierarchy;
-use crate::inscriptive::privileges_manager::elements::account_transacting_limits::account_transacting_limits::AccountTransactingLimits;
-use crate::inscriptive::privileges_manager::elements::account_txfee_privileges::account_txfee_privileges::AccountTxFeePrivileges;
+use crate::inscriptive::privileges_manager::elements::exemption::exemption::Exemption;
 use crate::inscriptive::privileges_manager::elements::liveness_flag::liveness_flag::LivenessFlag;
+use crate::inscriptive::privileges_manager::elements::timed_switch::timed_switch_bool::timed_switch_bool::TimedSwitchBool;
 use crate::inscriptive::privileges_manager::errors::construction_error::PrivilegesManagerConstructionError;
 use crate::operative::Chain;
 use std::collections::HashMap;
@@ -16,13 +16,12 @@ type AccountKey = [u8; 32];
 /// Contract ID.
 type ContractId = [u8; 32];
 
-const ACCOUNT_HIERARCHY_SPECIAL_DB_KEY: [u8; 1] = [0x00; 1];
-const ACCOUNT_LIVENESS_FLAG_SPECIAL_DB_KEY: [u8; 1] = [0x01; 1];
-const ACCOUNT_LAST_ACTIVITY_TIMESTAMP_SPECIAL_DB_KEY: [u8; 1] = [0x02; 1];
-const ACCOUNT_TXFEE_PRIVILEGES_SPECIAL_DB_KEY: [u8; 1] = [0x03; 1];
-const ACCOUNT_TRANSACTING_LIMITS_SPECIAL_DB_KEY: [u8; 1] = [0x04; 1];
-const ACCOUNT_CAN_DEPLOY_LIQUIDITY_SPECIAL_DB_KEY: [u8; 1] = [0x05; 1];
-const ACCOUNT_CAN_DEPLOY_CONTRACT_SPECIAL_DB_KEY: [u8; 1] = [0x06; 1];
+const ACCOUNT_LIVENESS_FLAG_SPECIAL_DB_KEY: [u8; 1] = [0x00; 1];
+const ACCOUNT_HIERARCHY_SPECIAL_DB_KEY: [u8; 1] = [0x01; 1];
+const ACCOUNT_TXFEE_EXEMPTIONS_SPECIAL_DB_KEY: [u8; 1] = [0x02; 1];
+const ACCOUNT_CAN_DEPLOY_LIQUIDITY_SPECIAL_DB_KEY: [u8; 1] = [0x03; 1];
+const ACCOUNT_CAN_DEPLOY_CONTRACT_SPECIAL_DB_KEY: [u8; 1] = [0x04; 1];
+const ACCOUNT_LAST_ACTIVITY_TIMESTAMP_SPECIAL_DB_KEY: [u8; 1] = [0x05; 1];
 
 /// A struct for managing the privileges and fee management resources of accounts and contracts.
 #[allow(dead_code)]
@@ -77,13 +76,12 @@ impl PrivilegesManager {
             })?;
 
             // 4.2 Initialize the account elements.
-            let mut account_hierarchy: Option<AccountHierarchy> = None;
             let mut account_liveness_flag: Option<LivenessFlag> = None;
+            let mut account_hierarchy: Option<AccountHierarchy> = None;
+            let mut account_txfee_exemptions: Option<Exemption> = None;
+            let mut account_can_deploy_liquidity: Option<TimedSwitchBool> = None;
+            let mut account_can_deploy_contract: Option<TimedSwitchBool> = None;
             let mut account_last_activity_timestamp: Option<u64> = None;
-            let mut account_txfee_privileges: Option<AccountTxFeePrivileges> = None;
-            let mut account_transacting_limits: Option<AccountTransactingLimits> = None;
-            let mut account_can_deploy_liquidity: Option<bool> = None;
-            let mut account_can_deploy_contract: Option<bool> = None;
 
             // 4.3 Open the tree associated with the account.
             let tree = accounts_db.open_tree(&tree_name).map_err(|e| {
@@ -113,9 +111,17 @@ impl PrivilegesManager {
 
                 // 4.4.3 Match the key byte.
                 match key_byte {
-                    // 4.4.3.a If the key is (0x00), it is a special key that corresponds to the account hierarchy element.
+                    // 4.4.3.a If the key is (0x01), it is a special key that corresponds to the account liveness flag element.
+                    ACCOUNT_LIVENESS_FLAG_SPECIAL_DB_KEY => {
+                        // 4.4.3.a.1 Deserialize the accoubt liveness flag from bytes.
+                        let account_liveness_flag_deserialized = LivenessFlag::from_bytes(value.as_ref()).ok_or(PrivilegesManagerConstructionError::UnableToDeserializeAccountLivenessFlagFromBytes(account_key, value.to_vec()))?;
+
+                        // 4.4.3.a.2 Update the account liveness flag.
+                        account_liveness_flag = Some(account_liveness_flag_deserialized);
+                    }
+                    // 4.4.3.b If the key is (0x00), it is a special key that corresponds to the account hierarchy element.
                     ACCOUNT_HIERARCHY_SPECIAL_DB_KEY => {
-                        // 4.4.3.a.1 Get the account hierarchy bytecode.
+                        // 4.4.3.b.1 Get the account hierarchy bytecode.
                         let account_hierarchy_bytecode: u8 = match value.len() {
                             0 => return Err(
                                 PrivilegesManagerConstructionError::InvalidAccountHierarchyBytecode(
@@ -132,72 +138,51 @@ impl PrivilegesManager {
                             ),
                         };
 
-                        // 4.4.3.a.2 Deserialize the account hierarchy from the bytecode.
+                        // 4.4.3.b.2 Deserialize the account hierarchy from the bytecode.
                         let account_hierarchy_deserialized = AccountHierarchy::from_bytecode(account_hierarchy_bytecode).ok_or(PrivilegesManagerConstructionError::UnableToDeserializeAccountHierarchyFromBytecode(account_key, account_hierarchy_bytecode))?;
 
-                        // 4.4.3.a.3 Update the account hierarchy.
+                        // 4.4.3.b.3 Update the account hierarchy.
                         account_hierarchy = Some(account_hierarchy_deserialized);
                     }
-                    // 4.4.3.b If the key is (0x01), it is a special key that corresponds to the account liveness flag element.
-                    ACCOUNT_LIVENESS_FLAG_SPECIAL_DB_KEY => {
-                        // 4.4.3.b.1 Deserialize the accoubt liveness flag from bytes.
-                        let account_liveness_flag_deserialized = LivenessFlag::from_bytes(value.as_ref()).ok_or(PrivilegesManagerConstructionError::UnableToDeserializeAccountLivenessFlagFromBytes(account_key, value.to_vec()))?;
 
-                        // 4.4.3.b.2 Update the account liveness flag.
-                        account_liveness_flag = Some(account_liveness_flag_deserialized);
-                    }
-                    // 4.4.3.c If the key is (0x02), it is a special key that corresponds to the account last activity timestamp element.
-                    ACCOUNT_LAST_ACTIVITY_TIMESTAMP_SPECIAL_DB_KEY => {
-                        // 4.4.3.c.1 Deserialize the account last activity timestamp from bytes.
-                        let account_last_activity_timestamp_deserialized = u64::from_le_bytes(value.as_ref().try_into().map_err(|_| {
-                            PrivilegesManagerConstructionError::UnableToDeserializeAccountLastActivityTimestampFromBytes(account_key, value.to_vec())
-                        })?);
+                    // 4.4.3.c If the key is (0x03), it is a special key that corresponds to the account tx fee privileges element.
+                    ACCOUNT_TXFEE_EXEMPTIONS_SPECIAL_DB_KEY => {
+                        // 4.4.3.c.1 Deserialize the account tx fee exemptions from bytes.
+                        let account_txfee_exemptions_deserialized = Exemption::from_bytes(value.as_ref()).ok_or(PrivilegesManagerConstructionError::UnableToDeserializeAccountTxFeeExemptionsFromBytes(account_key, value.to_vec()))?;
 
-                        // 4.4.3.c.2 Update the account last activity timestamp.
-                        account_last_activity_timestamp =
-                            Some(account_last_activity_timestamp_deserialized);
+                        // 4.4.3.c.2 Update the account tx fee exemptions.
+                        account_txfee_exemptions = Some(account_txfee_exemptions_deserialized);
                     }
-                    // 4.4.3.d If the key is (0x03), it is a special key that corresponds to the account tx fee privileges element.
-                    ACCOUNT_TXFEE_PRIVILEGES_SPECIAL_DB_KEY => {
-                        // 4.4.3.d.1 Deserialize the account tx fee privileges from bytes.
-                        let account_txfee_privileges_deserialized = AccountTxFeePrivileges::from_bytes(value.as_ref()).ok_or(PrivilegesManagerConstructionError::UnableToDeserializeAccountTxFeePrivilegesFromBytes(account_key, value.to_vec()))?;
 
-                        // 4.4.3.d.2 Update the account tx fee privileges.
-                        account_txfee_privileges = Some(account_txfee_privileges_deserialized);
-                    }
-                    // 4.4.3.e If the key is (0x04), it is a special key that corresponds to the account transacting limits element.
-                    ACCOUNT_TRANSACTING_LIMITS_SPECIAL_DB_KEY => {
-                        // 4.4.3.e.1 Deserialize the account transacting limits from bytes.
-                        let account_transacting_limits_deserialized = AccountTransactingLimits::from_bytes(value.as_ref()).ok_or(PrivilegesManagerConstructionError::UnableToDeserializeAccountTransactingLimitsFromBytes(account_key, value.to_vec()))?;
-
-                        // 4.4.3.e.2 Update the account transacting limits.
-                        account_transacting_limits = Some(account_transacting_limits_deserialized);
-                    }
-                    // 4.4.3.f If the key is (0x05), it is a special key that corresponds to the account can deploy liquidity element.
+                    // 4.4.3.d If the key is (0x05), it is a special key that corresponds to the account can deploy liquidity element.
                     ACCOUNT_CAN_DEPLOY_LIQUIDITY_SPECIAL_DB_KEY => {
-                        // 4.4.3.f.1 Deserialize the account can deploy liquidity from bytes.
-                        let account_can_deploy_liquidity_deserialized: bool = match value.len() {
-                            0 => false,
-                            1 => value.as_ref()[0] == 0x01,
-                            _ => return Err(PrivilegesManagerConstructionError::InvalidAccountCanDeployLiquidityBytes(account_key, value.to_vec())),
-                        };
+                        // 4.4.3.d.1 Deserialize the account can deploy liquidity from bytes.
+                        let account_can_deploy_liquidity_deserialized = TimedSwitchBool::from_bytes(value.as_ref()).ok_or(PrivilegesManagerConstructionError::UnableToDeserializeAccountCanDeployLiquidityFromBytes(account_key, value.to_vec()))?;
 
-                        // 4.4.3.f.2 Update the account can deploy liquidity.
+                        // 4.4.3.d.2 Update the account can deploy liquidity.
                         account_can_deploy_liquidity =
                             Some(account_can_deploy_liquidity_deserialized);
                     }
-                    // 4.4.3.g If the key is (0x06), it is a special key that corresponds to the account can deploy contract element.
-                    ACCOUNT_CAN_DEPLOY_CONTRACT_SPECIAL_DB_KEY => {
-                        // 4.4.3.g.1 Deserialize the account can deploy contract from bytes.
-                        let account_can_deploy_contract_deserialized: bool = match value.len() {
-                            0 => false,
-                            1 => value.as_ref()[0] == 0x01,
-                            _ => return Err(PrivilegesManagerConstructionError::InvalidAccountCanDeployContractBytes(account_key, value.to_vec())),
-                        };
 
-                        // 4.4.3.g.2 Update the account can deploy contract.
+                    // 4.4.3.e If the key is (0x06), it is a special key that corresponds to the account can deploy contract element.
+                    ACCOUNT_CAN_DEPLOY_CONTRACT_SPECIAL_DB_KEY => {
+                        // 4.4.3.e.1 Deserialize the account can deploy contract from bytes.
+                        let account_can_deploy_contract_deserialized = TimedSwitchBool::from_bytes(value.as_ref()).ok_or(PrivilegesManagerConstructionError::UnableToDeserializeAccountCanDeployContractFromBytes(account_key, value.to_vec()))?;
+
+                        // 4.4.3.e.2 Update the account can deploy contract.
                         account_can_deploy_contract =
                             Some(account_can_deploy_contract_deserialized);
+                    }
+                    // 4.4.3.f If the key is (0x02), it is a special key that corresponds to the account last activity timestamp element.
+                    ACCOUNT_LAST_ACTIVITY_TIMESTAMP_SPECIAL_DB_KEY => {
+                        // 4.4.3.f.1 Deserialize the account last activity timestamp from bytes.
+                        let account_last_activity_timestamp_deserialized = u64::from_le_bytes(value.as_ref().try_into().map_err(|_| {
+                                            PrivilegesManagerConstructionError::UnableToDeserializeAccountLastActivityTimestampFromBytes(account_key, value.to_vec())
+                                        })?);
+
+                        // 4.4.3.f.2 Update the account last activity timestamp.
+                        account_last_activity_timestamp =
+                            Some(account_last_activity_timestamp_deserialized);
                     }
                     _ => {
                         return Err(PrivilegesManagerConstructionError::InvalidAccountDbKeyByte(
@@ -210,24 +195,14 @@ impl PrivilegesManager {
 
             // 4.5 Construct the account body.
             let account_body = PrivilegesManagerAccountBody::new(
-                account_hierarchy.ok_or(
-                    PrivilegesManagerConstructionError::AccountHierarchyNotPresent(account_key),
-                )?,
                 account_liveness_flag.ok_or(
                     PrivilegesManagerConstructionError::AccountLivenessFlagNotPresent(account_key),
                 )?,
-                account_last_activity_timestamp.ok_or(
-                    PrivilegesManagerConstructionError::AccountLastActivityTimestampNotPresent(
-                        account_key,
-                    ),
+                account_hierarchy.ok_or(
+                    PrivilegesManagerConstructionError::AccountHierarchyNotPresent(account_key),
                 )?,
-                account_txfee_privileges.ok_or(
-                    PrivilegesManagerConstructionError::AccountTxFeePrivilegesNotPresent(
-                        account_key,
-                    ),
-                )?,
-                account_transacting_limits.ok_or(
-                    PrivilegesManagerConstructionError::AccountTransactingLimitsNotPresent(
+                account_txfee_exemptions.ok_or(
+                    PrivilegesManagerConstructionError::AccountTxFeeExemptionsNotPresent(
                         account_key,
                     ),
                 )?,
@@ -238,6 +213,11 @@ impl PrivilegesManager {
                 )?,
                 account_can_deploy_contract.ok_or(
                     PrivilegesManagerConstructionError::AccountCanDeployContractNotPresent(
+                        account_key,
+                    ),
+                )?,
+                account_last_activity_timestamp.ok_or(
+                    PrivilegesManagerConstructionError::AccountLastActivityTimestampNotPresent(
                         account_key,
                     ),
                 )?,
