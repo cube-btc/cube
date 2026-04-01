@@ -40,7 +40,7 @@ cargo run <mode> <chain> <kind> <bitcoin-rpc-url> <bitcoin-rpc-user> <bitcoin-rp
   - `mainnet`
 - `<kind>`: The kind of running mode. Supported values:
   - `node`: For running a Cube node.
-  - `engine`: For network operators.
+  - `engine`: For the network operator.
 - `<bitcoin-rpc-url>`: The RPC URL of the Bitcoin node.
 - `<bitcoin-rpc-user>`: The RPC username of the Bitcoin node.
 - `<bitcoin-rpc-password>`: The RPC password of the Bitcoin node.
