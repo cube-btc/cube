@@ -1,15 +1,10 @@
-pub mod coordinator;
 pub mod node;
-pub mod operator;
+pub mod engine;
 
 // Node CLI
 #[path = "node/cli/mod.rs"]
 pub mod ncli;
 
-// Coordinator CLI
-#[path = "coordinator/cli/mod.rs"]
-pub mod ccli;
-
-// Operator CLI
-#[path = "operator/cli/mod.rs"]
-pub mod ocli;
+// Engine CLI
+#[path = "engine/cli/mod.rs"]
+pub mod ecli;

@@ -26,8 +26,7 @@ impl ToString for Chain {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum OperatingKind {
     Node,
-    Operator,
-    Coordinator,
+    Engine,
 }
 
 /// Operating mode type.

@@ -17,23 +17,17 @@ use tokio::sync::Mutex;
 #[allow(non_camel_case_types)]
 pub type SOCKET = Arc<Mutex<tokio::net::TcpStream>>;
 
-/// Guarded peer.
-#[allow(non_camel_case_types)]
-pub type PEER = Arc<Mutex<Peer>>;
-
 #[derive(Copy, Clone, PartialEq)]
 pub enum PeerKind {
     Node,
-    Operator,
-    Coordinator,
+    Engine,
 }
 
 impl PeerKind {
     pub fn as_str(&self) -> &'static str {
         match self {
             PeerKind::Node => "Node",
-            PeerKind::Operator => "Operator",
-            PeerKind::Coordinator => "Coordinator",
+            PeerKind::Engine => "Engine",
         }
     }
 }
@@ -46,6 +40,10 @@ pub struct Peer {
     nns_client: NNSClient,
     connection: Option<(SOCKET, SocketAddr)>,
 }
+
+/// Guarded peer.
+#[allow(non_camel_case_types)]
+pub type PEER = Arc<Mutex<Peer>>;
 
 impl Peer {
     pub async fn connect(

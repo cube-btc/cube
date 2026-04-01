@@ -2,7 +2,7 @@ use colored::Colorize;
 use cube::{
     communicative::rpc::bitcoin_rpc::bitcoin_rpc_holder::BitcoinRPCHolder,
     operative::{
-        mode::{coordinator::coordinator, node::node, operator::operator},
+        mode::{engine::engine, node::node},
         Chain, OperatingKind, OperatingMode,
     },
     transmutative::{
@@ -191,8 +191,7 @@ fn run(args: &Vec<String>) {
     // 3 Parse operating kind.
     let operating_kind = match args[3].to_lowercase().as_str() {
         "node" => OperatingKind::Node,
-        "engine" => OperatingKind::Operator,
-        "coordinator" => OperatingKind::Coordinator,
+        "engine" => OperatingKind::Engine,
         _ => {
             println!("{}", "Invalid <kind>.".red());
             return;
@@ -287,13 +286,9 @@ fn run(args: &Vec<String>) {
         // 6.1 Run as a node.
         OperatingKind::Node => node::run(key_holder, chain, rpc_holder, operating_mode),
 
-        // 6.2 Run as an operator.
-        OperatingKind::Operator => operator::run(key_holder, chain, rpc_holder, operating_mode),
+        // 6.2 Run as the engine.
+        OperatingKind::Engine => engine::run(key_holder, chain, rpc_holder, operating_mode),
 
-        // 6.3 Run as a coordinator.
-        OperatingKind::Coordinator => {
-            coordinator::run(key_holder, chain, rpc_holder, operating_mode)
-        }
     }
 }
 

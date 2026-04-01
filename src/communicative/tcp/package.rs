@@ -5,44 +5,17 @@ use std::time::Duration;
 #[derive(Copy, Clone, PartialEq)]
 pub enum PackageKind {
     Ping,
-    RequestVSEKeymap,
-    DeliverVSESetup,
-    RequestDKGPackages,
-    DeliverDKGSessions,
-    RequestPartialSigs,
-    SyncDKGDir,
-    RequestOpCov,
-    CommitSession,
-    UpholdSession,
 }
 
 impl PackageKind {
     pub fn bytecode(&self) -> u8 {
         match self {
             PackageKind::Ping => 0x00,
-            PackageKind::RequestVSEKeymap => 0x01,
-            PackageKind::DeliverVSESetup => 0x02,
-            PackageKind::RequestDKGPackages => 0x03,
-            PackageKind::DeliverDKGSessions => 0x04,
-            PackageKind::RequestPartialSigs => 0x05,
-            PackageKind::SyncDKGDir => 0x06,
-            PackageKind::RequestOpCov => 0x07,
-            PackageKind::CommitSession => 0x08,
-            PackageKind::UpholdSession => 0x09,
         }
     }
     pub fn from_bytecode(bytecode: u8) -> Option<Self> {
         match bytecode {
             0x00 => Some(PackageKind::Ping),
-            0x01 => Some(PackageKind::RequestVSEKeymap),
-            0x02 => Some(PackageKind::DeliverVSESetup),
-            0x03 => Some(PackageKind::RequestDKGPackages),
-            0x04 => Some(PackageKind::DeliverDKGSessions),
-            0x05 => Some(PackageKind::RequestPartialSigs),
-            0x06 => Some(PackageKind::SyncDKGDir),
-            0x07 => Some(PackageKind::RequestOpCov),
-            0x08 => Some(PackageKind::CommitSession),
-            0x09 => Some(PackageKind::UpholdSession),
             _ => None,
         }
     }

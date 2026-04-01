@@ -9,10 +9,10 @@ use tokio::sync::Mutex;
 #[allow(non_camel_case_types)]
 pub type PEER_MANAGER = Arc<Mutex<PeerManager>>;
 
-pub fn coordinator_key(chain: Chain) -> [u8; 32] {
+pub fn engine_key(chain: Chain) -> [u8; 32] {
     match chain {
-        Chain::Signet | Chain::Testbed => baked::SIGNET_COORDINATOR,
-        Chain::Mainnet => baked::MAINNET_COORDINATOR,
+        Chain::Signet | Chain::Testbed => baked::SIGNET_ENGINE_PUBLIC_KEY,
+        Chain::Mainnet => baked::MAINNET_ENGINE_PUBLIC_KEY,
     }
 }
 

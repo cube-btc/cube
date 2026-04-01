@@ -1,10 +1,8 @@
 use super::package::{PackageKind, TCPPackage};
 use super::tcp::{self, port_number};
-use crate::communicative::nns::client::NNSClient;
-use crate::communicative::peer::manager::coordinator_key;
 use crate::communicative::peer::peer::SOCKET;
 use crate::operative::{Chain, OperatingKind};
-use crate::transmutative::key::{KeyHolder, ToNostrKeyStr};
+use crate::transmutative::key::{KeyHolder};
 use colored::Colorize;
 use std::sync::Arc;
 use std::time::Duration;
@@ -27,7 +25,6 @@ pub const PAYLOAD_WRITE_TIMEOUT: Duration = Duration::from_millis(10_000);
 pub async fn run(
     operating_kind: OperatingKind,
     chain: Chain,
-    nns_client: &NNSClient,
     keys: Arc<KeyHolder>,
 ) {
     let port_number = port_number(chain);
@@ -42,7 +39,8 @@ pub async fn run(
     };
 
     match operating_kind {
-        OperatingKind::Coordinator => loop {
+        // Run engine TCP server.
+        OperatingKind::Engine => loop {
             let (socket_, _) = match listener.accept().await {
                 Ok(conn) => (conn.0, conn.1),
                 Err(_) => continue,
@@ -59,60 +57,7 @@ pub async fn run(
                 }
             });
         },
-        OperatingKind::Operator => {
-            let coordinator_key = coordinator_key(chain);
-            let coordinator_npub = match coordinator_key.to_npub() {
-                Some(npub) => npub,
-                None => return,
-            };
-
-            loop {
-                match nns_client.query_address(&coordinator_npub).await {
-                    Some(ip_address) => 'post_nns: loop {
-                        let (socket_, socket_addr) = match listener.accept().await {
-                            Ok(conn) => (conn.0, conn.1),
-                            Err(_) => continue,
-                        };
-
-                        // Operator only accepts incoming connections from the coordinator.
-                        if socket_addr.ip().to_string() != ip_address {
-                            continue;
-                        }
-
-                        let socket = Arc::new(Mutex::new(socket_));
-
-                        let socket_alive = Arc::new(Mutex::new(true));
-
-                        tokio::spawn({
-                            let socket = Arc::clone(&socket);
-                            let socket_alive = Arc::clone(&socket_alive);
-                            let keys = Arc::clone(&keys);
-
-                            async move {
-                                handle_socket(&socket, Some(&socket_alive), operating_kind, &keys)
-                                    .await;
-                            }
-                        });
-
-                        loop {
-                            tokio::time::sleep(Duration::from_secs(1)).await;
-                            let alive = {
-                                let mut _alive = socket_alive.lock().await;
-                                *_alive
-                            };
-
-                            if !alive {
-                                break 'post_nns;
-                            }
-                        }
-                    },
-                    None => {
-                        tokio::time::sleep(Duration::from_secs(5)).await;
-                        continue;
-                    }
-                }
-            }
-        }
+        // Nodes do not have a TCP server.
         OperatingKind::Node => return,
     }
 }
@@ -220,13 +165,9 @@ async fn handle_package(
 ) {
     let response_package_ = {
         match operating_kind {
-            OperatingKind::Coordinator => match package.kind() {
+            OperatingKind::Engine => match package.kind() {
                 PackageKind::Ping => handle_ping(package.timestamp(), &package.payload()).await,
-                _ => return,
-            },
-            OperatingKind::Operator => match package.kind() {
-                PackageKind::Ping => handle_ping(package.timestamp(), &package.payload()).await,
-                _ => return,
+                //_ => return,
             },
             OperatingKind::Node => return,
         }

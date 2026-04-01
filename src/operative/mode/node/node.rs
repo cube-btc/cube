@@ -1,5 +1,5 @@
 use crate::communicative::nns::client::NNSClient;
-use crate::communicative::peer::manager::coordinator_key;
+use crate::communicative::peer::manager::engine_key;
 use crate::communicative::peer::peer::Peer;
 use crate::communicative::peer::peer::PeerKind;
 use crate::communicative::peer::peer::PEER;
@@ -136,11 +136,11 @@ pub async fn run(
     let nns_client = NNSClient::new(&key_holder).await;
 
     // #12 Connect to the coordinator.
-    let coordinator: PEER = {
-        let coordinator_key = coordinator_key(chain);
+    let engine: PEER = {
+        let engine_key = engine_key(chain);
 
         loop {
-            match Peer::connect(chain, PeerKind::Coordinator, coordinator_key, &nns_client).await {
+            match Peer::connect(chain, PeerKind::Engine, engine_key, &nns_client).await {
                 Ok(connection) => break connection,
                 Err(_) => {
                     println!("{}", "Failed to connect. Re-trying in 5..".red());
@@ -152,7 +152,7 @@ pub async fn run(
     };
 
     // #13 CLI.
-    cli(chain, &coordinator, &key_holder, &account, &wallet).await;
+    cli(chain, &engine, &key_holder, &account, &wallet).await;
 }
 
 pub async fn cli(

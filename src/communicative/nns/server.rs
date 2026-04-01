@@ -20,9 +20,8 @@ const IP_ADDR_FILE_PATH: &str = "nns_ip_address.txt";
 ///
 pub async fn run(nns_client: &NNSClient, operating_kind: OperatingKind) {
     match operating_kind {
-        OperatingKind::Coordinator => (),
-        OperatingKind::Operator => (),
-        OperatingKind::Node => return, // Refular nodes do not run the server.
+        OperatingKind::Node => return, // Regular nodes do not run the server.
+        OperatingKind::Engine => (),
     }
 
     // Check if ip.txt exists. Create it otherwise.
