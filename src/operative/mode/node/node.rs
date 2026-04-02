@@ -77,16 +77,14 @@ pub async fn run(
     // #8 Spawn syncer
     {
         let chain = chain.clone();
-        let key_holder = Arc::clone(&key_holder);
         let rpc_holder = rpc_holder.clone();
-
         let registery = Arc::clone(&registery);
         let sync_manager = Arc::clone(&sync_manager);
         let utxo_set = Arc::clone(&utxo_set);
 
         tokio::spawn(async move {
             let _ = sync_manager
-                .spawn_background_sync_task(chain, &rpc_holder, &key_holder, &registery, &utxo_set)
+                .spawn_background_sync_task(chain, &rpc_holder, &registery, &utxo_set)
                 .await;
         });
     }

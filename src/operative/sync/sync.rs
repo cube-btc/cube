@@ -3,13 +3,11 @@ use crate::{
         bitcoin_rpc::{get_chain_tip, retrieve_block},
         bitcoin_rpc_holder::BitcoinRPCHolder,
     },
-    constructive::txo::lift::Lift,
     inscriptive::{
         baked, registery_manager::registery_manager::REGISTERY_MANAGER,
         sync_manager::sync_manager::SYNC_MANAGER, utxo_set::utxo_set::UTXO_SET,
     },
     operative::Chain,
-    transmutative::key::KeyHolder,
 };
 use async_trait::async_trait;
 use bitcoin::OutPoint;
@@ -28,7 +26,6 @@ pub trait RollupSync {
         &self,
         chain: Chain,
         rpc_holder: &BitcoinRPCHolder,
-        key_holder: &KeyHolder,
         _registery: &REGISTERY_MANAGER,
         utxo_set: &UTXO_SET,
     );
@@ -57,7 +54,6 @@ impl RollupSync for SYNC_MANAGER {
         &self,
         chain: Chain,
         rpc_holder: &BitcoinRPCHolder,
-        key_holder: &KeyHolder,
         _registery: &REGISTERY_MANAGER,
         utxo_set: &UTXO_SET,
     ) {
