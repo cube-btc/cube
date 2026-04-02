@@ -11,7 +11,7 @@ use hex;
 use serde_json::{json, to_string_pretty};
 
 // liftaddr
-pub async fn liftaddr_command(chain: Chain, engine_key: [u8; 32], self_account_key: [u8; 32]) {
+pub fn liftaddr_command(chain: Chain, engine_key: [u8; 32], self_account_key: [u8; 32]) {
     // 1 Get the liftv1 scriptpubkey.
     let liftv1_scriptpubkey: Vec<u8> =
         match return_liftv1_scriptpubkey(self_account_key, engine_key) {

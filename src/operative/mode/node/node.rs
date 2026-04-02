@@ -165,9 +165,7 @@ pub async fn cli(
             "exit" => break,
             "clear" => ncli::clear::clear_command(),
             "lifts" => ncli::lifts::lifts_command(engine_key, self_account_key, utxo_set).await,
-            "liftaddr" => {
-                ncli::liftaddr::liftaddr_command(chain, engine_key, self_account_key).await
-            }
+            "liftaddr" => ncli::liftaddr::liftaddr_command(chain, engine_key, self_account_key),
             "conn" => ncli::conn::conn_command(engine_conn).await,
             "ping" => ncli::ping::ping_command(engine_conn).await,
             "npub" => ncli::npub::npub_command(key_holder).await,
