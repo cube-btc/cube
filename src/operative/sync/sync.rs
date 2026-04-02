@@ -221,7 +221,7 @@ impl RollupSync for SYNC_MANAGER {
                             // Remove spent utxos from utxoset.
                             {
                                 let mut _utxo_set = utxo_set.lock().await;
-                                _utxo_set.remove_txout(&txn_input_outpoint);
+                                _utxo_set.remove_utxo(&txn_input_outpoint);
                             }
                         }
 
@@ -232,7 +232,7 @@ impl RollupSync for SYNC_MANAGER {
                             // Add to utxoset.
                             {
                                 let mut _utxo_set = utxo_set.lock().await;
-                                _utxo_set.insert_txout(&txn_output_outpoint, txn_output);
+                                _utxo_set.insert_utxo(&txn_output_outpoint, txn_output);
                             }
                         }
                     }

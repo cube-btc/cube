@@ -13,7 +13,6 @@ const POINT_WITH_UNKNOWN_DISCRETE_LOGARITHM: [u8; 33] = [
 
 pub trait P2TR {
     fn taproot(&self) -> Option<TapRoot>;
-    fn spk(&self) -> Option<Vec<u8>>;
 }
 
 #[derive(Clone)]

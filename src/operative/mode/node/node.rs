@@ -5,7 +5,6 @@ use crate::communicative::peer::peer::PeerKind;
 use crate::communicative::peer::peer::PEER;
 use crate::communicative::rpc::bitcoin_rpc::bitcoin_rpc::validate_rpc;
 use crate::communicative::rpc::bitcoin_rpc::bitcoin_rpc_holder::BitcoinRPCHolder;
-use crate::constructive::entity::account::account::account::Account;
 use crate::inscriptive::registery_manager::registery_manager::RegisteryManager;
 use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
 use crate::inscriptive::sync_manager::sync_manager::SyncManager;
@@ -43,12 +42,15 @@ pub async fn run(
 
     println!("{}", "Initializing node.");
 
+    let engine_key = engine_key(chain);
+    let self_account_key = key_holder.secp_public_key_bytes();
+
     // #3 Initialize Epoch directory.
 
     // #4 Initialize LP directory.
 
     // #5 Initialize Registery manager.
-    let registery: REGISTERY_MANAGER = match RegisteryManager::new(chain) {
+    let registery_manager: REGISTERY_MANAGER = match RegisteryManager::new(chain) {
         Ok(registery_manager) => registery_manager,
         Err(_) => {
             println!("{}", "Error initializing registery manager.".red());
@@ -78,13 +80,13 @@ pub async fn run(
     {
         let chain = chain.clone();
         let rpc_holder = rpc_holder.clone();
-        let registery = Arc::clone(&registery);
+        let registery_manager = Arc::clone(&registery_manager);
         let sync_manager = Arc::clone(&sync_manager);
         let utxo_set = Arc::clone(&utxo_set);
 
         tokio::spawn(async move {
             let _ = sync_manager
-                .spawn_background_sync_task(chain, &rpc_holder, &registery, &utxo_set)
+                .spawn_background_sync_task(chain, &rpc_holder, &registery_manager, &utxo_set)
                 .await;
         });
     }
@@ -96,28 +98,11 @@ pub async fn run(
 
     println!("{}", "Syncing complete.");
 
-    // #10 Construct account.
-    let account = {
-        let _registery_manager = registery.lock().await;
-
-        match _registery_manager
-            .get_account_by_key(key_holder.secp_public_key_point().serialize_xonly())
-        {
-            Some(account) => account,
-            None => {
-                println!("{}", "Error constructing account.".red());
-                return;
-            }
-        }
-    };
-
     // #11 Initialize NNS client.
     let nns_client = NNSClient::new(&key_holder).await;
 
     // #12 Connect to the coordinator.
     let engine: PEER = {
-        let engine_key = engine_key(chain);
-
         loop {
             match Peer::connect(chain, PeerKind::Engine, engine_key, &nns_client).await {
                 Ok(connection) => break connection,
@@ -131,10 +116,27 @@ pub async fn run(
     };
 
     // #13 CLI.
-    cli(chain, &engine, &key_holder, &account).await;
+    cli(
+        chain,
+        engine_key,
+        self_account_key,
+        &engine,
+        &key_holder,
+        &registery_manager,
+        &utxo_set,
+    )
+    .await;
 }
 
-pub async fn cli(_chain: Chain, engine_conn: &PEER, key_holder: &KeyHolder, _account: &Account) {
+pub async fn cli(
+    chain: Chain,
+    engine_key: [u8; 32],
+    self_account_key: [u8; 32],
+    engine_conn: &PEER,
+    key_holder: &KeyHolder,
+    _registery_manager: &REGISTERY_MANAGER,
+    utxo_set: &UTXO_SET,
+) {
     println!(
         "{}",
         "Enter command (type help for options, type exit to quit):".cyan()
@@ -162,6 +164,10 @@ pub async fn cli(_chain: Chain, engine_conn: &PEER, key_holder: &KeyHolder, _acc
             // Main commands:
             "exit" => break,
             "clear" => ncli::clear::clear_command(),
+            "lifts" => ncli::lifts::lifts_command(engine_key, self_account_key, utxo_set).await,
+            "liftaddr" => {
+                ncli::liftaddr::liftaddr_command(chain, engine_key, self_account_key).await
+            }
             "conn" => ncli::conn::conn_command(engine_conn).await,
             "ping" => ncli::ping::ping_command(engine_conn).await,
             "npub" => ncli::npub::npub_command(key_holder).await,

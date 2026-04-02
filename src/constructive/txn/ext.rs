@@ -44,6 +44,13 @@ pub trait TxOutExt {
     fn bytes(&self) -> Vec<u8>;
     /// Returns the TxOut from a byte array.
     fn from_bytes(bytes: &[u8]) -> Option<TxOut>;
+
+    /// Returns the TxOut's scriptpubkey.
+    fn scriptpubkey(&self) -> Vec<u8>;
+
+    /// Returns the TxOut's value.
+    fn value_in_satoshis(&self) -> u64;
+    
 }
 
 impl TxOutExt for TxOut {
@@ -81,5 +88,13 @@ impl TxOutExt for TxOut {
         };
 
         Some(txout)
+    }
+
+    fn scriptpubkey(&self) -> Vec<u8> {
+        self.script_pubkey.as_bytes().to_vec()
+    }
+
+    fn value_in_satoshis(&self) -> u64 {
+        self.value.to_sat()
     }
 }
