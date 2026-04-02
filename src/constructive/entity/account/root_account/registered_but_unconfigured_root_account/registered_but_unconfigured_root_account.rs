@@ -92,14 +92,19 @@ impl RegisteredButUnconfiguredRootAccount {
                 {
                     // TODO.
                 }
-
-                // 2.a.4 Return true.
-                true
             }
 
             // 2.b The account is not registered.
-            None => false,
+            None => return false,
         }
+
+        // 3 Verify the authorization signature.
+        if !self.verify_authorization_signature() {
+            return false;
+        }
+
+        // 4 Return true.
+        true
     }
 }
 

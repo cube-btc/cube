@@ -6,6 +6,11 @@ pub trait OutpointExt {
     fn bytes_36(&self) -> [u8; 36];
     /// Returns the OutPoint from a 36 byte array.
     fn from_bytes36(bytes: &[u8; 36]) -> Option<OutPoint>;
+
+    /// Returns the OutPoint's transaction hash.
+    fn txhash(&self) -> [u8; 32];
+    /// Returns the OutPoint's output index.
+    fn vout(&self) -> u32;
 }
 
 impl OutpointExt for OutPoint {
@@ -23,6 +28,15 @@ impl OutpointExt for OutPoint {
         let vout = u32::from_le_bytes(vout_bytes);
         Some(OutPoint::new(txid, vout))
     }
+
+    fn txhash(&self) -> [u8; 32] {
+        self.txid.to_byte_array()
+    }
+
+    fn vout(&self) -> u32 {
+        self.vout
+    }
+
 }
 
 pub trait TxOutExt {

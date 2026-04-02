@@ -1,12 +1,12 @@
 use crate::communicative::peer::peer::PEER;
 
-// conn
-pub async fn conn_command(coordinator: &PEER) {
-    let _coordinator = coordinator.lock().await;
+/// Returns the connection status with Engine.
+pub async fn conn_command(engine: &PEER) {
+    let _engine = engine.lock().await;
 
-    match _coordinator.connection() {
+    match _engine.connection() {
         Some(_) => {
-            let addr: String = _coordinator.addr();
+            let addr: String = _engine.addr();
             println!("Alive: {}", addr);
         }
         None => {

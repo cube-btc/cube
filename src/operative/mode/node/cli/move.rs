@@ -1,5 +1,5 @@
-use crate::{communicative::peer::peer::PEER, inscriptive::wallet::wallet::WALLET};
-use secp::{Point, Scalar};
+use crate::{communicative::peer::peer::PEER};
+use crate::transmutative::key::KeyHolder;
 
 // move <npub> <amount>
-pub async fn move_command(_coordinator: &PEER, _wallet: &WALLET, _sk: Scalar, _pk: Point) {}
+pub async fn move_command(_engine: &PEER, _key_holder: &KeyHolder) {}

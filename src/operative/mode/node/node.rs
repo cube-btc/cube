@@ -8,12 +8,10 @@ use crate::communicative::rpc::bitcoin_rpc::bitcoin_rpc_holder::BitcoinRPCHolder
 use crate::constructive::entity::account::account::account::Account;
 use crate::inscriptive::registery_manager::registery_manager::RegisteryManager;
 use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
-use crate::inscriptive::set::set::CoinSet;
-use crate::inscriptive::set::set::COIN_SET;
 use crate::inscriptive::sync_manager::sync_manager::SyncManager;
 use crate::inscriptive::sync_manager::sync_manager::SYNC_MANAGER;
-use crate::inscriptive::wallet::wallet::Wallet;
-use crate::inscriptive::wallet::wallet::WALLET;
+use crate::inscriptive::utxo_set::utxo_set::UTXOSet;
+use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
 use crate::operative::mode::ncli;
 use crate::operative::sync::sync::RollupSync;
 use crate::operative::Chain;
@@ -45,15 +43,6 @@ pub async fn run(
 
     println!("{}", "Initializing node.");
 
-    // #2 Initialize  wallet.
-    let wallet: WALLET = match Wallet::new(chain, key_holder.secp_public_key_point()) {
-        Some(wallet) => wallet,
-        None => {
-            println!("{}", "Error initializing wallet.".red());
-            return;
-        }
-    };
-
     // #3 Initialize Epoch directory.
 
     // #4 Initialize LP directory.
@@ -67,11 +56,11 @@ pub async fn run(
         }
     };
 
-    // #6 Initialize the coin set.
-    let coin_set: COIN_SET = match CoinSet::new(chain) {
-        Some(coin_set) => coin_set,
+    // #6 Initialize the utxo set.
+    let utxo_set: UTXO_SET = match UTXOSet::new(chain) {
+        Some(utxo_set) => utxo_set,
         None => {
-            println!("{}", "Error initializing coin set.".red());
+            println!("{}", "Error initializing utxo set.".red());
             return;
         }
     };
@@ -92,20 +81,12 @@ pub async fn run(
         let rpc_holder = rpc_holder.clone();
 
         let registery = Arc::clone(&registery);
-        let wallet = Arc::clone(&wallet);
         let sync_manager = Arc::clone(&sync_manager);
-        let coin_set = Arc::clone(&coin_set);
+        let utxo_set = Arc::clone(&utxo_set);
 
         tokio::spawn(async move {
             let _ = sync_manager
-                .spawn_background_sync_task(
-                    chain,
-                    &rpc_holder,
-                    &key_holder,
-                    &registery,
-                    Some(&wallet),
-                    &coin_set,
-                )
+                .spawn_background_sync_task(chain, &rpc_holder, &key_holder, &registery, &utxo_set)
                 .await;
         });
     }
@@ -152,16 +133,10 @@ pub async fn run(
     };
 
     // #13 CLI.
-    cli(chain, &engine, &key_holder, &account, &wallet).await;
+    cli(chain, &engine, &key_holder, &account).await;
 }
 
-pub async fn cli(
-    _chain: Chain,
-    coordinator_conn: &PEER,
-    key_holder: &KeyHolder,
-    _account: &Account,
-    wallet: &WALLET,
-) {
+pub async fn cli(_chain: Chain, engine_conn: &PEER, key_holder: &KeyHolder, _account: &Account) {
     println!(
         "{}",
         "Enter command (type help for options, type exit to quit):".cyan()
@@ -189,19 +164,11 @@ pub async fn cli(
             // Main commands:
             "exit" => break,
             "clear" => ncli::clear::clear_command(),
-            "conn" => ncli::conn::conn_command(coordinator_conn).await,
-            "ping" => ncli::ping::ping_command(coordinator_conn).await,
+            "conn" => ncli::conn::conn_command(engine_conn).await,
+            "ping" => ncli::ping::ping_command(engine_conn).await,
             "npub" => ncli::npub::npub_command(key_holder).await,
-            "decomp" => ncli::decomp::decomp_command(parts),
-            "move" => {
-                ncli::r#move::move_command(
-                    coordinator_conn,
-                    wallet,
-                    key_holder.secp_secret_key_scalar(),
-                    key_holder.secp_public_key_point(),
-                )
-                .await
-            }
+            "decompile" => ncli::decompile::decompile_command(parts),
+            "move" => ncli::r#move::move_command(engine_conn, key_holder).await,
             _ => eprintln!("{}", format!("Unknown commmand.").yellow()),
         }
     }

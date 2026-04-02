@@ -1,6 +1,6 @@
 pub mod clear;
 pub mod conn;
-pub mod decomp;
+pub mod decompile;
 pub mod r#move;
 pub mod npub;
 pub mod ping;

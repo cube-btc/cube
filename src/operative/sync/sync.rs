@@ -3,10 +3,10 @@ use crate::{
         bitcoin_rpc::{get_chain_tip, retrieve_block},
         bitcoin_rpc_holder::BitcoinRPCHolder,
     },
-    constructive::{taproot::P2TR, txo::lift::Lift},
+    constructive::txo::lift::Lift,
     inscriptive::{
-        baked, registery_manager::registery_manager::REGISTERY_MANAGER, set::set::COIN_SET,
-        sync_manager::sync_manager::SYNC_MANAGER, wallet::wallet::WALLET,
+        baked, registery_manager::registery_manager::REGISTERY_MANAGER,
+        sync_manager::sync_manager::SYNC_MANAGER, utxo_set::utxo_set::UTXO_SET,
     },
     operative::Chain,
     transmutative::key::KeyHolder,
@@ -14,35 +14,12 @@ use crate::{
 use async_trait::async_trait;
 use bitcoin::OutPoint;
 use colored::Colorize;
-use secp::Point;
 use std::time::Duration;
 use tokio::time::sleep;
 
 /// Number of blocks a block needs to be buried to be considered final.
 /// This will require 6 on-chain confirmations for a transaction to be considered final.
 const BLOCK_DEPTH_FOR_FINALITY: u64 = 5;
-
-type LiftSPK = Vec<u8>;
-
-/// Returns the list of Taproot scriptpubkeys to scan.
-pub async fn lifts_spks_to_scan(key_holder: &KeyHolder) -> Option<Vec<(LiftSPK, Point)>> {
-    let mut spks = Vec::<(LiftSPK, Point)>::new();
-
-    let self_key = key_holder.secp_public_key_point();
-
-    // TODO
-    let group_keys: Vec<Point> = vec![];
-
-    for operator_group_key in group_keys.iter() {
-        let lift = Lift::new(self_key, operator_group_key.to_owned(), None, None);
-        let taproot = lift.taproot()?;
-        let spk = taproot.spk()?;
-
-        spks.push((spk, operator_group_key.to_owned()));
-    }
-
-    Some(spks)
-}
 
 #[async_trait]
 pub trait RollupSync {
@@ -53,8 +30,7 @@ pub trait RollupSync {
         rpc_holder: &BitcoinRPCHolder,
         key_holder: &KeyHolder,
         _registery: &REGISTERY_MANAGER,
-        wallet: Option<&WALLET>,
-        coin_set: &COIN_SET,
+        utxo_set: &UTXO_SET,
     );
 
     /// Awaits the rollup to be fully synced to the latest chain tip.
@@ -83,8 +59,7 @@ impl RollupSync for SYNC_MANAGER {
         rpc_holder: &BitcoinRPCHolder,
         key_holder: &KeyHolder,
         _registery: &REGISTERY_MANAGER,
-        wallet: Option<&WALLET>,
-        coin_set: &COIN_SET,
+        utxo_set: &UTXO_SET,
     ) {
         let mut synced: bool = false;
 
@@ -140,22 +115,6 @@ impl RollupSync for SYNC_MANAGER {
             let cube_node_sync_height = {
                 let _sync_manager = sync_manager.lock().await;
                 _sync_manager.bitcoin_sync_height()
-            };
-
-            // Retrieve self lifts.
-            let self_lifts = {
-                match wallet {
-                    Some(wallet) => {
-                        let lift_wallet = {
-                            let _wallet = wallet.lock().await;
-                            _wallet.lift_wallet()
-                        };
-
-                        let _lift_wallet = lift_wallet.lock().await;
-                        _lift_wallet.lifts()
-                    }
-                    None => vec![],
-                }
             };
 
             // The target sync height is the latest Bitcoin chain tip minus BLOCK_DEPTH_FOR_FINALITY.
@@ -253,15 +212,6 @@ impl RollupSync for SYNC_MANAGER {
                         }
                     };
 
-                    // Retrieve the lift spks to scan.
-                    let lift_spks_to_scan = match wallet {
-                        Some(_) => match lifts_spks_to_scan(key_holder).await {
-                            Some(spks) => spks,
-                            None => vec![],
-                        },
-                        None => vec![],
-                    };
-
                     // Scan block..
                     for transaction in block.txdata.iter() {
                         let inputs = transaction.input.clone();
@@ -272,34 +222,8 @@ impl RollupSync for SYNC_MANAGER {
                         for txn_input in inputs.iter() {
                             let txn_input_outpoint = txn_input.previous_output;
 
-                            // Remove spent lifts from wallet.
-                            if let Some(wallet) = wallet {
-                                // Compare to self lift outpoints.
-                                for lift in self_lifts.iter() {
-                                    if let Some(self_lift_outpoint) = lift.outpoint() {
-                                        if txn_input_outpoint == self_lift_outpoint {
-                                            // Remove from lift wallet.
-                                            {
-                                                let lift_wallet = {
-                                                    let _wallet = wallet.lock().await;
-                                                    _wallet.lift_wallet()
-                                                };
-
-                                                let mut _lift_wallet = lift_wallet.lock().await;
-                                                _lift_wallet.remove_lift(lift);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
                             // Remove spent utxos from utxoset.
                             {
-                                let utxo_set = {
-                                    let _coin_set = coin_set.lock().await;
-                                    _coin_set.utxo_set()
-                                };
-
                                 let mut _utxo_set = utxo_set.lock().await;
                                 _utxo_set.remove_txout(&txn_input_outpoint);
                             }
@@ -307,45 +231,10 @@ impl RollupSync for SYNC_MANAGER {
 
                         // Iterate over outputs.
                         for (txn_output_index, txn_output) in outputs.iter().enumerate() {
-                            let txn_output_spk = txn_output.script_pubkey.as_bytes().to_vec();
-                            let txn_output_val = txn_output.value.to_sat();
                             let txn_output_outpoint = OutPoint::new(txid, txn_output_index as u32);
-
-                            // Compare to lift spks to scan.
-                            if let Some(wallet) = wallet {
-                                for (lift_spk, operator_group_key) in lift_spks_to_scan.iter() {
-                                    if &txn_output_spk == lift_spk {
-                                        let self_key = key_holder.secp_public_key_point();
-                                        let operator_key = operator_group_key.to_owned();
-
-                                        let lift = Lift::new(
-                                            self_key,
-                                            operator_key,
-                                            Some(txn_output_outpoint),
-                                            Some(txn_output_val),
-                                        );
-
-                                        // Add to lift wallet.
-                                        {
-                                            let lift_wallet = {
-                                                let _wallet = wallet.lock().await;
-                                                _wallet.lift_wallet()
-                                            };
-
-                                            let mut _lift_wallet = lift_wallet.lock().await;
-                                            _lift_wallet.insert_lift(&lift);
-                                        }
-                                    }
-                                }
-                            }
 
                             // Add to utxoset.
                             {
-                                let utxo_set = {
-                                    let _coin_set = coin_set.lock().await;
-                                    _coin_set.utxo_set()
-                                };
-
                                 let mut _utxo_set = utxo_set.lock().await;
                                 _utxo_set.insert_txout(&txn_output_outpoint, txn_output);
                             }

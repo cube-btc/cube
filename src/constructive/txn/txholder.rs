@@ -1,6 +1,6 @@
 use crate::{
     constructive::valtype::val::atomic_val::atomic_val::AtomicVal,
-    inscriptive::set::utxo_set::UTXO_SET,
+    inscriptive::utxo_set::utxo_set::UTXO_SET,
 };
 use bitcoin::{OutPoint, Transaction, TxOut};
 use std::sync::Arc;

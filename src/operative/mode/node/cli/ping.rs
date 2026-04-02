@@ -1,8 +1,8 @@
 use crate::{communicative::peer::peer::PEER, communicative::tcp::client::TCPClient};
 
-// ping
-pub async fn ping_command(coordinator: &PEER) {
-    match coordinator.ping().await {
+/// Pings the Engine.
+pub async fn ping_command(engine: &PEER) {
+    match engine.ping().await {
         Ok(duration) => println!("{} ms", duration.as_millis()),
         Err(_) => println!("Error pinging."),
     }
