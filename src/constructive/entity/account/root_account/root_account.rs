@@ -186,7 +186,9 @@ impl RootAccount {
         }
     }
 
-    /// Checks whether the `RootAccount` is indeed a valid `RootAccount`.
+    /// Validates the `RootAccount` struct.
+    ///
+    /// Used by the `Engine` to validate the `RootAccount` is indeed a valid structure.
     pub async fn validate(&self, registery_manager: &REGISTERY_MANAGER) -> bool {
         // 1 Match on the `RootAccount` type.
         match self {

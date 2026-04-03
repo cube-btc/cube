@@ -75,6 +75,16 @@ impl Lift {
         }
     }
 
+    /// Validates the Lift struct.
+    /// 
+    /// Used by the `Engine` to validate the `Lift` is indeed a valid structure.
+    pub fn validate(&self, account_key: [u8; 32], engine_key: [u8; 32]) -> bool {
+        match self {
+            Lift::LiftV1(liftv1) => liftv1.validate(account_key, engine_key),
+            Lift::LiftV2(liftv2) => liftv2.validate(account_key, engine_key),
+        }
+    }
+
     /// Returns a JSON representation of the Lift struct
     pub fn json(&self) -> Value {
         match self {

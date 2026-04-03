@@ -35,6 +35,7 @@ impl Liftup {
     /// Checks whether the `Liftup` is indeed a valid liftup.
     pub async fn validate(
         &self,
+        engine_key: [u8; 32],
         registery_manager: &REGISTERY_MANAGER,
         utxo_set: &UTXO_SET,
     ) -> bool {
@@ -43,16 +44,31 @@ impl Liftup {
             return false;
         }
 
-        // 2 Validate the `Lift`s in the `Liftup`.
+        // 2 Validate the structures of the `Lift`s in the `Liftup`.
         {
+            // 2.1 Get the self account key.
+            let self_account_key = self.account.account_key();
+
+            // 2.2 Validate the structures of the `Lift`s in the `Liftup`.
+            for lift in &self.lift_prevtxos {
+                if !lift.validate(self_account_key, engine_key) {
+                    return false;
+                }
+            }
+        }
+
+        // 3 Validate the `Lift`s in the `Liftup` are indeed valid UTXOs.
+        {
+            // 3.1 Lock the utxo set.
             let _utxo_set = utxo_set.lock().await;
 
+            // 3.2 Validate the `Lift`s in the `Liftup` are indeed valid UTXOs.
             if !_utxo_set.validate_lifts(&self.lift_prevtxos) {
                 return false;
             }
         }
 
-        // 3 Return true.
+        // 4 Return true.
         true
     }
 }
