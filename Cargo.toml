@@ -29,6 +29,7 @@ sled = "0.34.7"
 tokio = { version = "1.40.0", features = ["full"] }
 uint = { version = "0.9", default-features = false }
 zeroize = "1.8.2"
+bincode = { version = "2", features = ["serde"] }
 
 [lib]
 name = "cube"

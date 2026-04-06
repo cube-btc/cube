@@ -1,6 +1,7 @@
 pub mod clear;
 pub mod conn;
 pub mod decompile;
+pub mod lift;
 pub mod liftaddr;
 pub mod lifts;
 pub mod r#move;

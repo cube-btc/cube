@@ -22,6 +22,9 @@ use std::io::{self, BufRead};
 use std::sync::Arc;
 use std::time::Duration;
 
+/// Whether MuSig2-based interactive lifts are enabled. Set to false for now since it's not supported yet.
+const V2_LIFT_ENABLED: bool = false;
+
 #[tokio::main]
 pub async fn run(
     key_holder: KeyHolder,
@@ -53,7 +56,11 @@ pub async fn run(
     let registery_manager: REGISTERY_MANAGER = match RegisteryManager::new(chain) {
         Ok(registery_manager) => registery_manager,
         Err(err) => {
-            println!("{} {:?}", "Error initializing registery manager: ".red(), err);
+            println!(
+                "{} {:?}",
+                "Error initializing registery manager: ".red(),
+                err
+            );
             return;
         }
     };
@@ -133,7 +140,7 @@ pub async fn cli(
     self_account_key: [u8; 32],
     //engine_conn: &PEER,
     key_holder: &KeyHolder,
-    _registery_manager: &REGISTERY_MANAGER,
+    registery_manager: &REGISTERY_MANAGER,
     utxo_set: &UTXO_SET,
 ) {
     println!(
@@ -163,8 +170,23 @@ pub async fn cli(
             // Main commands:
             "exit" => break,
             "clear" => ncli::clear::clear_command(),
-            "lifts" => ncli::lifts::lifts_command(engine_key, self_account_key, utxo_set).await,
+            // Lift-Liftup related commands:
             "liftaddr" => ncli::liftaddr::liftaddr_command(chain, engine_key, self_account_key),
+            "lifts" => {
+                ncli::lifts::lifts_command(engine_key, self_account_key, V2_LIFT_ENABLED, utxo_set)
+                    .await
+            }
+            "lift" => {
+                ncli::lift::lift_command(
+                    engine_key,
+                    self_account_key,
+                    V2_LIFT_ENABLED,
+                    key_holder,
+                    utxo_set,
+                    registery_manager,
+                )
+                .await
+            }
             //"conn" => ncli::conn::conn_command(engine_conn).await,
             //"ping" => ncli::ping::ping_command(engine_conn).await,
             "npub" => ncli::npub::npub_command(key_holder).await,

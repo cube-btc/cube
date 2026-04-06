@@ -5,17 +5,20 @@ use std::time::Duration;
 #[derive(Copy, Clone, PartialEq)]
 pub enum PackageKind {
     Ping,
+    LiftupV1Protocol,
 }
 
 impl PackageKind {
     pub fn bytecode(&self) -> u8 {
         match self {
             PackageKind::Ping => 0x00,
+            PackageKind::LiftupV1Protocol => 0x01,
         }
     }
     pub fn from_bytecode(bytecode: u8) -> Option<Self> {
         match bytecode {
             0x00 => Some(PackageKind::Ping),
+            0x01 => Some(PackageKind::LiftupV1Protocol),
             _ => None,
         }
     }

@@ -1,8 +1,9 @@
 use super::package::{PackageKind, TCPPackage};
 use super::tcp::{self, port_number};
 use crate::communicative::peer::peer::SOCKET;
+use crate::constructive::entry::entries::liftup::liftup::Liftup;
 use crate::operative::{Chain, OperatingKind};
-use crate::transmutative::key::{KeyHolder};
+use crate::transmutative::key::KeyHolder;
 use colored::Colorize;
 use std::sync::Arc;
 use std::time::Duration;
@@ -22,11 +23,7 @@ pub const PAYLOAD_READ_TIMEOUT: Duration = Duration::from_millis(3000);
 #[allow(non_camel_case_types)]
 pub const PAYLOAD_WRITE_TIMEOUT: Duration = Duration::from_millis(10_000);
 
-pub async fn run(
-    operating_kind: OperatingKind,
-    chain: Chain,
-    keys: Arc<KeyHolder>,
-) {
+pub async fn run(operating_kind: OperatingKind, chain: Chain, keys: Arc<KeyHolder>) {
     let port_number = port_number(chain);
     let addr = format!("{}:{}", "0.0.0.0", port_number);
     let listener = match TcpListener::bind(&addr).await {
@@ -167,7 +164,9 @@ async fn handle_package(
         match operating_kind {
             OperatingKind::Engine => match package.kind() {
                 PackageKind::Ping => handle_ping(package.timestamp(), &package.payload()).await,
-                //_ => return,
+                PackageKind::LiftupV1Protocol => {
+                    handle_liftup_v1_request(package.timestamp(), &package.payload()).await
+                } //_ => return,
             },
             OperatingKind::Node => return,
         }
@@ -184,6 +183,7 @@ async fn handle_package(
         .await;
 }
 
+/// Handling the ping request.
 async fn handle_ping(timestamp: i64, payload: &[u8]) -> Option<TCPPackage> {
     // Expected payload: 0x00 ping.
     if payload != &[0x00] {
@@ -195,6 +195,35 @@ async fn handle_ping(timestamp: i64, payload: &[u8]) -> Option<TCPPackage> {
         let payload = [0x01u8]; // 0x01 for pong.
 
         TCPPackage::new(kind, timestamp, &payload)
+    };
+
+    Some(response_package)
+}
+
+/// Handling the liftup v1 request.
+async fn handle_liftup_v1_request(timestamp: i64, payload: &[u8]) -> Option<TCPPackage> {
+    // 1 Construct the response payload.
+    let response_package = {
+        // 1.1 Deserialize the liftup.
+        let response_payload: Vec<u8> = match bincode::serde::decode_from_slice::<Liftup, _>(
+            payload,
+            bincode::config::standard(),
+        ) {
+            Ok((_liftup, _bytes_read)) => {
+                // Success bytecode: 0x01
+                vec![0x01u8]
+            }
+            Err(_) => {
+                // Error bytecode: 0x00 for deserialization error.
+                vec![0x00u8]
+            }
+        };
+
+        // 1.2 Construct the response package.
+        let kind = PackageKind::LiftupV1Protocol;
+
+        // 1.3 Construct the response package.
+        TCPPackage::new(kind, timestamp, &response_payload)
     };
 
     Some(response_package)
