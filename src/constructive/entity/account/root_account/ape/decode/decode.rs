@@ -6,6 +6,7 @@ use crate::constructive::entity::account::root_account::unregistered_root_accoun
 use crate::constructive::valtype::val::long_val::long_val::LongVal;
 use crate::constructive::valtype::val::short_val::short_val::ShortVal;
 use crate::inscriptive::flame_manager::flame_config::flame_config::FMAccountFlameConfig;
+use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
 use crate::transmutative::secp::schnorr::Bytes32;
 use bit_vec::BitVec;
@@ -22,8 +23,9 @@ impl RootAccount {
     /// * `decode_rank_as_longval` - Whether to decode the rank value as a `LongVal` or a `ShortVal`.
     pub async fn decode_ape<'a>(
         bit_stream: &mut bit_vec::Iter<'a>,
-        registery_manager: &REGISTERY_MANAGER,
         decode_rank_as_longval: bool,
+        registery_manager: &REGISTERY_MANAGER,
+        graveyard: &GRAVEYARD,
     ) -> Result<RootAccount, RootAccountAPEDecodeError> {
         // 1 Decode the rank value from the APE bitstream.
         let rank: u64 = match decode_rank_as_longval {
@@ -90,10 +92,24 @@ impl RootAccount {
 
                     // 2.a.1.6 If the `RootAccount`'s account key is already registered, return an error.
                     if is_registered {
-                        return Err(RootAccountAPEDecodeError::AccountKeyAlreadyRegisteredError);
+                        return Err(RootAccountAPEDecodeError::AccountKeyHasAlreadyRegisteredError);
                     }
 
-                    // 2.a.1.6 Return the `RootAccount`'s account key bytes.
+                    // 2.a.1.7 Check if the `RootAccount`'s account key has already been burried.
+                    let is_burried = {
+                        // 2.a.1.7.1 Lock the `Graveyard`.
+                        let _graveyard = graveyard.lock().await;
+
+                        // 2.a.1.7.2 Check if the `RootAccount`'s account key has already been burried.
+                        _graveyard.is_account_burried(account_key_bytes)
+                    };
+
+                    // 2.a.1.8 If the `RootAccount`'s account key has already been burried, return an error.
+                    if is_burried {
+                        return Err(RootAccountAPEDecodeError::AccountKeyHasBurriedError);
+                    }
+
+                    // 2.a.1.9 Return the `RootAccount`'s account key bytes.
                     account_key_bytes
                 };
 

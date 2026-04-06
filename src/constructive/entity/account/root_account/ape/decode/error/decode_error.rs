@@ -13,7 +13,8 @@ pub enum RootAccountAPEDecodeError {
     AccountKeyBitsLengthError,
     AccountKeyBytesConversionError,
     AccountKeyIsNotAValidSecp256k1PointError([u8; 32]),
-    AccountKeyAlreadyRegisteredError,
+    AccountKeyHasAlreadyRegisteredError,
+    AccountKeyHasBurriedError,
     // Bls key decoding errors.
     BlsKeyBitsLengthError,
     BlsKeyBytesConversionError,

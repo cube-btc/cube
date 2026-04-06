@@ -7,6 +7,7 @@ use crate::constructive::entry::entries::call::call::Call;
 use crate::constructive::valtype::val::atomic_val::atomic_val::AtomicVal;
 use crate::constructive::valtype::val::short_val::short_val::ShortVal;
 use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
+use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 
 impl Call {
     /// Decodes a `Call` as an Airly Payload Encoding (APE) bit vector.
@@ -23,15 +24,17 @@ impl Call {
     pub async fn decode_ape(
         bit_stream: &mut bit_vec::Iter<'_>,
         base_ops_price: u32,
-        registery_manager: &REGISTERY_MANAGER,
         decode_account_rank_as_longval: bool,
         decode_contract_rank_as_longval: bool,
+        registery_manager: &REGISTERY_MANAGER,
+        graveyard: &GRAVEYARD,
     ) -> Result<Call, CallEntryAPEDecodeError> {
         // 1 Decode the `RootAccount` from the APE bitstream.
         let account: RootAccount = RootAccount::decode_ape(
             bit_stream,
-            registery_manager,
             decode_account_rank_as_longval,
+            registery_manager,
+            graveyard,
         )
         .await
         .map_err(|e| CallEntryAPEDecodeError::AccountAPEDecodeError(e))?;

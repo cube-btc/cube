@@ -2,6 +2,7 @@ use crate::constructive::entry::ape::decode::error::decode_error::EntryAPEDecode
 use crate::constructive::entry::entries::call::call::Call;
 use crate::constructive::entry::entry::Entry;
 use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
+use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 
 impl Entry {
     /// Decodes an `Entry` as an Airly Payload Encoding (APE) bit vector.
@@ -18,9 +19,10 @@ impl Entry {
     pub async fn decode_ape(
         bit_stream: &mut bit_vec::Iter<'_>,
         base_ops_price: u32,
-        registery_manager: &REGISTERY_MANAGER,
         decode_account_rank_as_longval: bool,
         decode_contract_rank_as_longval: bool,
+        registery_manager: &REGISTERY_MANAGER,
+        graveyard: &GRAVEYARD,
     ) -> Result<Entry, EntryAPEDecodeError> {
         // 1 Collect one bit to determine if the `Entry` is from the `Common Branch` or the `Uncommon Branch`.
         let common_or_uncommon_branch_bit = bit_stream
@@ -47,9 +49,10 @@ impl Entry {
                         let call_entry: Call = Call::decode_ape(
                             bit_stream,
                             base_ops_price,
-                            registery_manager,
                             decode_account_rank_as_longval,
                             decode_contract_rank_as_longval,
+                            registery_manager,
+                            graveyard,
                         )
                         .await
                         .map_err(|e| EntryAPEDecodeError::CallEntryAPEDecodeError(e))?;

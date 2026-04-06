@@ -16,8 +16,8 @@ use std::time::Duration;
 use tokio::time::sleep;
 
 /// Number of blocks a block needs to be buried to be considered final.
-/// This will require 6 on-chain confirmations for a transaction to be considered final.
-const BLOCK_DEPTH_FOR_FINALITY: u64 = 5;
+/// This will require 2 on-chain confirmations for a transaction to be considered final.
+const BLOCK_DEPTH_FOR_FINALITY: u64 = 2;
 
 #[async_trait]
 pub trait RollupSync {
@@ -147,10 +147,7 @@ impl RollupSync for SYNC_MANAGER {
                                             }
 
                                             // Set the synced flag.
-                                            synced = true;
-
-                                            // Print the status update.
-                                            println!("{}", "Node is fully synced.".green());
+                                            synced = true;    
                                         }
 
                                         // Sleep for 10s.

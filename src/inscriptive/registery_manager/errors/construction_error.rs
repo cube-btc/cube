@@ -12,7 +12,6 @@ pub enum RMConstructionError {
     /// Account related errors.
     /// ------------------------------------------------------------
     AccountsDBOpenError(sled::Error),
-    UnableToDeserializeAccountKeyBytesFromTreeName(Vec<u8>),
     AccountsTreeOpenError(AccountKey, sled::Error),
     AccountsTreeIterError(AccountKey, sled::Error),
     UnableToDeserializeAccountDbKeyByteFromTreeKey(AccountKey, Vec<u8>),
@@ -25,7 +24,6 @@ pub enum RMConstructionError {
     /// Contract related errors.
     /// ------------------------------------------------------------
     ContractsDBOpenError(sled::Error),
-    UnableToDeserializeContractKeyBytesFromTreeName(Vec<u8>),
     ContractsTreeOpenError(ContractId, sled::Error),
     ContractsTreeIterError(ContractId, sled::Error),
     UnableToDeserializeContractDbKeyByteFromTreeKey(ContractId, Vec<u8>),

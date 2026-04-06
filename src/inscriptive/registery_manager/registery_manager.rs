@@ -100,11 +100,13 @@ impl RegisteryManager {
         // 4 Iterate over all items in the accounts db to collect the account bodies.
         for tree_name in accounts_db.tree_names() {
             // 4.1 Convert the tree name to a account key.
-            let account_key: [u8; 32] = tree_name.as_ref().try_into().map_err(|_| {
-                RMConstructionError::UnableToDeserializeAccountKeyBytesFromTreeName(
-                    tree_name.to_vec(),
-                )
-            })?;
+            let account_key: [u8; 32] = match tree_name.as_ref().try_into() {
+                Ok(account_key) => account_key,
+                Err(_) => {
+                    // Tree name is probably '__sled__default'. Skip it.
+                    continue;
+                }
+            };
 
             // 4.2 Initialize the registery index and call counter to zero.
             let mut registery_index = 0;
@@ -213,11 +215,14 @@ impl RegisteryManager {
         // 5 Iterate over all items in the contracts db to collect the contract bodies.
         for tree_name in contracts_db.tree_names() {
             // 5.1 Convert the tree name to a contract id.
-            let contract_id: [u8; 32] = tree_name.as_ref().try_into().map_err(|_| {
-                RMConstructionError::UnableToDeserializeContractKeyBytesFromTreeName(
-                    tree_name.to_vec(),
-                )
-            })?;
+            let contract_id: [u8; 32] = match tree_name.as_ref().try_into() {
+                Ok(contract_id) => contract_id,
+                Err(_) => {
+                    // Tree name is probably '__sled__default'. Skip it.
+                    continue;
+                }
+            };
+
 
             // 5.2 Initialize the registery index and call counter to zero.
             let mut registery_index = 0;

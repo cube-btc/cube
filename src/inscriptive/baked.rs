@@ -16,5 +16,5 @@ pub const MAINNET_ENGINE_PUBLIC_KEY: [u8; 32] = [
 ];
 
 // Sync start heights
-pub const SIGNET_SYNC_START_HEIGHT: u64 = 244_066;
+pub const SIGNET_SYNC_START_HEIGHT: u64 = 298_400;
 pub const MAINNET_SYNC_START_HEIGHT: u64 = 888_116;

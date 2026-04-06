@@ -52,8 +52,8 @@ pub async fn run(
     // #5 Initialize Registery manager.
     let registery_manager: REGISTERY_MANAGER = match RegisteryManager::new(chain) {
         Ok(registery_manager) => registery_manager,
-        Err(_) => {
-            println!("{}", "Error initializing registery manager.".red());
+        Err(err) => {
+            println!("{} {:?}", "Error initializing registery manager: ".red(), err);
             return;
         }
     };
@@ -62,7 +62,7 @@ pub async fn run(
     let utxo_set: UTXO_SET = match UTXOSet::new(chain) {
         Some(utxo_set) => utxo_set,
         None => {
-            println!("{}", "Error initializing utxo set.".red());
+            println!("{}", "Error initializing utxo set: ".red());
             return;
         }
     };
@@ -91,9 +91,9 @@ pub async fn run(
         });
     }
 
-    println!("{}", "Syncing rollup.");
+    println!("{}", "Syncing Bitcoin.");
 
-    // #9 Wait until rollup to be synced to the latest Bitcoin chain tip.
+    // #9 Wait until Bitcoin to be synced to the latest Bitcoin chain tip.
     sync_manager.await_ibd().await;
 
     println!("{}", "Syncing complete.");
@@ -102,25 +102,24 @@ pub async fn run(
     let nns_client = NNSClient::new(&key_holder).await;
 
     // #12 Connect to the coordinator.
-    let engine: PEER = {
-        loop {
-            match Peer::connect(chain, PeerKind::Engine, engine_key, &nns_client).await {
-                Ok(connection) => break connection,
-                Err(_) => {
-                    println!("{}", "Failed to connect. Re-trying in 5..".red());
-                    tokio::time::sleep(Duration::from_secs(5)).await;
-                    continue;
-                }
-            };
-        }
-    };
+    // let engine: PEER = {
+    //    loop {
+    //        match Peer::connect(chain, PeerKind::Engine, engine_key, &nns_client).await {
+    //            Ok(connection) => break connection,
+    //            Err(_) => {
+    //                println!("{}", "Failed to connect. Re-trying in 5..".red());
+    //                tokio::time::sleep(Duration::from_secs(5)).await;
+    //                continue;
+    //            }
+    //        };
+    //    }
+    //  };
 
     // #13 CLI.
     cli(
         chain,
         engine_key,
         self_account_key,
-        &engine,
         &key_holder,
         &registery_manager,
         &utxo_set,
@@ -132,7 +131,7 @@ pub async fn cli(
     chain: Chain,
     engine_key: [u8; 32],
     self_account_key: [u8; 32],
-    engine_conn: &PEER,
+    //engine_conn: &PEER,
     key_holder: &KeyHolder,
     _registery_manager: &REGISTERY_MANAGER,
     utxo_set: &UTXO_SET,
@@ -166,11 +165,11 @@ pub async fn cli(
             "clear" => ncli::clear::clear_command(),
             "lifts" => ncli::lifts::lifts_command(engine_key, self_account_key, utxo_set).await,
             "liftaddr" => ncli::liftaddr::liftaddr_command(chain, engine_key, self_account_key),
-            "conn" => ncli::conn::conn_command(engine_conn).await,
-            "ping" => ncli::ping::ping_command(engine_conn).await,
+            //"conn" => ncli::conn::conn_command(engine_conn).await,
+            //"ping" => ncli::ping::ping_command(engine_conn).await,
             "npub" => ncli::npub::npub_command(key_holder).await,
             "decompile" => ncli::decompile::decompile_command(parts),
-            "move" => ncli::r#move::move_command(engine_conn, key_holder).await,
+            //"move" => ncli::r#move::move_command(engine_conn, key_holder).await,
             _ => eprintln!("{}", format!("Unknown commmand.").yellow()),
         }
     }
