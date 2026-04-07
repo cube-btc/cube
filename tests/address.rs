@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod address_tests {
     use cube::{
-        operative::Chain,
+        operative::run_args::chain::Chain,
         transmutative::codec::address::{address_to_spk, encode_p2tr, encode_p2wpkh, encode_p2wsh},
     };
 

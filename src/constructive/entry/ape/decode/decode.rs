@@ -1,7 +1,7 @@
 use crate::constructive::entry::ape::decode::error::decode_error::EntryAPEDecodeError;
 use crate::constructive::entry::entries::call::call::Call;
 use crate::constructive::entry::entry::Entry;
-use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
+use crate::inscriptive::registery::registery::REGISTERY;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 
 impl Entry {
@@ -13,7 +13,7 @@ impl Entry {
     /// # Arguments
     /// * `bit_stream` - The APE bitstream.
     /// * `base_ops_price` - The base ops price of the `Entry`.
-    /// * `registery_manager` - The `Registery Manager`.
+    /// * `registery` - The `Registery`.
     /// * `decode_account_rank_as_longval` - Whether to decode the account rank as a `LongVal` or a `ShortVal`.
     /// * `decode_contract_rank_as_longval` - Whether to decode the contract rank as a `LongVal` or a `ShortVal`.
     pub async fn decode_ape(
@@ -21,7 +21,7 @@ impl Entry {
         base_ops_price: u32,
         decode_account_rank_as_longval: bool,
         decode_contract_rank_as_longval: bool,
-        registery_manager: &REGISTERY_MANAGER,
+        registery: &REGISTERY,
         graveyard: &GRAVEYARD,
     ) -> Result<Entry, EntryAPEDecodeError> {
         // 1 Collect one bit to determine if the `Entry` is from the `Common Branch` or the `Uncommon Branch`.
@@ -51,7 +51,7 @@ impl Entry {
                             base_ops_price,
                             decode_account_rank_as_longval,
                             decode_contract_rank_as_longval,
-                            registery_manager,
+                            registery,
                             graveyard,
                         )
                         .await

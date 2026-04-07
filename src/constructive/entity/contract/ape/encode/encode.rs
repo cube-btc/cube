@@ -4,7 +4,7 @@ use crate::constructive::{
     },
     valtype::val::{long_val::long_val::LongVal, short_val::short_val::ShortVal},
 };
-use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
+use crate::inscriptive::registery::registery::REGISTERY;
 use bit_vec::BitVec;
 
 impl Contract {
@@ -17,11 +17,11 @@ impl Contract {
     ///
     /// # Arguments
     /// * `&self` - The `Contract` to encode.
-    /// * `registery_manager` - The guarded `RegisteryManager` to get the `Contract`'s rank value.
+    /// * `registery` - The guarded `Registery` to get the `Contract`'s rank value.
     /// * `encode_rank_as_longval` - Whether to encode the `Contract`'s rank value as a `LongVal` or a `ShortVal`.
     pub async fn encode_ape(
         &self,
-        registery_manager: &REGISTERY_MANAGER,
+        registery: &REGISTERY,
         encode_rank_as_longval: bool,
     ) -> Result<BitVec, ContractAPEEncodeError> {
         // 1 Initialize the bit vector.
@@ -30,19 +30,15 @@ impl Contract {
         // 2 Get the contract id.
         let contract_id = self.contract_id();
 
-        // 3 Retrieve the rank value from the registery manager.
+        // 3 Retrieve the rank value from the registery.
         let rank: u64 = {
-            // 3.1 Lock the registery manager.
-            let _registery_manager = registery_manager.lock().await;
+            // 3.1 Lock the registery.
+            let _registery = registery.lock().await;
 
-            // 3.2 Retrieve the rank value from the registery manager.
-            _registery_manager
-                .get_rank_by_contract_id(contract_id)
-                .ok_or(
-                    ContractAPEEncodeError::UnableToRetrieveRankValueFromRegisteryManager(
-                        contract_id,
-                    ),
-                )?
+            // 3.2 Retrieve the rank value from the registery.
+            _registery.get_rank_by_contract_id(contract_id).ok_or(
+                ContractAPEEncodeError::UnableToRetrieveRankValueFromRegistery(contract_id),
+            )?
         };
 
         // 4 Match on whether to encode the rank value as a `LongVal` or a `ShortVal`.

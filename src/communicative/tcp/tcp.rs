@@ -2,7 +2,7 @@ use super::package::{PackageKind, TCPPackage};
 use crate::communicative::nns::client::NNSClient;
 use crate::communicative::peer::peer::SOCKET;
 use crate::transmutative::key::ToNostrKeyStr;
-use crate::{inscriptive::baked, operative::Chain};
+use crate::{inscriptive::baked, operative::run_args::chain::Chain};
 use easy_upnp::{add_ports, PortMappingProtocol, UpnpConfig};
 use std::time::{Duration, Instant};
 use std::{io, vec};

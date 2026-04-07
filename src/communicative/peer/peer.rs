@@ -6,7 +6,7 @@ use crate::{
             tcp::{connect_nns, TCPError},
         },
     },
-    operative::Chain,
+    operative::run_args::chain::Chain,
 };
 use async_trait::async_trait;
 use colored::Colorize;

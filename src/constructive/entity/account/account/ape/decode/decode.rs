@@ -3,7 +3,7 @@ use crate::constructive::entity::account::account::ape::decode::error::decode_er
 use crate::constructive::entity::account::account::unregistered_account::unregistered_account::UnregisteredAccount;
 use crate::constructive::valtype::val::long_val::long_val::LongVal;
 use crate::constructive::valtype::val::short_val::short_val::ShortVal;
-use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
+use crate::inscriptive::registery::registery::REGISTERY;
 use bit_vec::BitVec;
 use secp::Point;
 
@@ -21,7 +21,7 @@ impl Account {
     /// * `decode_rank_as_longval` - Whether to decode the rank value as a `LongVal` or a `ShortVal`.
     pub async fn decode_ape<'a>(
         bit_stream: &mut bit_vec::Iter<'a>,
-        registery_manager: &REGISTERY_MANAGER,
+        registery: &REGISTERY,
         decode_rank_as_longval: bool,
     ) -> Result<Account, AccountAPEDecodeError> {
         // 1 Decode the rank value from the APE bitstream.
@@ -63,8 +63,8 @@ impl Account {
 
                 // 2.a.6 Check if the `Account`'s key is already registered.
                 let is_registered = {
-                    let _registery_manager = registery_manager.lock().await;
-                    _registery_manager.is_account_registered(public_key)
+                    let _registery = registery.lock().await;
+                    _registery.is_account_registered(public_key)
                 };
 
                 // 2.a.7 If the `Account`'s key is already registered, return an error.
@@ -87,10 +87,10 @@ impl Account {
                 // 2.b.1 Retrieve the `Account` from the `Registery Manager` by its rank.
                 let account = {
                     // 2.b.1.1 Lock the `Registery Manager`.
-                    let _registery_manager = registery_manager.lock().await;
+                    let _registery = registery.lock().await;
 
                     // 2.b.1.2 Retrieve the `Account` from the `Registery Manager` by its rank.
-                    _registery_manager
+                    _registery
                         .get_account_by_rank(rank)
                         .ok_or(AccountAPEDecodeError::FailedToLocateAccountGivenRank(rank))?
                 };

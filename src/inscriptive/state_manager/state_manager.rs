@@ -5,7 +5,7 @@ use super::errors::register_error::SMRegisterContractError;
 use crate::inscriptive::state_manager::errors::apply_changes_error::SMApplyChangesError;
 use crate::inscriptive::state_manager::errors::remove_state_error::SMRemoveStateError;
 use crate::inscriptive::state_manager::state_holder::state_holder::SMContractStateHolder;
-use crate::operative::Chain;
+use crate::operative::run_args::chain::Chain;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::sync::Arc;

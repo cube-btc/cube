@@ -5,8 +5,7 @@ use crate::{
         stack::stack_item::StackItem,
     },
     inscriptive::{
-        coin_manager::coin_manager::COIN_MANAGER,
-        registery_manager::registery_manager::REGISTERY_MANAGER,
+        coin_manager::coin_manager::COIN_MANAGER, registery::registery::REGISTERY,
         state_manager::state_manager::STATE_MANAGER,
     },
 };
@@ -25,7 +24,7 @@ pub struct ExecCtx {
     // The coin holder.
     coin_manager: COIN_MANAGER,
     // The programs repo.
-    registery_manager: REGISTERY_MANAGER,
+    registery: REGISTERY,
     // External ops counter.
     external_ops_counter: u32,
     // The base ops price.
@@ -41,14 +40,14 @@ impl ExecCtx {
     pub fn new(
         state_manager: &STATE_MANAGER,
         coin_manager: &COIN_MANAGER,
-        registery_manager: &REGISTERY_MANAGER,
+        registery: &REGISTERY,
         base_ops_price: u32,
         timestamp: u64,
     ) -> Self {
         Self {
             state_manager: Arc::clone(state_manager),
             coin_manager: Arc::clone(coin_manager),
-            registery_manager: Arc::clone(registery_manager),
+            registery: Arc::clone(registery),
             external_ops_counter: 0,
             base_ops_price,
             timestamp,
@@ -118,7 +117,7 @@ impl ExecCtx {
         }
 
         // Programs repo.
-        let registery_manager = &self.registery_manager;
+        let registery = &self.registery;
 
         // Execution.
         let exectuion_result = execute(
@@ -134,7 +133,7 @@ impl ExecCtx {
             external_ops_counter,
             state_manager,
             coin_manager,
-            registery_manager,
+            registery,
         )
         .await;
 
@@ -171,8 +170,8 @@ impl ExecCtx {
             Err(error) => {
                 // Rollback last on the registery manager.
                 {
-                    let mut _registery_manager = registery_manager.lock().await;
-                    _registery_manager.rollback_last();
+                    let mut _registery = registery.lock().await;
+                    _registery.rollback_last();
                 }
 
                 // Rollback last on the coin manager.
@@ -197,8 +196,8 @@ impl ExecCtx {
     pub async fn flush_all(&mut self) {
         // Flush the registery manager delta.
         {
-            let mut _registery_manager = self.registery_manager.lock().await;
-            _registery_manager.flush_delta();
+            let mut _registery = self.registery.lock().await;
+            _registery.flush_delta();
         }
 
         // Flush the coin manager delta.

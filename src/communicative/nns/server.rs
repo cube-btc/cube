@@ -1,5 +1,8 @@
 use super::client::NNSClient;
-use crate::{communicative::tcp::tcp::TCP_RESPONSE_TIMEOUT, operative::OperatingKind};
+use crate::{
+    communicative::tcp::tcp::TCP_RESPONSE_TIMEOUT,
+    operative::run_args::operating_kind::OperatingKind,
+};
 use colored::Colorize;
 use std::{
     fs::{self, OpenOptions},

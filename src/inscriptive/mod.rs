@@ -4,7 +4,7 @@ pub mod flame_manager;
 pub mod graveyard;
 pub mod params_manager;
 pub mod privileges_manager;
-pub mod registery_manager;
+pub mod registery;
 pub mod state_manager;
 pub mod sync_manager;
 pub mod utxo_set;

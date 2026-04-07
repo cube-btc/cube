@@ -4,18 +4,18 @@ use crate::constructive::entity::contract::contract::Contract;
 use crate::constructive::entity::contract::deployed_contract::deployed_contract::DeployedContract;
 use crate::executive::executable::compiler::compiler::ExecutableCompiler;
 use crate::executive::executable::executable::Executable;
-use crate::inscriptive::registery_manager::bodies::account_body::account_body::RMAccountBody;
-use crate::inscriptive::registery_manager::bodies::contract_body::contract_body::RMContractBody;
-use crate::inscriptive::registery_manager::delta::delta::RMDelta;
-use crate::inscriptive::registery_manager::errors::apply_changes_error::RMApplyChangesError;
-use crate::inscriptive::registery_manager::errors::construction_error::RMConstructionError;
-use crate::inscriptive::registery_manager::errors::increment_account_call_counter_error::RMIncrementAccountCallCounterError;
-use crate::inscriptive::registery_manager::errors::increment_contract_call_counter_error::RMIncrementContractCallCounterError;
-use crate::inscriptive::registery_manager::errors::register_account_error::RMRegisterAccountError;
-use crate::inscriptive::registery_manager::errors::register_contract_error::RMRegisterContractError;
-use crate::inscriptive::registery_manager::errors::update_account_bls_key_error::RMUpdateAccountBLSKeyError;
-use crate::inscriptive::registery_manager::errors::update_account_secondary_aggregation_key_error::RMUpdateAccountSecondaryAggregationKeyError;
-use crate::operative::Chain;
+use crate::inscriptive::registery::bodies::account_body::account_body::RMAccountBody;
+use crate::inscriptive::registery::bodies::contract_body::contract_body::RMContractBody;
+use crate::inscriptive::registery::delta::delta::RMDelta;
+use crate::inscriptive::registery::errors::apply_changes_error::RMApplyChangesError;
+use crate::inscriptive::registery::errors::construction_error::RMConstructionError;
+use crate::inscriptive::registery::errors::increment_account_call_counter_error::RMIncrementAccountCallCounterError;
+use crate::inscriptive::registery::errors::increment_contract_call_counter_error::RMIncrementContractCallCounterError;
+use crate::inscriptive::registery::errors::register_account_error::RMRegisterAccountError;
+use crate::inscriptive::registery::errors::register_contract_error::RMRegisterContractError;
+use crate::inscriptive::registery::errors::update_account_bls_key_error::RMUpdateAccountBLSKeyError;
+use crate::inscriptive::registery::errors::update_account_secondary_aggregation_key_error::RMUpdateAccountSecondaryAggregationKeyError;
+use crate::operative::run_args::chain::Chain;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -56,7 +56,7 @@ const SECONDARY_AGGREGATION_KEY_SPECIAL_DB_KEY: [u8; 1] = [0x04; 1];
 
 /// A struct for managing the registery of accounts and contracts.
 #[allow(dead_code)]
-pub struct RegisteryManager {
+pub struct Registery {
     // In-memory list of account & contract bodies.
     in_memory_accounts: HashMap<AccountKey, RMAccountBody>,
     in_memory_contracts: HashMap<ContractId, RMContractBody>,
@@ -78,11 +78,11 @@ pub struct RegisteryManager {
 
 /// Guarded 'RegisteryManager'.
 #[allow(non_camel_case_types)]
-pub type REGISTERY_MANAGER = Arc<Mutex<RegisteryManager>>;
+pub type REGISTERY = Arc<Mutex<Registery>>;
 
-impl RegisteryManager {
-    /// Constructs a fresh new registery manager.
-    pub fn new(chain: Chain) -> Result<REGISTERY_MANAGER, RMConstructionError> {
+impl Registery {
+    /// Constructs a fresh new registery.
+    pub fn new(chain: Chain) -> Result<REGISTERY, RMConstructionError> {
         // 1 Open the accounts db.
         let accounts_db_path = format!("storage/{}/registery/accounts", chain.to_string());
         let accounts_db =
@@ -223,7 +223,6 @@ impl RegisteryManager {
                 }
             };
 
-
             // 5.2 Initialize the registery index and call counter to zero.
             let mut registery_index = 0;
 
@@ -317,7 +316,7 @@ impl RegisteryManager {
         let in_memory_contract_ranks = Self::rank_contracts(&in_memory_contracts);
 
         // 9 Construct the registery manager.
-        let registery_manager = RegisteryManager {
+        let registery = Registery {
             in_memory_accounts,
             in_memory_contracts,
             in_memory_account_ranks,
@@ -329,10 +328,10 @@ impl RegisteryManager {
         };
 
         // 10 Guard the registery manager.
-        let guarded_registery_manager = Arc::new(Mutex::new(registery_manager));
+        let guarded_registery = Arc::new(Mutex::new(registery));
 
         // 11 Return the guarded registery manager.
-        Ok(guarded_registery_manager)
+        Ok(guarded_registery)
     }
 
     /// Ranks accounts by call counter (descending) and registery index (ascending as tiebreaker).
@@ -1182,7 +1181,7 @@ impl RegisteryManager {
 }
 
 /// Erases the registery manager by db paths.
-pub fn erase_registery_manager(chain: Chain) {
+pub fn erase_registery(chain: Chain) {
     // Accounts db path.
     let accounts_db_path = format!("storage/{}/registery/accounts", chain.to_string());
 

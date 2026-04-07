@@ -3,7 +3,7 @@ mod state_manager_tests {
     use cube::inscriptive::state_manager::state_manager::{
         erase_state_manager, StateManager, STATE_MANAGER,
     };
-    use cube::operative::Chain;
+    use cube::operative::run_args::chain::Chain;
 
     // First contract ID.
     const CONTRACT_ID_1: [u8; 32] = [

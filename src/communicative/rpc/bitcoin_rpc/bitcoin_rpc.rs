@@ -2,7 +2,7 @@ use crate::communicative::rpc::bitcoin_rpc::bitcoin_rpc_error::{
     BitcoinRPCGetChainTipError, BitcoinRPCRetrieveBlockError, BitcoinRPCValidateRPCError,
 };
 use crate::communicative::rpc::bitcoin_rpc::bitcoin_rpc_holder::BitcoinRPCHolder;
-use crate::operative::Chain;
+use crate::operative::run_args::chain::Chain;
 use bitcoin::{Block, BlockHash};
 use bitcoincore_rpc::{json::GetBlockchainInfoResult, Auth, Client, RpcApi};
 

@@ -3,7 +3,7 @@ use crate::inscriptive::graveyard::errors::apply_changes_error::GraveyardApplyCh
 use crate::inscriptive::graveyard::errors::burry_account_error::GraveyardBurryAccountError;
 use crate::inscriptive::graveyard::errors::construction_error::GraveyardConstructionError;
 use crate::inscriptive::graveyard::errors::redeem_account_coins_error::GraveyardRedeemAccountCoinsError;
-use crate::operative::Chain;
+use crate::operative::run_args::chain::Chain;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::sync::Arc;

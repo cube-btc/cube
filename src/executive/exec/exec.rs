@@ -85,8 +85,7 @@ use crate::{
         stack::{stack_holder::StackHolder, stack_item::StackItem},
     },
     inscriptive::{
-        coin_manager::coin_manager::COIN_MANAGER,
-        registery_manager::registery_manager::REGISTERY_MANAGER,
+        coin_manager::coin_manager::COIN_MANAGER, registery::registery::REGISTERY,
         state_manager::state_manager::STATE_MANAGER,
     },
 };
@@ -126,13 +125,13 @@ pub async fn execute(
     state_manager: &STATE_MANAGER,
     // The coin manager.
     coin_manager: &COIN_MANAGER,
-    // The registery manager.
-    registery_manager: &REGISTERY_MANAGER,
+    // The registery.
+    registery: &REGISTERY,
 ) -> Result<(Vec<StackItem>, InternalOpsCounter, ExternalOpsCounter), ExecutionError> {
     // Get the executable by contract id.
     let executable = {
-        let _registery_manager = registery_manager.lock().await;
-        _registery_manager
+        let _registery = registery.lock().await;
+        _registery
             .get_contract_body_by_contract_id(contract_id)
             .ok_or(ExecutionError::ExecutableNotFoundError(contract_id))?
             .executable
@@ -756,7 +755,7 @@ pub async fn execute(
                     stack_holder.external_ops_counter(), // Remainder of the external ops counter passed to the next call.
                     state_manager,
                     coin_manager,
-                    registery_manager,
+                    registery,
                 ))
                 .await;
             }
@@ -794,7 +793,7 @@ pub async fn execute(
                     stack_holder.external_ops_counter(), // Remainder of the external ops counter passed to the next call.
                     state_manager,
                     coin_manager,
-                    registery_manager,
+                    registery,
                 ))
                 .await;
             }

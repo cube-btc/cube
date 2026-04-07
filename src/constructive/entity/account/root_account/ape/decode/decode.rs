@@ -7,7 +7,7 @@ use crate::constructive::valtype::val::long_val::long_val::LongVal;
 use crate::constructive::valtype::val::short_val::short_val::ShortVal;
 use crate::inscriptive::flame_manager::flame_config::flame_config::FMAccountFlameConfig;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
-use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
+use crate::inscriptive::registery::registery::REGISTERY;
 use crate::transmutative::secp::schnorr::Bytes32;
 use bit_vec::BitVec;
 use crate::constructive::entity::account::root_account::root_account::verify_bls_key_authorization_signature;
@@ -24,7 +24,7 @@ impl RootAccount {
     pub async fn decode_ape<'a>(
         bit_stream: &mut bit_vec::Iter<'a>,
         decode_rank_as_longval: bool,
-        registery_manager: &REGISTERY_MANAGER,
+        registery: &REGISTERY,
         graveyard: &GRAVEYARD,
     ) -> Result<RootAccount, RootAccountAPEDecodeError> {
         // 1 Decode the rank value from the APE bitstream.
@@ -83,11 +83,11 @@ impl RootAccount {
 
                     // 2.a.1.5 Check if the `RootAccount`'s account key is already registered.
                     let is_registered = {
-                        // 2.a.1.5.1 Lock the `Registery Manager`.
-                        let _registery_manager = registery_manager.lock().await;
+                        // 2.a.1.5.1 Lock the `Registery`.
+                        let _registery = registery.lock().await;
 
                         // 2.a.1.5.2 Check if the `RootAccount`'s account key is already registered.
-                        _registery_manager.is_account_registered(account_key_bytes)
+                        _registery.is_account_registered(account_key_bytes)
                     };
 
                     // 2.a.1.6 If the `RootAccount`'s account key is already registered, return an error.
@@ -136,11 +136,11 @@ impl RootAccount {
 
                     // 2.a.2.5 Check if the BLS key is not conflicting with an already registered BLS key.
                     {
-                        // 2.a.2.5.1 Lock the `Registery Manager`.
-                        let _registery_manager = registery_manager.lock().await;
+                        // 2.a.2.5.1 Lock the `Registery`.
+                        let _registery = registery.lock().await;
 
                         // 2.a.2.5.2 Check if the BLS key is conflicting with an already registered BLS key.
-                        let is_conflicting = _registery_manager
+                        let is_conflicting = _registery
                             .bls_key_is_conflicting_with_an_already_registered_bls_key(
                                 bls_key_bytes,
                             );
@@ -277,11 +277,11 @@ impl RootAccount {
             _ => {
                 // 2.b.1 Get account info by rank.
                 let (account_key, bls_key, registery_index, _) = {
-                    // 2.b.1.1 Lock the `Registery Manager`.
-                    let _registery_manager = registery_manager.lock().await;
+                    // 2.b.1.1 Lock the `Registery`.
+                    let _registery = registery.lock().await;
 
                     // 2.b.1.2 Get RMAccountBody by rank.
-                    _registery_manager.get_account_info_by_rank(rank).ok_or(
+                    _registery.get_account_info_by_rank(rank).ok_or(
                         RootAccountAPEDecodeError::FailedToRetrieveRMAccountBodyByRank(rank),
                     )?
                 };
@@ -332,11 +332,11 @@ impl RootAccount {
 
                             // 2.b.2.b.1.5 Check if the BLS key is not conflicting with an already registered BLS key.
                             {
-                                // 2.b.2.b.1.5.1 Lock the `Registery Manager`.
-                                let _registery_manager = registery_manager.lock().await;
+                                // 2.b.2.b.1.5.1 Lock the `Registery`.
+                                let _registery = registery.lock().await;
 
                                 // 2.b.2.b.1.5.2 Check if the BLS key is conflicting with an already registered BLS key.
-                                let is_conflicting = _registery_manager
+                                let is_conflicting = _registery
                                     .bls_key_is_conflicting_with_an_already_registered_bls_key(
                                         bls_key_bytes,
                                     );

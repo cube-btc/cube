@@ -3,7 +3,7 @@ mod coin_manager_tests {
     use cube::inscriptive::coin_manager::coin_manager::{
         erase_coin_manager, CoinManager, COIN_MANAGER,
     };
-    use cube::operative::Chain;
+    use cube::operative::run_args::chain::Chain;
 
     // First account key.
     const ACCOUNT_KEY_1: [u8; 32] = [

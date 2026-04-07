@@ -7,7 +7,7 @@ use crate::inscriptive::privileges_manager::elements::liveness_flag::liveness_fl
 use crate::inscriptive::privileges_manager::elements::timed_switch::timed_switch_bool::timed_switch_bool::TimedSwitchBool;
 use crate::inscriptive::privileges_manager::elements::timed_switch::timed_switch_long_val::timed_switch_long_val::TimedSwitchLongVal;
 use crate::inscriptive::privileges_manager::errors::construction_error::PrivilegesManagerConstructionError;
-use crate::operative::Chain;
+use crate::operative::run_args::chain::Chain;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 

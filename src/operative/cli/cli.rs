@@ -1,9 +1,9 @@
 use crate::communicative::peer::peer::PEER;
-use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
+use crate::inscriptive::registery::registery::REGISTERY;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
 use crate::operative::cli::commands::common_commands;
 use crate::operative::cli::commands::node_commands;
-use crate::operative::Chain;
+use crate::operative::run_args::chain::Chain;
 use crate::transmutative::key::KeyHolder;
 use colored::Colorize;
 use std::io;
@@ -44,7 +44,7 @@ pub async fn run_node_cli(
     v2_lift_enabled: bool,
     _engine_conn: &PEER,
     key_holder: &KeyHolder,
-    registery_manager: &REGISTERY_MANAGER,
+    registery: &REGISTERY,
     utxo_set: &UTXO_SET,
 ) {
     // 1 Print the CLI prompt.
@@ -87,7 +87,7 @@ pub async fn run_node_cli(
                     v2_lift_enabled,
                     key_holder,
                     utxo_set,
-                    registery_manager,
+                    registery,
                 )
                 .await
             }

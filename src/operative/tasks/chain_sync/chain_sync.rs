@@ -4,10 +4,10 @@ use crate::{
         bitcoin_rpc_holder::BitcoinRPCHolder,
     },
     inscriptive::{
-        baked, registery_manager::registery_manager::REGISTERY_MANAGER,
-        sync_manager::sync_manager::SYNC_MANAGER, utxo_set::utxo_set::UTXO_SET,
+        baked, registery::registery::REGISTERY, sync_manager::sync_manager::SYNC_MANAGER,
+        utxo_set::utxo_set::UTXO_SET,
     },
-    operative::Chain,
+    operative::run_args::chain::Chain,
 };
 use async_trait::async_trait;
 use bitcoin::OutPoint;
@@ -26,7 +26,7 @@ pub trait ChainSync {
         &self,
         chain: Chain,
         rpc_holder: &BitcoinRPCHolder,
-        _registery: &REGISTERY_MANAGER,
+        _registery: &REGISTERY,
         utxo_set: &UTXO_SET,
     );
 
@@ -54,7 +54,7 @@ impl ChainSync for SYNC_MANAGER {
         &self,
         chain: Chain,
         rpc_holder: &BitcoinRPCHolder,
-        _registery: &REGISTERY_MANAGER,
+        _registery: &REGISTERY,
         utxo_set: &UTXO_SET,
     ) {
         let mut synced: bool = false;

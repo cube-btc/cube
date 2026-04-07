@@ -5,7 +5,7 @@ use crate::{
         serialize_schnorr_signature,
     },
     inscriptive::flame_manager::flame_config::flame_config::FMAccountFlameConfig,
-    inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER,
+    inscriptive::registery::registery::REGISTERY,
 };
 use serde::{Deserialize, Serialize};
 
@@ -64,14 +64,14 @@ impl RegisteredButUnconfiguredRootAccount {
     }
 
     /// Checks whether the `RegisteredButUnconfiguredRootAccount` is indeed a valid registered but unconfigured account.
-    pub async fn validate(&self, registery_manager: &REGISTERY_MANAGER) -> bool {
+    pub async fn validate(&self, registery: &REGISTERY) -> bool {
         // 1 Get account info by account key.
         let account_info = {
-            // 1.1 Lock the registery manager.
-            let _registery_manager = registery_manager.lock().await;
+            // 1.1 Lock the registery.
+            let _registery = registery.lock().await;
 
             // 1.2 Get account info by account key.
-            _registery_manager.get_account_info_by_account_key(self.account_key)
+            _registery.get_account_info_by_account_key(self.account_key)
         };
 
         // 2 Check if the account is already registered.

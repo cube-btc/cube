@@ -1,7 +1,13 @@
 use colored::Colorize;
 use cube::{
     communicative::rpc::bitcoin_rpc::bitcoin_rpc_holder::BitcoinRPCHolder,
-    operative::{runner::runner, Chain, OperatingKind, OperatingMode},
+    operative::{
+        run_args::{
+            chain::Chain, operating_kind::OperatingKind, resource_mode::ResourceMode,
+            sync_mode::SyncMode,
+        },
+        runner::runner,
+    },
     transmutative::{
         key::{FromNostrKeyStr, KeyHolder, ToNostrKeyStr},
         secp::schnorr::generate_secret,
@@ -19,7 +25,7 @@ fn main() {
         2 => gensec(&args),
 
         // 2.b Run the appropriate mode based on the arguments.
-        7 => run(&args),
+        8 => run(&args),
 
         // 2.c Invalid arguments.
         _ => print_correct_usage(),
@@ -161,12 +167,12 @@ fn gensec(args: &Vec<String>) {
 
 /// Runs the appropriate mode based on the arguments.
 fn run(args: &Vec<String>) {
-    // 1 Parse operating mode.
-    let operating_mode = match args[1].to_lowercase().as_str() {
-        "pruned" => OperatingMode::Pruned,
-        "archival" => OperatingMode::Archival,
+    // 1 Parse resource mode.
+    let resource_mode = match args[1].to_lowercase().as_str() {
+        "pruned" => ResourceMode::Pruned,
+        "archival" => ResourceMode::Archival,
         _ => {
-            println!("{}", "Invalid <mode>.".red());
+            println!("{}", "Invalid <resource mode>.".red());
             return;
         }
     };
@@ -199,49 +205,59 @@ fn run(args: &Vec<String>) {
     let rpc_holder =
         BitcoinRPCHolder::new(args[4].to_owned(), args[5].to_owned(), args[6].to_owned());
 
-    // 5 Parse key holder.
+    // 5 Parse sync mode.
+    let sync_mode = match args[7].to_lowercase().as_str() {
+        "true" | "yes" | "1" => SyncMode::ConfirmedOnly,
+        "false" | "no" | "0" => SyncMode::InFlight,
+        _ => {
+            println!("{}", "Invalid <syncinflight?>.".red());
+            return;
+        }
+    };
+
+    // 6 Parse key holder.
     let key_holder = {
-        // 5.1 Print the prompt.
+        // 6.1 Print the prompt.
         println!("{}", "Enter nsec:".magenta());
 
-        // 5.2 Parse the secret key.
+        // 6.2 Parse the secret key.
         let secret_key: [u8; 32] = {
-            // 5.2.1 Initialize the secret key bytes.
+            // 6.2.1 Initialize the secret key bytes.
             let mut secret_key_bytes = [0xffu8; 32];
 
             //
             // DANGER ZONE BEGIN: reading private key from stdin.
             //
             {
-                // 5.2.2 Read the input from stdin.
+                // 6.2.2 Read the input from stdin.
                 let stdin = std::io::stdin();
 
-                // 5.2.3 Get the handle.
+                // 6.2.3 Get the handle.
                 let handle = stdin.lock();
 
-                // 5.2.4 Drop stdin.
+                // 6.2.4 Drop stdin.
                 drop(stdin);
 
-                // 5.2.5 Parse the input.
+                // 6.2.5 Parse the input.
                 for line in handle.lines() {
-                    // 5.2.5.1 Unwrap the line.
+                    // 6.2.5.1 Unwrap the line.
                     let line = line.unwrap();
 
-                    // 5.2.5.2 Parse the parts.
+                    // 6.2.5.2 Parse the parts.
                     let parts: Vec<&str> = line.trim().split_whitespace().collect();
 
-                    // 5.2.5.3 Check if the parts length is valid.
+                    // 6.2.5.3 Check if the parts length is valid.
                     if parts.len() != 1 {
                         println!("{}", "Invalid nsec.".yellow());
                     }
 
-                    // 5.2.5.4 Parse the nsec.
+                    // 6.2.5.4 Parse the nsec.
                     let nsec: String = parts[0].to_owned();
 
-                    // 5.2.5.5 Drop the parts.
+                    // 6.2.5.5 Drop the parts.
                     drop(parts);
 
-                    // 5.2.5.6 Convert the nsec to a secret key.
+                    // 6.2.5.6 Convert the nsec to a secret key.
                     secret_key_bytes = match nsec.as_str().from_nsec() {
                         Some(secret_key) => secret_key,
                         None => {
@@ -250,10 +266,10 @@ fn run(args: &Vec<String>) {
                         }
                     };
 
-                    // 5.2.5.7 Drop the nsec.
+                    // 6.2.5.7 Drop the nsec.
                     drop(nsec);
 
-                    // 5.2.5.8 Break the loop.
+                    // 6.2.5.8 Break the loop.
                     break;
                 }
             }
@@ -261,11 +277,11 @@ fn run(args: &Vec<String>) {
             // DANGER ZONE END: reading private key from stdin.
             //
 
-            // 5.2.4 Return the secret key bytes.
+            // 6.2.4 Return the secret key bytes.
             secret_key_bytes
         };
 
-        // 5.3 Create the key holder from the secret key bytes.
+        // 6.3 Create the key holder from the secret key bytes.
         let key_holder = match KeyHolder::new(secret_key) {
             Some(key_holder) => key_holder,
             None => {
@@ -274,17 +290,18 @@ fn run(args: &Vec<String>) {
             }
         };
 
-        // 5.4 Return the key holder.
+        // 6.4 Return the key holder.
         key_holder
     };
 
-    // 6 Run the runner
+    // 7 Run the runner
     runner::run(
-        key_holder,
+        resource_mode,
         chain,
-        rpc_holder,
         operating_kind,
-        operating_mode,
+        rpc_holder,
+        sync_mode,
+        key_holder,
     );
 }
 

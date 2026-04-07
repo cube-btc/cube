@@ -27,28 +27,29 @@ Cube abides by the [NIP-19](https://nips.nostr.com/19) format for secret keys, w
 Run the program with the following command:
 
 ```sh
-cargo run <mode> <chain> <kind> <bitcoin-rpc-url> <bitcoin-rpc-user> <bitcoin-rpc-password>
+cargo run <resource-mode> <chain> <kind> <rpc-url> <rpc-user> rpc-password> <syncinflight?>
 ```
 
 ### Parameters:
 
-- `<mode>`: Whether to run in pruned or archival mode. Supported values:
+- `<resource-mode>`: Whether to run in pruned or archival mode. Supported values:
   - `pruned`: For running in pruned mode.
   - `archival`: For running in archival mode.
 - `<chain>`: The Bitcoin network to use. Supported values:
   - `signet`
   - `mainnet`
-- `<kind>`: The kind of running mode. Supported values:
+- `<kind>`: The kind of operating entity. Supported values:
   - `node`: For running a Cube node.
   - `engine`: For the network operator.
-- `<bitcoin-rpc-url>`: The RPC URL of the Bitcoin node.
-- `<bitcoin-rpc-user>`: The RPC username of the Bitcoin node.
-- `<bitcoin-rpc-password>`: The RPC password of the Bitcoin node.
+- `<rpc-url>`: The RPC URL of the Bitcoin node.
+- `<rpc-user>`: The RPC username of the Bitcoin node.
+- `<rpc-password>`: The RPC password of the Bitcoin node.
+- `<syncinflight?>`: Whether to sync in-flight unconfirmed executions.
 
 ### Example:
 
 ```sh
-cargo run pruned signet node http://127.0.0.1:38332 user password
+cargo run pruned signet node http://127.0.0.1:38332 user password true
 ```
 
 ## License

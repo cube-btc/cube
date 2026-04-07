@@ -22,7 +22,7 @@ use crate::inscriptive::coin_manager::errors::shadow_update_errors::{
     CMAccountShadowAllocsSumDownError, CMAccountShadowAllocsSumUpError, CMShadowDownAllError,
     CMShadowDownError, CMShadowUpAllError, CMShadowUpError,
 };
-use crate::operative::Chain;
+use crate::operative::run_args::chain::Chain;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::sync::Arc;

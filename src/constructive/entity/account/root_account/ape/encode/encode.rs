@@ -2,7 +2,7 @@ use crate::constructive::entity::account::root_account::ape::encode::error::enco
 use crate::constructive::entity::account::root_account::root_account::RootAccount;
 use crate::constructive::valtype::val::long_val::long_val::LongVal;
 use crate::constructive::valtype::val::short_val::short_val::ShortVal;
-use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
+use crate::inscriptive::registery::registery::REGISTERY;
 use bit_vec::BitVec;
 
 impl RootAccount {
@@ -16,7 +16,7 @@ impl RootAccount {
     /// * `encode_rank_as_longval` - Whether to encode the `RootAccount`'s rank value as a `LongVal` or a `ShortVal`.
     pub async fn encode_ape(
         &self,
-        registery_manager: &REGISTERY_MANAGER,
+        registery: &REGISTERY,
         encode_rank_as_longval: bool,
     ) -> Result<BitVec, RootAccountAPEEncodeError> {
         // 1 Initialize the APE bit vector.
@@ -104,14 +104,14 @@ impl RootAccount {
             ) => {
                 // 2.b.1 Encode the rank value.
                 {
-                    // 2.b.1.1 Retrieve the rank value from the `RegisteryManager`.
+                    // 2.b.1.1 Retrieve the rank value from the `Registery`.
                     let rank = {
-                        // 2.b.1.1.1 Lock the `RegisteryManager`.
-                        let _registery_manager = registery_manager.lock().await;
+                        // 2.b.1.1.1 Lock the `Registery`.
+                        let _registery = registery.lock().await;
 
-                        // 2.b.1.1.2 Retrieve the rank value from the `RegisteryManager`.
-                        _registery_manager.get_rank_by_account_key(registered_but_unconfigured_root_account.account_key).ok_or(
-                        RootAccountAPEEncodeError::UnableToRetrieveRankValueFromRegisteryManager(
+                        // 2.b.1.1.2 Retrieve the rank value from the `Registery`.
+                        _registery.get_rank_by_account_key(registered_but_unconfigured_root_account.account_key).ok_or(
+                        RootAccountAPEEncodeError::UnableToRetrieveRankValueFromRegistery(
                             registered_but_unconfigured_root_account.account_key,
                         ),
                     )?
@@ -204,14 +204,14 @@ impl RootAccount {
             ) => {
                 // 2.c.1 Encode the rank value.
                 {
-                    // 2.c.1.1 Retrieve the rank value from the `RegisteryManager`.
+                    // 2.c.1.1 Retrieve the rank value from the `Registery`.
                     let rank = {
-                        // 2.c.1.1.1 Lock the `RegisteryManager`.
-                        let _registery_manager = registery_manager.lock().await;
+                        // 2.c.1.1.1 Lock the `Registery`.
+                        let _registery = registery.lock().await;
 
-                        // 2.c.1.1.2 Retrieve the rank value from the `RegisteryManager`.
-                        _registery_manager.get_rank_by_account_key(registered_and_configured_root_account.account_key).ok_or(
-                        RootAccountAPEEncodeError::UnableToRetrieveRankValueFromRegisteryManager(
+                        // 2.c.1.1.2 Retrieve the rank value from the `Registery`.
+                        _registery.get_rank_by_account_key(registered_and_configured_root_account.account_key).ok_or(
+                        RootAccountAPEEncodeError::UnableToRetrieveRankValueFromRegistery(
                             registered_and_configured_root_account.account_key,
                         ),
                     )?

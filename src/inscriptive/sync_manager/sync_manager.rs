@@ -1,5 +1,6 @@
 use crate::{
-    inscriptive::sync_manager::errors::construction_error::SMConstructionError, operative::Chain,
+    inscriptive::sync_manager::errors::construction_error::SMConstructionError,
+    operative::run_args::chain::Chain,
 };
 use std::sync::Arc;
 use tokio::sync::Mutex;

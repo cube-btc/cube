@@ -8,18 +8,18 @@ use crate::communicative::rpc::bitcoin_rpc::bitcoin_rpc::validate_rpc;
 use crate::communicative::rpc::bitcoin_rpc::bitcoin_rpc_holder::BitcoinRPCHolder;
 use crate::communicative::tcp::tcp::open_port;
 use crate::communicative::tcp::tcp::port_number;
-use crate::inscriptive::registery_manager::registery_manager::RegisteryManager;
-use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
+use crate::inscriptive::registery::registery::Registery;
+use crate::inscriptive::registery::registery::REGISTERY;
 use crate::inscriptive::sync_manager::sync_manager::SyncManager;
 use crate::inscriptive::sync_manager::sync_manager::SYNC_MANAGER;
 use crate::inscriptive::utxo_set::utxo_set::UTXOSet;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
 use crate::operative::cli::cli::run_engine_cli;
 use crate::operative::cli::cli::run_node_cli;
+use crate::operative::run_args::{
+    chain::Chain, operating_kind::OperatingKind, resource_mode::ResourceMode, sync_mode::SyncMode,
+};
 use crate::operative::tasks::chain_sync::chain_sync::ChainSync;
-use crate::operative::Chain;
-use crate::operative::OperatingKind;
-use crate::operative::OperatingMode;
 use crate::transmutative::key::KeyHolder;
 use colored::Colorize;
 use std::sync::Arc;
@@ -30,11 +30,12 @@ const V2_LIFT_ENABLED: bool = false;
 
 #[tokio::main]
 pub async fn run(
-    key_holder: KeyHolder,
+    _resource_mode: ResourceMode,
     chain: Chain,
-    rpc_holder: BitcoinRPCHolder,
     operating_kind: OperatingKind,
-    _operating_mode: OperatingMode,
+    rpc_holder: BitcoinRPCHolder,
+    _sync_mode: SyncMode,
+    key_holder: KeyHolder,
 ) {
     // 1 Wrap KeyHolder
     let key_holder = Arc::new(key_holder);
@@ -59,10 +60,10 @@ pub async fn run(
     let (engine_key, self_account_key) = (engine_key(chain), key_holder.secp_public_key_bytes());
 
     // 5 Initialize registery.
-    let registery: REGISTERY_MANAGER = match RegisteryManager::new(chain) {
-        Ok(registery_manager) => registery_manager,
+    let registery: REGISTERY = match Registery::new(chain) {
+        Ok(registery) => registery,
         Err(_) => {
-            println!("{}", "Error initializing registery manager.".red());
+            println!("{}", "Error initializing registery.".red());
             return;
         }
     };

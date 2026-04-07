@@ -10,7 +10,7 @@ use crate::constructive::entity::contract::contract::Contract;
 use crate::constructive::valtype::maybe_common::maybe_common::maybe_common::MaybeCommon;
 use crate::constructive::valtype::val::long_val::long_val::LongVal;
 use crate::constructive::valtype::val::short_val::short_val::ShortVal;
-use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
+use crate::inscriptive::registery::registery::REGISTERY;
 
 use bit_vec::BitVec;
 
@@ -28,7 +28,7 @@ impl CalldataElement {
     pub async fn decode_ape<'a>(
         bit_stream: &mut bit_vec::Iter<'_>,
         element_type: CalldataElementType,
-        registery_manager: &REGISTERY_MANAGER,
+        registery: &REGISTERY,
         decode_rank_as_longval: bool,
     ) -> Result<Self, CalldataElementAPEDecodeError> {
         // Match on the calldata element type.
@@ -141,14 +141,13 @@ impl CalldataElement {
             // Decode the `Account`.
             CalldataElementType::Account => {
                 // Decode the `Account`.
-                let account =
-                    Account::decode_ape(bit_stream, &registery_manager, decode_rank_as_longval)
-                        .await
-                        .map_err(|e| {
-                            CalldataElementAPEDecodeError::Account(
-                                CallAccountAPEDecodeError::AccountAPEDecodeError(e),
-                            )
-                        })?;
+                let account = Account::decode_ape(bit_stream, &registery, decode_rank_as_longval)
+                    .await
+                    .map_err(|e| {
+                        CalldataElementAPEDecodeError::Account(
+                            CallAccountAPEDecodeError::AccountAPEDecodeError(e),
+                        )
+                    })?;
 
                 // Construct the `CalldataElement`.
                 let element = CalldataElement::Account(account);
@@ -160,14 +159,13 @@ impl CalldataElement {
             // Decode the `Contract`.
             CalldataElementType::Contract => {
                 // Decode the `Contract`.
-                let contract =
-                    Contract::decode_ape(bit_stream, &registery_manager, decode_rank_as_longval)
-                        .await
-                        .map_err(|e| {
-                            CalldataElementAPEDecodeError::Contract(
-                                CallContractAPEDecodeError::ContractAPEDecodeError(e),
-                            )
-                        })?;
+                let contract = Contract::decode_ape(bit_stream, &registery, decode_rank_as_longval)
+                    .await
+                    .map_err(|e| {
+                        CalldataElementAPEDecodeError::Contract(
+                            CallContractAPEDecodeError::ContractAPEDecodeError(e),
+                        )
+                    })?;
 
                 // Construct the `CallElement`.
                 let element = CalldataElement::Contract(contract);

@@ -1,6 +1,6 @@
 use crate::constructive::entry::ape::encode::error::encode_error::EntryAPEEncodeError;
 use crate::constructive::entry::entry::Entry;
-use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
+use crate::inscriptive::registery::registery::REGISTERY;
 use bit_vec::BitVec;
 
 impl Entry {
@@ -10,12 +10,12 @@ impl Entry {
     ///
     /// # Arguments
     /// * `&self` - The `Entry` to encode.
-    /// * `registery_manager` - The guarded `RegisteryManager` to get the `Account`'s rank value.
+    /// * `registery` - The guarded `Registery` to get the `Account`'s rank value.
     /// * `encode_account_rank_as_longval` - Whether to encode the account rank as a `LongVal` or a `ShortVal`.
     /// * `encode_contract_rank_as_longval` - Whether to encode the contract rank as a `LongVal` or a `ShortVal`.
     pub async fn encode_ape(
         &self,
-        registery_manager: &REGISTERY_MANAGER,
+        registery: &REGISTERY,
         encode_account_rank_as_longval: bool,
         encode_contract_rank_as_longval: bool,
     ) -> Result<BitVec, EntryAPEEncodeError> {
@@ -33,7 +33,7 @@ impl Entry {
                 // 2.a.2 Encode the `Call`.
                 let call_bits = call
                     .encode_ape(
-                        registery_manager,
+                        registery,
                         encode_account_rank_as_longval,
                         encode_contract_rank_as_longval,
                     )

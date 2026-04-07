@@ -1,6 +1,6 @@
 use crate::constructive::entity::account::root_account::root_account::RootAccount;
 use crate::constructive::txo::lift::lift::Lift;
-use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
+use crate::inscriptive::registery::registery::REGISTERY;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
 use serde::{Deserialize, Serialize};
 
@@ -36,11 +36,11 @@ impl Liftup {
     pub async fn validate(
         &self,
         engine_key: [u8; 32],
-        registery_manager: &REGISTERY_MANAGER,
+        registery: &REGISTERY,
         utxo_set: &UTXO_SET,
     ) -> bool {
         // 1 Validate the account.
-        if !self.account.validate(registery_manager).await {
+        if !self.account.validate(registery).await {
             return false;
         }
 

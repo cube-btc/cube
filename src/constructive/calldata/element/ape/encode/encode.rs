@@ -1,6 +1,6 @@
 use crate::constructive::calldata::element::ape::encode::error::encode_error::CalldataElementAPEEncodeError;
 use crate::constructive::calldata::element::element::CalldataElement;
-use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
+use crate::inscriptive::registery::registery::REGISTERY;
 use bit_vec::BitVec;
 
 impl CalldataElement {
@@ -17,7 +17,7 @@ impl CalldataElement {
     /// # Returns
     pub async fn encode_ape(
         &self,
-        registery_manager: &REGISTERY_MANAGER,
+        registery: &REGISTERY,
         encode_account_rank_as_longval: bool,
         encode_contract_rank_as_longval: bool,
     ) -> Result<BitVec, CalldataElementAPEEncodeError> {
@@ -79,7 +79,7 @@ impl CalldataElement {
             CalldataElement::Account(account) => {
                 // Encode the `Account`.
                 let bits = account
-                    .encode_ape(registery_manager, encode_account_rank_as_longval)
+                    .encode_ape(registery, encode_account_rank_as_longval)
                     .await
                     .map_err(|e| CalldataElementAPEEncodeError::AccountAPEEncodeError(e))?;
 
@@ -89,7 +89,7 @@ impl CalldataElement {
             CalldataElement::Contract(contract) => {
                 // Encode the `Contract`.
                 let bits = contract
-                    .encode_ape(registery_manager, encode_contract_rank_as_longval)
+                    .encode_ape(registery, encode_contract_rank_as_longval)
                     .await
                     .map_err(|e| CalldataElementAPEEncodeError::ContractAPEEncodeError(e))?;
 

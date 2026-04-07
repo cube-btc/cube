@@ -2,7 +2,7 @@ use crate::constructive::entity::account::account::account::Account;
 use crate::constructive::entity::account::account::ape::encode::error::encode_error::AccountAPEEncodeError;
 use crate::constructive::valtype::val::long_val::long_val::LongVal;
 use crate::constructive::valtype::val::short_val::short_val::ShortVal;
-use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
+use crate::inscriptive::registery::registery::REGISTERY;
 use bit_vec::BitVec;
 
 impl Account {
@@ -19,7 +19,7 @@ impl Account {
     /// * `encode_rank_as_longval` - Whether to encode the `Account`'s rank value as a `LongVal` or a `ShortVal`.
     pub async fn encode_ape(
         &self,
-        registery_manager: &REGISTERY_MANAGER,
+        registery: &REGISTERY,
         encode_rank_as_longval: bool,
     ) -> Result<BitVec, AccountAPEEncodeError> {
         // 1 Initialize the APE bit vector.
@@ -37,14 +37,14 @@ impl Account {
 
                 // 2.a.1 Get the rank value.
                 let rank = {
-                    // 2.a.1.1 Lock the `Registery Manager`.
-                    let _registery_manager = registery_manager.lock().await;
+                    // 2.a.1.1 Lock the `Registery`.
+                    let _registery = registery.lock().await;
 
-                    // 2.a.1.2 Get the `Account`'s rank value from the `Registery Manager`.
-                    _registery_manager
+                    // 2.a.1.2 Get the `Account`'s rank value from the `Registery`.
+                    _registery
                         .get_rank_by_account_key(self.account_key())
                         .ok_or(
-                            AccountAPEEncodeError::UnableToRetrieveRankValueFromRegisteryManager(
+                            AccountAPEEncodeError::UnableToRetrieveRankValueFromRegistery(
                                 self.account_key(),
                             ),
                         )?

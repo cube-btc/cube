@@ -8,7 +8,7 @@ use crate::{
             },
         },
     },
-    operative::Chain,
+    operative::run_args::chain::Chain,
 };
 use bitcoin::{OutPoint, TxOut};
 use std::{collections::HashMap, sync::Arc};

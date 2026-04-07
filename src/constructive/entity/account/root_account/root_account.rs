@@ -2,7 +2,7 @@ use crate::{constructive::entity::account::root_account::registered_but_unconfig
 use crate::constructive::entity::account::root_account::registered_and_configured_root_account::registered_and_configured_root_account::RegisteredAndConfiguredRootAccount;
 use crate::constructive::entity::account::root_account::unregistered_root_account::unregistered_root_account::UnregisteredRootAccount;
 use crate::transmutative::key::KeyHolder;
-use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
+use crate::inscriptive::registery::registery::REGISTERY;
 use serde::{Deserialize, Serialize};
 use crate::transmutative::hash::Hash;
 use crate::transmutative::hash::HashTag;
@@ -23,10 +23,7 @@ pub enum RootAccount {
 
 impl RootAccount {
     /// Returns the `RootAccount` for the given `KeyHolder`.
-    pub async fn self_root_account(
-        keyholder: &KeyHolder,
-        registery_manager: &REGISTERY_MANAGER,
-    ) -> RootAccount {
+    pub async fn self_root_account(keyholder: &KeyHolder, registery: &REGISTERY) -> RootAccount {
         // 1 Get the self account key.
         let self_account_key: [u8; 32] = keyholder.secp_public_key_bytes();
 
@@ -39,11 +36,11 @@ impl RootAccount {
 
         // 4 Retrieve the account info if its registered.
         let account_info = {
-            // 4.1 Lock the registery manager.
-            let _registery_manager = registery_manager.lock().await;
+            // 4.1 Lock the registery.
+            let _registery = registery.lock().await;
 
             // 4.2 Get account info by account key.
-            _registery_manager.get_account_info_by_account_key(self_account_key)
+            _registery.get_account_info_by_account_key(self_account_key)
         };
 
         // 5 Match on whether the account is registered or not.
@@ -189,12 +186,12 @@ impl RootAccount {
     /// Validates the `RootAccount` struct.
     ///
     /// Used by the `Engine` to validate the `RootAccount` is indeed a valid structure.
-    pub async fn validate(&self, registery_manager: &REGISTERY_MANAGER) -> bool {
+    pub async fn validate(&self, registery: &REGISTERY) -> bool {
         // 1 Match on the `RootAccount` type.
         match self {
             // 1.a The `RootAccount` is an `UnregisteredRootAccount`.
             Self::UnregisteredRootAccount(unregistered_root_account) => {
-                unregistered_root_account.validate(registery_manager).await
+                unregistered_root_account.validate(registery).await
             }
 
             // 1.b The `RootAccount` is a `RegisteredButUnconfiguredRootAccount`.
@@ -202,14 +199,14 @@ impl RootAccount {
                 registered_but_unconfigured_root_account,
             ) => {
                 registered_but_unconfigured_root_account
-                    .validate(registery_manager)
+                    .validate(registery)
                     .await
             }
 
             // 1.c The `RootAccount` is a `RegisteredAndConfiguredRootAccount`.
             Self::RegisteredAndConfiguredRootAccount(registered_and_configured_root_account) => {
                 registered_and_configured_root_account
-                    .validate(registery_manager)
+                    .validate(registery)
                     .await
             }
         }

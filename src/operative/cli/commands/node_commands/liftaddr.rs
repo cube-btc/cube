@@ -4,7 +4,7 @@ use crate::constructive::txo::lift::lift_versions::liftv1::{
 use crate::constructive::txo::lift::lift_versions::liftv2::{
     return_liftv2_scriptpubkey, return_liftv2_taproot,
 };
-use crate::operative::Chain;
+use crate::operative::run_args::chain::Chain;
 use crate::transmutative::codec::address::encode_p2tr;
 use colored::Colorize;
 use hex;

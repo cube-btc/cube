@@ -6,8 +6,8 @@ use crate::constructive::entry::entries::call::ape::decode::error::decode_error:
 use crate::constructive::entry::entries::call::call::Call;
 use crate::constructive::valtype::val::atomic_val::atomic_val::AtomicVal;
 use crate::constructive::valtype::val::short_val::short_val::ShortVal;
-use crate::inscriptive::registery_manager::registery_manager::REGISTERY_MANAGER;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
+use crate::inscriptive::registery::registery::REGISTERY;
 
 impl Call {
     /// Decodes a `Call` as an Airly Payload Encoding (APE) bit vector.
@@ -18,7 +18,7 @@ impl Call {
     /// # Arguments
     /// * `bit_stream` - The APE bitstream.
     /// * `base_ops_price` - The base ops price of the `Call`.
-    /// * `registery_manager` - The `Registery Manager`.
+    /// * `registery` - The `Registery`.
     /// * `decode_account_rank_as_longval` - Whether to decode the account rank as a `LongVal` or a `ShortVal`.
     /// * `decode_contract_rank_as_longval` - Whether to decode the contract rank as a `LongVal` or a `ShortVal`.
     pub async fn decode_ape(
@@ -26,27 +26,24 @@ impl Call {
         base_ops_price: u32,
         decode_account_rank_as_longval: bool,
         decode_contract_rank_as_longval: bool,
-        registery_manager: &REGISTERY_MANAGER,
+        registery: &REGISTERY,
         graveyard: &GRAVEYARD,
     ) -> Result<Call, CallEntryAPEDecodeError> {
         // 1 Decode the `RootAccount` from the APE bitstream.
         let account: RootAccount = RootAccount::decode_ape(
             bit_stream,
             decode_account_rank_as_longval,
-            registery_manager,
+            registery,
             graveyard,
         )
         .await
         .map_err(|e| CallEntryAPEDecodeError::AccountAPEDecodeError(e))?;
 
         // 2 Decode the `Contract` from the APE bitstream.
-        let contract: Contract = Contract::decode_ape(
-            bit_stream,
-            registery_manager,
-            decode_contract_rank_as_longval,
-        )
-        .await
-        .map_err(|e| CallEntryAPEDecodeError::ContractAPEDecodeError(e))?;
+        let contract: Contract =
+            Contract::decode_ape(bit_stream, registery, decode_contract_rank_as_longval)
+                .await
+                .map_err(|e| CallEntryAPEDecodeError::ContractAPEDecodeError(e))?;
 
         // 3 Decode the `Method Call` from the APE bitstream.
         let method_call: u8 = AtomicVal::decode_ape(bit_stream, contract.methods_len() as u8)
@@ -65,7 +62,7 @@ impl Call {
                 let calldata_element: CalldataElement = CalldataElement::decode_ape(
                     bit_stream,
                     CalldataElementType::U8,
-                    registery_manager,
+                    registery,
                     false,
                 )
                 .await

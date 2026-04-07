@@ -2,7 +2,7 @@
 mod graveyard_tests {
     use cube::inscriptive::graveyard::errors::redeem_account_coins_error::GraveyardRedeemAccountCoinsError;
     use cube::inscriptive::graveyard::graveyard::{erase_graveyard, Graveyard, GRAVEYARD};
-    use cube::operative::Chain;
+    use cube::operative::run_args::chain::Chain;
 
     // 1.a First account to be burried.
     const ACCOUNT_KEY_1: [u8; 32] = [

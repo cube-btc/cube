@@ -8,7 +8,7 @@ use crate::inscriptive::flame_manager::errors::register_account_error::FMRegiste
 use crate::inscriptive::flame_manager::errors::update_account_flame_config_error::FMUpdateAccountFlameConfigError;
 use crate::inscriptive::flame_manager::flame::flame::Flame;
 use crate::inscriptive::flame_manager::flame_config::flame_config::FMAccountFlameConfig;
-use crate::operative::Chain;
+use crate::operative::run_args::chain::Chain;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 
