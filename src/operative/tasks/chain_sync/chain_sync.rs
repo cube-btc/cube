@@ -20,9 +20,9 @@ use tokio::time::sleep;
 const BLOCK_DEPTH_FOR_FINALITY: u64 = 2;
 
 #[async_trait]
-pub trait RollupSync {
-    /// Spawns a background task to continuously sync the rollup.
-    async fn spawn_background_sync_task(
+pub trait ChainSync {
+    /// Spawns a background task to continuously sync the chain.
+    async fn spawn_background_chain_syncer(
         &self,
         chain: Chain,
         rpc_holder: &BitcoinRPCHolder,
@@ -30,12 +30,12 @@ pub trait RollupSync {
         utxo_set: &UTXO_SET,
     );
 
-    /// Awaits the rollup to be fully synced to the latest chain tip.
+    /// Awaits the chain to be fully synced to the latest chain tip.
     async fn await_ibd(&self);
 }
 
 #[async_trait]
-impl RollupSync for SYNC_MANAGER {
+impl ChainSync for SYNC_MANAGER {
     async fn await_ibd(&self) {
         loop {
             let is_fully_synced = {
@@ -50,7 +50,7 @@ impl RollupSync for SYNC_MANAGER {
         }
     }
 
-    async fn spawn_background_sync_task(
+    async fn spawn_background_chain_syncer(
         &self,
         chain: Chain,
         rpc_holder: &BitcoinRPCHolder,
@@ -141,13 +141,13 @@ impl RollupSync for SYNC_MANAGER {
                                         // Check if the cube node is fully synced.
                                         if !synced {
                                             {
-                                                // Set the rollup to synced.
+                                                // Set the chain to synced.
                                                 let mut _sync_manager = sync_manager.lock().await;
                                                 _sync_manager.set_synced(true);
                                             }
 
                                             // Set the synced flag.
-                                            synced = true;    
+                                            synced = true;
                                         }
 
                                         // Sleep for 10s.
@@ -234,7 +234,7 @@ impl RollupSync for SYNC_MANAGER {
                         }
                     }
 
-                    // Set the new rollup bitcoin sync height.
+                    // Set the new bitcoin sync height.
                     {
                         let mut _sync_manager = sync_manager.lock().await;
                         _sync_manager.set_bitcoin_sync_height(height_to_sync);

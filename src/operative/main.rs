@@ -1,10 +1,7 @@
 use colored::Colorize;
 use cube::{
     communicative::rpc::bitcoin_rpc::bitcoin_rpc_holder::BitcoinRPCHolder,
-    operative::{
-        mode::{engine::engine, node::node},
-        Chain, OperatingKind, OperatingMode,
-    },
+    operative::{runner::runner, Chain, OperatingKind, OperatingMode},
     transmutative::{
         key::{FromNostrKeyStr, KeyHolder, ToNostrKeyStr},
         secp::schnorr::generate_secret,
@@ -281,15 +278,14 @@ fn run(args: &Vec<String>) {
         key_holder
     };
 
-    // 6 Run the appropriate mode.
-    match operating_kind {
-        // 6.1 Run as a node.
-        OperatingKind::Node => node::run(key_holder, chain, rpc_holder, operating_mode),
-
-        // 6.2 Run as the engine.
-        OperatingKind::Engine => engine::run(key_holder, chain, rpc_holder, operating_mode),
-
-    }
+    // 6 Run the runner
+    runner::run(
+        key_holder,
+        chain,
+        rpc_holder,
+        operating_kind,
+        operating_mode,
+    );
 }
 
 /// Prints the correct usage of the command.
@@ -301,5 +297,4 @@ fn print_correct_usage() {
         )
         .red()
     );
-    return;
 }

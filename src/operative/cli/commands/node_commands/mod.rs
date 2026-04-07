@@ -1,4 +1,3 @@
-pub mod clear;
 pub mod conn;
 pub mod decompile;
 pub mod lift;
