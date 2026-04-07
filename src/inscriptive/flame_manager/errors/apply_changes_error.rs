@@ -12,6 +12,4 @@ pub enum FMApplyChangesError {
     AccountTargetFlameValueCouldNotBeRetrieved(AccountKey),
     AccountRemoveFlameFromDiskTreeError(AccountKey, FlameDbKey, sled::Error),
     AccountInsertFlameIntoDiskTreeError(AccountKey, FlameDbKey, sled::Error),
-    AccountFlameConfigInsertError(AccountKey, sled::Error),
-    AccountNotFoundInMemory(AccountKey),
 }

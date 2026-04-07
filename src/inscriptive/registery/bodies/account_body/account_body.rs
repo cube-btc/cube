@@ -1,4 +1,5 @@
 use serde_json::{Map, Value};
+use crate::inscriptive::flame_manager::flame_config::flame_config::FMAccountFlameConfig;
 
 /// BLS key of an account.
 type AccountBLSKey = [u8; 48];
@@ -15,13 +16,17 @@ pub struct RMAccountBody {
     // Ever-increasing call counter of an account. 
     pub call_counter: u64,
 
-    // TODO: Add latest active timestamp
+    // Last observed activity timestamp of an account.
+    pub last_activity_timestamp: u64,
 
     // BLS key of an account.
     pub primary_bls_key: Option<AccountBLSKey>,
 
     // Secondary aggregation key of an account.
     pub secondary_aggregation_key: Option<AccountSecondaryAggregationKey>,
+
+    // Flame config of an account.
+    pub flame_config: Option<FMAccountFlameConfig>,
 }
 
 impl RMAccountBody {
@@ -29,14 +34,18 @@ impl RMAccountBody {
     pub fn new(
         registery_index: u64,
         call_counter: u64,
+        last_activity_timestamp: u64,
         primary_bls_key: Option<AccountBLSKey>,
         secondary_aggregation_key: Option<AccountSecondaryAggregationKey>,
+        flame_config: Option<FMAccountFlameConfig>,
     ) -> Self {
         Self {
             registery_index,
             call_counter,
+            last_activity_timestamp,
             primary_bls_key,
             secondary_aggregation_key,
+            flame_config,
         }
     }
 
@@ -57,7 +66,13 @@ impl RMAccountBody {
             Value::String(self.call_counter.to_string()),
         );
 
-        // 4 Insert the primary BLS key.
+        // 4 Insert the last activity timestamp.
+        obj.insert(
+            "last_activity_timestamp".to_string(),
+            Value::String(self.last_activity_timestamp.to_string()),
+        );
+
+        // 5 Insert the primary BLS key.
         obj.insert(
             "primary_bls_key".to_string(),
             match &self.primary_bls_key {
@@ -66,7 +81,7 @@ impl RMAccountBody {
             },
         );
 
-        // 5 Insert the secondary aggregation key.
+        // 6 Insert the secondary aggregation key.
         obj.insert(
             "secondary_aggregation_key".to_string(),
             match &self.secondary_aggregation_key {
@@ -75,7 +90,16 @@ impl RMAccountBody {
             },
         );
 
-        // 6 Return the account body JSON object.
+        // 7 Insert the flame config.
+        obj.insert(
+            "flame_config".to_string(),
+            match &self.flame_config {
+                Some(flame_config) => flame_config.json(),
+                None => Value::Null,
+            },
+        );
+
+        // 8 Return the account body JSON object.
         Value::Object(obj)
     }
 }

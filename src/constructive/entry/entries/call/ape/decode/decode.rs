@@ -6,7 +6,6 @@ use crate::constructive::entry::entries::call::ape::decode::error::decode_error:
 use crate::constructive::entry::entries::call::call::Call;
 use crate::constructive::valtype::val::atomic_val::atomic_val::AtomicVal;
 use crate::constructive::valtype::val::short_val::short_val::ShortVal;
-use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 use crate::inscriptive::registery::registery::REGISTERY;
 
 impl Call {
@@ -27,14 +26,12 @@ impl Call {
         decode_account_rank_as_longval: bool,
         decode_contract_rank_as_longval: bool,
         registery: &REGISTERY,
-        graveyard: &GRAVEYARD,
     ) -> Result<Call, CallEntryAPEDecodeError> {
         // 1 Decode the `RootAccount` from the APE bitstream.
         let account: RootAccount = RootAccount::decode_ape(
             bit_stream,
             decode_account_rank_as_longval,
             registery,
-            graveyard,
         )
         .await
         .map_err(|e| CallEntryAPEDecodeError::AccountAPEDecodeError(e))?;

@@ -1,5 +1,6 @@
 use crate::constructive::entity::account::root_account::root_account::RootAccount;
 use crate::constructive::txo::lift::lift::Lift;
+use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 use crate::inscriptive::registery::registery::REGISTERY;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
 use serde::{Deserialize, Serialize};
@@ -30,45 +31,5 @@ impl Liftup {
             .iter()
             .map(|lift| lift.txout().value.to_sat())
             .sum()
-    }
-
-    /// Checks whether the `Liftup` is indeed a valid liftup.
-    pub async fn validate(
-        &self,
-        engine_key: [u8; 32],
-        registery: &REGISTERY,
-        utxo_set: &UTXO_SET,
-    ) -> bool {
-        // 1 Validate the account.
-        if !self.account.validate(registery).await {
-            return false;
-        }
-
-        // 2 Validate the structures of the `Lift`s in the `Liftup`.
-        {
-            // 2.1 Get the self account key.
-            let self_account_key = self.account.account_key();
-
-            // 2.2 Validate the structures of the `Lift`s in the `Liftup`.
-            for lift in &self.lift_prevtxos {
-                if !lift.validate(self_account_key, engine_key) {
-                    return false;
-                }
-            }
-        }
-
-        // 3 Validate the `Lift`s in the `Liftup` are indeed valid UTXOs.
-        {
-            // 3.1 Lock the utxo set.
-            let _utxo_set = utxo_set.lock().await;
-
-            // 3.2 Validate the `Lift`s in the `Liftup` are indeed valid UTXOs.
-            if !_utxo_set.validate_lifts(&self.lift_prevtxos) {
-                return false;
-            }
-        }
-
-        // 4 Return true.
-        true
     }
 }

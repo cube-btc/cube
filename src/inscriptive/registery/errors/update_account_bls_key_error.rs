@@ -10,5 +10,6 @@ pub enum RMUpdateAccountBLSKeyError {
     AccountIsNotRegistered(AccountKey),
     BLSKeyIsAlreadyPermanentlySet(AccountKey),
     BLSKeyIsAlreadyEpheremallySet(AccountKey, AccountBLSKey),
+    BLSKeyIsConflictingWithAnAlreadyRegisteredBLSKey(AccountBLSKey),
 }
 

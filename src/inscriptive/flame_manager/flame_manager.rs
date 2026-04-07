@@ -5,12 +5,12 @@ use crate::inscriptive::flame_manager::delta::delta::FMDelta;
 use crate::inscriptive::flame_manager::errors::apply_changes_error::FMApplyChangesError;
 use crate::inscriptive::flame_manager::errors::construction_error::FMConstructionError;
 use crate::inscriptive::flame_manager::errors::register_account_error::FMRegisterAccountError;
-use crate::inscriptive::flame_manager::errors::update_account_flame_config_error::FMUpdateAccountFlameConfigError;
 use crate::inscriptive::flame_manager::flame::flame::Flame;
-use crate::inscriptive::flame_manager::flame_config::flame_config::FMAccountFlameConfig;
+use crate::inscriptive::registery::registery::REGISTERY;
 use crate::operative::run_args::chain::Chain;
 use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 /// Account key.
 type AccountKey = [u8; 32];
@@ -24,15 +24,9 @@ pub type FlameIndex = u32;
 /// Flame projection template.
 pub type FlameProjectionTemplate = Vec<(AccountKey, Vec<(FlameIndex, Flame)>)>;
 
-/// Special db key for the account flame config (0x00..).
-const ACCOUNT_FLAME_CONFIG_SPECIAL_DB_KEY: [u8; 1] = [0x00; 1];
-
 /// Flame manager.
 #[allow(dead_code)]
 pub struct FlameManager {
-    // In-memory account flame configs.
-    in_memory_account_flame_configs: HashMap<AccountKey, FMAccountFlameConfig>,
-
     // In-memory flame set.
     in_memory_flame_set: HashMap<AccountKey, HashMap<ProjectorHeight, Vec<(FlameIndex, Flame)>>>,
 
@@ -58,13 +52,11 @@ impl FlameManager {
         let accounts_db =
             sled::open(accounts_db_path).map_err(FMConstructionError::AccountsDBOpenError)?;
 
-        // 2 Initialize the in-memory account flame configs and flame set.
-        let mut in_memory_account_flame_configs =
-            HashMap::<AccountKey, FMAccountFlameConfig>::new();
+        // 2 Initialize the in-memory flame set.
         let mut in_memory_flame_set =
             HashMap::<AccountKey, HashMap<ProjectorHeight, Vec<(FlameIndex, Flame)>>>::new();
 
-        // 3 Collect account flame configs and sets from the accounts database.
+        // 3 Collect account flame sets from the accounts database.
         for tree_name in accounts_db.tree_names() {
             // 3.1 Deserialize account key bytes from tree name.
             let account_key: [u8; 32] = match tree_name.as_ref().try_into() {
@@ -80,8 +72,7 @@ impl FlameManager {
                 .open_tree(tree_name)
                 .map_err(|e| FMConstructionError::AccountsTreeOpenError(account_key, e))?;
 
-            // 3.3 Initialize the account flame config and flames grouped by rollup height.
-            let mut account_flame_config: Option<FMAccountFlameConfig> = None;
+            // 3.3 Initialize flames grouped by rollup height.
             let mut account_flames_by_height: HashMap<ProjectorHeight, Vec<(FlameIndex, Flame)>> =
                 HashMap::new();
 
@@ -95,35 +86,7 @@ impl FlameManager {
                     }
                 };
 
-                // 3.4.2 Check if this is the special config key or a flame index key.
-                if key.as_ref().len() == 1 {
-                    // 3.4.2.1 Convert the key to a byte.
-                    let key_byte: [u8; 1] = key.as_ref().try_into().map_err(|_| {
-                        FMConstructionError::UnableToDeserializeAccountDbKeyByteFromTreeKey(
-                            account_key,
-                            key.to_vec(),
-                        )
-                    })?;
-
-                    // 3.4.2.2 Check if the key byte is the special config key (0x00).
-                    if key_byte == ACCOUNT_FLAME_CONFIG_SPECIAL_DB_KEY {
-                        // 3.4.2.2.1 Check if the value is not empty.
-                        if value.as_ref().len() > 0 {
-                            // 3.4.2.2.1.1 Deserialize the flame config from bytes.
-                            let flame_config_deserialized = FMAccountFlameConfig::from_bytes(value.as_ref())
-                                .ok_or(FMConstructionError::UnableToDeserializeAccountFlameConfigBytesFromTreeValue(
-                                    account_key,
-                                    value.to_vec(),
-                                ))?;
-
-                            // 3.4.2.2.1.2 Update the account flame config.
-                            account_flame_config = Some(flame_config_deserialized);
-                        }
-                        continue;
-                    }
-                }
-
-                // 3.4.3 Convert the tree key to 12 bytes: 8-byte height + 4-byte index.
+                // 3.4.2 Convert the tree key to 12 bytes: 8-byte height + 4-byte index.
                 if key.as_ref().len() != 12 {
                     return Err(FMConstructionError::InvalidAccountDbKeyByte(
                         account_key,
@@ -131,15 +94,15 @@ impl FlameManager {
                     ));
                 }
 
-                // 3.4.3.1 Extract the rollup height bytes (first 8 bytes) and convert to u64.
+                // 3.4.2.1 Extract the rollup height bytes (first 8 bytes) and convert to u64.
                 let rollup_height_bytes: [u8; 8] = key.as_ref()[0..8].try_into().unwrap();
                 let rollup_height = u64::from_le_bytes(rollup_height_bytes);
 
-                // 3.4.3.2 Extract the flame index bytes (last 4 bytes) and convert to u32.
+                // 3.4.2.2 Extract the flame index bytes (last 4 bytes) and convert to u32.
                 let flame_index_bytes: [u8; 4] = key.as_ref()[8..12].try_into().unwrap();
                 let flame_index = u32::from_le_bytes(flame_index_bytes);
 
-                // 3.4.4 Deserialize the value: literal flame bytes (no prefix).
+                // 3.4.3 Deserialize the value: literal flame bytes (no prefix).
                 let flame = Flame::from_bytes(value.as_ref()).ok_or(
                     FMConstructionError::UnableToDeserializeAccountFlameSetBytesFromTreeValue(
                         account_key,
@@ -147,19 +110,14 @@ impl FlameManager {
                     ),
                 )?;
 
-                // 3.4.5 Store the flame grouped by rollup height.
+                // 3.4.4 Store the flame grouped by rollup height.
                 account_flames_by_height
                     .entry(rollup_height)
                     .or_insert_with(Vec::new)
                     .push((flame_index, flame));
             }
 
-            // 3.5 Insert the account flame config if it exists.
-            if let Some(config) = account_flame_config {
-                in_memory_account_flame_configs.insert(account_key, config);
-            }
-
-            // 3.6 Sort flames by index within each rollup height and insert.
+            // 3.5 Sort flames by index within each rollup height and insert.
             if !account_flames_by_height.is_empty() {
                 for flames in account_flames_by_height.values_mut() {
                     flames.sort_by_key(|(flame_index, _)| *flame_index);
@@ -170,7 +128,6 @@ impl FlameManager {
 
         // 4 Construct the flame manager.
         let flame_manager = FlameManager {
-            in_memory_account_flame_configs,
             in_memory_flame_set,
             on_disk_accounts: accounts_db,
             delta: FMDelta::fresh_new(),
@@ -203,36 +160,7 @@ impl FlameManager {
 
     /// Checks if an account is permanently registered.
     pub fn is_account_registered(&self, account_key: AccountKey) -> bool {
-        self.in_memory_account_flame_configs
-            .contains_key(&account_key)
-    }
-
-    /// Returns the flame config for a given account.
-    pub fn get_account_flame_config(
-        &self,
-        account_key: AccountKey,
-    ) -> Option<FMAccountFlameConfig> {
-        // 1 Try to get from the delta first (ephemeral updates).
-        if let Some(flame_config) = self.delta.updated_flame_configs.get(&account_key) {
-            return Some(flame_config.clone());
-        }
-
-        // 2 Try to get from the delta's new accounts to register (ephemeral registrations).
-        if let Some((_, flame_config)) = self
-            .delta
-            .new_accounts_to_register
-            .iter()
-            .find(|(key, _)| key == &account_key)
-        {
-            if let Some(flame_config) = flame_config {
-                return Some(flame_config.clone());
-            }
-        }
-
-        // 3 And then try to get from the permanent in-memory states.
-        self.in_memory_account_flame_configs
-            .get(&account_key)
-            .cloned()
+        self.in_memory_flame_set.contains_key(&account_key)
     }
 
     /// Returns the flame set for a given account.
@@ -256,7 +184,6 @@ impl FlameManager {
     pub fn register_account(
         &mut self,
         account_key: AccountKey,
-        flame_config: Option<FMAccountFlameConfig>,
     ) -> Result<(), FMRegisterAccountError> {
         // 1 Check if the account is already permanently registered.
         if self.is_account_registered(account_key) {
@@ -264,10 +191,7 @@ impl FlameManager {
         }
 
         // 2 Epheremally register the account in the delta.
-        if !self
-            .delta
-            .epheremally_register_account(account_key, flame_config)
-        {
+        if !self.delta.epheremally_register_account(account_key) {
             // 2.1 Return an error if the account has just been epheremally registered in the delta.
             return Err(
                 FMRegisterAccountError::AccountHasJustBeenEphemerallyRegistered(account_key),
@@ -276,44 +200,6 @@ impl FlameManager {
 
         // 3 Return the result.
         Ok(())
-    }
-
-    /// Epheremally updates an account's flame config.
-    ///
-    /// NOTE: These changes are saved with the use of the `apply_changes` function.
-    pub fn epheremally_update_account_flame_config(
-        &mut self,
-        account_key: AccountKey,
-        flame_config: FMAccountFlameConfig,
-    ) -> Result<Option<FMAccountFlameConfig>, FMUpdateAccountFlameConfigError> {
-        // 1 Check if the account is permanently registered.
-        if !self.is_account_registered(account_key) {
-            return Err(FMUpdateAccountFlameConfigError::AccountIsNotRegistered(
-                account_key,
-            ));
-        }
-
-        // 2 Check if the flame config has already been epheremally updated in the delta.
-        if self.delta.updated_flame_configs.contains_key(&account_key) {
-            return Err(
-                FMUpdateAccountFlameConfigError::AccountFlameConfigHasAlreadyEpheremallyUpdated(
-                    account_key,
-                ),
-            );
-        }
-
-        // 3 Epheremally update the account's flame config in the delta.
-        self.delta
-            .epheremally_update_account_flame_config(account_key, flame_config);
-
-        // 4 Get the previous flame config if there is one.
-        let previous_flame_config = self
-            .in_memory_account_flame_configs
-            .get(&account_key)
-            .cloned();
-
-        // 5 Return the result.
-        Ok(previous_flame_config)
     }
 
     /// Reverts the epheremal changes associated with the last execution.
@@ -328,85 +214,26 @@ impl FlameManager {
     pub async fn apply_changes(
         &mut self,
         coin_manager: &COIN_MANAGER,
+        registery: &REGISTERY,
         new_projector_height: ProjectorHeight,
         projector_expiry_height: ProjectorHeight,
     ) -> Result<FlameProjectionTemplate, FMApplyChangesError> {
         // 1 Register new accounts.
-        for (account_key, flame_config) in self.delta.new_accounts_to_register.iter() {
+        for account_key in self.delta.new_accounts_to_register.iter() {
             // 1.1 On-disk insertion.
             {
                 // 1.1.1 Open the tree for the account.
                 let tree = self.on_disk_accounts.open_tree(account_key).map_err(|e| {
                     FMApplyChangesError::AccountTreeOpenError(account_key.to_owned(), e)
                 })?;
-
-                // 1.1.2 Insert the flame config on-disk if present.
-                if let Some(flame_config) = flame_config {
-                    // 1.1.2.1 Serialize the flame config to bytes.
-                    let flame_config_bytes = flame_config.to_bytes();
-
-                    // 1.1.2.2 Insert the flame config on-disk.
-                    tree.insert(ACCOUNT_FLAME_CONFIG_SPECIAL_DB_KEY, flame_config_bytes)
-                        .map_err(|e| {
-                            FMApplyChangesError::AccountFlameConfigInsertError(
-                                account_key.to_owned(),
-                                e,
-                            )
-                        })?;
-                }
+                drop(tree);
             }
 
             // 1.2 In-memory insertion.
             {
-                // 1.2.1 Insert the flame config into the in-memory account flame configs if present.
-                if let Some(flame_config) = flame_config {
-                    self.in_memory_account_flame_configs
-                        .insert(account_key.to_owned(), flame_config.clone());
-                }
-
-                // 1.2.2 Initialize an empty flame set for the account in-memory.
+                // 1.2.1 Initialize an empty flame set for the account in-memory.
                 self.in_memory_flame_set
                     .insert(account_key.to_owned(), HashMap::new());
-            }
-        }
-
-        // 2 Update account flame configs.
-        for (account_key, flame_config) in self.delta.updated_flame_configs.iter() {
-            // 2.1 Check if the account exists in memory.
-            if !self
-                .in_memory_account_flame_configs
-                .contains_key(account_key)
-            {
-                return Err(FMApplyChangesError::AccountNotFoundInMemory(
-                    account_key.to_owned(),
-                ));
-            }
-
-            // 2.2 On-disk update.
-            {
-                // 2.2.1 Open the tree for the account.
-                let tree = self.on_disk_accounts.open_tree(account_key).map_err(|e| {
-                    FMApplyChangesError::AccountTreeOpenError(account_key.to_owned(), e)
-                })?;
-
-                // 2.2.2 Serialize the flame config to bytes.
-                let flame_config_bytes = flame_config.to_bytes();
-
-                // 2.2.3 Update the flame config on-disk.
-                tree.insert(ACCOUNT_FLAME_CONFIG_SPECIAL_DB_KEY, flame_config_bytes)
-                    .map_err(|e| {
-                        FMApplyChangesError::AccountFlameConfigInsertError(
-                            account_key.to_owned(),
-                            e,
-                        )
-                    })?;
-            }
-
-            // 2.3 In-memory update.
-            {
-                // 2.3.1 Update the flame config.
-                self.in_memory_account_flame_configs
-                    .insert(account_key.to_owned(), flame_config.clone());
             }
         }
 
@@ -469,17 +296,20 @@ impl FlameManager {
             // 5.2 Iterate over all affected accounts.
             'coingap_accounts_loop: for account_key in coingap_accounts_list {
                 // 5.2.1 Get the account flame config.
-                let account_flame_config: FMAccountFlameConfig =
-                    match self.get_account_flame_config(account_key) {
-                        // 5.2.1.a The account flame config is set.
-                        Some(flame_config) => flame_config,
+                let account_flame_config = {
+                    let _registery = registery.lock().await;
+                    _registery.get_account_flame_config(account_key)
+                };
+                let account_flame_config = match account_flame_config {
+                    // 5.2.1.a The account flame config is set.
+                    Some(flame_config) => flame_config,
 
-                        // 5.2.1.b The account flame config is not set.
-                        None => {
-                            // 5.2.1.b.1 Continue to the next affected account.
-                            continue 'coingap_accounts_loop;
-                        }
-                    };
+                    // 5.2.1.b The account flame config is not set.
+                    None => {
+                        // 5.2.1.b.1 Continue to the next affected account.
+                        continue 'coingap_accounts_loop;
+                    }
+                };
 
                 // 5.2.2 Open the tree for the account.
                 let tree = self

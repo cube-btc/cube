@@ -1,5 +1,6 @@
 use crate::constructive::entry::entry::Entry;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
+use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 use crate::inscriptive::registery::registery::REGISTERY;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
@@ -29,6 +30,9 @@ pub struct ExecContainer {
     // The local coin manager database of the Engine.
     pub coin_manager: COIN_MANAGER,
 
+    // The local flame manager database of the Engine.
+    pub flame_manager: FLAME_MANAGER,
+
     // The entries that have been executed in the pool.
     pub executed_entries: Vec<Entry>,
 
@@ -51,6 +55,7 @@ impl ExecContainer {
         utxo_set: UTXO_SET,
         graveyard: GRAVEYARD,
         coin_manager: COIN_MANAGER,
+        flame_manager: FLAME_MANAGER,
     ) -> EXEC_CONTAINER {
         // 1 Initialize the `ExecContainer`.
         let exec_container = ExecContainer {
@@ -59,6 +64,7 @@ impl ExecContainer {
             utxo_set,
             graveyard,
             coin_manager,
+            flame_manager,
             executed_entries: Vec::new(),
             added_tx_inputs: Vec::new(),
             added_tx_outputs: Vec::new(),
@@ -78,6 +84,9 @@ impl ExecContainer {
 
         // 3 Pre-execution registery.
         self.registery.lock().await.pre_execution();
+
+        // 4 Pre-execution flame manager.
+        self.flame_manager.lock().await.pre_execution();
     }
 
     /// Rolls back the last execution of the `ExecContainer` due to a failed individual Entry execution.
@@ -90,10 +99,17 @@ impl ExecContainer {
 
         // 3 Rollback last registery.
         self.registery.lock().await.rollback_last();
+
+        // 4 Rollback last flame manager.
+        self.flame_manager.lock().await.rollback_last();
     }
 
     /// Applies the changes to the `ExecContainer` collectively for all Entries in the container.
-    async fn apply_changes(&mut self) -> Result<(), ApplyChangesError> {
+    async fn apply_changes(
+        &mut self,
+        new_projector_height: u64,
+        projector_expiry_height: u64,
+    ) -> Result<(), ApplyChangesError> {
         // 1 Apply changes to the coin manager.
         if let Err(error) = self.coin_manager.lock().await.apply_changes() {
             return Err(ApplyChangesError::CoinManagerApplyChangesError(error));
@@ -109,15 +125,31 @@ impl ExecContainer {
             return Err(ApplyChangesError::RegisteryApplyChangesError(error));
         }
 
-        // 4 Flush the container.
+        // 4 Apply changes to the flame manager.
+        if let Err(error) = self
+            .flame_manager
+            .lock()
+            .await
+            .apply_changes(
+                &self.coin_manager,
+                &self.registery,
+                new_projector_height,
+                projector_expiry_height,
+            )
+            .await
         {
-            // 4.1 Clear the executed entries.
+            return Err(ApplyChangesError::FlameManagerApplyChangesError(error));
+        }
+
+        // 5 Flush the container.
+        {
+            // 5.1 Clear the executed entries.
             self.executed_entries.clear();
 
-            // 4.2 Clear the added Bitcoin transaction inputs.
+            // 5.2 Clear the added Bitcoin transaction inputs.
             self.added_tx_inputs.clear();
 
-            // 4.3 Clear the added Bitcoin transaction outputs.
+            // 5.3 Clear the added Bitcoin transaction outputs.
             self.added_tx_outputs.clear();
         }
 
@@ -126,12 +158,20 @@ impl ExecContainer {
     }
 
     /// Executes a `Liftup` entry in the pool.
-    pub async fn execute_liftup(&mut self, liftup: Liftup) -> Result<(), LiftupExecutionError> {
+    pub async fn execute_liftup(
+        &mut self,
+        liftup: Liftup,
+        session_timestamp: u64,
+        optimized: bool,
+    ) -> Result<(), LiftupExecutionError> {
         // 1 Pre-execution.
         self.pre_execution().await;
 
         // 2 Execute the liftup.
-        match self.execute_liftup_internal(&liftup).await {
+        match self
+            .execute_liftup_internal(&liftup, session_timestamp, optimized)
+            .await
+        {
             // 2.a Success.
             Ok(_) => {
                 // 2.a.1 Add Lifts inside the Liftup to the added tx inputs.

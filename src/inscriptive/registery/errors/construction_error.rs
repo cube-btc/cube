@@ -17,8 +17,10 @@ pub enum RMConstructionError {
     UnableToDeserializeAccountDbKeyByteFromTreeKey(AccountKey, Vec<u8>),
     UnableToDeserializeAccountRegisteryIndexBytesFromTreeValue(AccountKey, Vec<u8>),
     UnableToDeserializeAccountCallCounterBytesFromTreeValue(AccountKey, Vec<u8>),
+    UnableToDeserializeAccountLastActivityTimestampBytesFromTreeValue(AccountKey, Vec<u8>),
     UnableToDeserializeAccountPrimaryBLSKeyBytesFromTreeValue(AccountKey, Vec<u8>),
     UnableToDeserializeAccountSecondaryAggregationKeyBytesFromTreeValue(AccountKey, Vec<u8>),
+    UnableToDeserializeAccountFlameConfigBytesFromTreeValue(AccountKey, Vec<u8>),
     InvalidAccountDbKeyByte(AccountKey, Vec<u8>),
 
     /// Contract related errors.
@@ -29,6 +31,7 @@ pub enum RMConstructionError {
     UnableToDeserializeContractDbKeyByteFromTreeKey(ContractId, Vec<u8>),
     UnableToDeserializeContractRegisteryIndexBytesFromTreeValue(ContractId, Vec<u8>),
     UnableToDeserializeContractCallCounterBytesFromTreeValue(ContractId, Vec<u8>),
+    UnableToDeserializeContractLastActivityTimestampBytesFromTreeValue(ContractId, Vec<u8>),
     ContractExecutableDecompileError(ContractId, ExecutableDecompileError),
     InvalidContractDbKeyByte(ContractId, Vec<u8>),
 }

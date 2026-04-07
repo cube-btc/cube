@@ -12,14 +12,9 @@ pub enum RootAccountAPEDecodeError {
     // Accont key decoding errors.
     AccountKeyBitsLengthError,
     AccountKeyBytesConversionError,
-    AccountKeyIsNotAValidSecp256k1PointError([u8; 32]),
-    AccountKeyHasAlreadyRegisteredError,
-    AccountKeyHasBurriedError,
     // Bls key decoding errors.
     BlsKeyBitsLengthError,
     BlsKeyBytesConversionError,
-    //BlsKeyIsNotAValidBlsKeyError([u8; 48]),
-    BlsKeyConflictingWithAlreadyRegisteredBlsKeyError,
     // Flame config decoding errors.
     FlameConfigPresentBitCollectError,
     FlameConfigLengthBitsCollectError,
@@ -29,7 +24,6 @@ pub enum RootAccountAPEDecodeError {
     // Authorization signature decoding errors.
     AuthorizationSignatureBitsLengthError,
     AuthorizationSignatureBytesConversionError,
-    AuthorizationSignatureVerificationFailed,
     // Root account body retrieval errors.
     FailedToRetrieveRMAccountBodyByRank(Rank),
 }

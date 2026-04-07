@@ -6,11 +6,8 @@ use crate::constructive::entity::account::root_account::unregistered_root_accoun
 use crate::constructive::valtype::val::long_val::long_val::LongVal;
 use crate::constructive::valtype::val::short_val::short_val::ShortVal;
 use crate::inscriptive::flame_manager::flame_config::flame_config::FMAccountFlameConfig;
-use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 use crate::inscriptive::registery::registery::REGISTERY;
-use crate::transmutative::secp::schnorr::Bytes32;
 use bit_vec::BitVec;
-use crate::constructive::entity::account::root_account::root_account::verify_bls_key_authorization_signature;
 
 impl RootAccount {
     /// Decodes a `RootAccount` from an Airly Payload Encoding (APE) bit vector.
@@ -25,7 +22,6 @@ impl RootAccount {
         bit_stream: &mut bit_vec::Iter<'a>,
         decode_rank_as_longval: bool,
         registery: &REGISTERY,
-        graveyard: &GRAVEYARD,
     ) -> Result<RootAccount, RootAccountAPEDecodeError> {
         // 1 Decode the rank value from the APE bitstream.
         let rank: u64 = match decode_rank_as_longval {
@@ -72,44 +68,7 @@ impl RootAccount {
                         .try_into()
                         .map_err(|_| RootAccountAPEDecodeError::AccountKeyBytesConversionError)?;
 
-                    // 2.a.1.4 Check if the `RootAccount`'s schnorr account key is a valid secp256k1 point.
-                    if account_key_bytes.to_even_point().is_none() {
-                        return Err(
-                            RootAccountAPEDecodeError::AccountKeyIsNotAValidSecp256k1PointError(
-                                account_key_bytes,
-                            ),
-                        );
-                    }
-
-                    // 2.a.1.5 Check if the `RootAccount`'s account key is already registered.
-                    let is_registered = {
-                        // 2.a.1.5.1 Lock the `Registery`.
-                        let _registery = registery.lock().await;
-
-                        // 2.a.1.5.2 Check if the `RootAccount`'s account key is already registered.
-                        _registery.is_account_registered(account_key_bytes)
-                    };
-
-                    // 2.a.1.6 If the `RootAccount`'s account key is already registered, return an error.
-                    if is_registered {
-                        return Err(RootAccountAPEDecodeError::AccountKeyHasAlreadyRegisteredError);
-                    }
-
-                    // 2.a.1.7 Check if the `RootAccount`'s account key has already been burried.
-                    let is_burried = {
-                        // 2.a.1.7.1 Lock the `Graveyard`.
-                        let _graveyard = graveyard.lock().await;
-
-                        // 2.a.1.7.2 Check if the `RootAccount`'s account key has already been burried.
-                        _graveyard.is_account_burried(account_key_bytes)
-                    };
-
-                    // 2.a.1.8 If the `RootAccount`'s account key has already been burried, return an error.
-                    if is_burried {
-                        return Err(RootAccountAPEDecodeError::AccountKeyHasBurriedError);
-                    }
-
-                    // 2.a.1.9 Return the `RootAccount`'s account key bytes.
+                    // 2.a.1.4 Return the `RootAccount`'s account key bytes.
                     account_key_bytes
                 };
 
@@ -134,26 +93,7 @@ impl RootAccount {
                         // TODO: Implement this.
                     }
 
-                    // 2.a.2.5 Check if the BLS key is not conflicting with an already registered BLS key.
-                    {
-                        // 2.a.2.5.1 Lock the `Registery`.
-                        let _registery = registery.lock().await;
-
-                        // 2.a.2.5.2 Check if the BLS key is conflicting with an already registered BLS key.
-                        let is_conflicting = _registery
-                            .bls_key_is_conflicting_with_an_already_registered_bls_key(
-                                bls_key_bytes,
-                            );
-
-                        // 2.a.2.5.3 If the BLS key is conflicting with an already registered BLS key, return an error.
-                        if is_conflicting {
-                            return Err(
-                                RootAccountAPEDecodeError::BlsKeyConflictingWithAlreadyRegisteredBlsKeyError,
-                            );
-                        }
-                    }
-
-                    // 2.a.2.6 Return the `RootAccount`'s bls key bytes.
+                    // 2.a.2.5 Return the `RootAccount`'s bls key bytes.
                     bls_key_bytes
                 };
 
@@ -246,19 +186,7 @@ impl RootAccount {
                     authorization_signature_bytes
                 };
 
-                // 2.a.5 Verify the BLS key authorization signature.
-                if !verify_bls_key_authorization_signature(
-                    account_key_bytes,
-                    bls_key_bytes,
-                    &flame_config,
-                    authorization_signature_bytes,
-                ) {
-                    return Err(
-                        RootAccountAPEDecodeError::AuthorizationSignatureVerificationFailed,
-                    );
-                }
-
-                // 2.a.6 Construct the unregistered `RootAccount`.
+                // 2.a.5 Construct the unregistered `RootAccount`.
                 let unregistered_root_account = UnregisteredRootAccount::new(
                     account_key_bytes,
                     bls_key_bytes,
@@ -266,10 +194,10 @@ impl RootAccount {
                     authorization_signature_bytes,
                 );
 
-                // 2.a.7 Return the unregistered `RootAccount`.
+                // 2.a.6 Return the unregistered `RootAccount`.
                 let root_account = RootAccount::UnregisteredRootAccount(unregistered_root_account);
 
-                // 2.a.8 Return the unregistered `RootAccount`.
+                // 2.a.7 Return the unregistered `RootAccount`.
                 Ok(root_account)
             }
 
@@ -330,26 +258,7 @@ impl RootAccount {
                                 // TODO: Implement this.
                             }
 
-                            // 2.b.2.b.1.5 Check if the BLS key is not conflicting with an already registered BLS key.
-                            {
-                                // 2.b.2.b.1.5.1 Lock the `Registery`.
-                                let _registery = registery.lock().await;
-
-                                // 2.b.2.b.1.5.2 Check if the BLS key is conflicting with an already registered BLS key.
-                                let is_conflicting = _registery
-                                    .bls_key_is_conflicting_with_an_already_registered_bls_key(
-                                        bls_key_bytes,
-                                    );
-
-                                // 2.b.2.b.1.5.3 If the BLS key is conflicting with an already registered BLS key, return an error.
-                                if is_conflicting {
-                                    return Err(
-                                RootAccountAPEDecodeError::BlsKeyConflictingWithAlreadyRegisteredBlsKeyError,
-                            );
-                                }
-                            }
-
-                            // 2.b.2.b.1.6 Return the `RootAccount`'s bls key bytes.
+                            // 2.b.2.b.1.5 Return the `RootAccount`'s bls key bytes.
                             bls_key_bytes
                         };
 
@@ -445,19 +354,7 @@ impl RootAccount {
                             authorization_signature_bytes
                         };
 
-                        // 2.b.2.b.4 Verify the BLS key authorization signature.
-                        if !verify_bls_key_authorization_signature(
-                            account_key,
-                            bls_key_bytes,
-                            &flame_config,
-                            authorization_signature_bytes,
-                        ) {
-                            return Err(
-                                RootAccountAPEDecodeError::AuthorizationSignatureVerificationFailed,
-                            );
-                        }
-
-                        // 2.b.2.b.5 Construct the registered but unconfigured `RootAccount`.
+                        // 2.b.2.b.4 Construct the registered but unconfigured `RootAccount`.
                         let registered_but_unconfigured_root_account =
                             RegisteredButUnconfiguredRootAccount::new(
                                 account_key,
@@ -467,12 +364,12 @@ impl RootAccount {
                                 authorization_signature_bytes,
                             );
 
-                        // 2.b.2.b.6 Construct the `RootAccount`.
+                        // 2.b.2.b.5 Construct the `RootAccount`.
                         let root_account = RootAccount::RegisteredButUnconfiguredRootAccount(
                             registered_but_unconfigured_root_account,
                         );
 
-                        // 2.b.2.b.7 Return the `RootAccount`.
+                        // 2.b.2.b.6 Return the `RootAccount`.
                         return Ok(root_account);
                     }
                 }

@@ -62,50 +62,6 @@ impl RegisteredButUnconfiguredRootAccount {
             self.authorization_signature,
         )
     }
-
-    /// Checks whether the `RegisteredButUnconfiguredRootAccount` is indeed a valid registered but unconfigured account.
-    pub async fn validate(&self, registery: &REGISTERY) -> bool {
-        // 1 Get account info by account key.
-        let account_info = {
-            // 1.1 Lock the registery.
-            let _registery = registery.lock().await;
-
-            // 1.2 Get account info by account key.
-            _registery.get_account_info_by_account_key(self.account_key)
-        };
-
-        // 2 Check if the account is already registered.
-        match account_info {
-            // 2.a The account is indeed registered.
-            Some((_, bls_key, registery_index, _)) => {
-                // 2.a.1 Check if the registery index is the same.
-                if registery_index != self.registery_index {
-                    return false;
-                }
-
-                // 2.a.2 Check if the BLS key is indeed not configured.
-                if bls_key.is_some() {
-                    return false;
-                }
-
-                // 2.a.3 Verify that the BLS key is indeed a valid BLS public key.
-                {
-                    // TODO.
-                }
-            }
-
-            // 2.b The account is not registered.
-            None => return false,
-        }
-
-        // 3 Verify the authorization signature.
-        if !self.verify_authorization_signature() {
-            return false;
-        }
-
-        // 4 Return true.
-        true
-    }
 }
 
 impl PartialEq for RegisteredButUnconfiguredRootAccount {

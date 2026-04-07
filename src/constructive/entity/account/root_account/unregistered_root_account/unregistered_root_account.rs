@@ -4,6 +4,7 @@ use crate::constructive::ser::{
     serialize_schnorr_signature,
 };
 use crate::inscriptive::flame_manager::flame_config::flame_config::FMAccountFlameConfig;
+use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 use crate::inscriptive::registery::registery::REGISTERY;
 use crate::transmutative::secp::schnorr::Bytes32;
 use serde::{Deserialize, Serialize};
@@ -57,44 +58,7 @@ impl UnregisteredRootAccount {
         )
     }
 
-    /// Checks whether the `UnregisteredRootAccount` is indeed a valid unregistered account.
-    pub async fn validate(&self, registery: &REGISTERY) -> bool {
-        // 1 Verify that the account key is indeed a valid Schnorr public key.
-        if self.account_key_to_be_registered.to_even_point().is_none() {
-            return false;
-        }
-
-        // 2 Verify that the BLS key is indeed a valid BLS public key.
-        {
-            // TODO.
-        }
-
-        // 3 Lock the registery.
-        let _registery = registery.lock().await;
-
-        // 4 Check if the account is already registered.
-        if _registery.is_account_registered(self.account_key_to_be_registered) {
-            return false;
-        }
-
-        // 5 Check if the BLS key is not already registered.
-        if _registery.bls_key_is_conflicting_with_an_already_registered_bls_key(
-            self.bls_key_to_be_configured,
-        ) {
-            return false;
-        }
-
-        // 6 Drop the registery.
-        drop(_registery);
-
-        // 7 Verify the authorization signature.
-        if !self.verify_authorization_signature() {
-            return false;
-        }
-
-        // 8 Return true.
-        true
-    }
+    
 }
 
 impl PartialEq for UnregisteredRootAccount {

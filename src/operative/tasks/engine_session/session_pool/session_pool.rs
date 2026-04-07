@@ -2,6 +2,7 @@ use crate::constructive::entry::entries::liftup::liftup::Liftup;
 use crate::executive::exec_container::exec_container::ExecContainer;
 use crate::executive::exec_container::exec_container::EXEC_CONTAINER;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
+use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 use crate::inscriptive::registery::registery::REGISTERY;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
@@ -41,10 +42,17 @@ impl SessionPool {
         utxo_set: UTXO_SET,
         graveyard: GRAVEYARD,
         coin_manager: COIN_MANAGER,
+        flame_manager: FLAME_MANAGER,
     ) -> SESSION_POOL {
         // 1 Construct the exec container.
-        let exec_container =
-            ExecContainer::construct(engine_key, registery, utxo_set, graveyard, coin_manager);
+        let exec_container = ExecContainer::construct(
+            engine_key,
+            registery,
+            utxo_set,
+            graveyard,
+            coin_manager,
+            flame_manager,
+        );
 
         // 2 Construct the session pool.
         let session_pool = SessionPool {
@@ -83,5 +91,5 @@ impl SessionPool {
     }
 
     /// Executes a `Liftup` entry in the pool.
-    pub async fn exec_liftup(&mut self, liftup: Liftup) {}
+    pub async fn exec_liftup(&mut self, _liftup: Liftup) {}
 }

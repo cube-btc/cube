@@ -10,16 +10,25 @@ pub struct RMContractBody {
     // Ever-increasing call counter of a contract.
     pub call_counter: u64,
 
+    // Last observed activity timestamp of a contract.
+    pub last_activity_timestamp: u64,
+
     // Decompiled executable of a contract.
     pub executable: Executable,
 }
 
 impl RMContractBody {
     /// Constructs a fresh new contract body.
-    pub fn new(registery_index: u64, call_counter: u64, executable: Executable) -> Self {
+    pub fn new(
+        registery_index: u64,
+        call_counter: u64,
+        last_activity_timestamp: u64,
+        executable: Executable,
+    ) -> Self {
         Self {
             registery_index,
             call_counter,
+            last_activity_timestamp,
             executable,
         }
     }
@@ -41,10 +50,16 @@ impl RMContractBody {
             Value::String(self.call_counter.to_string()),
         );
 
-        // 4 Insert the executable.
+        // 4 Insert the last activity timestamp.
+        obj.insert(
+            "last_activity_timestamp".to_string(),
+            Value::String(self.last_activity_timestamp.to_string()),
+        );
+
+        // 5 Insert the executable.
         obj.insert("executable".to_string(), self.executable.json());
 
-        // 5 Return the contract body JSON object.
+        // 6 Return the contract body JSON object.
         Value::Object(obj)
     }
 }

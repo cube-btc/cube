@@ -4,6 +4,7 @@ use crate::constructive::entity::contract::contract::Contract;
 use crate::constructive::entity::contract::deployed_contract::deployed_contract::DeployedContract;
 use crate::executive::executable::compiler::compiler::ExecutableCompiler;
 use crate::executive::executable::executable::Executable;
+use crate::inscriptive::flame_manager::flame_config::flame_config::FMAccountFlameConfig;
 use crate::inscriptive::registery::bodies::account_body::account_body::RMAccountBody;
 use crate::inscriptive::registery::bodies::contract_body::contract_body::RMContractBody;
 use crate::inscriptive::registery::delta::delta::RMDelta;
@@ -14,7 +15,10 @@ use crate::inscriptive::registery::errors::increment_contract_call_counter_error
 use crate::inscriptive::registery::errors::register_account_error::RMRegisterAccountError;
 use crate::inscriptive::registery::errors::register_contract_error::RMRegisterContractError;
 use crate::inscriptive::registery::errors::update_account_bls_key_error::RMUpdateAccountBLSKeyError;
+use crate::inscriptive::registery::errors::update_account_flame_config_error::RMUpdateAccountFlameConfigError;
+use crate::inscriptive::registery::errors::update_account_last_activity_timestamp_error::RMUpdateAccountLastActivityTimestampError;
 use crate::inscriptive::registery::errors::update_account_secondary_aggregation_key_error::RMUpdateAccountSecondaryAggregationKeyError;
+use crate::inscriptive::registery::errors::update_contract_last_activity_timestamp_error::RMUpdateContractLastActivityTimestampError;
 use crate::operative::run_args::chain::Chain;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
@@ -53,6 +57,12 @@ const BLS_KEY_SPECIAL_DB_KEY: [u8; 1] = [0x03; 1];
 
 /// Special db key for the secondary aggregation key (0x04..).
 const SECONDARY_AGGREGATION_KEY_SPECIAL_DB_KEY: [u8; 1] = [0x04; 1];
+
+/// Special db key for last activity timestamp (0x05..).
+const LAST_ACTIVITY_TIMESTAMP_SPECIAL_DB_KEY: [u8; 1] = [0x05; 1];
+
+/// Special db key for account flame config (0x06..).
+const ACCOUNT_FLAME_CONFIG_SPECIAL_DB_KEY: [u8; 1] = [0x06; 1];
 
 /// A struct for managing the registery of accounts and contracts.
 #[allow(dead_code)]
@@ -114,11 +124,17 @@ impl Registery {
             // 4.3 Initialize the call counter to zero.
             let mut call_counter = 0;
 
+            // 4.3 Initialize the last activity timestamp to zero.
+            let mut last_activity_timestamp = 0;
+
             // 4.3 Initialize the BLS key to an empty byte array.
             let mut bls_key: Option<AccountBLSKey> = None;
 
             // 4.4 Initialize the secondary aggregation key to None.
             let mut secondary_aggregation_key: Option<Vec<u8>> = None;
+
+            // 4.5 Initialize the flame config to None.
+            let mut flame_config: Option<FMAccountFlameConfig> = None;
 
             // 4.5 Open the tree associated with the account.
             let tree = accounts_db
@@ -190,6 +206,31 @@ impl Registery {
                             }
                         }
                     }
+                    // 0x05 key byte represents the last activity timestamp.
+                    LAST_ACTIVITY_TIMESTAMP_SPECIAL_DB_KEY => {
+                        let last_activity_timestamp_bytes: [u8; 8] =
+                            value.as_ref().try_into().map_err(|_| {
+                                RMConstructionError::UnableToDeserializeAccountLastActivityTimestampBytesFromTreeValue(
+                                    account_key,
+                                    value.to_vec(),
+                                )
+                            })?;
+
+                        last_activity_timestamp = u64::from_le_bytes(last_activity_timestamp_bytes);
+                    }
+                    // 0x06 key byte represents the account flame config.
+                    ACCOUNT_FLAME_CONFIG_SPECIAL_DB_KEY => {
+                        if value.as_ref().len() > 0 {
+                            let flame_config_deserialized = FMAccountFlameConfig::from_bytes(value.as_ref())
+                                .ok_or(
+                                    RMConstructionError::UnableToDeserializeAccountFlameConfigBytesFromTreeValue(
+                                        account_key,
+                                        value.to_vec(),
+                                    ),
+                                )?;
+                            flame_config = Some(flame_config_deserialized);
+                        }
+                    }
                     // Invalid db key byte.
                     _ => {
                         return Err(RMConstructionError::InvalidAccountDbKeyByte(
@@ -204,8 +245,10 @@ impl Registery {
             let account_body = RMAccountBody::new(
                 registery_index,
                 call_counter,
+                last_activity_timestamp,
                 bls_key,
                 secondary_aggregation_key,
+                flame_config,
             );
 
             // 4.6 Insert the account body into the in-memory list of accounts.
@@ -229,7 +272,10 @@ impl Registery {
             // 5.3 Initialize the call counter to zero.
             let mut call_counter = 0;
 
-            // 5.4 Construct a placeholder executable.
+            // 5.4 Initialize the last activity timestamp to zero.
+            let mut last_activity_timestamp = 0;
+
+            // 5.5 Construct a placeholder executable.
             let mut executable = Executable::placeholder_executable();
 
             // 5.5 Open the tree associated with the contract.
@@ -292,6 +338,18 @@ impl Registery {
                                 )
                             })?;
                     }
+                    // 0x05 key byte represents the last activity timestamp.
+                    LAST_ACTIVITY_TIMESTAMP_SPECIAL_DB_KEY => {
+                        let last_activity_timestamp_bytes: [u8; 8] =
+                            value.as_ref().try_into().map_err(|_| {
+                                RMConstructionError::UnableToDeserializeContractLastActivityTimestampBytesFromTreeValue(
+                                    contract_id,
+                                    value.to_vec(),
+                                )
+                            })?;
+
+                        last_activity_timestamp = u64::from_le_bytes(last_activity_timestamp_bytes);
+                    }
                     // Invalid db key byte.
                     _ => {
                         return Err(RMConstructionError::InvalidContractDbKeyByte(
@@ -303,7 +361,12 @@ impl Registery {
             }
 
             // 5.7 Construct the contract body with the collected registery index and call counter values.
-            let contract_body = RMContractBody::new(registery_index, call_counter, executable);
+            let contract_body = RMContractBody::new(
+                registery_index,
+                call_counter,
+                last_activity_timestamp,
+                executable,
+            );
 
             // 5.8 Insert the contract body into the in-memory list of contracts.
             in_memory_contracts.insert(contract_id, contract_body);
@@ -440,18 +503,68 @@ impl Registery {
     }
 
     /// Checks if an account is permanently registered.
-    pub fn is_account_registered(&self, account_key: [u8; 32]) -> bool {
+    pub fn is_account_permanently_registered(&self, account_key: [u8; 32]) -> bool {
         self.in_memory_accounts.contains_key(&account_key)
     }
 
+    /// Checks if an account has just been epheremally registered in the delta.
+    pub fn is_account_epheremally_registered(&self, account_key: [u8; 32]) -> bool {
+        self.delta.is_account_epheremally_registered(account_key)
+    }
+
+    /// Checks if an account is registered.
+    pub fn is_account_registered(&self, account_key: [u8; 32]) -> bool {
+        self.is_account_permanently_registered(account_key)
+            || self.is_account_epheremally_registered(account_key)
+    }
+
     /// Checks if a contract is permanently registered.
-    pub fn is_contract_registered(&self, contract_id: [u8; 32]) -> bool {
+    pub fn is_contract_permanently_registered(&self, contract_id: [u8; 32]) -> bool {
         self.in_memory_contracts.contains_key(&contract_id)
+    }
+
+    /// Checks if a contract has just been epheremally registered in the delta.
+    pub fn is_contract_epheremally_registered(&self, contract_id: [u8; 32]) -> bool {
+        self.delta.is_contract_epheremally_registered(contract_id)
+    }
+
+    /// Checks if a contract is registered.
+    pub fn is_contract_registered(&self, contract_id: [u8; 32]) -> bool {
+        self.is_contract_permanently_registered(contract_id)
+            || self.is_contract_epheremally_registered(contract_id)
     }
 
     /// Returns the account body by its key.
     pub fn get_account_body_by_account_key(&self, account_key: [u8; 32]) -> Option<RMAccountBody> {
         self.in_memory_accounts.get(&account_key).cloned()
+    }
+
+    /// Returns the flame config for a given account.
+    pub fn get_account_flame_config(
+        &self,
+        account_key: AccountKey,
+    ) -> Option<FMAccountFlameConfig> {
+        // 1 Try to get from the delta first (ephemeral updates).
+        if let Some(flame_config) = self.delta.updated_account_flame_configs.get(&account_key) {
+            return Some(flame_config.clone());
+        }
+
+        // 2 Try to get from the delta's new accounts to register (ephemeral registrations).
+        if let Some((_, _, _, _, flame_config)) = self
+            .delta
+            .new_accounts_to_register
+            .iter()
+            .find(|(key, _, _, _, _)| key == &account_key)
+        {
+            if let Some(flame_config) = flame_config {
+                return Some(flame_config.clone());
+            }
+        }
+
+        // 3 And then try to get from the permanent in-memory states.
+        self.in_memory_accounts
+            .get(&account_key)
+            .and_then(|account_body| account_body.flame_config.clone())
     }
 
     /// Returns the contract body by its identifier.
@@ -626,26 +739,50 @@ impl Registery {
     pub fn register_account(
         &mut self,
         account_key: AccountKey,
+        last_activity_timestamp: u64,
         bls_key: Option<AccountBLSKey>,
         secondary_aggregation_key: Option<AccountSecondaryAggregationKey>,
+        flame_config: Option<FMAccountFlameConfig>,
+        optimized: bool,
     ) -> Result<(), RMRegisterAccountError> {
-        // 1 Check if the account has just been epheremally registered in the delta.
-        if self.delta.is_account_epheremally_registered(account_key) {
-            return Err(
-                RMRegisterAccountError::AccountHasJustBeenEphemerallyRegistered(account_key),
-            );
+        // 1 If not optimized, do database checks.
+        if !optimized {
+            // 1.1 Check if the account has just been epheremally registered in the delta.
+            if self.delta.is_account_epheremally_registered(account_key) {
+                return Err(
+                    RMRegisterAccountError::AccountHasJustBeenEphemerallyRegistered(account_key),
+                );
+            }
+
+            // 1.2 Check if the account is already permanently registered.
+            if self.is_account_permanently_registered(account_key) {
+                return Err(
+                    RMRegisterAccountError::AccountIsAlreadyPermanentlyRegistered(account_key),
+                );
+            }
+
+            // 1.3 Check if BLS key is conflicting with an already registered BLS key.
+            if let Some(bls_key) = bls_key {
+                if self.bls_key_is_conflicting_with_an_already_registered_bls_key(bls_key) {
+                    return Err(
+                        RMRegisterAccountError::BLSKeyIsConflictingWithAnAlreadyRegisteredBLSKey(
+                            bls_key,
+                        ),
+                    );
+                }
+            }
         }
 
-        // 2 Check if the account is already permanently registered.
-        if self.is_account_registered(account_key) {
-            return Err(RMRegisterAccountError::AccountIsAlreadyPermanentlyRegistered(account_key));
-        }
+        // 2 Epheremally register the account in the delta.
+        self.delta.epheremally_register_account(
+            account_key,
+            last_activity_timestamp,
+            bls_key,
+            secondary_aggregation_key,
+            flame_config,
+        );
 
-        // 3 Epheremally register the account in the delta.
-        self.delta
-            .epheremally_register_account(account_key, bls_key, secondary_aggregation_key);
-
-        // 4 Return the result.
+        // 3 Return the result.
         Ok(())
     }
 
@@ -656,40 +793,44 @@ impl Registery {
         &mut self,
         contract_id: ContractId,
         executable: Executable,
+        optimized: bool,
     ) -> Result<(), RMRegisterContractError> {
-        // 1 Check if the contract has just been epheremally registered in the delta.
-        if self.delta.is_contract_epheremally_registered(contract_id) {
-            return Err(
-                RMRegisterContractError::ContractHasJustBeenEphemerallyRegistered(contract_id),
-            );
+        // 1 If not optimized, do database checks.
+        if !optimized {
+            // 1.1 Check if the contract has just been epheremally registered in the delta.
+            if self.delta.is_contract_epheremally_registered(contract_id) {
+                return Err(
+                    RMRegisterContractError::ContractHasJustBeenEphemerallyRegistered(contract_id),
+                );
+            }
+
+            // 1.2 Check if the contract is already permanently registered.
+            if self.is_contract_permanently_registered(contract_id) {
+                return Err(
+                    RMRegisterContractError::ContractIsAlreadyPermanentlyRegistered(contract_id),
+                );
+            }
         }
 
-        // 2 Check if the contract is already permanently registered.
-        if self.is_contract_registered(contract_id) {
-            return Err(
-                RMRegisterContractError::ContractIsAlreadyPermanentlyRegistered(contract_id),
-            );
-        }
-
-        // 3 Epheremally register the contract in the delta.
+        // 2 Epheremally register the contract in the delta.
         self.delta
             .epheremally_register_contract(contract_id, executable);
 
-        // 4 Return the result.
+        // 3 Return the result.
         Ok(())
     }
 
     /// Epheremally increments the call counter of an account.
     ///
     /// NOTE: These changes are saved with the use of the `apply_changes` function.
-    pub fn epheremally_increment_account_call_counter_by_one(
+    pub fn increment_account_call_counter_by_one(
         &mut self,
         account_key: AccountKey,
         optimized: bool,
     ) -> Result<(), RMIncrementAccountCallCounterError> {
         // 1 If not optimized, check if the account is permanently registered.
         if !optimized {
-            if !self.is_account_registered(account_key) {
+            if !self.is_account_permanently_registered(account_key) {
                 return Err(RMIncrementAccountCallCounterError::AccountIsNotRegistered(
                     account_key,
                 ));
@@ -704,17 +845,41 @@ impl Registery {
         Ok(())
     }
 
+    /// Epheremally updates the last activity timestamp of an account.
+    pub fn update_account_last_activity_timestamp(
+        &mut self,
+        account_key: AccountKey,
+        last_activity_timestamp: u64,
+        optimized: bool,
+    ) -> Result<(), RMUpdateAccountLastActivityTimestampError> {
+        // 1 If not optimized, check if the account is permanently registered.
+        if !optimized {
+            if !self.is_account_permanently_registered(account_key) {
+                return Err(
+                    RMUpdateAccountLastActivityTimestampError::AccountIsNotRegistered(account_key),
+                );
+            }
+        }
+
+        // 2 Epheremally update the account's last activity timestamp.
+        self.delta
+            .epheremally_set_account_last_activity_timestamp(account_key, last_activity_timestamp);
+
+        // 3 Return the result.
+        Ok(())
+    }
+
     /// Epheremally increments the call counter of a contract.
     ///
     /// NOTE: These changes are saved with the use of the `apply_changes` function.
-    pub fn epheremally_increment_contract_call_counter_by_one(
+    pub fn increment_contract_call_counter_by_one(
         &mut self,
         contract_id: ContractId,
         optimized: bool,
     ) -> Result<(), RMIncrementContractCallCounterError> {
         // 1 If not optimized, check if the contract is permanently registered.
         if !optimized {
-            if !self.is_contract_registered(contract_id) {
+            if !self.is_contract_permanently_registered(contract_id) {
                 return Err(
                     RMIncrementContractCallCounterError::ContractIsNotRegistered(contract_id),
                 );
@@ -729,29 +894,63 @@ impl Registery {
         Ok(())
     }
 
+    /// Epheremally updates the last activity timestamp of a contract.
+    pub fn update_contract_last_activity_timestamp(
+        &mut self,
+        contract_id: ContractId,
+        last_activity_timestamp: u64,
+    ) -> Result<(), RMUpdateContractLastActivityTimestampError> {
+        // 1 Check if the contract is permanently registered.
+        if !self.is_contract_permanently_registered(contract_id) {
+            return Err(
+                RMUpdateContractLastActivityTimestampError::ContractIsNotRegistered(contract_id),
+            );
+        }
+
+        // 2 Epheremally update the contract's last activity timestamp.
+        self.delta
+            .epheremally_set_contract_last_activity_timestamp(contract_id, last_activity_timestamp);
+
+        // 3 Return the result.
+        Ok(())
+    }
+
     /// Epheremally sets an account's BLS key.
     ///
     /// NOTE: These changes are saved with the use of the `apply_changes` function.
-    pub fn epheremally_set_account_bls_key(
+    pub fn set_account_bls_key(
         &mut self,
         account_key: AccountKey,
         bls_key: AccountBLSKey,
+        optimized: bool,
     ) -> Result<(), RMUpdateAccountBLSKeyError> {
         // NOTE: We allot BLS key to be set only once, and for that it should not have been set yet.
 
-        // 1 Check if the account is permanently registered.
-        let account_body = self.in_memory_accounts.get(&account_key).ok_or(
-            RMUpdateAccountBLSKeyError::AccountIsNotRegistered(account_key),
-        )?;
+        // 1 If not optimized, do extra checks.
+        if !optimized {
+            // 1.1 Check if the account is permanently registered.
+            let account_body = self.in_memory_accounts.get(&account_key).ok_or(
+                RMUpdateAccountBLSKeyError::AccountIsNotRegistered(account_key),
+            )?;
 
-        // 2 Make sure the BLS key has not been already permanently set.
-        if account_body.primary_bls_key.is_some() {
-            return Err(RMUpdateAccountBLSKeyError::BLSKeyIsAlreadyPermanentlySet(
-                account_key,
-            ));
+            // 1.2 Make sure the BLS key has not been already permanently set.
+            if account_body.primary_bls_key.is_some() {
+                return Err(RMUpdateAccountBLSKeyError::BLSKeyIsAlreadyPermanentlySet(
+                    account_key,
+                ));
+            }
+
+            // 1.3 Check if the BLS key is conflicting with an already registered BLS key.
+            if self.bls_key_is_conflicting_with_an_already_registered_bls_key(bls_key) {
+                return Err(
+                    RMUpdateAccountBLSKeyError::BLSKeyIsConflictingWithAnAlreadyRegisteredBLSKey(
+                        bls_key,
+                    ),
+                );
+            }
         }
 
-        // 3 Update the BLS key in the delta, and return an error if it has already been epheremally set in the same execution.
+        // 2 Update the BLS key in the delta, and return an error if it has already been epheremally set in the same execution.
         if let Some(existing_bls_key) = self
             .delta
             .epheremally_set_account_bls_key(account_key, bls_key)
@@ -762,14 +961,14 @@ impl Registery {
             ));
         }
 
-        // 4 Return the result.
+        // 3 Return the result.
         Ok(())
     }
 
     /// Epheremally sets or updates an account's secondary aggregation key.
     ///
     /// NOTE: These changes are saved with the use of the `apply_changes` function.
-    pub fn epheremally_set_or_update_account_secondary_aggregation_key(
+    pub fn set_or_update_account_secondary_aggregation_key(
         &mut self,
         account_key: AccountKey,
         secondary_aggregation_key: AccountSecondaryAggregationKey,
@@ -802,6 +1001,46 @@ impl Registery {
         Ok(previous_secondary_aggregation_key)
     }
 
+    /// Epheremally sets or updates an account's flame config.
+    pub fn set_or_update_account_flame_config(
+        &mut self,
+        account_key: AccountKey,
+        flame_config: FMAccountFlameConfig,
+    ) -> Result<Option<FMAccountFlameConfig>, RMUpdateAccountFlameConfigError> {
+        // 1 Check if the account is permanently registered.
+        if !self.is_account_permanently_registered(account_key) {
+            return Err(RMUpdateAccountFlameConfigError::AccountIsNotRegistered(
+                account_key,
+            ));
+        }
+
+        // 2 Check if the flame config has already been epheremally updated in the delta.
+        if self
+            .delta
+            .updated_account_flame_configs
+            .contains_key(&account_key)
+        {
+            return Err(
+                RMUpdateAccountFlameConfigError::AccountFlameConfigHasAlreadyEpheremallyUpdated(
+                    account_key,
+                ),
+            );
+        }
+
+        // 3 Epheremally update the account's flame config in the delta.
+        self.delta
+            .epheremally_set_or_update_account_flame_config(account_key, flame_config);
+
+        // 4 Get the previous flame config if there is one.
+        let previous_flame_config = self
+            .in_memory_accounts
+            .get(&account_key)
+            .and_then(|body| body.flame_config.clone());
+
+        // 5 Return the result.
+        Ok(previous_flame_config)
+    }
+
     /// Reverts the epheremal changes associated with the last execution.
     ///
     /// NOTE: Used by the Engine.
@@ -821,8 +1060,16 @@ impl Registery {
         let contract_registery_index_height = self.in_memory_contracts.len() as u64;
 
         // 1 Register new accounts.
-        for (index, (account_key, bls_key, secondary_aggregation_key)) in
-            self.delta.new_accounts_to_register.iter().enumerate()
+        for (
+            index,
+            (
+                account_key,
+                last_activity_timestamp,
+                bls_key,
+                secondary_aggregation_key,
+                flame_config,
+            ),
+        ) in self.delta.new_accounts_to_register.iter().enumerate()
         {
             // 1.1 Calculate the registery index for the new account.
             let registery_index = account_registery_index_height + index as u64;
@@ -830,15 +1077,15 @@ impl Registery {
             // 1.2 Initial call counter value is set to zero.
             let initial_call_counter = 0u64;
 
-            // 1.3 On-disk insertion.
+            // 1.4 On-disk insertion.
             {
-                // 1.3.1 Open the tree for the account.
+                // 1.4.1 Open the tree for the account.
                 let tree = self
                     .on_disk_accounts
                     .open_tree(account_key)
                     .map_err(|e| RMApplyChangesError::AccountTreeOpenError(*account_key, e))?;
 
-                // 1.3.2 Insert the registery index on-disk.
+                // 1.4.2 Insert the registery index on-disk.
                 tree.insert(
                     REGISTERY_INDEX_SPECIAL_DB_KEY,
                     registery_index.to_le_bytes().to_vec(),
@@ -851,7 +1098,7 @@ impl Registery {
                     )
                 })?;
 
-                // 1.3.3 Insert the call counter on-disk.
+                // 1.4.3 Insert the call counter on-disk.
                 tree.insert(
                     CALL_COUNTER_SPECIAL_DB_KEY,
                     initial_call_counter.to_le_bytes().to_vec(),
@@ -864,7 +1111,20 @@ impl Registery {
                     )
                 })?;
 
-                // 1.3.4 Insert the BLS key on-disk if present.
+                // 1.4.4 Insert the last activity timestamp on-disk.
+                tree.insert(
+                    LAST_ACTIVITY_TIMESTAMP_SPECIAL_DB_KEY,
+                    last_activity_timestamp.to_le_bytes().to_vec(),
+                )
+                .map_err(|e| {
+                    RMApplyChangesError::AccountLastActivityTimestampInsertError(
+                        *account_key,
+                        *last_activity_timestamp,
+                        e,
+                    )
+                })?;
+
+                // 1.4.5 Insert the BLS key on-disk if present.
                 if let Some(bls_key) = bls_key {
                     tree.insert(BLS_KEY_SPECIAL_DB_KEY, bls_key.as_slice())
                         .map_err(|e| {
@@ -872,7 +1132,7 @@ impl Registery {
                         })?;
                 }
 
-                // 1.3.5 Insert the secondary aggregation key on-disk if present.
+                // 1.4.6 Insert the secondary aggregation key on-disk if present.
                 if let Some(secondary_aggregation_key) = secondary_aggregation_key {
                     tree.insert(
                         SECONDARY_AGGREGATION_KEY_SPECIAL_DB_KEY,
@@ -885,19 +1145,30 @@ impl Registery {
                         )
                     })?;
                 }
+
+                // 1.4.7 Insert the flame config on-disk if present.
+                if let Some(flame_config) = flame_config {
+                    let flame_config_bytes = flame_config.to_bytes();
+                    tree.insert(ACCOUNT_FLAME_CONFIG_SPECIAL_DB_KEY, flame_config_bytes)
+                        .map_err(|e| {
+                            RMApplyChangesError::AccountFlameConfigInsertError(*account_key, e)
+                        })?;
+                }
             }
 
-            // 1.4 In-memory insertion.
+            // 1.5 In-memory insertion.
             {
-                // 1.4.1 Construct the account body.
+                // 1.5.1 Construct the account body.
                 let account_body = RMAccountBody::new(
                     registery_index,
                     initial_call_counter,
+                    *last_activity_timestamp,
                     *bls_key,
                     secondary_aggregation_key.clone(),
+                    flame_config.clone(),
                 );
 
-                // 1.4.2 Insert the account body into the in-memory list.
+                // 1.5.2 Insert the account body into the in-memory list.
                 self.in_memory_accounts.insert(*account_key, account_body);
             }
         }
@@ -912,20 +1183,23 @@ impl Registery {
             // 2.2 Initial call counter value is set to zero.
             let initial_call_counter = 0u64;
 
-            // 2.3 Compile the executable to bytes.
+            // 2.3 Initial last activity timestamp value is set to zero.
+            let initial_last_activity_timestamp = 0u64;
+
+            // 2.4 Compile the executable to bytes.
             let program_bytes = executable
                 .compile()
                 .map_err(|e| RMApplyChangesError::ExecutableCompileError(*contract_id, e))?;
 
-            // 2.4 On-disk insertion.
+            // 2.5 On-disk insertion.
             {
-                // 2.4.1 Open the tree for the contract.
+                // 2.5.1 Open the tree for the contract.
                 let tree = self
                     .on_disk_contracts
                     .open_tree(contract_id)
                     .map_err(|e| RMApplyChangesError::ContractTreeOpenError(*contract_id, e))?;
 
-                // 2.4.2 Insert the registery index on-disk.
+                // 2.5.2 Insert the registery index on-disk.
                 tree.insert(
                     REGISTERY_INDEX_SPECIAL_DB_KEY,
                     registery_index.to_le_bytes().to_vec(),
@@ -938,7 +1212,7 @@ impl Registery {
                     )
                 })?;
 
-                // 2.4.3 Insert the call counter on-disk.
+                // 2.5.3 Insert the call counter on-disk.
                 tree.insert(
                     CALL_COUNTER_SPECIAL_DB_KEY,
                     initial_call_counter.to_le_bytes().to_vec(),
@@ -951,20 +1225,37 @@ impl Registery {
                     )
                 })?;
 
-                // 2.4.4 Insert the program bytes on-disk.
+                // 2.5.4 Insert the last activity timestamp on-disk.
+                tree.insert(
+                    LAST_ACTIVITY_TIMESTAMP_SPECIAL_DB_KEY,
+                    initial_last_activity_timestamp.to_le_bytes().to_vec(),
+                )
+                .map_err(|e| {
+                    RMApplyChangesError::ContractLastActivityTimestampInsertError(
+                        *contract_id,
+                        initial_last_activity_timestamp,
+                        e,
+                    )
+                })?;
+
+                // 2.5.5 Insert the program bytes on-disk.
                 tree.insert(PROGRAM_BYTES_SPECIAL_DB_KEY, program_bytes.as_slice())
                     .map_err(|e| {
                         RMApplyChangesError::ContractProgramBytesInsertError(*contract_id, e)
                     })?;
             }
 
-            // 2.5 In-memory insertion.
+            // 2.6 In-memory insertion.
             {
-                // 2.5.1 Construct the contract body.
-                let contract_body =
-                    RMContractBody::new(registery_index, initial_call_counter, executable.clone());
+                // 2.6.1 Construct the contract body.
+                let contract_body = RMContractBody::new(
+                    registery_index,
+                    initial_call_counter,
+                    initial_last_activity_timestamp,
+                    executable.clone(),
+                );
 
-                // 2.5.2 Insert the contract body into the in-memory list.
+                // 2.6.2 Insert the contract body into the in-memory list.
                 self.in_memory_contracts.insert(*contract_id, contract_body);
             }
         }
@@ -1055,8 +1346,10 @@ impl Registery {
             }
         }
 
-        // 5 Update account BLS keys.
-        for (account_key, bls_key) in self.delta.updated_bls_keys.iter() {
+        // 5 Update account last activity timestamps.
+        for (account_key, last_activity_timestamp) in
+            self.delta.updated_account_last_activity_timestamps.iter()
+        {
             // 5.1 Get the mutable account body from the in-memory list.
             let mut_account_body = self
                 .in_memory_accounts
@@ -1071,19 +1364,89 @@ impl Registery {
                     .open_tree(account_key)
                     .map_err(|e| RMApplyChangesError::AccountTreeOpenError(*account_key, e))?;
 
+                // 5.2.2 Update the last activity timestamp on-disk.
+                tree.insert(
+                    LAST_ACTIVITY_TIMESTAMP_SPECIAL_DB_KEY,
+                    last_activity_timestamp.to_le_bytes().to_vec(),
+                )
+                .map_err(|e| {
+                    RMApplyChangesError::AccountLastActivityTimestampUpdateError(
+                        *account_key,
+                        *last_activity_timestamp,
+                        e,
+                    )
+                })?;
+            }
+
+            // 5.3 In-memory update.
+            mut_account_body.last_activity_timestamp = *last_activity_timestamp;
+        }
+
+        // 6 Update contract last activity timestamps.
+        for (contract_id, last_activity_timestamp) in
+            self.delta.updated_contract_last_activity_timestamps.iter()
+        {
+            // 6.1 Get the mutable contract body from the in-memory list.
+            let mut_contract_body = self
+                .in_memory_contracts
+                .get_mut(contract_id)
+                .ok_or(RMApplyChangesError::ContractNotFoundInMemory(*contract_id))?;
+
+            // 6.2 On-disk update.
+            {
+                // 6.2.1 Open the tree for the contract.
+                let tree = self
+                    .on_disk_contracts
+                    .open_tree(contract_id)
+                    .map_err(|e| RMApplyChangesError::ContractTreeOpenError(*contract_id, e))?;
+
+                // 6.2.2 Update the last activity timestamp on-disk.
+                tree.insert(
+                    LAST_ACTIVITY_TIMESTAMP_SPECIAL_DB_KEY,
+                    last_activity_timestamp.to_le_bytes().to_vec(),
+                )
+                .map_err(|e| {
+                    RMApplyChangesError::ContractLastActivityTimestampUpdateError(
+                        *contract_id,
+                        *last_activity_timestamp,
+                        e,
+                    )
+                })?;
+            }
+
+            // 6.3 In-memory update.
+            mut_contract_body.last_activity_timestamp = *last_activity_timestamp;
+        }
+
+        // 7 Update account BLS keys.
+        for (account_key, bls_key) in self.delta.updated_bls_keys.iter() {
+            // 5.1 Get the mutable account body from the in-memory list.
+            let mut_account_body = self
+                .in_memory_accounts
+                .get_mut(account_key)
+                .ok_or(RMApplyChangesError::AccountNotFoundInMemory(*account_key))?;
+
+            // 7.2 On-disk update.
+            {
+                // 5.2.1 Open the tree for the account.
+                let tree = self
+                    .on_disk_accounts
+                    .open_tree(account_key)
+                    .map_err(|e| RMApplyChangesError::AccountTreeOpenError(*account_key, e))?;
+
                 // 5.2.2 Update the BLS key on-disk.
                 tree.insert(BLS_KEY_SPECIAL_DB_KEY, bls_key.as_slice())
                     .map_err(|e| RMApplyChangesError::AccountBLSKeyInsertError(*account_key, e))?;
             }
 
-            // 5.3 In-memory update.
+            // 7.3 In-memory update.
             {
                 // 5.3.1 Update the BLS key.
                 mut_account_body.primary_bls_key = Some(*bls_key);
             }
         }
 
-        // 6 Update account secondary aggregation keys.
+        // 8 Update account secondary aggregation keys.
         for (account_key, secondary_aggregation_key) in
             self.delta.updated_secondary_aggregation_keys.iter()
         {
@@ -1093,7 +1456,7 @@ impl Registery {
                 .get_mut(account_key)
                 .ok_or(RMApplyChangesError::AccountNotFoundInMemory(*account_key))?;
 
-            // 6.2 On-disk update.
+            // 8.2 On-disk update.
             {
                 // 6.2.1 Open the tree for the account.
                 let tree = self
@@ -1111,7 +1474,7 @@ impl Registery {
                 })?;
             }
 
-            // 6.3 In-memory update.
+            // 8.3 In-memory update.
             {
                 // 6.3.1 Update the secondary aggregation key.
                 mut_account_body.secondary_aggregation_key =
@@ -1119,19 +1482,46 @@ impl Registery {
             }
         }
 
-        // 7 Re-rank accounts after all changes.
+        // 9 Update account flame configs.
+        for (account_key, flame_config) in self.delta.updated_account_flame_configs.iter() {
+            // 9.1 Get the mutable account body from the in-memory list.
+            let mut_account_body = self
+                .in_memory_accounts
+                .get_mut(account_key)
+                .ok_or(RMApplyChangesError::AccountNotFoundInMemory(*account_key))?;
+
+            // 9.2 On-disk update.
+            {
+                // 9.2.1 Open the tree for the account.
+                let tree = self
+                    .on_disk_accounts
+                    .open_tree(account_key)
+                    .map_err(|e| RMApplyChangesError::AccountTreeOpenError(*account_key, e))?;
+
+                // 9.2.2 Update the flame config on-disk.
+                tree.insert(ACCOUNT_FLAME_CONFIG_SPECIAL_DB_KEY, flame_config.to_bytes())
+                    .map_err(|e| {
+                        RMApplyChangesError::AccountFlameConfigInsertError(*account_key, e)
+                    })?;
+            }
+
+            // 9.3 In-memory update.
+            mut_account_body.flame_config = Some(flame_config.clone());
+        }
+
+        // 10 Re-rank accounts after all changes.
         {
             let new_ranked_accounts = Self::rank_accounts(&self.in_memory_accounts);
             self.in_memory_account_ranks = new_ranked_accounts;
         }
 
-        // 8 Re-rank contracts after all changes.
+        // 11 Re-rank contracts after all changes.
         {
             let new_ranked_contracts = Self::rank_contracts(&self.in_memory_contracts);
             self.in_memory_contract_ranks = new_ranked_contracts;
         }
 
-        // 9 Return the result.
+        // 12 Return the result.
         Ok(())
     }
 

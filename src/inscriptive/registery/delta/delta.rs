@@ -1,4 +1,5 @@
 use crate::executive::executable::executable::Executable;
+use crate::inscriptive::flame_manager::flame_config::flame_config::FMAccountFlameConfig;
 use std::collections::HashMap;
 
 /// secp256k1 public key of an account.
@@ -16,6 +17,9 @@ type ContractId = [u8; 32];
 /// Epheremal call counter gap to be applied to an account or contract.
 type CallCounterDelta = u16;
 
+/// Activity timestamp.
+type ActivityTimestamp = u64;
+
 /// A struct for containing epheremal state differences to be applied for 'RegisteryManager'.
 #[derive(Clone)]
 pub struct RMDelta {
@@ -24,8 +28,10 @@ pub struct RMDelta {
     // New accounts to register.
     pub new_accounts_to_register: Vec<(
         AccountKey,
+        ActivityTimestamp,
         Option<AccountBLSKey>,
         Option<AccountSecondaryAggregationKey>,
+        Option<FMAccountFlameConfig>,
     )>,
 
     // Updated account call counters for a given account.
@@ -37,6 +43,12 @@ pub struct RMDelta {
     // Updated secondary aggregation keys for a given account.
     pub updated_secondary_aggregation_keys: HashMap<AccountKey, AccountSecondaryAggregationKey>,
 
+    // Updated account last activity timestamps.
+    pub updated_account_last_activity_timestamps: HashMap<AccountKey, ActivityTimestamp>,
+
+    // Updated account flame configs for a given account.
+    pub updated_account_flame_configs: HashMap<AccountKey, FMAccountFlameConfig>,
+
     // CONTRACT RELATED VALUES ///
     /// ------------------------------------------------------------
     // New contracts to register.
@@ -44,6 +56,9 @@ pub struct RMDelta {
 
     // Updated contract call counters for a given contract.
     pub updated_contract_call_counters: HashMap<ContractId, CallCounterDelta>,
+
+    // Updated contract last activity timestamps.
+    pub updated_contract_last_activity_timestamps: HashMap<ContractId, ActivityTimestamp>,
 }
 
 impl RMDelta {
@@ -54,8 +69,11 @@ impl RMDelta {
             updated_account_call_counters: HashMap::new(),
             updated_bls_keys: HashMap::new(),
             updated_secondary_aggregation_keys: HashMap::new(),
+            updated_account_last_activity_timestamps: HashMap::new(),
+            updated_account_flame_configs: HashMap::new(),
             new_contracts_to_register: Vec::new(),
             updated_contract_call_counters: HashMap::new(),
+            updated_contract_last_activity_timestamps: HashMap::new(),
         }
     }
 
@@ -65,15 +83,18 @@ impl RMDelta {
         self.updated_account_call_counters.clear();
         self.updated_bls_keys.clear();
         self.updated_secondary_aggregation_keys.clear();
+        self.updated_account_last_activity_timestamps.clear();
+        self.updated_account_flame_configs.clear();
         self.new_contracts_to_register.clear();
         self.updated_contract_call_counters.clear();
+        self.updated_contract_last_activity_timestamps.clear();
     }
 
     /// Checks if an account has just been epheremally registered in the delta.
     pub fn is_account_epheremally_registered(&self, account_key: AccountKey) -> bool {
         self.new_accounts_to_register
             .iter()
-            .any(|(key, _, _)| key == &account_key)
+            .any(|(key, _, _, _, _)| key == &account_key)
     }
 
     /// Checks if a contract has just been epheremally registered in the delta.
@@ -87,13 +108,17 @@ impl RMDelta {
     pub fn epheremally_register_account(
         &mut self,
         account_key: AccountKey,
+        last_activity_timestamp: ActivityTimestamp,
         primary_bls_key: Option<AccountBLSKey>,
         secondary_aggregation_key: Option<AccountSecondaryAggregationKey>,
+        flame_config: Option<FMAccountFlameConfig>,
     ) {
         self.new_accounts_to_register.push((
             account_key,
+            last_activity_timestamp,
             primary_bls_key,
             secondary_aggregation_key,
+            flame_config,
         ));
     }
 
@@ -172,5 +197,35 @@ impl RMDelta {
     ) -> Option<AccountSecondaryAggregationKey> {
         self.updated_secondary_aggregation_keys
             .insert(account_key, secondary_aggregation_key)
+    }
+
+    /// Epheremally sets an account's last activity timestamp.
+    pub fn epheremally_set_account_last_activity_timestamp(
+        &mut self,
+        account_key: AccountKey,
+        last_activity_timestamp: ActivityTimestamp,
+    ) -> Option<ActivityTimestamp> {
+        self.updated_account_last_activity_timestamps
+            .insert(account_key, last_activity_timestamp)
+    }
+
+    /// Epheremally sets a contract's last activity timestamp.
+    pub fn epheremally_set_contract_last_activity_timestamp(
+        &mut self,
+        contract_id: ContractId,
+        last_activity_timestamp: ActivityTimestamp,
+    ) -> Option<ActivityTimestamp> {
+        self.updated_contract_last_activity_timestamps
+            .insert(contract_id, last_activity_timestamp)
+    }
+
+    /// Epheremally sets or updates an account flame config.
+    pub fn epheremally_set_or_update_account_flame_config(
+        &mut self,
+        account_key: AccountKey,
+        flame_config: FMAccountFlameConfig,
+    ) -> Option<FMAccountFlameConfig> {
+        self.updated_account_flame_configs
+            .insert(account_key, flame_config)
     }
 }
