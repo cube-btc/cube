@@ -27,7 +27,7 @@ Cube abides by the [NIP-19](https://nips.nostr.com/19) format for secret keys, w
 Run the program with the following command:
 
 ```sh
-cargo run <resource-mode> <chain> <kind> <rpc-url> <rpc-user> rpc-password> <syncinflight?>
+cargo run <resource-mode> <chain> <kind> <rpc-url> <rpc-user> <rpc-password> <syncinflight?>
 ```
 
 ### Parameters:
@@ -45,6 +45,8 @@ cargo run <resource-mode> <chain> <kind> <rpc-url> <rpc-user> rpc-password> <syn
 - `<rpc-user>`: The RPC username of the Bitcoin node.
 - `<rpc-password>`: The RPC password of the Bitcoin node.
 - `<syncinflight?>`: Whether to sync in-flight unconfirmed executions.
+  - `true`: For syncing in-flight executions.
+  - `false`: For syncing confirmed-executions-only.
 
 ### Example:
 

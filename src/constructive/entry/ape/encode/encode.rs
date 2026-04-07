@@ -43,6 +43,11 @@ impl Entry {
                 // 2.a.3 Extend the `Entry` APE bit vector with the `Call` APE bit vector.
                 bits.extend(call_bits);
             }
+
+            // 2.b The `Entry` is a `Liftup`.
+            Entry::Liftup(liftup) => {
+                panic!("Not implemented yet.");
+            }
         }
 
         // 3 Return the `Entry` APE bit vector.

@@ -12,8 +12,10 @@ pub struct RMAccountBody {
     // Assigned registery index of an account.
     pub registery_index: u64,
 
-    // Ever-increasing call counter of an account.
+    // Ever-increasing call counter of an account. 
     pub call_counter: u64,
+
+    // TODO: Add latest active timestamp
 
     // BLS key of an account.
     pub primary_bls_key: Option<AccountBLSKey>,

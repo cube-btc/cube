@@ -1,9 +1,5 @@
-use crate::constructive::entity::contract::contract::Contract;
 use crate::constructive::entry::entries::call::call::Call;
-use crate::constructive::{
-    calldata::element::element::CalldataElement,
-    entity::account::root_account::root_account::RootAccount,
-};
+use crate::constructive::entry::entries::liftup::liftup::Liftup;
 use serde::{Deserialize, Serialize};
 
 /// Represents an `Entry`.
@@ -15,7 +11,7 @@ pub enum Entry {
     Call(Call),
     //Add(AddEntry),
     //Sub(SubEntry),
-    //Liftup(LiftupEntry),
+    Liftup(Liftup),
     //Swapout(SwapoutEntry),
     //Deploy(DeployEntry),
     //Config(ConfigEntry),
@@ -24,24 +20,13 @@ pub enum Entry {
 }
 
 impl Entry {
-    /// Returns the account key.
-    pub fn new_call(
-        account: RootAccount,
-        contract: Contract,
-        method_index: u8,
-        calldata_elements: Vec<CalldataElement>,
-        ops_budget: Option<u32>,
-        ops_price_base: u32,
-        ops_price_overhead: Option<u32>,
-    ) -> Self {
-        Self::Call(Call::new(
-            account,
-            contract,
-            method_index,
-            calldata_elements,
-            ops_budget,
-            ops_price_base,
-            ops_price_overhead,
-        ))
+    /// Creates a new call entry.
+    pub fn new_call(call: Call) -> Self {
+        Self::Call(call)
+    }
+
+    /// Creates a new liftup entry.
+    pub fn new_liftup(liftup: Liftup) -> Self {
+        Self::Liftup(liftup)
     }
 }
