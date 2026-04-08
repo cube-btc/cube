@@ -5,7 +5,7 @@ use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 use crate::inscriptive::registery::registery::REGISTERY;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
 use crate::{
-    constructive::entry::entries::liftup::liftup::Liftup,
+    constructive::entry::entry_types::liftup::liftup::Liftup,
     executive::exec_container::errors::apply_changes_error::ApplyChangesError,
     executive::exec_container::errors::liftup_execution_error::LiftupExecutionError,
 };
@@ -162,13 +162,14 @@ impl ExecContainer {
         &mut self,
         liftup: Liftup,
         session_timestamp: u64,
+        validate_lifts_with_the_utxo_set: bool,
     ) -> Result<(), LiftupExecutionError> {
         // 1 Pre-execution.
         self.pre_execution().await;
 
         // 2 Execute the liftup.
         match self
-            .execute_liftup_internal(&liftup, session_timestamp)
+            .execute_liftup_internal(&liftup, session_timestamp, validate_lifts_with_the_utxo_set)
             .await
         {
             // 2.a Success.

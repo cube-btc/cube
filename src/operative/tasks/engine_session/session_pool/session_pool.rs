@@ -1,4 +1,4 @@
-use crate::constructive::entry::entries::liftup::liftup::Liftup;
+use crate::constructive::entry::entry_types::liftup::liftup::Liftup;
 use crate::executive::exec_container::exec_container::ExecContainer;
 use crate::executive::exec_container::exec_container::EXEC_CONTAINER;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;

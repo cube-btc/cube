@@ -1,7 +1,7 @@
 use super::package::{PackageKind, TCPPackage};
 use super::tcp::{self, port_number};
 use crate::communicative::peer::peer::SOCKET;
-use crate::constructive::entry::entries::liftup::liftup::Liftup;
+use crate::constructive::entry::entry_types::liftup::liftup::Liftup;
 use crate::operative::run_args::{chain::Chain, operating_kind::OperatingKind};
 use crate::transmutative::key::KeyHolder;
 use colored::Colorize;

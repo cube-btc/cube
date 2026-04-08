@@ -1,5 +1,5 @@
 use crate::{
-    constructive::valtype::val::atomic_val::atomic_val::AtomicVal,
+    constructive::entry::entry_fields::valtypes::val::atomic_val::atomic_val::AtomicVal,
     inscriptive::utxo_set::utxo_set::UTXO_SET,
 };
 use bitcoin::{OutPoint, Transaction, TxOut};

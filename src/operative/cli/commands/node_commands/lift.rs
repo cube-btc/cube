@@ -1,6 +1,6 @@
 use crate::constructive::{
     entity::account::root_account::root_account::RootAccount,
-    entry::entries::liftup::liftup::Liftup, txo::lift::lift::Lift,
+    entry::entry_types::liftup::liftup::Liftup, txo::lift::lift::Lift,
 };
 use crate::inscriptive::registery::registery::REGISTERY;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;

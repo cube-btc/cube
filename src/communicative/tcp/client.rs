@@ -1,7 +1,7 @@
 use super::package::{PackageKind, TCPPackage};
 use super::tcp::{self, TCPError};
 use crate::communicative::peer::peer::{PeerConnection, PEER, SOCKET};
-use crate::constructive::entry::entries::liftup::liftup::Liftup;
+use crate::constructive::entry::entry_types::liftup::liftup::Liftup;
 use async_trait::async_trait;
 use chrono::Utc;
 use std::time::Duration;

@@ -1,8 +1,12 @@
-pub mod calldata;
-pub mod entity;
-pub mod entry;
+pub mod entries;
+pub mod fields;
 pub mod ser;
 pub mod taproot;
 pub mod txn;
-pub mod txo;
-pub mod valtype;
+pub mod txos;
+
+pub use entries as entry;
+pub use fields::calldata;
+pub use fields::entities as entity;
+pub use fields::valtypes as valtype;
+pub use txos as txo;

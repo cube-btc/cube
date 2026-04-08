@@ -155,12 +155,18 @@ impl UTXOSet {
     /// Validates the `Lift` prevouts in the `Liftup`.
     ///
     /// Used by the `Engine` to validate the `Lift`s in a `Liftup` are indeed valid UTXOs.
-    pub fn validate_lifts(&self, lifts_to_validate: &Vec<Lift>) -> bool {
-        lifts_to_validate.iter().all(|lift| {
-            self.utxos.iter().any(|(existing_outpoint, txout)| {
+    pub fn validate_lifts(&self, lifts_to_validate: &Vec<Lift>) -> Result<(), Lift> {
+        for lift in lifts_to_validate {
+            let is_valid = self.utxos.iter().any(|(existing_outpoint, txout)| {
                 existing_outpoint == &lift.outpoint()
                     && txout.value.to_sat() == lift.txout().value.to_sat()
-            })
-        })
+            });
+
+            if !is_valid {
+                return Err(lift.clone());
+            }
+        }
+
+        Ok(())
     }
 }
