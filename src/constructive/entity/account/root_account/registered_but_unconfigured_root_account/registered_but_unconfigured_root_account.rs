@@ -5,7 +5,6 @@ use crate::{
         serialize_schnorr_signature,
     },
     inscriptive::flame_manager::flame_config::flame_config::FMAccountFlameConfig,
-    inscriptive::registery::registery::REGISTERY,
 };
 use serde::{Deserialize, Serialize};
 

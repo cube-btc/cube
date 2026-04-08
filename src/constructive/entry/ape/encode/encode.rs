@@ -45,7 +45,7 @@ impl Entry {
             }
 
             // 2.b The `Entry` is a `Liftup`.
-            Entry::Liftup(liftup) => {
+            Entry::Liftup(_liftup) => {
                 panic!("Not implemented yet.");
             }
         }

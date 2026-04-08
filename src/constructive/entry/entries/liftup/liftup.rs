@@ -1,8 +1,5 @@
 use crate::constructive::entity::account::root_account::root_account::RootAccount;
 use crate::constructive::txo::lift::lift::Lift;
-use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
-use crate::inscriptive::registery::registery::REGISTERY;
-use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
 use serde::{Deserialize, Serialize};
 
 /// The `Liftup` struct represents an `Entry` that lifts one or more `Lift` Bitcoin previous transaction outputs.
