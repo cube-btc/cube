@@ -1,15 +1,20 @@
-use crate::constructive::entry::entries::liftup::validate::validate_error::LiftupValidateError;
+use crate::constructive::entry::entries::liftup::ext::validate_lifts::validate_lifts_error::LiftupValidateLiftsError;
+use crate::constructive::entity::account::root_account::unregistered_root_account::ext::register_with_db::register_with_db_error::UnregisteredRootAccountRegisterWithDBError;
+use crate::constructive::entity::account::root_account::registered_but_unconfigured_root_account::ext::sync_with_registery::sync_with_registery_error::RegisteredButUnconfiguredRootAccountSyncWithRegisteryError;
+use crate::constructive::entity::account::root_account::registered_and_configured_root_account::ext::sync_with_registery::sync_with_registery_error::RegisteredAndConfiguredRootAccountSyncWithRegisteryError;
 use crate::inscriptive::coin_manager::errors::balance_update_errors::CMAccountBalanceUpError;
-use crate::constructive::entity::account::root_account::ext::sync_with_registery::sync_with_registery_error::RootAccountSyncWithRegisteryError;
-use crate::inscriptive::coin_manager::errors::register_errors::CMRegisterAccountError;
-use crate::inscriptive::flame_manager::errors::register_account_error::FMRegisterAccountError;
 
 /// Errors associated with executing a `Liftup` entry.
 #[derive(Debug, Clone)]
 pub enum LiftupExecutionError {
-    LiftupValidationError(LiftupValidateError),
-    RootAccountSyncWithRegisteryError(RootAccountSyncWithRegisteryError),
-    CoinManagerRegisterAccountError(CMRegisterAccountError),
-    CoinManagerIncreaseBalanceError(CMAccountBalanceUpError),
-    FlameManagerRegisterAccountError(FMRegisterAccountError),
+    LiftupValidateLiftsError(LiftupValidateLiftsError),
+    RootAccountValidateKeysError,
+    UnregisteredRootAccountRegisterWithDBError(UnregisteredRootAccountRegisterWithDBError),
+    RegisteredButUnconfiguredRootAccountSyncWithRegisteryError(
+        RegisteredButUnconfiguredRootAccountSyncWithRegisteryError,
+    ),
+    RegisteredAndConfiguredRootAccountSyncWithRegisteryError(
+        RegisteredAndConfiguredRootAccountSyncWithRegisteryError,
+    ),
+    CoinManagerAccountBalanceUpError(CMAccountBalanceUpError),
 }

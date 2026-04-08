@@ -4,8 +4,6 @@ use crate::constructive::ser::{
     serialize_schnorr_signature,
 };
 use crate::inscriptive::flame_manager::flame_config::flame_config::FMAccountFlameConfig;
-use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
-use crate::inscriptive::registery::registery::REGISTERY;
 use crate::transmutative::secp::schnorr::Bytes32;
 use serde::{Deserialize, Serialize};
 
@@ -58,7 +56,18 @@ impl UnregisteredRootAccount {
         )
     }
 
-    
+    /// Validates the `UnregisteredRootAccount`'s Schnorr and BLS keys.
+    pub fn validate_schnorr_and_bls_key(&self) -> bool {
+        // 1 Verify that the account key is indeed a valid Schnorr public key.
+        if !self.account_key_to_be_registered.to_even_point().is_some() {
+            return false;
+        }
+
+        // 2 Verify that the BLS key is indeed a valid BLS public key: TODO.
+
+        // 3 Return true.
+        true
+    }
 }
 
 impl PartialEq for UnregisteredRootAccount {

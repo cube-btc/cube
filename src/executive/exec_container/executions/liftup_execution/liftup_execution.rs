@@ -1,6 +1,9 @@
+use crate::constructive::entity::account::root_account::root_account::RootAccount;
 use crate::constructive::entry::entries::liftup::liftup::Liftup;
 use crate::executive::exec_container::errors::liftup_execution_error::LiftupExecutionError;
 use crate::executive::exec_container::exec_container::ExecContainer;
+use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
+use crate::inscriptive::coin_manager::errors::balance_update_errors::CMAccountBalanceUpError;
 
 impl ExecContainer {
     /// Executes a `Liftup` entry.
@@ -8,78 +11,111 @@ impl ExecContainer {
         &mut self,
         liftup: &Liftup,
         session_timestamp: u64,
-        optimized: bool,
     ) -> Result<(), LiftupExecutionError> {
-        // 1 Validate the `Liftup`.
+        // 1 Validate Lifts in the Liftup.
         liftup
-            .validate(
-                self.engine_key,
-                &self.utxo_set,
-                &self.registery,
-                &self.graveyard,
-            )
+            .validate_lifts(self.engine_key, &self.utxo_set)
             .await
-            .map_err(|e| LiftupExecutionError::LiftupValidationError(e))?;
+            .map_err(|e| LiftupExecutionError::LiftupValidateLiftsError(e))?;
 
-        // 2 Get the `RootAccount`.
+        // 2 Get the liftup sum value in satoshis.
+        let liftup_sum_value_in_satoshis = liftup.liftup_sum_value_in_satoshis();
+
+        // 4 Calculate fees
+        let fees: u64 = {
+            // TODO
+            0
+        };
+
+        // 5 Liftup value after fees
+        let liftup_value_after_fees_in_satoshis = liftup_sum_value_in_satoshis - fees;
+
+        // 6 Get the `RootAccount`.
         let root_account = &liftup.account;
 
-        // 3 Get the Account's Schnorr key and BLS key.
-        let (account_key, _bls_key, is_registered) = (
+        // 7 Validate the `RootAccount`'s keys.
+        if !root_account.validate_keys() {
+            return Err(LiftupExecutionError::RootAccountValidateKeysError);
+        }
+
+        // 8 Get the Account's Schnorr key and BLS key.
+        let (_account_key, _bls_key, _is_registered) = (
             root_account.account_key(),
             root_account.bls_key(),
             root_account.is_registered(),
         );
 
-        // 4 Sync the `RootAccount` with the `Registery`.
-        // This will under the hood register the `RootAccount` with the `Registery` if not registered.
-        root_account
-            .sync_with_registery(session_timestamp, &self.registery, optimized)
-            .await
-            .map_err(|e| LiftupExecutionError::RootAccountSyncWithRegisteryError(e))?;
+        // 9 Match on the `RootAccount` type.
+        match root_account {
+            // 9.a The `RootAccount` is an `UnregisteredRootAccount`.
+            RootAccount::UnregisteredRootAccount(unregistered_root_account) => {
+                // 9.a.1 Register the `UnregisteredRootAccount` with the `DB`.
+                unregistered_root_account
+                    .register_with_db(
+                        session_timestamp,
+                        &self.registery,
+                        &self.coin_manager,
+                        &self.flame_manager,
+                        &self.graveyard,
+                        liftup_value_after_fees_in_satoshis,
+                    )
+                    .await
+                    .map_err(|e| {
+                        LiftupExecutionError::UnregisteredRootAccountRegisterWithDBError(e)
+                    })?;
+            }
+            // 9.b The `RootAccount` is a `RegisteredButUnconfiguredRootAccount`.
+            RootAccount::RegisteredButUnconfiguredRootAccount(
+                registered_but_unconfigured_root_account,
+            ) => {
+                // 9.b.1 Sync the `RegisteredButUnconfiguredRootAccount` with the `Registery`.
+                registered_but_unconfigured_root_account.sync_with_registery(session_timestamp, &self.registery)
+                    .await
+                    .map_err(|e| LiftupExecutionError::RegisteredButUnconfiguredRootAccountSyncWithRegisteryError(e))?;
 
-        // 5 Register the Account with the `CoinManager` if not registered, or otherwise increase its balance.
-        {
-            // 5.1 Get the liftup sum value in satoshis.
-            let liftup_sum_value_in_satoshis = liftup.liftup_sum_value_in_satoshis();
+                // 9.b.2 Increase the account balance with the `CoinManager`.
+                increase_account_balance_with_coin_manager(
+                    &self.coin_manager,
+                    _account_key,
+                    liftup_value_after_fees_in_satoshis,
+                )
+                .await
+                .map_err(|e| LiftupExecutionError::CoinManagerAccountBalanceUpError(e))?;
+            }
+            // 9.c The `RootAccount` is a `RegisteredAndConfiguredRootAccount`.
+            RootAccount::RegisteredAndConfiguredRootAccount(
+                registered_and_configured_root_account,
+            ) => {
+                // 9.c.1 Sync the `RegisteredAndConfiguredRootAccount` with the `Registery`.
+                registered_and_configured_root_account.sync_with_registery(session_timestamp, &self.registery)
+                    .await
+                    .map_err(|e| LiftupExecutionError::RegisteredAndConfiguredRootAccountSyncWithRegisteryError(e))?;
 
-            // 5.2 Check whether the `RootAccount` is registered.
-            match is_registered {
-                // 5.2.a The `RootAccount` is not registered.
-                false => {
-                    // 5.2.a.1 Lock the coin manager.
-                    let mut _coin_manager = self.coin_manager.lock().await;
-
-                    // 5.2.a.2 Register the `RootAccount` with the `CoinManager`.
-                    _coin_manager
-                        .register_account(account_key, liftup_sum_value_in_satoshis)
-                        .map_err(|e| LiftupExecutionError::CoinManagerRegisterAccountError(e))?;
-                }
-                // 5.2.b The `RootAccount` is registered.
-                true => {
-                    // 5.2.b.1 Lock the coin manager.
-                    let mut _coin_manager = self.coin_manager.lock().await;
-
-                    // 5.2.b.2 Increase the balance of the `RootAccount`.
-                    _coin_manager
-                        .account_balance_up(account_key, liftup_sum_value_in_satoshis)
-                        .map_err(|e| LiftupExecutionError::CoinManagerIncreaseBalanceError(e))?;
-                }
+                // 9.c.2 Increase the account balance with the `CoinManager`.
+                increase_account_balance_with_coin_manager(
+                    &self.coin_manager,
+                    _account_key,
+                    liftup_value_after_fees_in_satoshis,
+                )
+                .await
+                .map_err(|e| LiftupExecutionError::CoinManagerAccountBalanceUpError(e))?;
             }
         }
 
-        // 6 Register the Account with the `FlameManager` if not registered.
-        if !is_registered {
-            // 6.1 Lock the flame manager.
-            let mut _flame_manager = self.flame_manager.lock().await;
-
-            // 6.2 Register the `RootAccount` with the `FlameManager`.
-            _flame_manager
-                .register_account(account_key)
-                .map_err(|e| LiftupExecutionError::FlameManagerRegisterAccountError(e))?;
-        }
-
-        // 7 Return Ok.
+        // 10 Return Ok.
         Ok(())
     }
+}
+
+/// Increases the account balance with the `CoinManager`.
+async fn increase_account_balance_with_coin_manager(
+    coin_manager: &COIN_MANAGER,
+    account_key: [u8; 32],
+    amount: u64,
+) -> Result<(), CMAccountBalanceUpError> {
+    // 1 Lock the coin manager.
+    let mut _coin_manager = coin_manager.lock().await;
+
+    // 2 Increase the account balance.
+    _coin_manager.account_balance_up(account_key, amount)
 }

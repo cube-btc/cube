@@ -10,15 +10,13 @@ use crate::inscriptive::registery::bodies::contract_body::contract_body::RMContr
 use crate::inscriptive::registery::delta::delta::RMDelta;
 use crate::inscriptive::registery::errors::apply_changes_error::RMApplyChangesError;
 use crate::inscriptive::registery::errors::construction_error::RMConstructionError;
-use crate::inscriptive::registery::errors::increment_account_call_counter_error::RMIncrementAccountCallCounterError;
-use crate::inscriptive::registery::errors::increment_contract_call_counter_error::RMIncrementContractCallCounterError;
 use crate::inscriptive::registery::errors::register_account_error::RMRegisterAccountError;
 use crate::inscriptive::registery::errors::register_contract_error::RMRegisterContractError;
 use crate::inscriptive::registery::errors::update_account_bls_key_error::RMUpdateAccountBLSKeyError;
+use crate::inscriptive::registery::errors::update_account_call_counter_and_last_activity_timestamp_error::RMUpdateAccountCallCounterAndLastActivityTimestampError;
 use crate::inscriptive::registery::errors::update_account_flame_config_error::RMUpdateAccountFlameConfigError;
-use crate::inscriptive::registery::errors::update_account_last_activity_timestamp_error::RMUpdateAccountLastActivityTimestampError;
 use crate::inscriptive::registery::errors::update_account_secondary_aggregation_key_error::RMUpdateAccountSecondaryAggregationKeyError;
-use crate::inscriptive::registery::errors::update_contract_last_activity_timestamp_error::RMUpdateContractLastActivityTimestampError;
+use crate::inscriptive::registery::errors::update_contract_call_counter_and_last_activity_timestamp_error::RMUpdateContractCallCounterAndLastActivityTimestampError;
 use crate::operative::run_args::chain::Chain;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
@@ -514,8 +512,8 @@ impl Registery {
 
     /// Checks if an account is registered.
     pub fn is_account_registered(&self, account_key: [u8; 32]) -> bool {
-        self.is_account_permanently_registered(account_key)
-            || self.is_account_epheremally_registered(account_key)
+        self.is_account_epheremally_registered(account_key)
+            || self.is_account_permanently_registered(account_key)
     }
 
     /// Checks if a contract is permanently registered.
@@ -743,37 +741,31 @@ impl Registery {
         bls_key: Option<AccountBLSKey>,
         secondary_aggregation_key: Option<AccountSecondaryAggregationKey>,
         flame_config: Option<FMAccountFlameConfig>,
-        optimized: bool,
     ) -> Result<(), RMRegisterAccountError> {
-        // 1 If not optimized, do database checks.
-        if !optimized {
-            // 1.1 Check if the account has just been epheremally registered in the delta.
-            if self.delta.is_account_epheremally_registered(account_key) {
-                return Err(
-                    RMRegisterAccountError::AccountHasJustBeenEphemerallyRegistered(account_key),
-                );
-            }
+        // 1 Check if the account has just been epheremally registered in the delta.
+        if self.delta.is_account_epheremally_registered(account_key) {
+            return Err(
+                RMRegisterAccountError::AccountHasJustBeenEphemerallyRegistered(account_key),
+            );
+        }
 
-            // 1.2 Check if the account is already permanently registered.
-            if self.is_account_permanently_registered(account_key) {
-                return Err(
-                    RMRegisterAccountError::AccountIsAlreadyPermanentlyRegistered(account_key),
-                );
-            }
+        // 2 Check if the account is already permanently registered.
+        if self.is_account_permanently_registered(account_key) {
+            return Err(RMRegisterAccountError::AccountIsAlreadyPermanentlyRegistered(account_key));
+        }
 
-            // 1.3 Check if BLS key is conflicting with an already registered BLS key.
-            if let Some(bls_key) = bls_key {
-                if self.bls_key_is_conflicting_with_an_already_registered_bls_key(bls_key) {
-                    return Err(
-                        RMRegisterAccountError::BLSKeyIsConflictingWithAnAlreadyRegisteredBLSKey(
-                            bls_key,
-                        ),
-                    );
-                }
+        // 3 Check if BLS key is conflicting with an already registered BLS key.
+        if let Some(bls_key) = bls_key {
+            if self.bls_key_is_conflicting_with_an_already_registered_bls_key(bls_key) {
+                return Err(
+                    RMRegisterAccountError::BLSKeyIsConflictingWithAnAlreadyRegisteredBLSKey(
+                        bls_key,
+                    ),
+                );
             }
         }
 
-        // 2 Epheremally register the account in the delta.
+        // 3 Epheremally register the account in the delta.
         self.delta.epheremally_register_account(
             account_key,
             last_activity_timestamp,
@@ -782,7 +774,7 @@ impl Registery {
             flame_config,
         );
 
-        // 3 Return the result.
+        // 4 Return the result.
         Ok(())
     }
 
@@ -793,125 +785,90 @@ impl Registery {
         &mut self,
         contract_id: ContractId,
         executable: Executable,
-        optimized: bool,
     ) -> Result<(), RMRegisterContractError> {
-        // 1 If not optimized, do database checks.
-        if !optimized {
-            // 1.1 Check if the contract has just been epheremally registered in the delta.
-            if self.delta.is_contract_epheremally_registered(contract_id) {
-                return Err(
-                    RMRegisterContractError::ContractHasJustBeenEphemerallyRegistered(contract_id),
-                );
-            }
-
-            // 1.2 Check if the contract is already permanently registered.
-            if self.is_contract_permanently_registered(contract_id) {
-                return Err(
-                    RMRegisterContractError::ContractIsAlreadyPermanentlyRegistered(contract_id),
-                );
-            }
+        // 1 Check if the contract has just been epheremally registered in the delta.
+        if self.delta.is_contract_epheremally_registered(contract_id) {
+            return Err(
+                RMRegisterContractError::ContractHasJustBeenEphemerallyRegistered(contract_id),
+            );
         }
 
-        // 2 Epheremally register the contract in the delta.
+        // 2 Check if the contract is already permanently registered.
+        if self.is_contract_permanently_registered(contract_id) {
+            return Err(
+                RMRegisterContractError::ContractIsAlreadyPermanentlyRegistered(contract_id),
+            );
+        }
+
+        // 3 Epheremally register the contract in the delta.
         self.delta
             .epheremally_register_contract(contract_id, executable);
 
-        // 3 Return the result.
+        // 4 Return the result.
         Ok(())
     }
 
-    /// Epheremally increments the call counter of an account.
+    /// Epheremally updates the call counter and last activity timestamp of an account.
     ///
     /// NOTE: These changes are saved with the use of the `apply_changes` function.
-    pub fn increment_account_call_counter_by_one(
+    pub fn update_account_call_counter_and_last_activity_timestamp(
         &mut self,
         account_key: AccountKey,
-        optimized: bool,
-    ) -> Result<(), RMIncrementAccountCallCounterError> {
-        // 1 If not optimized, check if the account is permanently registered.
-        if !optimized {
-            if !self.is_account_permanently_registered(account_key) {
-                return Err(RMIncrementAccountCallCounterError::AccountIsNotRegistered(
+        last_activity_timestamp: u64,
+    ) -> Result<(), RMUpdateAccountCallCounterAndLastActivityTimestampError> {
+        // 1 Check if the account is registered.
+        if !self.is_account_registered(account_key) {
+            return Err(
+                RMUpdateAccountCallCounterAndLastActivityTimestampError::AccountIsNotRegistered(
                     account_key,
-                ));
-            }
+                ),
+            );
         }
 
         // 2 Epheremally increment the call counter delta of the account by one.
         self.delta
             .epheremally_increment_account_call_counter_delta_by_one(account_key);
 
-        // 3 Return the result.
-        Ok(())
-    }
-
-    /// Epheremally updates the last activity timestamp of an account.
-    pub fn update_account_last_activity_timestamp(
-        &mut self,
-        account_key: AccountKey,
-        last_activity_timestamp: u64,
-        optimized: bool,
-    ) -> Result<(), RMUpdateAccountLastActivityTimestampError> {
-        // 1 If not optimized, check if the account is permanently registered.
-        if !optimized {
-            if !self.is_account_permanently_registered(account_key) {
-                return Err(
-                    RMUpdateAccountLastActivityTimestampError::AccountIsNotRegistered(account_key),
-                );
-            }
-        }
-
-        // 2 Epheremally update the account's last activity timestamp.
+        // 3 Epheremally update the last activity timestamp of the account.
         self.delta
-            .epheremally_set_account_last_activity_timestamp(account_key, last_activity_timestamp);
+            .epheremally_update_account_last_activity_timestamp(
+                account_key,
+                last_activity_timestamp,
+            );
 
-        // 3 Return the result.
+        // 4 Return the result.
         Ok(())
     }
 
     /// Epheremally increments the call counter of a contract.
     ///
     /// NOTE: These changes are saved with the use of the `apply_changes` function.
-    pub fn increment_contract_call_counter_by_one(
+    pub fn update_contract_call_counter_and_last_activity_timestamp(
         &mut self,
         contract_id: ContractId,
-        optimized: bool,
-    ) -> Result<(), RMIncrementContractCallCounterError> {
-        // 1 If not optimized, check if the contract is permanently registered.
-        if !optimized {
-            if !self.is_contract_permanently_registered(contract_id) {
-                return Err(
-                    RMIncrementContractCallCounterError::ContractIsNotRegistered(contract_id),
-                );
-            }
+        last_activity_timestamp: u64,
+    ) -> Result<(), RMUpdateContractCallCounterAndLastActivityTimestampError> {
+        // 1 Check if the contract is registered.
+        if !self.is_contract_registered(contract_id) {
+            return Err(
+                RMUpdateContractCallCounterAndLastActivityTimestampError::ContractIsNotRegistered(
+                    contract_id,
+                ),
+            );
         }
 
         // 2 Epheremally increment the call counter delta of the contract by one.
         self.delta
             .epheremally_increment_contract_call_counter_delta_by_one(contract_id);
 
-        // 3 Return the result.
-        Ok(())
-    }
-
-    /// Epheremally updates the last activity timestamp of a contract.
-    pub fn update_contract_last_activity_timestamp(
-        &mut self,
-        contract_id: ContractId,
-        last_activity_timestamp: u64,
-    ) -> Result<(), RMUpdateContractLastActivityTimestampError> {
-        // 1 Check if the contract is permanently registered.
-        if !self.is_contract_permanently_registered(contract_id) {
-            return Err(
-                RMUpdateContractLastActivityTimestampError::ContractIsNotRegistered(contract_id),
-            );
-        }
-
-        // 2 Epheremally update the contract's last activity timestamp.
+        // 3 Epheremally update the last activity timestamp of the contract.
         self.delta
-            .epheremally_set_contract_last_activity_timestamp(contract_id, last_activity_timestamp);
+            .epheremally_update_contract_last_activity_timestamp(
+                contract_id,
+                last_activity_timestamp,
+            );
 
-        // 3 Return the result.
+        // 4 Return the result.
         Ok(())
     }
 
@@ -922,35 +879,31 @@ impl Registery {
         &mut self,
         account_key: AccountKey,
         bls_key: AccountBLSKey,
-        optimized: bool,
     ) -> Result<(), RMUpdateAccountBLSKeyError> {
         // NOTE: We allot BLS key to be set only once, and for that it should not have been set yet.
 
-        // 1 If not optimized, do extra checks.
-        if !optimized {
-            // 1.1 Check if the account is permanently registered.
-            let account_body = self.in_memory_accounts.get(&account_key).ok_or(
-                RMUpdateAccountBLSKeyError::AccountIsNotRegistered(account_key),
-            )?;
+        // 1 Check if the account is permanently registered.
+        let account_body = self.in_memory_accounts.get(&account_key).ok_or(
+            RMUpdateAccountBLSKeyError::AccountIsNotRegistered(account_key),
+        )?;
 
-            // 1.2 Make sure the BLS key has not been already permanently set.
-            if account_body.primary_bls_key.is_some() {
-                return Err(RMUpdateAccountBLSKeyError::BLSKeyIsAlreadyPermanentlySet(
-                    account_key,
-                ));
-            }
-
-            // 1.3 Check if the BLS key is conflicting with an already registered BLS key.
-            if self.bls_key_is_conflicting_with_an_already_registered_bls_key(bls_key) {
-                return Err(
-                    RMUpdateAccountBLSKeyError::BLSKeyIsConflictingWithAnAlreadyRegisteredBLSKey(
-                        bls_key,
-                    ),
-                );
-            }
+        // 2 Make sure the BLS key has not been already permanently set.
+        if account_body.primary_bls_key.is_some() {
+            return Err(RMUpdateAccountBLSKeyError::BLSKeyIsAlreadyPermanentlySet(
+                account_key,
+            ));
         }
 
-        // 2 Update the BLS key in the delta, and return an error if it has already been epheremally set in the same execution.
+        // 3 Check if the BLS key is conflicting with an already registered BLS key.
+        if self.bls_key_is_conflicting_with_an_already_registered_bls_key(bls_key) {
+            return Err(
+                RMUpdateAccountBLSKeyError::BLSKeyIsConflictingWithAnAlreadyRegisteredBLSKey(
+                    bls_key,
+                ),
+            );
+        }
+
+        // 4 Update the BLS key in the delta, and return an error if it has already been epheremally set in the same execution.
         if let Some(existing_bls_key) = self
             .delta
             .epheremally_set_account_bls_key(account_key, bls_key)
@@ -961,7 +914,7 @@ impl Registery {
             ));
         }
 
-        // 3 Return the result.
+        // 5 Return the result.
         Ok(())
     }
 

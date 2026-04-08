@@ -1,11 +1,9 @@
 pub mod apply_changes_error;
 pub mod construction_error;
-pub mod increment_account_call_counter_error;
-pub mod increment_contract_call_counter_error;
-pub mod update_account_last_activity_timestamp_error;
-pub mod update_contract_last_activity_timestamp_error;
-pub mod update_account_bls_key_error;
-pub mod update_account_secondary_aggregation_key_error;
-pub mod update_account_flame_config_error;
 pub mod register_account_error;
 pub mod register_contract_error;
+pub mod update_account_bls_key_error;
+pub mod update_account_call_counter_and_last_activity_timestamp_error;
+pub mod update_account_flame_config_error;
+pub mod update_account_secondary_aggregation_key_error;
+pub mod update_contract_call_counter_and_last_activity_timestamp_error;

@@ -8,8 +8,8 @@ use crate::transmutative::hash::Hash;
 use crate::transmutative::hash::HashTag;
 use crate::transmutative::secp::schnorr;
 use crate::transmutative::secp::schnorr::SchnorrSigningMode;
-use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
-
+use crate::transmutative::secp::schnorr::Bytes32
+;
 #[derive(Clone, Serialize, Deserialize)]
 pub enum RootAccount {
     // A fresh, unregistered (thus unranked), and unconfigured account.
@@ -184,6 +184,24 @@ impl RootAccount {
         }
     }
 
+    /// Validates the `RootAccount`'s keys based on the type.
+    pub fn validate_keys(&self) -> bool {
+        // 1 Match on the `RootAccount` type.
+        match self {
+            // 1.a The `RootAccount` is an `UnregisteredRootAccount`.
+            Self::UnregisteredRootAccount(unregistered_root_account) => {
+                unregistered_root_account.validate_schnorr_and_bls_key()
+            }
+
+            // 1.b The `RootAccount` is a `RegisteredButUnconfiguredRootAccount`.
+            Self::RegisteredButUnconfiguredRootAccount(
+                registered_but_unconfigured_root_account,
+            ) => registered_but_unconfigured_root_account.validate_bls_key(),
+
+            // 1.c The `RootAccount` is a `RegisteredAndConfiguredRootAccount`.
+            Self::RegisteredAndConfiguredRootAccount(_) => true,
+        }
+    }
 }
 
 impl PartialEq for RootAccount {

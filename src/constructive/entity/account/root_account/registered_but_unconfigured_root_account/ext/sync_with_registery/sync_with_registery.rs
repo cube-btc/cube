@@ -7,7 +7,6 @@ impl RegisteredButUnconfiguredRootAccount {
         &self,
         session_timestamp: u64,
         registery: &REGISTERY,
-        optimized: bool,
     ) -> Result<(), RegisteredButUnconfiguredRootAccountSyncWithRegisteryError> {
         // 1 Get BLS key to be configured.
         let bls_key_to_be_configured = self.bls_key_to_be_configured;
@@ -15,30 +14,21 @@ impl RegisteredButUnconfiguredRootAccount {
         // 2 Lock the registery.
         let mut _registery = registery.lock().await;
 
-        // 3 Increment the call counter.
+        // 3 Update the call counter and last activity timestamp.
         _registery
-            .increment_account_call_counter_by_one(self.account_key, optimized)
+            .update_account_call_counter_and_last_activity_timestamp(self.account_key, session_timestamp)
             .map_err(|e| {
-                RegisteredButUnconfiguredRootAccountSyncWithRegisteryError::RegisteryIncrementAccountCallCounterError(e)
+                RegisteredButUnconfiguredRootAccountSyncWithRegisteryError::RegisteryUpdateAccountCallCounterAndLastActivityTimestampError(e)
             })?;
 
-        // 4 Update the last activity timestamp.
+        // 4 Update the BLS key.
         _registery
-            .update_account_last_activity_timestamp(self.account_key, session_timestamp, optimized)
-            .map_err(|e| {
-                RegisteredButUnconfiguredRootAccountSyncWithRegisteryError::RegisteryUpdateAccountLastActivityTimestampError(
-                    e,
-                )
-            })?;
-
-        // 5 Update the BLS key.
-        _registery
-            .set_account_bls_key(self.account_key, bls_key_to_be_configured, optimized)
+            .set_account_bls_key(self.account_key, bls_key_to_be_configured)
             .map_err(|e| {
                 RegisteredButUnconfiguredRootAccountSyncWithRegisteryError::RegisterySetAccountBLSKeyError(e)
             })?;
 
-        // 6 Return Ok.
+        // 5 Return Ok.
         Ok(())
     }
 }

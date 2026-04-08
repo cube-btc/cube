@@ -1,2 +1,2 @@
-pub mod sync_with_registery;
+pub mod register_with_db;
 pub mod validate;

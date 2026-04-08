@@ -199,8 +199,8 @@ impl RMDelta {
             .insert(account_key, secondary_aggregation_key)
     }
 
-    /// Epheremally sets an account's last activity timestamp.
-    pub fn epheremally_set_account_last_activity_timestamp(
+    /// Epheremally updates an account's last activity timestamp.
+    pub fn epheremally_update_account_last_activity_timestamp(
         &mut self,
         account_key: AccountKey,
         last_activity_timestamp: ActivityTimestamp,
@@ -209,8 +209,8 @@ impl RMDelta {
             .insert(account_key, last_activity_timestamp)
     }
 
-    /// Epheremally sets a contract's last activity timestamp.
-    pub fn epheremally_set_contract_last_activity_timestamp(
+    /// Epheremally updates a contract's last activity timestamp.
+    pub fn epheremally_update_contract_last_activity_timestamp(
         &mut self,
         contract_id: ContractId,
         last_activity_timestamp: ActivityTimestamp,

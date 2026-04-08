@@ -62,6 +62,14 @@ impl RegisteredButUnconfiguredRootAccount {
             self.authorization_signature,
         )
     }
+
+    /// Validates the `RegisteredButUnconfiguredRootAccount`'s keys.
+    pub fn validate_bls_key(&self) -> bool {
+        // 1 Verify that the BLS key is indeed a valid BLS public key: TODO.
+
+        // 2 Return true.
+        true
+    }
 }
 
 impl PartialEq for RegisteredButUnconfiguredRootAccount {

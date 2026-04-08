@@ -1,11 +1,11 @@
-use crate::inscriptive::registery::errors::increment_account_call_counter_error::RMIncrementAccountCallCounterError;
+use crate::inscriptive::registery::errors::update_account_call_counter_and_last_activity_timestamp_error::RMUpdateAccountCallCounterAndLastActivityTimestampError;
 use crate::inscriptive::registery::errors::update_account_bls_key_error::RMUpdateAccountBLSKeyError;
-use crate::inscriptive::registery::errors::update_account_last_activity_timestamp_error::RMUpdateAccountLastActivityTimestampError;
 
-/// Errors associated with syncing a `RegisteredAndConfiguredRootAccount` with the `Registery`.
+/// Errors associated with syncing a `RegisteredButUnconfiguredRootAccount` with the `Registery`.
 #[derive(Debug, Clone)]
 pub enum RegisteredButUnconfiguredRootAccountSyncWithRegisteryError {
-    RegisteryIncrementAccountCallCounterError(RMIncrementAccountCallCounterError),
-    RegisteryUpdateAccountLastActivityTimestampError(RMUpdateAccountLastActivityTimestampError),
+    RegisteryUpdateAccountCallCounterAndLastActivityTimestampError(
+        RMUpdateAccountCallCounterAndLastActivityTimestampError,
+    ),
     RegisterySetAccountBLSKeyError(RMUpdateAccountBLSKeyError),
 }

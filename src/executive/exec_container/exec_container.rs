@@ -162,14 +162,13 @@ impl ExecContainer {
         &mut self,
         liftup: Liftup,
         session_timestamp: u64,
-        optimized: bool,
     ) -> Result<(), LiftupExecutionError> {
         // 1 Pre-execution.
         self.pre_execution().await;
 
         // 2 Execute the liftup.
         match self
-            .execute_liftup_internal(&liftup, session_timestamp, optimized)
+            .execute_liftup_internal(&liftup, session_timestamp)
             .await
         {
             // 2.a Success.

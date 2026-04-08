@@ -7,28 +7,18 @@ impl RegisteredAndConfiguredRootAccount {
         &self,
         session_timestamp: u64,
         registery: &REGISTERY,
-        optimized: bool,
     ) -> Result<(), RegisteredAndConfiguredRootAccountSyncWithRegisteryError> {
         // 1 Lock the registery.
         let mut _registery = registery.lock().await;
 
-        // 2 Increment the call counter.
+        // 2 Update the call counter and last activity timestamp.
         _registery
-            .increment_account_call_counter_by_one(self.account_key, optimized)
+            .update_account_call_counter_and_last_activity_timestamp(self.account_key, session_timestamp)
             .map_err(|e| {
-                RegisteredAndConfiguredRootAccountSyncWithRegisteryError::RegisteryIncrementAccountCallCounterError(e)
+                RegisteredAndConfiguredRootAccountSyncWithRegisteryError::RegisteryUpdateAccountCallCounterAndLastActivityTimestampError(e)
             })?;
 
-        // 3 Update the last activity timestamp.
-        _registery
-            .update_account_last_activity_timestamp(self.account_key, session_timestamp, optimized)
-            .map_err(|e| {
-                RegisteredAndConfiguredRootAccountSyncWithRegisteryError::RegisteryUpdateAccountLastActivityTimestampError(
-                    e,
-                )
-            })?;
-
-        // 4 Return Ok.
+        // 3 Return Ok.
         Ok(())
     }
 }
