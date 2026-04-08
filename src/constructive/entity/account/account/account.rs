@@ -51,7 +51,7 @@ impl Account {
             Self::RegisteredAccount(registered_account) => registered_account.account_key,
 
             // The account is not registered.
-            Self::UnregisteredAccount(unregistered_account) => unregistered_account.account_key,
+            Self::UnregisteredAccount(unregistered_account) => unregistered_account.account_key_to_be_registered,
         }
     }
 }

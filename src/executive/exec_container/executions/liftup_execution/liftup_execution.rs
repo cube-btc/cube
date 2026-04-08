@@ -21,35 +21,37 @@ impl ExecContainer {
         // 2 Get the liftup sum value in satoshis.
         let liftup_sum_value_in_satoshis = liftup.liftup_sum_value_in_satoshis();
 
-        // 4 Calculate fees
+        // 3 Calculate fees.
         let fees: u64 = {
             // TODO
             0
         };
 
-        // 5 Liftup value after fees
+        // 4 Liftup value after fees.
         let liftup_value_after_fees_in_satoshis = liftup_sum_value_in_satoshis - fees;
 
-        // 6 Get the `RootAccount`.
+        // 5 Get the `RootAccount`.
         let root_account = &liftup.account;
 
-        // 7 Validate the `RootAccount`'s keys.
-        if !root_account.validate_keys() {
-            return Err(LiftupExecutionError::RootAccountValidateKeysError);
-        }
-
-        // 8 Get the Account's Schnorr key and BLS key.
+        // 6 Get the Account's Schnorr key and BLS key.
         let (_account_key, _bls_key, _is_registered) = (
             root_account.account_key(),
             root_account.bls_key(),
             root_account.is_registered(),
         );
 
-        // 9 Match on the `RootAccount` type.
+        // 7 Match on the `RootAccount` type.
         match root_account {
-            // 9.a The `RootAccount` is an `UnregisteredRootAccount`.
+            // 7.a The `RootAccount` is an `UnregisteredRootAccount`.
             RootAccount::UnregisteredRootAccount(unregistered_root_account) => {
-                // 9.a.1 Register the `UnregisteredRootAccount` with the `DB`.
+                // 7.a.1 Validate the Schnorr and BLS keys are indeed valid.
+                if !unregistered_root_account.validate_schnorr_and_bls_key() {
+                    return Err(
+                        LiftupExecutionError::UnregisteredRootAccountValidateSchnorrAndBLSKeyError,
+                    );
+                }
+
+                // 7.a.2 Register the `UnregisteredRootAccount` with the `DB`.
                 unregistered_root_account
                     .register_with_db(
                         session_timestamp,
@@ -64,16 +66,21 @@ impl ExecContainer {
                         LiftupExecutionError::UnregisteredRootAccountRegisterWithDBError(e)
                     })?;
             }
-            // 9.b The `RootAccount` is a `RegisteredButUnconfiguredRootAccount`.
+            // 7.b The `RootAccount` is a `RegisteredButUnconfiguredRootAccount`.
             RootAccount::RegisteredButUnconfiguredRootAccount(
                 registered_but_unconfigured_root_account,
             ) => {
-                // 9.b.1 Sync the `RegisteredButUnconfiguredRootAccount` with the `Registery`.
+                // 7.b.0 Validate the BLS key is indeed a valid BLS public key.
+                if !registered_but_unconfigured_root_account.validate_bls_key() {
+                    return Err(LiftupExecutionError::RegisteredButUnconfiguredRootAccountValidateBLSKeyError);
+                }
+
+                // 7.b.1 Sync the `RegisteredButUnconfiguredRootAccount` with the `Registery`.
                 registered_but_unconfigured_root_account.sync_with_registery(session_timestamp, &self.registery)
                     .await
                     .map_err(|e| LiftupExecutionError::RegisteredButUnconfiguredRootAccountSyncWithRegisteryError(e))?;
 
-                // 9.b.2 Increase the account balance with the `CoinManager`.
+                // 7.b.2 Increase the account balance with the `CoinManager`.
                 increase_account_balance_with_coin_manager(
                     &self.coin_manager,
                     _account_key,
@@ -82,16 +89,16 @@ impl ExecContainer {
                 .await
                 .map_err(|e| LiftupExecutionError::CoinManagerAccountBalanceUpError(e))?;
             }
-            // 9.c The `RootAccount` is a `RegisteredAndConfiguredRootAccount`.
+            // 7.c The `RootAccount` is a `RegisteredAndConfiguredRootAccount`.
             RootAccount::RegisteredAndConfiguredRootAccount(
                 registered_and_configured_root_account,
             ) => {
-                // 9.c.1 Sync the `RegisteredAndConfiguredRootAccount` with the `Registery`.
+                // 7.c.1 Sync the `RegisteredAndConfiguredRootAccount` with the `Registery`.
                 registered_and_configured_root_account.sync_with_registery(session_timestamp, &self.registery)
                     .await
                     .map_err(|e| LiftupExecutionError::RegisteredAndConfiguredRootAccountSyncWithRegisteryError(e))?;
 
-                // 9.c.2 Increase the account balance with the `CoinManager`.
+                // 7.c.2 Increase the account balance with the `CoinManager`.
                 increase_account_balance_with_coin_manager(
                     &self.coin_manager,
                     _account_key,
@@ -102,7 +109,7 @@ impl ExecContainer {
             }
         }
 
-        // 10 Return Ok.
+        // 8 Return Ok.
         Ok(())
     }
 }

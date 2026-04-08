@@ -8,8 +8,9 @@ use crate::inscriptive::coin_manager::errors::balance_update_errors::CMAccountBa
 #[derive(Debug, Clone)]
 pub enum LiftupExecutionError {
     LiftupValidateLiftsError(LiftupValidateLiftsError),
-    RootAccountValidateKeysError,
+    UnregisteredRootAccountValidateSchnorrAndBLSKeyError,
     UnregisteredRootAccountRegisterWithDBError(UnregisteredRootAccountRegisterWithDBError),
+    RegisteredButUnconfiguredRootAccountValidateBLSKeyError,
     RegisteredButUnconfiguredRootAccountSyncWithRegisteryError(
         RegisteredButUnconfiguredRootAccountSyncWithRegisteryError,
     ),

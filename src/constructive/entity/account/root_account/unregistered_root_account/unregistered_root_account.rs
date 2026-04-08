@@ -59,7 +59,7 @@ impl UnregisteredRootAccount {
     /// Validates the `UnregisteredRootAccount`'s Schnorr and BLS keys.
     pub fn validate_schnorr_and_bls_key(&self) -> bool {
         // 1 Verify that the account key is indeed a valid Schnorr public key.
-        if !self.account_key_to_be_registered.to_even_point().is_some() {
+        if !self.account_key_to_be_registered.to_even_point().is_none() {
             return false;
         }
 

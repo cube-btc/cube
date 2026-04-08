@@ -183,25 +183,6 @@ impl RootAccount {
             }
         }
     }
-
-    /// Validates the `RootAccount`'s keys based on the type.
-    pub fn validate_keys(&self) -> bool {
-        // 1 Match on the `RootAccount` type.
-        match self {
-            // 1.a The `RootAccount` is an `UnregisteredRootAccount`.
-            Self::UnregisteredRootAccount(unregistered_root_account) => {
-                unregistered_root_account.validate_schnorr_and_bls_key()
-            }
-
-            // 1.b The `RootAccount` is a `RegisteredButUnconfiguredRootAccount`.
-            Self::RegisteredButUnconfiguredRootAccount(
-                registered_but_unconfigured_root_account,
-            ) => registered_but_unconfigured_root_account.validate_bls_key(),
-
-            // 1.c The `RootAccount` is a `RegisteredAndConfiguredRootAccount`.
-            Self::RegisteredAndConfiguredRootAccount(_) => true,
-        }
-    }
 }
 
 impl PartialEq for RootAccount {
