@@ -8,8 +8,8 @@ use crate::transmutative::hash::Hash;
 use crate::transmutative::hash::HashTag;
 use crate::transmutative::secp::schnorr;
 use crate::transmutative::secp::schnorr::SchnorrSigningMode;
-use crate::transmutative::secp::schnorr::Bytes32
-;
+
+/// The `RootAccount` enum represents the different types of root accounts that can be created.
 #[derive(Clone, Serialize, Deserialize)]
 pub enum RootAccount {
     // A fresh, unregistered (thus unranked), and unconfigured account.
