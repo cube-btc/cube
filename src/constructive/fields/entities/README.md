@@ -1,5 +1,5 @@
 # Entities
-Cube supports 2 types of entities:
+Cube supports 2 type of entities:
 
 | Entity           | Description                                                                                      |
 |:-----------------|:-------------------------------------------------------------------------------------------------|

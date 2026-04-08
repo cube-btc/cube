@@ -1,4 +1,4 @@
-# Entry
+# Entries
 `Entry` acts as a container for specific actions, such as calling a smart contract or moving coins.
 
 Cube employs 10 core `Entry` types:
