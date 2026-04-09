@@ -7,12 +7,6 @@ impl Entry {
     /// Airly Payload Encoding (APE) encoding for `Entry`.
     ///
     /// This function encodes an `Entry` as an Airly Payload Encoding (APE) bit vector.
-    ///
-    /// # Arguments
-    /// * `&self` - The `Entry` to encode.
-    /// * `registery` - The guarded `Registery` to get the `Account`'s rank value.
-    /// * `encode_account_rank_as_longval` - Whether to encode the account rank as a `LongVal` or a `ShortVal`.
-    /// * `encode_contract_rank_as_longval` - Whether to encode the contract rank as a `LongVal` or a `ShortVal`.
     pub async fn encode_ape(
         &self,
         registery: &REGISTERY,
@@ -45,8 +39,21 @@ impl Entry {
             }
 
             // 2.b The `Entry` is a `Liftup`.
-            Entry::Liftup(_liftup) => {
-                panic!("Not implemented yet.");
+            Entry::Liftup(liftup) => {
+                // 2.b.1 Push 1100 for the `Liftup` entry type.
+                bits.push(true);
+                bits.push(true);
+                bits.push(false);
+                bits.push(false);
+
+                // 2.b.2 Encode the `Liftup`.
+                let liftup_bits = liftup
+                    .encode_ape(registery, encode_account_rank_as_longval)
+                    .await
+                    .map_err(|e| EntryAPEEncodeError::LiftupAPEEncodeError(e))?;
+
+                // 2.b.3 Extend the `Entry` APE bit vector with the `Liftup` APE bit vector.
+                bits.extend(liftup_bits);
             }
         }
 

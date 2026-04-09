@@ -13,7 +13,7 @@ impl Liftup {
         // 1 Validate the structures of the `Lift`s in the `Liftup`.
         {
             // 2.1 Get the self account key.
-            let self_account_key = self.account.account_key();
+            let self_account_key = self.root_account.account_key();
 
             // 2.2 Validate the structures of the `Lift`s in the `Liftup`.
             for lift in &self.lift_prevtxos {

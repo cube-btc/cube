@@ -32,7 +32,7 @@ impl ExecContainer {
         let liftup_value_after_fees_in_satoshis = liftup_sum_value_in_satoshis - fees;
 
         // 5 Get the `RootAccount`.
-        let root_account = &liftup.account;
+        let root_account = &liftup.root_account;
 
         // 6 Get the Account's Schnorr key and BLS key.
         let (_account_key, _bls_key, _is_registered) = (

@@ -6,8 +6,8 @@ use serde::{Deserialize, Serialize};
 /// `Liftup` is how BTC is injected into the system from on-chain.
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Liftup {
-    // The root `Account` that is lifting
-    pub account: RootAccount,
+    // The `RootAccount` that is lifting
+    pub root_account: RootAccount,
 
     // Spent `Lift` prevtxos (previous transaction outputs)
     pub lift_prevtxos: Vec<Lift>,
@@ -15,9 +15,9 @@ pub struct Liftup {
 
 impl Liftup {
     /// Creates a new Liftup struct.
-    pub fn new(account: RootAccount, lift_prevtxos: Vec<Lift>) -> Liftup {
+    pub fn new(root_account: RootAccount, lift_prevtxos: Vec<Lift>) -> Liftup {
         Self {
-            account,
+            root_account,
             lift_prevtxos,
         }
     }
