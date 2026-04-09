@@ -38,8 +38,8 @@ impl SessionPool {
     /// Constructs the `SessionPool`.    
     pub fn construct(
         engine_key: [u8; 32],
-        registery: REGISTERY,
         utxo_set: UTXO_SET,
+        registery: REGISTERY,
         graveyard: GRAVEYARD,
         coin_manager: COIN_MANAGER,
         flame_manager: FLAME_MANAGER,
@@ -47,8 +47,8 @@ impl SessionPool {
         // 1 Construct the exec container.
         let exec_container = ExecContainer::construct(
             engine_key,
-            registery,
             utxo_set,
+            registery,
             graveyard,
             coin_manager,
             flame_manager,

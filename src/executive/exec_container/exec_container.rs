@@ -1,4 +1,5 @@
 use crate::constructive::entry::entry::Entry;
+use crate::executive::exec_container::errors::batch_execution_error::BatchExecutionError;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
 use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
@@ -9,6 +10,7 @@ use crate::{
     executive::exec_container::errors::apply_changes_error::ApplyChangesError,
     executive::exec_container::errors::liftup_execution_error::LiftupExecutionError,
 };
+use bit_vec::BitVec;
 use bitcoin::{OutPoint, TxOut};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -18,11 +20,11 @@ pub struct ExecContainer {
     // The key of the Engine.
     pub engine_key: [u8; 32],
 
-    // The local registery database of the Engine.
-    pub registery: REGISTERY,
-
     // The local utxo set database of the Engine.
     pub utxo_set: UTXO_SET,
+
+    // The local registery database of the Engine.
+    pub registery: REGISTERY,
 
     // The local graveyard database of the Engine.
     pub graveyard: GRAVEYARD,
@@ -51,8 +53,8 @@ impl ExecContainer {
     /// Constructs the `ExecContainer`.    
     pub fn construct(
         engine_key: [u8; 32],
-        registery: REGISTERY,
         utxo_set: UTXO_SET,
+        registery: REGISTERY,
         graveyard: GRAVEYARD,
         coin_manager: COIN_MANAGER,
         flame_manager: FLAME_MANAGER,
@@ -60,8 +62,8 @@ impl ExecContainer {
         // 1 Initialize the `ExecContainer`.
         let exec_container = ExecContainer {
             engine_key,
-            registery,
             utxo_set,
+            registery,
             graveyard,
             coin_manager,
             flame_manager,
@@ -104,6 +106,21 @@ impl ExecContainer {
         self.flame_manager.lock().await.rollback_last();
     }
 
+    /// Rolls back all the changes in the `ExecContainer`.
+    async fn rollback_all(&mut self) {
+        // 1 Rollback all coin manager.
+        self.coin_manager.lock().await.flush_delta();
+
+        // 2 Rollback all graveyard.
+        self.graveyard.lock().await.flush_deltas();
+
+        // 3 Rollback all registery.
+        self.registery.lock().await.flush_delta();
+
+        // 4 Rollback all flame manager.
+        self.flame_manager.lock().await.flush_delta();
+    }
+
     /// Applies the changes to the `ExecContainer` collectively for all Entries in the container.
     async fn apply_changes(
         &mut self,
@@ -141,16 +158,67 @@ impl ExecContainer {
             return Err(ApplyChangesError::FlameManagerApplyChangesError(error));
         }
 
-        // 5 Flush the container.
-        {
-            // 5.1 Clear the executed entries.
-            self.executed_entries.clear();
+        // 5 Flush the container changes.
+        self.rollback_all().await;
 
-            // 5.2 Clear the added Bitcoin transaction inputs.
-            self.added_tx_inputs.clear();
+        // 6 Return Ok.
+        Ok(())
+    }
 
-            // 5.3 Clear the added Bitcoin transaction outputs.
-            self.added_tx_outputs.clear();
+    /// Executes a batch of Entries.
+    pub async fn execute_batch(
+        &mut self,
+        batch_payload: BitVec,
+        batch_tx_inputs: Vec<OutPoint>,
+        batch_tx_outputs: Vec<TxOut>,
+        session_timestamp: u64,
+    ) -> Result<(), BatchExecutionError> {
+        // 1 Turn the APE payload into an iterator.
+        let mut ape_bitstream = batch_payload.iter();
+
+        // 2 Turn the tx inputs into an iterator.
+        let mut tx_inputs_iter = batch_tx_inputs.into_iter();
+
+        // 3 Turn the tx outputs into an iterator.
+        let mut _tx_outputs_iter = batch_tx_outputs.iter();
+
+        // TODO: These will come from the params manager.
+        let decode_account_rank_as_longval = true;
+        let decode_contract_rank_as_longval = true;
+        let base_ops_price = 100;
+
+        // 4 Decode entries from the patload one by one and execute them.
+        loop {  
+            // 4.1 Check if the APE bitstream is empty.
+            if ape_bitstream.next().is_none() {
+                break;
+            }
+
+            // 4.2 Decode Entry from the APE bitstream.
+            let entry = Entry::decode_ape(
+                &mut ape_bitstream,
+                &mut tx_inputs_iter,
+                self.engine_key,
+                decode_account_rank_as_longval,
+                decode_contract_rank_as_longval,
+                base_ops_price,
+                &self.utxo_set,
+                &self.registery,
+            )
+            .await
+            .map_err(|e| BatchExecutionError::DecodeEntryError(e))?;
+
+            // 4.3 Match on the Entry type.
+            match entry {
+                // 4.3.a The Entry is a `Liftup`.
+                Entry::Liftup(liftup) => {
+                    // 4.3.a.1 Execute the `Liftup` Entry.
+                    self.execute_liftup(liftup, session_timestamp)
+                        .await
+                        .map_err(|e| BatchExecutionError::LiftupExecutionError(e))?;
+                }
+                _ => panic!("Not implemented yet."),
+            }
         }
 
         // 5 Return Ok.
@@ -162,14 +230,13 @@ impl ExecContainer {
         &mut self,
         liftup: Liftup,
         session_timestamp: u64,
-        validate_lifts_with_the_utxo_set: bool,
     ) -> Result<(), LiftupExecutionError> {
         // 1 Pre-execution.
         self.pre_execution().await;
 
         // 2 Execute the liftup.
         match self
-            .execute_liftup_internal(&liftup, session_timestamp, validate_lifts_with_the_utxo_set)
+            .execute_liftup_internal(&liftup, session_timestamp)
             .await
         {
             // 2.a Success.

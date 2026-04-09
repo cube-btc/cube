@@ -11,13 +11,7 @@ impl ExecContainer {
         &mut self,
         liftup: &Liftup,
         session_timestamp: u64,
-        validate_lifts_with_the_utxo_set: bool,
     ) -> Result<(), LiftupExecutionError> {
-        // 1 Validate Lifts in the Liftup.
-        liftup
-            .validate_lifts(self.engine_key, &self.utxo_set, validate_lifts_with_the_utxo_set)
-            .await
-            .map_err(|e| LiftupExecutionError::ValidateLiftsError(e))?;
 
         // 2 Get the liftup sum value in satoshis.
         let liftup_sum_value_in_satoshis = liftup.liftup_sum_value_in_satoshis();
