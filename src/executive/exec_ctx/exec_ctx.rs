@@ -1,10 +1,13 @@
+use crate::constructive::bitcoiny::batch_template::batch_template::BatchTemplate;
 use crate::constructive::entry::entry::Entry;
 use crate::executive::exec_ctx::errors::batch_execution_error::BatchExecutionError;
+use crate::executive::exec_ctx::errors::into_batch_template_error::IntoBatchTemplateError;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
 use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 use crate::inscriptive::registery::registery::REGISTERY;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
+use crate::transmutative::codec::bitvec_ext::BitVecExt;
 use crate::{
     constructive::entry::entry_types::liftup::liftup::Liftup,
     executive::entry_executions::liftup_execution::error::liftup_execution_error::LiftupExecutionError,
@@ -14,6 +17,9 @@ use bit_vec::BitVec;
 use bitcoin::{OutPoint, TxOut};
 use std::sync::Arc;
 use tokio::sync::Mutex;
+
+/// A type alias for a vector of bytes.
+type Bytes = Vec<u8>;
 
 /// `ExecCtx` contains a set of executed entries.
 pub struct ExecCtx {
@@ -77,7 +83,7 @@ impl ExecCtx {
     }
 
     /// Prepares the `ExecCtx` prior to each execution.
-    async fn pre_execution(&mut self) {
+    pub async fn pre_execution(&mut self) {
         // 1 Pre-execution coin manager.
         self.coin_manager.lock().await.pre_execution();
 
@@ -92,7 +98,7 @@ impl ExecCtx {
     }
 
     /// Rolls back the last execution of the `ExecCtx` due to a failed individual Entry execution.
-    async fn rollback_last(&mut self) {
+    pub async fn rollback_last(&mut self) {
         // 1 Rollback last coin manager.
         self.coin_manager.lock().await.rollback_last();
 
@@ -106,8 +112,8 @@ impl ExecCtx {
         self.flame_manager.lock().await.rollback_last();
     }
 
-    /// Rolls back all the changes in the `ExecCtx`.
-    async fn rollback_all(&mut self) {
+    /// Flushes all the changes in the `ExecCtx`.
+    pub async fn flush(&mut self) {
         // 1 Rollback all coin manager.
         self.coin_manager.lock().await.flush_delta();
 
@@ -119,6 +125,15 @@ impl ExecCtx {
 
         // 4 Rollback all flame manager.
         self.flame_manager.lock().await.flush_delta();
+
+        // 5 Reset the added tx inputs.
+        self.added_tx_inputs.clear();
+
+        // 6 Reset the added tx outputs.
+        self.added_tx_outputs.clear();
+
+        // 7 Reset the executed entries.
+        self.executed_entries.clear();
     }
 
     /// Applies the changes to the `ExecCtx` collectively for all Entries in the container.
@@ -159,42 +174,89 @@ impl ExecCtx {
         }
 
         // 5 Flush the container changes.
-        self.rollback_all().await;
+        self.flush().await;
 
         // 6 Return Ok.
         Ok(())
     }
 
-    /// Executes a batch of Entries.
+    /// Converts the `ExecCtx` into a `BatchTemplate`.
+    ///
+    /// Used by Engine to convert the `ExecCtx` in its `SessionPool` into a `BatchTemplate`.
+    pub async fn into_batch_template(&mut self) -> Result<BatchTemplate, IntoBatchTemplateError> {
+        // 1 Initialize the bit vector for the payload.
+        let mut payload_bits: BitVec = BitVec::new();
+
+        // 2 Iterator over the executed entries to extend the payload bits.
+        for entry in &self.executed_entries {
+            // 2.1 Encode the entry as APE bits.
+            let entry_ape_bits = entry
+                .encode_ape(&self.registery, true, true)
+                .await
+                .map_err(IntoBatchTemplateError::EntryAPEEncodeError)?;
+
+            // 2.2 Extend the payload bits with the entry APE bits.
+            payload_bits.extend(entry_ape_bits);
+        }
+
+        // 3 Convert the payload bits to payload bytes.
+        let payload_bytes: Bytes = payload_bits.to_payload_bytes();
+
+        // 4 Collect the Bitcoin transaction inputs.
+        let bitcoin_tx_inputs: Vec<OutPoint> = self
+            .added_tx_inputs
+            .iter()
+            .map(|(outpoint, _)| outpoint.clone())
+            .collect();
+
+        // 5 Get the Bitcoin transaction outputs.
+        let bitcoin_tx_outputs: Vec<TxOut> = self.added_tx_outputs.clone();
+
+        // 6 Construct the batch template.
+        let batch_template =
+            BatchTemplate::new(bitcoin_tx_inputs, bitcoin_tx_outputs, payload_bytes);
+
+        // 7 Return the batch template.
+        Ok(batch_template)
+    }
+
+    /// Executes a batch of Entries from a `BatchTemplate`.
+    ///
+    /// Used by Nodes to execute a batch of Entries from a `BatchTemplate`.
     pub async fn execute_batch(
         &mut self,
-        batch_payload: BitVec,
-        batch_tx_inputs: Vec<OutPoint>,
-        batch_tx_outputs: Vec<TxOut>,
+        batch_template: BatchTemplate,
         session_timestamp: u64,
     ) -> Result<(), BatchExecutionError> {
-        // 1 Turn the APE payload into an iterator.
+        // 1 Get the batch payload as bits.
+        let batch_payload = batch_template.payload_bits().ok_or(
+            BatchExecutionError::BatchTemplatePayloadBitsConversionError(
+                batch_template.payload_bytes.clone(),
+            ),
+        )?;
+
+        // 2 Turn the APE payload into an iterator.
         let mut ape_bitstream = batch_payload.iter();
 
-        // 2 Turn the tx inputs into an iterator.
-        let mut tx_inputs_iter = batch_tx_inputs.into_iter();
+        // 3 Turn the Bitcoin transaction inputs into an iterator.
+        let mut tx_inputs_iter = batch_template.bitcoin_tx_inputs.into_iter();
 
-        // 3 Turn the tx outputs into an iterator.
-        let mut _tx_outputs_iter = batch_tx_outputs.iter();
+        // 4 Turn the Bitcoin transaction outputs into an iterator.
+        let mut _tx_outputs_iter = batch_template.bitcoin_tx_outputs.iter();
 
         // TODO: These will come from the params manager.
         let decode_account_rank_as_longval = true;
         let decode_contract_rank_as_longval = true;
         let base_ops_price = 100;
 
-        // 4 Decode entries from the patload one by one and execute them.
+        // 5 Decode entries from the patload one by one and execute them.
         loop {
-            // 4.1 Check if the APE bitstream is empty.
+            // 5.1 Break out of the loop if the APE bitstream is empty.
             if ape_bitstream.next().is_none() {
                 break;
             }
 
-            // 4.2 Decode Entry from the APE bitstream.
+            // 5.2 Decode Entry from the APE bitstream.
             let entry = Entry::decode_ape(
                 &mut ape_bitstream,
                 &mut tx_inputs_iter,
@@ -208,40 +270,53 @@ impl ExecCtx {
             .await
             .map_err(BatchExecutionError::DecodeEntryError)?;
 
-            // 4.3 Match on the Entry type.
+            // 5.3 Execute the decoded `Entry`.
             match entry {
-                // 4.3.a The Entry is a `Liftup`.
+                // 5.3.a The `Entry` is a `Liftup`.
                 Entry::Liftup(liftup) => {
-                    // 4.3.a.1 Execute the `Liftup` Entry.
-                    self.execute_liftup(liftup, session_timestamp)
-                        .await
-                        .map_err(BatchExecutionError::LiftupExecutionError)?;
+                    // 5.3.a.1 Execute the `Liftup` `Entry`.
+                    let execution_result = { self.execute_liftup(liftup, session_timestamp).await };
+
+                    // 5.3.a.2 Match on the execution result.
+                    if let Err(error) = execution_result {
+                        // 5.3.a.2.1 FLush everything in the `ExecCtx`.
+                        {
+                            self.flush().await;
+                        }
+
+                        // 5.3.a.2.2 Return the error.
+                        return Err(BatchExecutionError::LiftupExecutionError(error));
+                    }
                 }
                 _ => panic!("Not implemented yet."),
             }
         }
 
-        // 5 Return Ok.
+        // 6 Apply the changes to the `ExecCtx`.
+        {
+            self.apply_changes(session_timestamp, session_timestamp)
+                .await
+                .map_err(BatchExecutionError::ApplyChangesError)?;
+        }
+
+        // 7 Return Ok.
         Ok(())
     }
 
-    /// Executes a `Liftup` entry in the pool.
+    /// Executes a `Liftup` Entry.
     pub async fn execute_liftup(
         &mut self,
         liftup: Liftup,
         session_timestamp: u64,
-    ) -> Result<(), LiftupExecutionError> {
-        // 1 Pre-execution.
-        self.pre_execution().await;
-
-        // 2 Execute the liftup.
+    ) -> Result<Entry, LiftupExecutionError> {
+        // 1 Execute the liftup.
         match self
             .execute_liftup_internal(&liftup, session_timestamp)
             .await
         {
-            // 2.a Success.
+            // 1.a Success.
             Ok(_) => {
-                // 2.a.1 Add Lifts inside the Liftup to the added tx inputs.
+                // 1.a.1 Add Lifts inside the Liftup to the added tx inputs.
                 self.added_tx_inputs.extend(
                     liftup
                         .lift_prevtxos
@@ -249,23 +324,17 @@ impl ExecCtx {
                         .map(|lift| (lift.outpoint(), lift.txout().clone())),
                 );
 
-                // 2.a.2 Construct the Liftup entry.
+                // 1.a.2 Construct the Liftup entry.
                 let liftup_entry = Entry::new_liftup(liftup);
 
-                // 2.a.3 Add the liftup entry to the executed entries.
-                self.executed_entries.push(liftup_entry);
+                // 1.a.3 Add the liftup entry to the executed entries.
+                self.executed_entries.push(liftup_entry.clone());
 
-                // 2.a.4 Return Ok.
-                Ok(())
+                // 1.a.4 Return Ok.
+                Ok(liftup_entry)
             }
-            // 2.b Error.
-            Err(error) => {
-                // 2.b.1 Rollback last.
-                self.rollback_last().await;
-
-                // 2.b.2 Return the error.
-                Err(error)
-            }
+            // 1.b Error.
+            Err(error) => Err(error),
         }
     }
 }
