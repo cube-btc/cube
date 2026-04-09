@@ -1,5 +1,9 @@
-pub mod exec;
-pub mod exec_container;
-pub mod executable;
-pub mod opcode;
-pub mod stack;
+pub mod entry_executions;
+pub mod exec_ctx;
+pub mod vm;
+
+pub use vm::opcodes;
+pub use vm::opcodes as opcode;
+pub use vm::program;
+pub use vm::program as executable;
+pub use vm::stack;

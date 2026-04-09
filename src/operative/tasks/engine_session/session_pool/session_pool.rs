@@ -1,6 +1,6 @@
 use crate::constructive::entry::entry_types::liftup::liftup::Liftup;
-use crate::executive::exec_container::exec_container::ExecContainer;
-use crate::executive::exec_container::exec_container::EXEC_CONTAINER;
+use crate::executive::exec_ctx::exec_ctx::ExecCtx;
+use crate::executive::exec_ctx::exec_ctx::EXEC_CTX;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
 use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
@@ -27,7 +27,7 @@ pub struct SessionPool {
     pub state: SessionPoolState,
 
     // The exec container.
-    pub exec_container: EXEC_CONTAINER,
+    pub exec_container: EXEC_CTX,
 }
 
 /// Guarded `SessionPool`.
@@ -45,7 +45,7 @@ impl SessionPool {
         flame_manager: FLAME_MANAGER,
     ) -> SESSION_POOL {
         // 1 Construct the exec container.
-        let exec_container = ExecContainer::construct(
+        let exec_container = ExecCtx::construct(
             engine_key,
             utxo_set,
             registery,
