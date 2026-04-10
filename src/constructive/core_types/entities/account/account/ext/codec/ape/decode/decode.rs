@@ -1,5 +1,5 @@
 use crate::constructive::core_types::entities::account::account::account::Account;
-use crate::constructive::core_types::entities::account::account::ape::decode::error::decode_error::AccountAPEDecodeError;
+use crate::constructive::core_types::entities::account::account::ext::codec::ape::decode::error::decode_error::AccountAPEDecodeError;
 use crate::constructive::core_types::entities::account::account::unregistered_account::unregistered_account::UnregisteredAccount;
 use crate::constructive::core_types::valtypes::val::long_val::long_val::LongVal;
 use crate::constructive::core_types::valtypes::val::short_val::short_val::ShortVal;

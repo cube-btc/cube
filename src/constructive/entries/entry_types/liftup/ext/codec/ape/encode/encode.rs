@@ -1,13 +1,12 @@
 use crate::constructive::entry::entry_types::liftup::ext::codec::ape::encode::error::encode_error::LiftupAPEEncodeError;
 use crate::constructive::entry::entry_types::liftup::liftup::Liftup;
+use crate::constructive::txo::lift::lift::Lift;
 use crate::constructive::valtype::val::short_val::short_val::ShortVal;
 use crate::inscriptive::registery::registery::REGISTERY;
 use bit_vec::BitVec;
 
 impl Liftup {
     /// Airly Payload Encoding (APE) encoding for `Liftup`.
-    ///
-    /// This function encodes a `Liftup` as an Airly Payload Encoding (APE) bit vector.
     pub async fn encode_ape(
         &self,
         execution_batch_height: u64,
@@ -52,10 +51,25 @@ impl Liftup {
             bits.extend(number_of_lifts_as_shortval.encode_ape());
         }
 
-        // 5 Encode one-bit lift kind tags (0 => v1, 1 => v2).
+        // 5 Encode variable-width lift kind tags: `0` => unknown (one bit); `10` => v1, `11` => v2 (prefix `1` then subtype bit).
         {
             for lift in &self.lift_prevtxos {
-                bits.push(lift.lift_version() == 2);
+                match lift {
+                    // b0 for unknown
+                    Lift::Unknown { .. } => {
+                        bits.push(false);
+                    }
+                    // b10 for v1
+                    Lift::LiftV1(_) => {
+                        bits.push(true);
+                        bits.push(false);
+                    }
+                    // b11 for v2
+                    Lift::LiftV2(_) => {
+                        bits.push(true);
+                        bits.push(true);
+                    }
+                }
             }
         }
 

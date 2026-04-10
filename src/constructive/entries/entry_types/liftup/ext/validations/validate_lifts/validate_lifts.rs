@@ -1,5 +1,6 @@
 use crate::constructive::entry::entry_types::liftup::ext::validations::validate_lifts::validate_lifts_error::LiftupValidateLiftsError;
 use crate::constructive::entry::entry_types::liftup::liftup::Liftup;
+use crate::constructive::txo::lift::lift::Lift;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
 
 impl Liftup {
@@ -11,15 +12,24 @@ impl Liftup {
     ) -> Result<(), LiftupValidateLiftsError> {
         // 1 Validate the structures of the `Lift`s in the `Liftup`.
         {
-            // 2.1 Get the self account key.
-            let self_account_key = self.root_account.account_key();
-
-            // 2.2 Validate the structures of the `Lift`s in the `Liftup`.
+            // 1 Validate the structures of the `Lift`s in the `Liftup`.
             for lift in &self.lift_prevtxos {
-                if !lift.validate_scriptpubkey(self_account_key, engine_key) {
-                    return Err(LiftupValidateLiftsError::InvalidLiftScriptpubkeyError(
-                        lift.clone(),
-                    ));
+                match lift {
+                    Lift::LiftV1(v1) => {
+                        if !v1.validate_scriptpubkey() {
+                            return Err(LiftupValidateLiftsError::InvalidLiftScriptpubkeyError(
+                                lift.clone(),
+                            ));
+                        }
+                    }
+                    Lift::LiftV2(v2) => {
+                        if !v2.validate_scriptpubkey() {
+                            return Err(LiftupValidateLiftsError::InvalidLiftScriptpubkeyError(
+                                lift.clone(),
+                            ));
+                        }
+                    }
+                    Lift::Unknown { .. } => {}
                 }
             }
         }

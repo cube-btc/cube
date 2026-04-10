@@ -7,7 +7,7 @@ pub enum LiftSBEDecodeError {
     // Top-level `Lift` discriminant.
     /// The buffer was empty, so the leading `Lift` SBE variant byte could not be read.
     LiftSBEVariantDiscriminantMissingError,
-    /// The leading byte is not a known `Lift` SBE variant discriminant (`0x00` for `LiftV1`, `0x01` for `LiftV2`).
+    /// The leading byte is not a known `Lift` SBE variant discriminant (`0x00` `Unknown`, `0x01` `LiftV1`, `0x02` `LiftV2`).
     UnknownLiftSBEVariantDiscriminantByteError(u8),
 
     // Variant-specific decode failures.
@@ -15,4 +15,6 @@ pub enum LiftSBEDecodeError {
     LiftV1(LiftV1SBEDecodeError),
     /// Decoding failed for an SBE buffer tagged as `LiftV2`.
     LiftV2(LiftV2SBEDecodeError),
+    /// Decoding failed for the shared body of an SBE buffer tagged as `Unknown` (`0x00`).
+    LiftUnknown(LiftV1SBEDecodeError),
 }

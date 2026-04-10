@@ -13,5 +13,6 @@ pub enum LiftupAPEDecodeError {
     MissingLiftOutpointError,
     MissingLiftKindBitError,
     UnableToLocateLiftOutpointInUTXOSetError(OutPoint),
-    InvalidLiftScriptpubkeyError(Lift),
+    FailedToValidateLiftV1ScriptpubkeyError(Lift),
+    FailedToValidateLiftV2ScriptpubkeyError(Lift),
 }

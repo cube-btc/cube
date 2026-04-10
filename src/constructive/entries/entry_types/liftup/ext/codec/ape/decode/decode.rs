@@ -10,9 +10,6 @@ use bitcoin::OutPoint;
 
 impl Liftup {
     /// Decodes a `Liftup` as an Airly Payload Encoding (APE) bit vector.
-    ///
-    /// This function decodes a `Liftup` as an Airly Payload Encoding (APE) bit vector.
-    /// The `Liftup` can be a `Liftup` with a `Account`, `Lifts`.
     pub async fn decode_ape(
         engine_key: [u8; 32],
         execution_batch_height: u64,
@@ -46,13 +43,31 @@ impl Liftup {
             collected_outpoints.push(outpoint);
         }
 
-        // 5 Collect one-bit lift kind tags (0 => v1, 1 => v2).
-        let mut lift_kind_bits = Vec::with_capacity(number_of_lifts as usize);
+        // 5 Collect lift kind tags: leading `false` => unknown (one bit); leading `true` => read one more bit (`false` v1, `true` v2).
+        #[derive(Clone, Copy)]
+        enum LiftApeKind {
+            Unknown,
+            V1,
+            V2,
+        }
+        let mut lift_kinds = Vec::with_capacity(number_of_lifts as usize);
         for _ in 0..number_of_lifts {
-            let lift_kind = bit_stream
+            let prefix = bit_stream
                 .next()
                 .ok_or(LiftupAPEDecodeError::MissingLiftKindBitError)?;
-            lift_kind_bits.push(lift_kind);
+            let kind = if !prefix {
+                LiftApeKind::Unknown
+            } else {
+                let subtype = bit_stream
+                    .next()
+                    .ok_or(LiftupAPEDecodeError::MissingLiftKindBitError)?;
+                if subtype {
+                    LiftApeKind::V2
+                } else {
+                    LiftApeKind::V1
+                }
+            };
+            lift_kinds.push(kind);
         }
 
         // 6 Resolve the outpoints in the UTXO set and construct the lifts.
@@ -61,26 +76,44 @@ impl Liftup {
         {
             let _utxo_set = utxo_set.lock().await;
 
-            for (outpoint, is_v2_lift) in collected_outpoints.into_iter().zip(lift_kind_bits) {
+            for (outpoint, kind) in collected_outpoints.into_iter().zip(lift_kinds) {
                 let txout = _utxo_set.txout_by_outpoint(&outpoint).ok_or(
                     LiftupAPEDecodeError::UnableToLocateLiftOutpointInUTXOSetError(outpoint),
                 )?;
 
-                // Get the expected scriptpubkey.
-                let expected_scriptpubkey = txout.script_pubkey.as_bytes().to_vec();
-
-                let lift = if is_v2_lift {
-                    Lift::new_liftv2(self_account_key, engine_key, outpoint, txout)
-                } else {
-                    Lift::new_liftv1(self_account_key, engine_key, outpoint, txout)
+                let lift = match kind {
+                    LiftApeKind::Unknown => {
+                        Lift::new_unknown(self_account_key, engine_key, outpoint, txout)
+                    }
+                    LiftApeKind::V1 => {
+                        Lift::new_liftv1(self_account_key, engine_key, outpoint, txout)
+                    }
+                    LiftApeKind::V2 => {
+                        Lift::new_liftv2(self_account_key, engine_key, outpoint, txout)
+                    }
                 };
 
-                // Get the calculated scriptpubkey.
-                let calculated_scriptpubkey = lift.txout().script_pubkey.as_bytes().to_vec();
-
-                // Check if the calculated scriptpubkey matches the expected scriptpubkey.
-                if calculated_scriptpubkey != expected_scriptpubkey {
-                    return Err(LiftupAPEDecodeError::InvalidLiftScriptpubkeyError(lift));
+                // For asserted v1/v2, the recomputed lift scriptpubkey must match the prevout; `Unknown` skips this check.
+                match &lift {
+                    Lift::LiftV1(liftv1) => {
+                        if !liftv1.validate_scriptpubkey() {
+                            return Err(
+                                LiftupAPEDecodeError::FailedToValidateLiftV1ScriptpubkeyError(
+                                    lift.clone(),
+                                ),
+                            );
+                        }
+                    }
+                    Lift::LiftV2(liftv2) => {
+                        if !liftv2.validate_scriptpubkey() {
+                            return Err(
+                                LiftupAPEDecodeError::FailedToValidateLiftV2ScriptpubkeyError(
+                                    lift.clone(),
+                                ),
+                            );
+                        }
+                    }
+                    Lift::Unknown { .. } => {}
                 }
 
                 lift_prevtxos.push(lift);

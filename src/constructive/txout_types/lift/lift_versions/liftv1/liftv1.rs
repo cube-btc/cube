@@ -34,33 +34,23 @@ impl LiftV1 {
     }
 
     /// Validates the LiftV1 scriptpubkey.
-    ///
-    /// Used by the `Engine` to validate the `LiftV1` is indeed a valid structure.
-    pub fn validate_scriptpubkey(&self, account_key: [u8; 32], engine_key: [u8; 32]) -> bool {
-        // 1 Validate the keys.
-        if self.account_key != account_key || self.engine_key != engine_key {
-            return false;
-        }
-
-        // 2 Validate the scriptpubkey.
-        {
-            // 2.1 Calculate the scriptpubkey.
-            let calculated_scriptpubkey = match return_liftv1_scriptpubkey(account_key, engine_key)
-            {
+    pub fn validate_scriptpubkey(&self) -> bool {
+        // 1 Calculate the scriptpubkey.
+        let calculated_scriptpubkey =
+            match return_liftv1_scriptpubkey(self.account_key, self.engine_key) {
                 Some(scriptpubkey) => scriptpubkey,
                 None => return false,
             };
 
-            // 2.2 Get the self scriptpubkey.
-            let self_scriptpubkey = self.txout.script_pubkey.as_bytes();
+        // 2 Get the self scriptpubkey.
+        let self_scriptpubkey = self.txout.script_pubkey.as_bytes();
 
-            // 2.3 Validate the scriptpubkeys.
-            if &calculated_scriptpubkey != self_scriptpubkey {
-                return false;
-            }
+        // 3 Validate the scriptpubkeys.
+        if &calculated_scriptpubkey != self_scriptpubkey {
+            return false;
         }
 
-        // 3 Return true.
+        // 4 Return true.
         true
     }
 

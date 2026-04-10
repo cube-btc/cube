@@ -4,9 +4,6 @@ use bitcoin::{OutPoint, TxOut};
 use super::error::LiftV2SBEDecodeError;
 use crate::constructive::txo::lift::lift_versions::liftv2::liftv2::LiftV2;
 
-/// Leading SBE byte expected for [`LiftV2`] (`0x01`).
-const LIFT_V2_SBE_VARIANT_DISCRIMINANT: u8 = 0x01;
-
 /// Decodes the shared `LiftV1` / `LiftV2` payload after the variant byte: keys, outpoint, one `TxOut`.
 fn decode_lift_v2_sbe_body(
     payload: &[u8],
@@ -86,17 +83,17 @@ fn decode_lift_v2_sbe_body(
 impl LiftV2 {
     /// Decodes a `LiftV2` from Structural Byte-scope Encoding (SBE) bytes produced by [`LiftV2::encode_sbe`].
     ///
-    /// The leading byte must be `0x01` (the `LiftV2` variant discriminant).
+    /// The leading byte must be `0x02` (the `LiftV2` variant discriminant).
     pub fn decode_sbe(bytes: &[u8]) -> Result<LiftV2, LiftV2SBEDecodeError> {
         // 1 Ensure there is at least one byte for the variant discriminant.
         if bytes.is_empty() {
             return Err(LiftV2SBEDecodeError::LiftV2SBEVariantDiscriminantMissingError);
         }
 
-        // 2 Split the discriminant from the payload and verify it is `0x01`.
+        // 2 Split the discriminant from the payload and verify it is `0x02`.
         let (tag, payload) = bytes.split_at(1);
-        if tag[0] != LIFT_V2_SBE_VARIANT_DISCRIMINANT {
-            return Err(LiftV2SBEDecodeError::LiftV2SBEExpectedVariantDiscriminant0x01Error { got: tag[0] });
+        if tag[0] != 0x02 {
+            return Err(LiftV2SBEDecodeError::LiftV2SBEExpectedVariantDiscriminant0x02Error { got: tag[0] });
         }
 
         // 3 Decode the payload body (keys, outpoint, `TxOut`).

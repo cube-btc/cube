@@ -1,5 +1,5 @@
 use crate::constructive::core_types::entities::account::account::account::Account;
-use crate::constructive::core_types::entities::account::account::ape::encode::error::encode_error::AccountAPEEncodeError;
+use crate::constructive::core_types::entities::account::account::ext::codec::ape::encode::error::encode_error::AccountAPEEncodeError;
 use crate::constructive::core_types::valtypes::val::long_val::long_val::LongVal;
 use crate::constructive::core_types::valtypes::val::short_val::short_val::ShortVal;
 use crate::inscriptive::registery::registery::REGISTERY;

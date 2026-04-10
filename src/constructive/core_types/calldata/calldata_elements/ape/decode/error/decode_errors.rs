@@ -1,6 +1,6 @@
 use crate::constructive::{
     entity::{
-        account::account::ape::decode::error::decode_error::AccountAPEDecodeError,
+        account::account::ext::codec::ape::decode::error::decode_error::AccountAPEDecodeError,
         contract::ape::decode::error::decode_error::ContractAPEDecodeError,
     },
     valtype::maybe_common::maybe_common::ape::decode::error::decode_error::MaybeCommonAPEDecodeError,

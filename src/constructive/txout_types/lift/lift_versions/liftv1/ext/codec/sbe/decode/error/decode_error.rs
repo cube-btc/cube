@@ -4,8 +4,8 @@ pub enum LiftV1SBEDecodeError {
     // SBE variant discriminant (leading byte).
     /// The buffer was empty, so the leading `LiftV1` SBE variant byte could not be read.
     LiftV1SBEVariantDiscriminantMissingError,
-    /// Decoding as `LiftV1` requires a leading `0x00` byte before the payload.
-    LiftV1SBEExpectedVariantDiscriminant0x00Error { got: u8 },
+    /// Decoding as `LiftV1` requires a leading `0x01` byte before the payload.
+    LiftV1SBEExpectedVariantDiscriminant0x01Error { got: u8 },
 
     // Shared payload: Schnorr account key (32 bytes).
     /// The payload ended before the 32-byte account key.

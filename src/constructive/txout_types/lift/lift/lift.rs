@@ -1,8 +1,10 @@
+use crate::constructive::txn::ext::OutpointExt;
 use crate::constructive::txo::lift::lift_versions::liftv1::liftv1::LiftV1;
 use crate::constructive::txo::lift::lift_versions::liftv2::liftv2::LiftV2;
 use bitcoin::{OutPoint, TxOut};
+use hex;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{Map, Value};
 
 /// The Lift enum.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -12,6 +14,14 @@ pub enum Lift {
 
     // MuSig2-based and thus interactive, but trustless Lift implementation.
     LiftV2(LiftV2),
+
+    /// Lift UTXO whose version is not asserted as v1 or v2 (e.g. APE prefix `1x`); scriptpubkey is not checked against v1/v2 templates.
+    Unknown {
+        account_key: [u8; 32],
+        engine_key: [u8; 32],
+        outpoint: OutPoint,
+        txout: TxOut,
+    },
 }
 
 impl Lift {
@@ -35,11 +45,27 @@ impl Lift {
         Lift::LiftV2(LiftV2::new(account_key, engine_key, outpoint, txout))
     }
 
-    /// Returns the lift version.
+    /// Creates a new unknown-version lift (same on-chain fields, no v1/v2 scriptpubkey assumption).
+    pub fn new_unknown(
+        account_key: [u8; 32],
+        engine_key: [u8; 32],
+        outpoint: OutPoint,
+        txout: TxOut,
+    ) -> Lift {
+        Lift::Unknown {
+            account_key,
+            engine_key,
+            outpoint,
+            txout,
+        }
+    }
+
+    /// Returns the lift version (`1` / `2`), or `0` when [`Lift::Unknown`].
     pub fn lift_version(&self) -> u8 {
         match self {
             Lift::LiftV1(_) => 1,
             Lift::LiftV2(_) => 2,
+            Lift::Unknown { .. } => 0,
         }
     }
 
@@ -48,6 +74,7 @@ impl Lift {
         match self {
             Lift::LiftV1(liftv1) => liftv1.account_key,
             Lift::LiftV2(liftv2) => liftv2.account_key,
+            Lift::Unknown { account_key, .. } => *account_key,
         }
     }
 
@@ -56,6 +83,7 @@ impl Lift {
         match self {
             Lift::LiftV1(liftv1) => liftv1.engine_key,
             Lift::LiftV2(liftv2) => liftv2.engine_key,
+            Lift::Unknown { engine_key, .. } => *engine_key,
         }
     }
 
@@ -64,6 +92,7 @@ impl Lift {
         match self {
             Lift::LiftV1(liftv1) => liftv1.outpoint,
             Lift::LiftV2(liftv2) => liftv2.outpoint,
+            Lift::Unknown { outpoint, .. } => *outpoint,
         }
     }
 
@@ -72,16 +101,7 @@ impl Lift {
         match self {
             Lift::LiftV1(liftv1) => liftv1.txout.clone(),
             Lift::LiftV2(liftv2) => liftv2.txout.clone(),
-        }
-    }
-
-    /// Validates the Lift scriptpubkey.
-    /// 
-    /// Used by the `Engine` to validate the `Lift` is indeed a valid structure.
-    pub fn validate_scriptpubkey(&self, account_key: [u8; 32], engine_key: [u8; 32]) -> bool {
-        match self {
-            Lift::LiftV1(liftv1) => liftv1.validate_scriptpubkey(account_key, engine_key),
-            Lift::LiftV2(liftv2) => liftv2.validate_scriptpubkey(account_key, engine_key),
+            Lift::Unknown { txout, .. } => txout.clone(),
         }
     }
 
@@ -90,6 +110,50 @@ impl Lift {
         match self {
             Lift::LiftV1(liftv1) => liftv1.json(),
             Lift::LiftV2(liftv2) => liftv2.json(),
+            Lift::Unknown {
+                account_key,
+                engine_key,
+                outpoint,
+                txout,
+            } => {
+                let mut obj = Map::new();
+                obj.insert(
+                    "version".to_string(),
+                    Value::String("unknown".to_string()),
+                );
+                obj.insert(
+                    "account_key".to_string(),
+                    Value::String(hex::encode(account_key)),
+                );
+                obj.insert(
+                    "engine_key".to_string(),
+                    Value::String(hex::encode(engine_key)),
+                );
+                let outpoint_obj = {
+                    let mut o = Map::new();
+                    o.insert(
+                        "txid".to_string(),
+                        Value::String(hex::encode(outpoint.txhash())),
+                    );
+                    o.insert("vout".to_string(), Value::Number(outpoint.vout.into()));
+                    o
+                };
+                obj.insert("outpoint".to_string(), Value::Object(outpoint_obj));
+                let txout_obj = {
+                    let mut o = Map::new();
+                    o.insert(
+                        "satoshis".to_string(),
+                        Value::Number(txout.value.to_sat().into()),
+                    );
+                    o.insert(
+                        "scriptpubkey".to_string(),
+                        Value::String(hex::encode(txout.script_pubkey.as_bytes())),
+                    );
+                    o
+                };
+                obj.insert("txout".to_string(), Value::Object(txout_obj));
+                Value::Object(obj)
+            }
         }
     }
 }
