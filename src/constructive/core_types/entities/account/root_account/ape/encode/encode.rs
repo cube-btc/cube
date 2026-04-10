@@ -26,6 +26,26 @@ impl RootAccount {
         match self {
             // 2.a Encode the `RootAccount` as a `UnregisteredRootAccount`.
             RootAccount::UnregisteredRootAccount(unregistered_root_account) => {
+                // 2.a.1 Encode the zero rank value as a `LongVal` or a `ShortVal` to indicate that the `RootAccount` is unregistered.
+                match encode_rank_as_longval {
+                    // 2.a.1.a The rank is to be encoded as a `LongVal`.
+                    true => {
+                        // 2.a.1.a.1 Convert the rank value into a `LongVal`.
+                        let zero_as_longval = LongVal::new(0);
+
+                        // 2.a.1.a.2 Extend the APE bit vector with the zero `LongVal`.
+                        bits.extend(zero_as_longval.encode_ape());
+                    }
+                    // 2.a.1.b The rank is to be encoded as a `ShortVal`.
+                    false => {
+                        // 2.a.1.b.1 Convert the rank value into a `ShortVal`.
+                        let zero_as_shortval = ShortVal::new(0);
+
+                        // 2.a.1.b.2 Extend the APE bit vector with the zero `ShortVal`.
+                        bits.extend(zero_as_shortval.encode_ape());
+                    }
+                }
+
                 // 2.a.1 Encode the account key.
                 {
                     // 2.a.1.1 Get the account key bytes to encode.
@@ -110,11 +130,15 @@ impl RootAccount {
                         let _registery = registery.lock().await;
 
                         // 2.b.1.1.2 Retrieve the rank value from the `Registery`.
-                        _registery.get_rank_by_account_key(registered_but_unconfigured_root_account.account_key).ok_or(
-                        RootAccountAPEEncodeError::UnableToRetrieveRankValueFromRegistery(
-                            registered_but_unconfigured_root_account.account_key,
-                        ),
-                    )?
+                        _registery
+                            .get_rank_by_account_key(
+                                registered_but_unconfigured_root_account.account_key,
+                            )
+                            .ok_or(
+                                RootAccountAPEEncodeError::UnableToRetrieveRankValueFromRegistery(
+                                    registered_but_unconfigured_root_account.account_key,
+                                ),
+                            )?
                     };
 
                     // 2.b.1.2 Match on whether to encode the rank value as a `LongVal` or a `ShortVal`.
@@ -210,11 +234,15 @@ impl RootAccount {
                         let _registery = registery.lock().await;
 
                         // 2.c.1.1.2 Retrieve the rank value from the `Registery`.
-                        _registery.get_rank_by_account_key(registered_and_configured_root_account.account_key).ok_or(
-                        RootAccountAPEEncodeError::UnableToRetrieveRankValueFromRegistery(
-                            registered_and_configured_root_account.account_key,
-                        ),
-                    )?
+                        _registery
+                            .get_rank_by_account_key(
+                                registered_and_configured_root_account.account_key,
+                            )
+                            .ok_or(
+                                RootAccountAPEEncodeError::UnableToRetrieveRankValueFromRegistery(
+                                    registered_and_configured_root_account.account_key,
+                                ),
+                            )?
                     };
 
                     // 2.c.1.2 Match on whether to encode the rank value as a `LongVal` or a `ShortVal`.

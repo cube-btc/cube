@@ -6,6 +6,8 @@ use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
 
 impl Liftup {
     /// Used by the `Engine` to validate the `Liftup` end-to-end as a pre-validation step before executing it.
+    ///
+    /// It is redundant for a Node to use this method because all of these valdiations are already done under the hood during APE-decoding.
     pub async fn validate_overall(
         &self,
         engine_key: [u8; 32],

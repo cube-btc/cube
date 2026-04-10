@@ -9,7 +9,7 @@ use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 use crate::inscriptive::registery::registery::REGISTERY;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
-use crate::operative::tasks::engine_session::session_pool::error::exec_liftup_error::ExecLiftupInPoolError;
+use crate::operative::tasks::engine_session::session_pool::error::exec_liftup_in_pool_error::ExecLiftupInPoolError;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
