@@ -33,6 +33,24 @@ pub struct SessionPool {
     // The state of the session pool.
     pub state: SessionPoolState,
 
+    // The engine key.
+    pub engine_key: [u8; 32],
+
+    // The utxo set.
+    pub utxo_set: UTXO_SET,
+
+    // The registery.
+    pub registery: REGISTERY,
+
+    // The graveyard.
+    pub graveyard: GRAVEYARD,
+
+    // The coin manager.
+    pub coin_manager: COIN_MANAGER,
+
+    // The flame manager.
+    pub flame_manager: FLAME_MANAGER,
+
     // The exec container.
     pub exec_container: EXEC_CTX,
 
@@ -48,31 +66,40 @@ impl SessionPool {
     /// Constructs the `SessionPool`.    
     pub fn construct(
         engine_key: [u8; 32],
-        utxo_set: UTXO_SET,
-        registery: REGISTERY,
-        graveyard: GRAVEYARD,
-        coin_manager: COIN_MANAGER,
-        flame_manager: FLAME_MANAGER,
+        utxo_set: &UTXO_SET,
+        registery: &REGISTERY,
+        graveyard: &GRAVEYARD,
+        coin_manager: &COIN_MANAGER,
+        flame_manager: &FLAME_MANAGER,
     ) -> SESSION_POOL {
         // 1 Construct the exec container.
         let exec_container = ExecCtx::construct(
             engine_key,
-            utxo_set,
-            registery,
-            graveyard,
-            coin_manager,
-            flame_manager,
+            Arc::clone(utxo_set),
+            Arc::clone(registery),
+            Arc::clone(graveyard),
+            Arc::clone(coin_manager),
+            Arc::clone(flame_manager),
         );
 
         // 2 Construct the session pool.
         let session_pool = SessionPool {
             state: SessionPoolState::Inactive,
+            engine_key,
+            utxo_set: Arc::clone(utxo_set),
+            registery: Arc::clone(registery),
+            graveyard: Arc::clone(graveyard),
+            coin_manager: Arc::clone(coin_manager),
+            flame_manager: Arc::clone(flame_manager),
             exec_container,
             in_pool_entries_count: 0,
         };
 
-        // 3 Return the guarded `SessionPool`.
-        Arc::new(Mutex::new(session_pool))
+        // 3 Guard the session pool.
+        let guarded_session_pool: SESSION_POOL = Arc::new(Mutex::new(session_pool));
+
+        // 4 Return the guarded session pool.
+        guarded_session_pool
     }
 
     /// Flushes the `SessionPool`.
@@ -111,16 +138,26 @@ impl SessionPool {
     }
 
     /// Returns the `BatchTemplate` of locally executed Entries in the pool.
-    pub async fn batch_template(&mut self, batch_height: u64, batch_timestamp: u64, payload_version: u32) -> Result<BatchTemplate, IntoBatchTemplateError> {
+    pub async fn batch_template(
+        &mut self,
+        batch_height: u64,
+        batch_timestamp: u64,
+        payload_version: u32,
+    ) -> Result<BatchTemplate, IntoBatchTemplateError> {
         // 1 Convert the `ExecCtx` into a `BatchTemplate`.
-        self.exec_container.lock().await.into_batch_template(batch_height, batch_timestamp, payload_version).await
+        self.exec_container
+            .lock()
+            .await
+            .into_batch_template(batch_height, batch_timestamp, payload_version)
+            .await
     }
 
     /// Executes a `Liftup` entry in the `SessionPool`.
     pub async fn exec_liftup_in_pool(
         &mut self,
         liftup: Liftup,
-        session_timestamp: u64,
+        execution_batch_height: u64,
+        execution_timestamp: u64,
     ) -> Result<Entry, ExecLiftupInPoolError> {
         // 1 Check the pool session status.
         match self.state {
@@ -141,37 +178,51 @@ impl SessionPool {
             }
         };
 
-        // 2 Prepare for the execution by backing up the execution context.
+        // 2 Run pre-validations.
+        {
+            liftup
+                .validate_overall(
+                    self.engine_key,
+                    execution_batch_height,
+                    &self.utxo_set,
+                    &self.registery,
+                    &self.graveyard,
+                )
+                .await
+                .map_err(|err| ExecLiftupInPoolError::LiftupValidateOverallError(err))?;
+        }
+
+        // 3 Prepare for the execution by backing up the execution context.
         {
             let mut _exec_container = self.exec_container.lock().await;
             _exec_container.pre_execution().await;
         }
 
-        // 3 Execute the liftup in the execution context.
+        // 4 Execute the liftup in the execution context.
         match self
             .exec_container
             .lock()
             .await
-            .execute_liftup(liftup, session_timestamp)
+            .execute_liftup(liftup, execution_timestamp)
             .await
         {
-            // 3.a Success.
+            // 4.a Success.
             Ok(liftup_entry) => {
-                // 3.a.1 Increment the number of entries in the pool.
+                // 4.a.1 Increment the number of entries in the pool.
                 self.in_pool_entries_count += 1;
 
-                // 3.a.2 Return the liftup entry.
+                // 4.a.2 Return the liftup entry.
                 Ok(liftup_entry)
             }
 
-            // 3.b Error.
+            // 4.b Error.
             Err(error) => {
-                // 3.b.1 Rollback the execution.
+                // 4.b.1 Rollback the execution.
                 {
                     self.exec_container.lock().await.rollback_last().await;
                 }
 
-                // 3.b.2 Return the error.
+                // 4.b.2 Return the error.
                 Err(ExecLiftupInPoolError::LiftupExecutionError(error))
             }
         }
