@@ -10,7 +10,7 @@ impl ExecCtx {
     pub async fn execute_liftup_internal(
         &mut self,
         liftup: &Liftup,
-        session_timestamp: u64,
+        execution_timestamp: u64,
     ) -> Result<(), LiftupExecutionError> {
         // 2 Get the liftup sum value in satoshis.
         let liftup_sum_value_in_satoshis = liftup.liftup_sum_value_in_satoshis();
@@ -48,7 +48,7 @@ impl ExecCtx {
                 // 7.a.2 Register the `UnregisteredRootAccount` with the `DB`.
                 unregistered_root_account
                     .register_with_db(
-                        session_timestamp,
+                        execution_timestamp,
                         &self.registery,
                         &self.coin_manager,
                         &self.flame_manager,
@@ -73,7 +73,7 @@ impl ExecCtx {
 
                 // 7.b.1 Sync the `RegisteredButUnconfiguredRootAccount` with the `Registery`.
                 registered_but_unconfigured_root_account
-                    .sync_with_registery(session_timestamp, &self.registery)
+                    .sync_with_registery(execution_timestamp, &self.registery)
                     .await
                     .map_err(|e| {
                         LiftupExecutionError::RegisteredButUnconfiguredRootAccountSyncWithRegisteryError(e)
@@ -94,7 +94,7 @@ impl ExecCtx {
             ) => {
                 // 7.c.1 Sync the `RegisteredAndConfiguredRootAccount` with the `Registery`.
                 registered_and_configured_root_account
-                    .sync_with_registery(session_timestamp, &self.registery)
+                    .sync_with_registery(execution_timestamp, &self.registery)
                     .await
                     .map_err(|e| {
                         LiftupExecutionError::RegisteredAndConfiguredRootAccountSyncWithRegisteryError(e)

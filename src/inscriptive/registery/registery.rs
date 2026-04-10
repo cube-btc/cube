@@ -816,8 +816,8 @@ impl Registery {
         account_key: AccountKey,
         last_activity_timestamp: u64,
     ) -> Result<(), RMUpdateAccountCallCounterAndLastActivityTimestampError> {
-        // 1 Check if the account is registered.
-        if !self.is_account_registered(account_key) {
+        // 1 Check if the account is permanently registered.
+        if !self.is_account_permanently_registered(account_key) {
             return Err(
                 RMUpdateAccountCallCounterAndLastActivityTimestampError::AccountIsNotRegistered(
                     account_key,
@@ -848,8 +848,8 @@ impl Registery {
         contract_id: ContractId,
         last_activity_timestamp: u64,
     ) -> Result<(), RMUpdateContractCallCounterAndLastActivityTimestampError> {
-        // 1 Check if the contract is registered.
-        if !self.is_contract_registered(contract_id) {
+        // 1 Check if the contract is permanently registered.
+        if !self.is_contract_permanently_registered(contract_id) {
             return Err(
                 RMUpdateContractCallCounterAndLastActivityTimestampError::ContractIsNotRegistered(
                     contract_id,

@@ -5,7 +5,7 @@ use crate::constructive::entity::account::root_account::registered_and_configure
 impl RegisteredAndConfiguredRootAccount {
     pub async fn sync_with_registery(
         &self,
-        session_timestamp: u64,
+        execution_timestamp: u64,
         registery: &REGISTERY,
     ) -> Result<(), RegisteredAndConfiguredRootAccountSyncWithRegisteryError> {
         // 1 Lock the registery.
@@ -13,7 +13,7 @@ impl RegisteredAndConfiguredRootAccount {
 
         // 2 Update the call counter and last activity timestamp.
         _registery
-            .update_account_call_counter_and_last_activity_timestamp(self.account_key, session_timestamp)
+            .update_account_call_counter_and_last_activity_timestamp(self.account_key, execution_timestamp)
             .map_err(|e| {
                 RegisteredAndConfiguredRootAccountSyncWithRegisteryError::RegisteryUpdateAccountCallCounterAndLastActivityTimestampError(e)
             })?;

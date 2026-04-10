@@ -11,9 +11,10 @@ impl Entry {
     ///
     /// This function decodes an `Entry` as an Airly Payload Encoding (APE) bit vector.
     pub async fn decode_ape(
+        engine_key: [u8; 32],
+        execution_batch_height: u64,
         bit_stream: &mut bit_vec::Iter<'_>,
         tx_inputs_iter: &mut impl Iterator<Item = OutPoint>,
-        engine_key: [u8; 32],
         decode_account_rank_as_longval: bool,
         decode_contract_rank_as_longval: bool,
         base_ops_price: u32,
@@ -107,6 +108,7 @@ impl Entry {
                                         // 2.b.2.b.1.a.1.a.1 Decode the `Liftup` entry.
                                         let liftup_entry: Liftup = Liftup::decode_ape(
                                             engine_key,
+                                            execution_batch_height,
                                             bit_stream,
                                             tx_inputs_iter,
                                             decode_account_rank_as_longval,

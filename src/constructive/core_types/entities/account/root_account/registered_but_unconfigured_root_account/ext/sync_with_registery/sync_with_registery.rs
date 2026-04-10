@@ -5,7 +5,7 @@ use crate::constructive::entity::account::root_account::registered_but_unconfigu
 impl RegisteredButUnconfiguredRootAccount {
     pub async fn sync_with_registery(
         &self,
-        session_timestamp: u64,
+        execution_timestamp: u64,
         registery: &REGISTERY,
     ) -> Result<(), RegisteredButUnconfiguredRootAccountSyncWithRegisteryError> {
         // 1 Get BLS key to be configured.
@@ -16,7 +16,7 @@ impl RegisteredButUnconfiguredRootAccount {
 
         // 3 Update the call counter and last activity timestamp.
         _registery
-            .update_account_call_counter_and_last_activity_timestamp(self.account_key, session_timestamp)
+            .update_account_call_counter_and_last_activity_timestamp(self.account_key, execution_timestamp)
             .map_err(|e| {
                 RegisteredButUnconfiguredRootAccountSyncWithRegisteryError::RegisteryUpdateAccountCallCounterAndLastActivityTimestampError(e)
             })?;

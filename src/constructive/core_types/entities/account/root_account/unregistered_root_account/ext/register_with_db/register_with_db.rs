@@ -8,7 +8,7 @@ use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 impl UnregisteredRootAccount {
     pub async fn register_with_db(
         &self,
-        session_timestamp: u64,
+        execution_timestamp: u64,
         registery: &REGISTERY,
         coin_manager: &COIN_MANAGER,
         flame_manager: &FLAME_MANAGER,
@@ -35,7 +35,7 @@ impl UnregisteredRootAccount {
             _registery
                 .register_account(
                     self.account_key_to_be_registered,
-                    session_timestamp,
+                    execution_timestamp,
                     Some(self.bls_key_to_be_configured),
                     None,
                     self.flame_config_to_be_configured.clone(),

@@ -177,8 +177,9 @@ pub async fn run(
                 V2_LIFT_ENABLED,
                 &engine_conn,
                 &key_holder,
-                &registery,
                 &utxo_set,
+                &sync_manager,
+                &registery,
             )
             .await;
         }

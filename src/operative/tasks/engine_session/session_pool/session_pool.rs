@@ -111,9 +111,9 @@ impl SessionPool {
     }
 
     /// Returns the `BatchTemplate` of locally executed Entries in the pool.
-    pub async fn batch_template(&mut self) -> Result<BatchTemplate, IntoBatchTemplateError> {
+    pub async fn batch_template(&mut self, batch_height: u64, batch_timestamp: u64, payload_version: u32) -> Result<BatchTemplate, IntoBatchTemplateError> {
         // 1 Convert the `ExecCtx` into a `BatchTemplate`.
-        self.exec_container.lock().await.into_batch_template().await
+        self.exec_container.lock().await.into_batch_template(batch_height, batch_timestamp, payload_version).await
     }
 
     /// Executes a `Liftup` entry in the `SessionPool`.

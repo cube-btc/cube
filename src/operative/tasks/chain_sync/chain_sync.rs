@@ -110,7 +110,7 @@ impl ChainSync for SYNC_MANAGER {
             // Retrieve cube node's sync height.
             let cube_node_sync_height = {
                 let _sync_manager = sync_manager.lock().await;
-                _sync_manager.bitcoin_sync_height()
+                _sync_manager.bitcoin_sync_height_tip()
             };
 
             // The target sync height is the latest Bitcoin chain tip minus BLOCK_DEPTH_FOR_FINALITY.

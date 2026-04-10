@@ -9,6 +9,7 @@ impl Entry {
     /// This function encodes an `Entry` as an Airly Payload Encoding (APE) bit vector.
     pub async fn encode_ape(
         &self,
+        execution_batch_height: u64,
         registery: &REGISTERY,
         encode_account_rank_as_longval: bool,
         encode_contract_rank_as_longval: bool,
@@ -48,7 +49,11 @@ impl Entry {
 
                 // 2.b.2 Encode the `Liftup`.
                 let liftup_bits = liftup
-                    .encode_ape(registery, encode_account_rank_as_longval)
+                    .encode_ape(
+                        execution_batch_height,
+                        registery,
+                        encode_account_rank_as_longval,
+                    )
                     .await
                     .map_err(|e| EntryAPEEncodeError::LiftupAPEEncodeError(e))?;
 

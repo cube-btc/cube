@@ -18,6 +18,9 @@ use bitcoin::{OutPoint, TxOut};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+use crate::constructive::core_types::valtypes::val::long_val::long_val::LongVal;
+use crate::constructive::core_types::valtypes::val::short_val::short_val::ShortVal;
+
 /// A type alias for a vector of bytes.
 type Bytes = Vec<u8>;
 
@@ -137,7 +140,7 @@ impl ExecCtx {
     }
 
     /// Applies the changes to the `ExecCtx` collectively for all Entries in the container.
-    async fn apply_changes(
+    async fn _apply_changes(
         &mut self,
         new_projector_height: u64,
         projector_expiry_height: u64,
@@ -183,40 +186,63 @@ impl ExecCtx {
     /// Converts the `ExecCtx` into a `BatchTemplate`.
     ///
     /// Used by Engine to convert the `ExecCtx` in its `SessionPool` into a `BatchTemplate`.
-    pub async fn into_batch_template(&mut self) -> Result<BatchTemplate, IntoBatchTemplateError> {
+    pub async fn into_batch_template(
+        &mut self,
+        batch_height: u64,
+        batch_timestamp: u64,
+        payload_version: u32,
+    ) -> Result<BatchTemplate, IntoBatchTemplateError> {
         // 1 Initialize the bit vector for the payload.
         let mut payload_bits: BitVec = BitVec::new();
 
-        // 2 Iterator over the executed entries to extend the payload bits.
+        // 2 Encode the payload version.
+        {
+            // 2.1 Encode the payload version.
+            let payload_version_bits = ShortVal::new(payload_version).encode_ape();
+
+            // 2.2 Extend the payload bits with the payload version bits.
+            payload_bits.extend(payload_version_bits);
+        }
+
+        // 3 Encode the batch timestamp.
+        {
+            // 3.1 Encode the batch timestamp.
+            let batch_timestamp_bits = LongVal::new(batch_timestamp).encode_ape();
+
+            // 3.2 Extend the payload bits with the batch timestamp bits.
+            payload_bits.extend(batch_timestamp_bits);
+        }
+
+        // 4 Iterator over the executed entries to extend the payload bits.
         for entry in &self.executed_entries {
-            // 2.1 Encode the entry as APE bits.
+            // 4.1 Encode the entry as APE bits.
             let entry_ape_bits = entry
-                .encode_ape(&self.registery, true, true)
+                .encode_ape(batch_height, &self.registery, true, true)
                 .await
                 .map_err(IntoBatchTemplateError::EntryAPEEncodeError)?;
 
-            // 2.2 Extend the payload bits with the entry APE bits.
+            // 4.2 Extend the payload bits with the entry APE bits.
             payload_bits.extend(entry_ape_bits);
         }
 
-        // 3 Convert the payload bits to payload bytes.
+        // 5 Convert the payload bits to payload bytes.
         let payload_bytes: Bytes = payload_bits.to_payload_bytes();
 
-        // 4 Collect the Bitcoin transaction inputs.
+        // 6 Collect the Bitcoin transaction inputs.
         let bitcoin_tx_inputs: Vec<OutPoint> = self
             .added_tx_inputs
             .iter()
             .map(|(outpoint, _)| outpoint.clone())
             .collect();
 
-        // 5 Get the Bitcoin transaction outputs.
+        // 7 Get the Bitcoin transaction outputs.
         let bitcoin_tx_outputs: Vec<TxOut> = self.added_tx_outputs.clone();
 
-        // 6 Construct the batch template.
+        // 8 Construct the batch template.
         let batch_template =
             BatchTemplate::new(bitcoin_tx_inputs, bitcoin_tx_outputs, payload_bytes);
 
-        // 7 Return the batch template.
+        // 9 Return the batch template.
         Ok(batch_template)
     }
 
@@ -225,8 +251,8 @@ impl ExecCtx {
     /// Used by Nodes to execute a batch of Entries from a `BatchTemplate`.
     pub async fn execute_batch(
         &mut self,
+        batch_height: u64,
         batch_template: BatchTemplate,
-        session_timestamp: u64,
     ) -> Result<(), BatchExecutionError> {
         // 1 Get the batch payload as bits.
         let batch_payload = batch_template.payload_bits().ok_or(
@@ -244,23 +270,34 @@ impl ExecCtx {
         // 4 Turn the Bitcoin transaction outputs into an iterator.
         let mut _tx_outputs_iter = batch_template.bitcoin_tx_outputs.iter();
 
-        // TODO: These will come from the params manager.
+        // 5 Return params from the params manager: TODO
         let decode_account_rank_as_longval = true;
         let decode_contract_rank_as_longval = true;
         let base_ops_price = 100;
 
-        // 5 Decode entries from the patload one by one and execute them.
+        // 6 Decode payload version as as shortcal and session timestamp as a longval.
+        let _payload_version: u32 = ShortVal::decode_ape(&mut ape_bitstream)
+            .map_err(BatchExecutionError::DecodePayloadVersionError)?
+            .value();
+
+        // 7 Decode batch timestamp as a longval used as the execution timestamp for all entries.
+        let batch_timestamp: u64 = LongVal::decode_ape(&mut ape_bitstream)
+            .map_err(BatchExecutionError::DecodeBatchTimestampError)?
+            .value();
+
+        // 8 Decode entries from the patload one by one and execute them.
         loop {
-            // 5.1 Break out of the loop if the APE bitstream is empty.
+            // 8.1 Break out of the loop if the APE bitstream is empty.
             if ape_bitstream.next().is_none() {
                 break;
             }
 
-            // 5.2 Decode Entry from the APE bitstream.
+            // 8.2 Decode Entry from the APE bitstream.
             let entry = Entry::decode_ape(
+                self.engine_key,
+                batch_height,
                 &mut ape_bitstream,
                 &mut tx_inputs_iter,
-                self.engine_key,
                 decode_account_rank_as_longval,
                 decode_contract_rank_as_longval,
                 base_ops_price,
@@ -270,21 +307,12 @@ impl ExecCtx {
             .await
             .map_err(BatchExecutionError::DecodeEntryError)?;
 
-            // 5.3 Execute the decoded `Entry`.
+            // 8.3 Execute the decoded `Entry`.
             match entry {
-                // 5.3.a The `Entry` is a `Liftup`.
+                // 8.3.a The `Entry` is a `Liftup`.
                 Entry::Liftup(liftup) => {
-                    // 5.3.a.1 Execute the `Liftup` `Entry`.
-                    let execution_result = { self.execute_liftup(liftup, session_timestamp).await };
-
-                    // 5.3.a.2 Match on the execution result.
-                    if let Err(error) = execution_result {
-                        // 5.3.a.2.1 FLush everything in the `ExecCtx`.
-                        {
-                            self.flush().await;
-                        }
-
-                        // 5.3.a.2.2 Return the error.
+                    // 8.3.a.1 Execute the `Liftup` `Entry`.
+                    if let Err(error) = self.execute_liftup(liftup, batch_timestamp).await {
                         return Err(BatchExecutionError::LiftupExecutionError(error));
                     }
                 }
@@ -292,14 +320,7 @@ impl ExecCtx {
             }
         }
 
-        // 6 Apply the changes to the `ExecCtx`.
-        {
-            self.apply_changes(session_timestamp, session_timestamp)
-                .await
-                .map_err(BatchExecutionError::ApplyChangesError)?;
-        }
-
-        // 7 Return Ok.
+        // 9 Return Ok.
         Ok(())
     }
 
@@ -307,11 +328,11 @@ impl ExecCtx {
     pub async fn execute_liftup(
         &mut self,
         liftup: Liftup,
-        session_timestamp: u64,
+        execution_timestamp: u64,
     ) -> Result<Entry, LiftupExecutionError> {
         // 1 Execute the liftup.
         match self
-            .execute_liftup_internal(&liftup, session_timestamp)
+            .execute_liftup_internal(&liftup, execution_timestamp)
             .await
         {
             // 1.a Success.
