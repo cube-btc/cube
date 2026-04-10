@@ -66,11 +66,22 @@ impl Liftup {
                     LiftupAPEDecodeError::UnableToLocateLiftOutpointInUTXOSetError(outpoint),
                 )?;
 
+                // Get the expected scriptpubkey.
+                let expected_scriptpubkey = txout.script_pubkey.as_bytes().to_vec();
+
                 let lift = if is_v2_lift {
                     Lift::new_liftv2(self_account_key, engine_key, outpoint, txout)
                 } else {
                     Lift::new_liftv1(self_account_key, engine_key, outpoint, txout)
                 };
+
+                // Get the calculated scriptpubkey.
+                let calculated_scriptpubkey = lift.txout().script_pubkey.as_bytes().to_vec();
+
+                // Check if the calculated scriptpubkey matches the expected scriptpubkey.
+                if calculated_scriptpubkey != expected_scriptpubkey {
+                    return Err(LiftupAPEDecodeError::InvalidLiftScriptpubkeyError(lift));
+                }
 
                 lift_prevtxos.push(lift);
             }

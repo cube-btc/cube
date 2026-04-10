@@ -1,4 +1,5 @@
 use crate::transmutative::bls::bls_ser::{deserialize_bls_key, serialize_bls_key};
+use crate::transmutative::secp::schnorr::Bytes32;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -25,6 +26,19 @@ impl RegisteredAndConfiguredRootAccount {
             registery_index,
             bls_key,
         }
+    }
+
+    /// Validates the `RegisteredAndConfiguredRootAccount`'s Schnorr and BLS keys.
+    pub fn validate_schnorr_and_bls_key(&self) -> bool {
+        // 1 Verify that the account key is indeed a valid Schnorr public key.
+        if !self.account_key.to_even_point().is_none() {
+            return false;
+        }
+
+        // 2 Verify that the BLS key is indeed a valid BLS public key: TODO.
+
+        // 3 Return true.
+        true
     }
 }
 

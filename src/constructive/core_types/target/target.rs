@@ -14,4 +14,20 @@ impl Target {
             targeted_at_batch_height,
         }
     }
+
+    /// Validates the `Target` against the execution height.
+    pub fn validate(&self, execution_height: u64) -> Result<(), (u64, u64)> {
+        // 1 Compute the gap between the execution height and the targeted height.
+        let gap = execution_height
+            .checked_sub(self.targeted_at_batch_height)
+            .ok_or((self.targeted_at_batch_height, execution_height))?;
+
+        // 2 Check if the gap is greater than 4.
+        if gap > 4 {
+            return Err((self.targeted_at_batch_height, execution_height));
+        }
+
+        // 3 Return Ok.
+        Ok(())
+    }
 }

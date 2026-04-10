@@ -34,4 +34,5 @@ impl Liftup {
             .map(|lift| lift.txout().value.to_sat())
             .sum()
     }
+    
 }
