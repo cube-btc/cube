@@ -1,4 +1,4 @@
-use crate::constructive::entry::entry_fields::valtypes::val::long_val::long_val::{
+use crate::constructive::core_types::valtypes::val::long_val::long_val::{
     LongVal, LongValTier,
 };
 use bit_vec::BitVec;

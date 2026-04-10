@@ -1,8 +1,8 @@
-use crate::constructive::entry::entry_fields::calldata::element_type::CalldataElementType;
-use crate::constructive::entry::entry_fields::entities::account::account::account::Account;
-use crate::constructive::entry::entry_fields::entities::contract::contract::Contract;
-use crate::constructive::entry::entry_fields::valtypes::val::long_val::long_val::LongVal;
-use crate::constructive::entry::entry_fields::valtypes::val::short_val::short_val::ShortVal;
+use crate::constructive::core_types::calldata::element_type::CalldataElementType;
+use crate::constructive::core_types::entities::account::account::account::Account;
+use crate::constructive::core_types::entities::contract::contract::Contract;
+use crate::constructive::core_types::valtypes::val::long_val::long_val::LongVal;
+use crate::constructive::core_types::valtypes::val::short_val::short_val::ShortVal;
 use crate::executive::stack::stack_item::StackItem;
 use crate::executive::stack::stack_uint::{SafeConverter, StackItemUintExt, StackUint};
 use serde::{Deserialize, Serialize};

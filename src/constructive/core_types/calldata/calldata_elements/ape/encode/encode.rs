@@ -1,5 +1,5 @@
-use crate::constructive::entry::entry_fields::calldata::calldata_elements::ape::encode::error::encode_error::CalldataElementAPEEncodeError;
-use crate::constructive::entry::entry_fields::calldata::calldata_elements::calldata_elements::CalldataElement;
+use crate::constructive::core_types::calldata::calldata_elements::ape::encode::error::encode_error::CalldataElementAPEEncodeError;
+use crate::constructive::core_types::calldata::calldata_elements::calldata_elements::CalldataElement;
 use crate::inscriptive::registery::registery::REGISTERY;
 use bit_vec::BitVec;
 

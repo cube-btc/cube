@@ -4,7 +4,8 @@ use crate::{
         txo::lift::{
             lift::Lift,
             lift_versions::{
-                liftv1::return_liftv1_scriptpubkey, liftv2::return_liftv2_scriptpubkey,
+                liftv1::liftv1::return_liftv1_scriptpubkey,
+                liftv2::liftv2::return_liftv2_scriptpubkey,
             },
         },
     },

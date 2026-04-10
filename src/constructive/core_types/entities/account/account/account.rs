@@ -1,4 +1,4 @@
-use crate::constructive::entry::entry_fields::entities::account::account::{
+use crate::constructive::core_types::entities::account::account::{
     registered_account::registered_account::RegisteredAccount,
     unregistered_account::unregistered_account::UnregisteredAccount,
 };

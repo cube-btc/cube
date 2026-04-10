@@ -1,7 +1,7 @@
-use crate::constructive::txo::lift::lift_versions::liftv1::{
+use crate::constructive::txo::lift::lift_versions::liftv1::liftv1::{
     return_liftv1_scriptpubkey, return_liftv1_taproot,
 };
-use crate::constructive::txo::lift::lift_versions::liftv2::{
+use crate::constructive::txo::lift::lift_versions::liftv2::liftv2::{
     return_liftv2_scriptpubkey, return_liftv2_taproot,
 };
 use crate::operative::run_args::chain::Chain;

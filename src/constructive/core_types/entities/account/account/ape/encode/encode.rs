@@ -1,22 +1,12 @@
-use crate::constructive::entry::entry_fields::entities::account::account::account::Account;
-use crate::constructive::entry::entry_fields::entities::account::account::ape::encode::error::encode_error::AccountAPEEncodeError;
-use crate::constructive::entry::entry_fields::valtypes::val::long_val::long_val::LongVal;
-use crate::constructive::entry::entry_fields::valtypes::val::short_val::short_val::ShortVal;
+use crate::constructive::core_types::entities::account::account::account::Account;
+use crate::constructive::core_types::entities::account::account::ape::encode::error::encode_error::AccountAPEEncodeError;
+use crate::constructive::core_types::valtypes::val::long_val::long_val::LongVal;
+use crate::constructive::core_types::valtypes::val::short_val::short_val::ShortVal;
 use crate::inscriptive::registery::registery::REGISTERY;
 use bit_vec::BitVec;
 
 impl Account {
     /// Encodes an `Account` as an Airly Payload Encoding (APE) bit vector.
-    ///
-    /// This function encodes an `Account` as an Airly Payload Encoding (APE) bit vector.
-    /// The `Account` can be either registered or unregistered.
-    /// If the `Account` is registered, the rank value is encoded as a `LongVal` or a `ShortVal`.
-    /// If the `Account` is unregistered, the public key is encoded as a bit vector.
-    ///
-    /// # Arguments
-    /// * `&self` - The `Account` to encode.
-    /// * `registery_manager` - The guarded `RegisteryManager` to get the `Account`'s rank value.
-    /// * `encode_rank_as_longval` - Whether to encode the `Account`'s rank value as a `LongVal` or a `ShortVal`.
     pub async fn encode_ape(
         &self,
         registery: &REGISTERY,

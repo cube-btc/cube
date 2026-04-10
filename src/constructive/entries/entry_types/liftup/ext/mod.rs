@@ -1,2 +1,2 @@
-pub mod validate_lifts;
-pub mod validate_overall;
+pub mod codec;
+pub mod validations;

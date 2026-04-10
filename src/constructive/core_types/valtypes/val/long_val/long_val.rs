@@ -1,7 +1,7 @@
-use crate::constructive::entry::entry_fields::valtypes::maybe_common::maybe_common::maybe_common::{
+use crate::constructive::core_types::valtypes::maybe_common::maybe_common::maybe_common::{
     Commonable, MaybeCommonValue, MaybeCommonValueType,
 };
-use crate::constructive::entry::entry_fields::valtypes::val::short_val::short_val::ShortVal;
+use crate::constructive::core_types::valtypes::val::short_val::short_val::ShortVal;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

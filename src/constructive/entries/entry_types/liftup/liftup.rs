@@ -3,9 +3,6 @@ use crate::constructive::entity::account::root_account::root_account::RootAccoun
 use crate::constructive::txo::lift::lift::Lift;
 use serde::{Deserialize, Serialize};
 
-/// Bytes.
-type Bytes = Vec<u8>;
-
 /// The `Liftup` struct represents an `Entry` that lifts one or more `Lift` Bitcoin previous transaction outputs.
 /// `Liftup` is how BTC is injected into the system from on-chain.
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -36,19 +33,5 @@ impl Liftup {
             .iter()
             .map(|lift| lift.txout().value.to_sat())
             .sum()
-    }
-
-    /// Serializes the `Liftup` into a byte vector.
-    pub fn serialize(&self) -> Option<Bytes> {
-        // Initialize the bytes.
-        let mut bytes = Vec::<u8>::new();
-
-        // Push 0x00 for the liftup entry type flag.
-        bytes.push(0x00);
-
-        // Push 0x01 for the liftup version.
-        bytes.push(0x01);
-
-        None
     }
 }

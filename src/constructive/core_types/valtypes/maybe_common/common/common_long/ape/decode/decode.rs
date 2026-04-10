@@ -1,8 +1,8 @@
-use crate::constructive::entry::entry_fields::valtypes::maybe_common::common::common_long::common_long::{
+use crate::constructive::core_types::valtypes::maybe_common::common::common_long::common_long::{
     CommonLongVal, COMMON_LONG_BITSIZE,
 };
-use crate::constructive::entry::entry_fields::valtypes::maybe_common::common::common_long::ape::decode::error::decode_error::CommonLongValAPEDecodeError;
-use crate::constructive::entry::entry_fields::valtypes::u8_ext::U8Ext;
+use crate::constructive::core_types::valtypes::maybe_common::common::common_long::ape::decode::error::decode_error::CommonLongValAPEDecodeError;
+use crate::constructive::core_types::valtypes::u8_ext::U8Ext;
 use bit_vec::BitVec;
 
 impl CommonLongVal {

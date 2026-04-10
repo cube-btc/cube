@@ -1,12 +1,12 @@
-use crate::constructive::entry::entry_fields::valtypes::maybe_common::common::common_long::common_long::CommonLongVal;
-use crate::constructive::entry::entry_fields::valtypes::maybe_common::common::common_short::common_short::CommonShortVal;
-use crate::constructive::entry::entry_fields::valtypes::maybe_common::maybe_common::ape::decode::error::decode_error::MaybeCommonAPEDecodeError;
-use crate::constructive::entry::entry_fields::valtypes::maybe_common::maybe_common::maybe_common::MaybeCommonValueType;
-use crate::constructive::entry::entry_fields::valtypes::maybe_common::maybe_common::maybe_common::{
+use crate::constructive::core_types::valtypes::maybe_common::common::common_long::common_long::CommonLongVal;
+use crate::constructive::core_types::valtypes::maybe_common::common::common_short::common_short::CommonShortVal;
+use crate::constructive::core_types::valtypes::maybe_common::maybe_common::ape::decode::error::decode_error::MaybeCommonAPEDecodeError;
+use crate::constructive::core_types::valtypes::maybe_common::maybe_common::maybe_common::MaybeCommonValueType;
+use crate::constructive::core_types::valtypes::maybe_common::maybe_common::maybe_common::{
     CommonVal, Commonable, MaybeCommon,
 };
-use crate::constructive::entry::entry_fields::valtypes::val::long_val::long_val::LongVal;
-use crate::constructive::entry::entry_fields::valtypes::val::short_val::short_val::ShortVal;
+use crate::constructive::core_types::valtypes::val::long_val::long_val::LongVal;
+use crate::constructive::core_types::valtypes::val::short_val::short_val::ShortVal;
 
 impl<T> MaybeCommon<T>
 where

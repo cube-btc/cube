@@ -1,9 +1,10 @@
 pub mod bitcoiny;
-pub mod entries;
 pub mod core_types;
+pub mod entries;
 pub mod txout_types;
 
 pub use entries as entry;
+
 pub use core_types::calldata;
 pub use core_types::entities as entity;
 pub use core_types::valtypes as valtype;

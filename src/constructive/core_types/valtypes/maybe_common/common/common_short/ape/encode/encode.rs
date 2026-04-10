@@ -1,8 +1,8 @@
-use crate::constructive::entry::entry_fields::valtypes::maybe_common::common::common_short::common_short::{
+use crate::constructive::core_types::valtypes::maybe_common::common::common_short::common_short::{
     CommonShortVal, COMMON_SHORT_BITSIZE,
 };
-use crate::constructive::entry::entry_fields::valtypes::maybe_common::common::common_short::ape::encode::error::encode_error::CommonShortValAPEEncodeError;
-use crate::constructive::entry::entry_fields::valtypes::u8_ext::U8Ext;
+use crate::constructive::core_types::valtypes::maybe_common::common::common_short::ape::encode::error::encode_error::CommonShortValAPEEncodeError;
+use crate::constructive::core_types::valtypes::u8_ext::U8Ext;
 use bit_vec::BitVec;
 
 impl CommonShortVal {

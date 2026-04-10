@@ -1,7 +1,7 @@
-use crate::constructive::entry::entry_fields::valtypes::maybe_common::maybe_common::maybe_common::{
+use crate::constructive::core_types::valtypes::maybe_common::maybe_common::maybe_common::{
     Commonable, MaybeCommonValue, MaybeCommonValueType,
 };
-use crate::constructive::entry::entry_fields::valtypes::val::long_val::long_val::LongVal;
+use crate::constructive::core_types::valtypes::val::long_val::long_val::LongVal;
 use serde::{Deserialize, Serialize};
 
 /// Represents a short value.

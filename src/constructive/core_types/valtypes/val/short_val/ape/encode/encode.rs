@@ -1,4 +1,4 @@
-use crate::constructive::entry::entry_fields::valtypes::val::short_val::short_val::{
+use crate::constructive::core_types::valtypes::val::short_val::short_val::{
     ShortVal, ShortValTier,
 };
 use bit_vec::BitVec;

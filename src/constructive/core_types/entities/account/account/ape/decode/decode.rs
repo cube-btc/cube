@@ -1,24 +1,14 @@
-use crate::constructive::entry::entry_fields::entities::account::account::account::Account;
-use crate::constructive::entry::entry_fields::entities::account::account::ape::decode::error::decode_error::AccountAPEDecodeError;
-use crate::constructive::entry::entry_fields::entities::account::account::unregistered_account::unregistered_account::UnregisteredAccount;
-use crate::constructive::entry::entry_fields::valtypes::val::long_val::long_val::LongVal;
-use crate::constructive::entry::entry_fields::valtypes::val::short_val::short_val::ShortVal;
+use crate::constructive::core_types::entities::account::account::account::Account;
+use crate::constructive::core_types::entities::account::account::ape::decode::error::decode_error::AccountAPEDecodeError;
+use crate::constructive::core_types::entities::account::account::unregistered_account::unregistered_account::UnregisteredAccount;
+use crate::constructive::core_types::valtypes::val::long_val::long_val::LongVal;
+use crate::constructive::core_types::valtypes::val::short_val::short_val::ShortVal;
 use crate::inscriptive::registery::registery::REGISTERY;
 use bit_vec::BitVec;
 use secp::Point;
 
 impl Account {
     /// Decodes an `Account` as an Airly Payload Encoding (APE) bit vector.  
-    ///
-    /// This function decodes an `Account` as an Airly Payload Encoding (APE) bit vector.
-    /// The `Account` can be either registered or unregistered.
-    /// If the `Account` is registered, the rank value is decoded as a `LongVal` or a `ShortVal`.
-    /// If the `Account` is unregistered, the public key is decoded as a bit vector.
-    ///
-    /// # Arguments
-    /// * `bit_stream` - The APE bitstream.
-    /// * `registery_manager` - The `Registery Manager`.
-    /// * `decode_rank_as_longval` - Whether to decode the rank value as a `LongVal` or a `ShortVal`.
     pub async fn decode_ape<'a>(
         bit_stream: &mut bit_vec::Iter<'a>,
         registery: &REGISTERY,

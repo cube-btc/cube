@@ -1,4 +1,4 @@
-use crate::constructive::entry::entry_fields::valtypes::val::short_val::{
+use crate::constructive::core_types::valtypes::val::short_val::{
     ape::decode::error::decode_error::ShortValAPEDecodeError,
     short_val::{ShortVal, ShortValTier},
 };

@@ -1,9 +1,9 @@
-use crate::constructive::entry::entry_fields::valtypes::maybe_common::maybe_common::ape::encode::error::encode_error::MaybeCommonAPEEncodeError;
-use crate::constructive::entry::entry_fields::valtypes::maybe_common::maybe_common::maybe_common::{
+use crate::constructive::core_types::valtypes::maybe_common::maybe_common::ape::encode::error::encode_error::MaybeCommonAPEEncodeError;
+use crate::constructive::core_types::valtypes::maybe_common::maybe_common::maybe_common::{
     CommonVal, Commonable, MaybeCommon, MaybeCommonValue,
 };
-use crate::constructive::entry::entry_fields::valtypes::val::long_val::long_val::LongVal;
-use crate::constructive::entry::entry_fields::valtypes::val::short_val::short_val::ShortVal;
+use crate::constructive::core_types::valtypes::val::long_val::long_val::LongVal;
+use crate::constructive::core_types::valtypes::val::short_val::short_val::ShortVal;
 
 use bit_vec::BitVec;
 

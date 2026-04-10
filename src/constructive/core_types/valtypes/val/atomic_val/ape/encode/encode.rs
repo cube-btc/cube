@@ -1,6 +1,6 @@
-use crate::constructive::entry::entry_fields::valtypes::u8_ext::U8Ext;
-use crate::constructive::entry::entry_fields::valtypes::val::atomic_val::ape::encode::error::encode_error::AtomicValAPEEncodeError;
-use crate::constructive::entry::entry_fields::valtypes::val::atomic_val::atomic_val::AtomicVal;
+use crate::constructive::core_types::valtypes::u8_ext::U8Ext;
+use crate::constructive::core_types::valtypes::val::atomic_val::ape::encode::error::encode_error::AtomicValAPEEncodeError;
+use crate::constructive::core_types::valtypes::val::atomic_val::atomic_val::AtomicVal;
 use bit_vec::BitVec;
 
 impl AtomicVal {

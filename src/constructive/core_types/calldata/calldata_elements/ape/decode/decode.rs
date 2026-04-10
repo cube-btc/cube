@@ -1,15 +1,15 @@
-use crate::constructive::entry::entry_fields::calldata::calldata_elements::ape::decode::error::decode_errors::{
+use crate::constructive::core_types::calldata::calldata_elements::ape::decode::error::decode_errors::{
     BoolAPEDecodeError, BytesAPEDecodeError, CallAccountAPEDecodeError, CallContractAPEDecodeError,
     CalldataElementAPEDecodeError, PayableAPEDecodeError, U16APEDecodeError, U32APEDecodeError,
     U64APEDecodeError, U8APEDecodeError, VarbytesAPEDecodeError,
 };
-use crate::constructive::entry::entry_fields::calldata::calldata_elements::calldata_elements::CalldataElement;
-use crate::constructive::entry::entry_fields::calldata::element_type::CalldataElementType;
-use crate::constructive::entry::entry_fields::entities::account::account::account::Account;
-use crate::constructive::entry::entry_fields::entities::contract::contract::Contract;
-use crate::constructive::entry::entry_fields::valtypes::maybe_common::maybe_common::maybe_common::MaybeCommon;
-use crate::constructive::entry::entry_fields::valtypes::val::long_val::long_val::LongVal;
-use crate::constructive::entry::entry_fields::valtypes::val::short_val::short_val::ShortVal;
+use crate::constructive::core_types::calldata::calldata_elements::calldata_elements::CalldataElement;
+use crate::constructive::core_types::calldata::element_type::CalldataElementType;
+use crate::constructive::core_types::entities::account::account::account::Account;
+use crate::constructive::core_types::entities::contract::contract::Contract;
+use crate::constructive::core_types::valtypes::maybe_common::maybe_common::maybe_common::MaybeCommon;
+use crate::constructive::core_types::valtypes::val::long_val::long_val::LongVal;
+use crate::constructive::core_types::valtypes::val::short_val::short_val::ShortVal;
 use crate::inscriptive::registery::registery::REGISTERY;
 
 use bit_vec::BitVec;

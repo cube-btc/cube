@@ -1,4 +1,4 @@
-use crate::constructive::entry::entry_fields::valtypes::maybe_common::common::{
+use crate::constructive::core_types::valtypes::maybe_common::common::{
     common_long::ape::encode::error::encode_error::CommonLongValAPEEncodeError,
     common_short::ape::encode::error::encode_error::CommonShortValAPEEncodeError,
 };

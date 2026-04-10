@@ -1,5 +1,5 @@
 use crate::constructive::bitcoiny::batch_template::batch_template::BatchTemplate;
-use crate::constructive::entry::entry::Entry;
+use crate::constructive::entry::entry::entry::Entry;
 use crate::constructive::entry::entry_types::liftup::liftup::Liftup;
 use crate::executive::exec_ctx::errors::into_batch_template_error::IntoBatchTemplateError;
 use crate::executive::exec_ctx::exec_ctx::ExecCtx;
