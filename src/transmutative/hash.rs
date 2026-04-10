@@ -3,15 +3,9 @@ use sha2::{Digest, Sha256, Sha512};
 
 #[derive(Clone, PartialEq)]
 pub enum HashTag {
-    VSEEncryptionAuth,
-    Sighash,
-    SighashEntry,
-    PayloadAuth,
+    // Schnorr-secp256k1
     SignatureChallenge,
     BIP340Challenge,
-    GroupCommitment,
-    BindingFactor,
-    SharedSecret,
     SecretNonce,
     SecretKey,
     TapLeaf,
@@ -33,19 +27,15 @@ pub enum HashTag {
     BLSKeyAuthorizationMessage,
     // FlameConfig
     FlameConfig,
+    // Sighashes
+    SighashLiftup,
 }
 
 impl HashTag {
     pub fn as_str(&self) -> String {
         match self {
-            HashTag::VSEEncryptionAuth => format!("{}/{}", baked::PROJECT_TAG, "vseencryptionauth"),
-            HashTag::Sighash => format!("{}/{}", baked::PROJECT_TAG, "sighash"),
-            HashTag::SighashEntry => format!("{}/{}", baked::PROJECT_TAG, "sighash/entry"),
             HashTag::SignatureChallenge => format!("{}/{}", baked::PROJECT_TAG, "challenge"),
             HashTag::BIP340Challenge => format!("{}/{}", "BIP0340", "challenge"),
-            HashTag::GroupCommitment => format!("{}/{}", baked::PROJECT_TAG, "groupcommitment"),
-            HashTag::BindingFactor => format!("{}/{}", baked::PROJECT_TAG, "bindingfactor"),
-            HashTag::SharedSecret => format!("{}/{}", baked::PROJECT_TAG, "sharedsecret"),
             HashTag::SecretNonce => format!("{}/{}", baked::PROJECT_TAG, "secretnonce"),
             HashTag::SecretKey => format!("{}/{}", baked::PROJECT_TAG, "secretkey"),
             HashTag::TapLeaf => format!("TapLeaf"),
@@ -55,7 +45,6 @@ impl HashTag {
             HashTag::KeyAggList => format!("KeyAgg list"),
             HashTag::KeyAggCoef => format!("KeyAgg coefficient"),
             HashTag::MusigNonceCoef => format!("MuSig/noncecoef"),
-            HashTag::PayloadAuth => format!("{}/{}", baked::PROJECT_TAG, "payloadauth"),
             HashTag::BLSSecretKey => format!("{}/{}", baked::PROJECT_TAG, "bls/secretkey"),
             HashTag::CustomString(tag) => tag.clone(),
             HashTag::CustomBytes(tag) => tag.clone().into_iter().map(|b| b as char).collect(),
@@ -64,6 +53,7 @@ impl HashTag {
                 format!("{}/{}", baked::PROJECT_TAG, "bls/keyauth")
             }
             HashTag::FlameConfig => format!("{}/{}", baked::PROJECT_TAG, "flameconfig"),
+            HashTag::SighashLiftup => format!("{}/{}", baked::PROJECT_TAG, "sighash/liftup"),
         }
     }
 }

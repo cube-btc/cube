@@ -6,7 +6,7 @@ use hex;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-/// The Lift enum.
+/// The Lift Bitcoin Transaction Output (TXO) type.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Lift {
     // Non-interactive, but trusted, placeholder Lift implementation.
@@ -15,7 +15,7 @@ pub enum Lift {
     // MuSig2-based and thus interactive, but trustless Lift implementation.
     LiftV2(LiftV2),
 
-    /// Lift UTXO whose version is not asserted as v1 or v2 (e.g. APE prefix `1x`); scriptpubkey is not checked against v1/v2 templates.
+    /// Unknown lift version, reserved for potential future use.
     Unknown {
         account_key: [u8; 32],
         engine_key: [u8; 32],
@@ -60,12 +60,12 @@ impl Lift {
         }
     }
 
-    /// Returns the lift version (`1` / `2`), or `0` when [`Lift::Unknown`].
+    /// Returns the lift version.
     pub fn lift_version(&self) -> u8 {
         match self {
+            Lift::Unknown { .. } => 0,
             Lift::LiftV1(_) => 1,
             Lift::LiftV2(_) => 2,
-            Lift::Unknown { .. } => 0,
         }
     }
 
@@ -117,10 +117,7 @@ impl Lift {
                 txout,
             } => {
                 let mut obj = Map::new();
-                obj.insert(
-                    "version".to_string(),
-                    Value::String("unknown".to_string()),
-                );
+                obj.insert("version".to_string(), Value::String("unknown".to_string()));
                 obj.insert(
                     "account_key".to_string(),
                     Value::String(hex::encode(account_key)),
