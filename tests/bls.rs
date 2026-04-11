@@ -4,7 +4,7 @@ mod bls_test {
         agg::bls_aggregate,
         key::{
             bls_secret_key_bytes_to_bls_secret_key, bls_secret_key_to_bls_public_key,
-            secp_secret_key_bytes_to_bls_secret_key_bytes, BLSPublicKey, BLSSecretKey,
+            secp_secret_key_bytes_to_bls_secret_key_bytes, BLSSecretKey,
         },
         sign::bls_sign,
         verify::{bls_verify, bls_verify_aggregate},
@@ -76,13 +76,19 @@ mod bls_test {
         let bls_secret_key_3: BLSSecretKey =
             bls_secret_key_bytes_to_bls_secret_key(bls_secret_key_bytes_3);
 
-        // Convert the BLS secret keys to BLS public keys.
-        let bls_public_key_1: BLSPublicKey =
-            bls_secret_key_to_bls_public_key(bls_secret_key_1).unwrap();
-        let bls_public_key_2: BLSPublicKey =
-            bls_secret_key_to_bls_public_key(bls_secret_key_2).unwrap();
-        let bls_public_key_3: BLSPublicKey =
-            bls_secret_key_to_bls_public_key(bls_secret_key_3).unwrap();
+        // Convert the BLS secret keys to BLS public keys (48-byte encodings).
+        let bls_public_key_1: [u8; 48] = bls_secret_key_to_bls_public_key(bls_secret_key_1)
+            .unwrap()
+            .try_into()
+            .unwrap();
+        let bls_public_key_2: [u8; 48] = bls_secret_key_to_bls_public_key(bls_secret_key_2)
+            .unwrap()
+            .try_into()
+            .unwrap();
+        let bls_public_key_3: [u8; 48] = bls_secret_key_to_bls_public_key(bls_secret_key_3)
+            .unwrap()
+            .try_into()
+            .unwrap();
 
         // Message to sign.
         let message_1: [u8; 32] = [0xffu8; 32];

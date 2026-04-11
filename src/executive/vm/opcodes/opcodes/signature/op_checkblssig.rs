@@ -3,7 +3,7 @@ use crate::executive::stack::{
     stack_holder::StackHolder,
     stack_item::StackItem,
 };
-use crate::transmutative::bls::{key::BLSPublicKey, verify::bls_verify};
+use crate::transmutative::bls::verify::bls_verify;
 use serde::{Deserialize, Serialize};
 
 /// Checks a BLS signature according against a key and a message.
@@ -31,7 +31,7 @@ impl OP_CHECKBLSSIG {
         let signature = stack_holder.pop()?;
 
         // Convert the public key to 48 bytes.
-        let public_key: BLSPublicKey = public_key
+        let public_key: [u8; 48] = public_key
             .bytes()
             .try_into()
             .map_err(|_| StackError::BLSError(BLSError::InvalidBLSPublicKeyBytes))?;

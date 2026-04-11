@@ -1,4 +1,4 @@
-use crate::constructive::entry::entry_kinds::liftup::ext::validations::validate_lifts::validate_lifts_error::LiftupValidateLiftsError;
+use crate::constructive::entry::entry_kinds::liftup::ext::pre_validations::validate_lifts::validate_lifts_error::LiftupValidateLiftsError;
 use crate::constructive::entry::entry_kinds::liftup::liftup::Liftup;
 use crate::constructive::txo::lift::lift::Lift;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;

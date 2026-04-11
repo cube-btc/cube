@@ -1,28 +1,34 @@
 use crate::constructive::bitcoiny::batch_template::batch_template::BatchTemplate;
+use crate::constructive::core_types::valtypes::val::long_val::long_val::LongVal;
+use crate::constructive::core_types::valtypes::val::short_val::short_val::ShortVal;
 use crate::constructive::entry::entry::entry::Entry;
 use crate::executive::exec_ctx::errors::batch_execution_error::BatchExecutionError;
-use crate::executive::exec_ctx::errors::into_batch_template_error::IntoBatchTemplateError;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
 use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 use crate::inscriptive::registery::registery::REGISTERY;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
-use crate::transmutative::codec::bitvec_ext::BitVecExt;
+use crate::transmutative::bls::verify::bls_verify_aggregate;
 use crate::{
     constructive::entry::entry_kinds::liftup::liftup::Liftup,
     executive::entry_executions::liftup_execution::error::liftup_execution_error::LiftupExecutionError,
     executive::exec_ctx::errors::apply_changes_error::ApplyChangesError,
 };
 use bit_vec::BitVec;
-use bitcoin::{OutPoint, TxOut};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::constructive::core_types::valtypes::val::long_val::long_val::LongVal;
-use crate::constructive::core_types::valtypes::val::short_val::short_val::ShortVal;
+/// A type alias for the batch height.
+type BatchHeight = u64;
 
-/// A type alias for a vector of bytes.
-type Bytes = Vec<u8>;
+/// A type alias for the payload version.
+type PayloadVersion = u32;
+
+/// A type alias for the batch timestamp.
+type BatchTimestamp = u64;
+
+/// A type alias for the aggregate BLS signature.
+type AggregateBLSSignature = [u8; 96];
 
 /// `ExecCtx` contains a set of executed entries.
 pub struct ExecCtx {
@@ -43,15 +49,6 @@ pub struct ExecCtx {
 
     // The local flame manager database of the Engine.
     pub flame_manager: FLAME_MANAGER,
-
-    // The entries that have been executed in the pool.
-    pub executed_entries: Vec<Entry>,
-
-    // The Bitcoin transaction inputs that have been added as a result of executing `Liftup` entries.
-    pub added_tx_inputs: Vec<(OutPoint, TxOut)>,
-
-    // The Bitcoin transaction outputs that have been added as a result of executing `Swapout` entries.
-    pub added_tx_outputs: Vec<TxOut>,
 }
 
 /// Guarded `ExecCtx`.
@@ -76,9 +73,6 @@ impl ExecCtx {
             graveyard,
             coin_manager,
             flame_manager,
-            executed_entries: Vec::new(),
-            added_tx_inputs: Vec::new(),
-            added_tx_outputs: Vec::new(),
         };
 
         // 2 Return the guarded `ExecCtx`.
@@ -128,15 +122,6 @@ impl ExecCtx {
 
         // 4 Rollback all flame manager.
         self.flame_manager.lock().await.flush_delta();
-
-        // 5 Reset the added tx inputs.
-        self.added_tx_inputs.clear();
-
-        // 6 Reset the added tx outputs.
-        self.added_tx_outputs.clear();
-
-        // 7 Reset the executed entries.
-        self.executed_entries.clear();
     }
 
     /// Applies the changes to the `ExecCtx` collectively for all Entries in the container.
@@ -183,69 +168,6 @@ impl ExecCtx {
         Ok(())
     }
 
-    /// Converts the `ExecCtx` into a `BatchTemplate`.
-    ///
-    /// Used by Engine to convert the `ExecCtx` in its `SessionPool` into a `BatchTemplate`.
-    pub async fn into_batch_template(
-        &mut self,
-        batch_height: u64,
-        batch_timestamp: u64,
-        payload_version: u32,
-    ) -> Result<BatchTemplate, IntoBatchTemplateError> {
-        // 1 Initialize the bit vector for the payload.
-        let mut payload_bits: BitVec = BitVec::new();
-
-        // 2 Encode the payload version.
-        {
-            // 2.1 Encode the payload version.
-            let payload_version_bits = ShortVal::new(payload_version).encode_ape();
-
-            // 2.2 Extend the payload bits with the payload version bits.
-            payload_bits.extend(payload_version_bits);
-        }
-
-        // 3 Encode the batch timestamp.
-        {
-            // 3.1 Encode the batch timestamp.
-            let batch_timestamp_bits = LongVal::new(batch_timestamp).encode_ape();
-
-            // 3.2 Extend the payload bits with the batch timestamp bits.
-            payload_bits.extend(batch_timestamp_bits);
-        }
-
-        // 4 Iterator over the executed entries to extend the payload bits.
-        for entry in &self.executed_entries {
-            // 4.1 Encode the entry as APE bits.
-            let entry_ape_bits = entry
-                .encode_ape(batch_height, &self.registery, true, true)
-                .await
-                .map_err(IntoBatchTemplateError::EntryAPEEncodeError)?;
-
-            // 4.2 Extend the payload bits with the entry APE bits.
-            payload_bits.extend(entry_ape_bits);
-        }
-
-        // 5 Convert the payload bits to payload bytes.
-        let payload_bytes: Bytes = payload_bits.to_payload_bytes();
-
-        // 6 Collect the Bitcoin transaction inputs.
-        let bitcoin_tx_inputs: Vec<OutPoint> = self
-            .added_tx_inputs
-            .iter()
-            .map(|(outpoint, _)| outpoint.clone())
-            .collect();
-
-        // 7 Get the Bitcoin transaction outputs.
-        let bitcoin_tx_outputs: Vec<TxOut> = self.added_tx_outputs.clone();
-
-        // 8 Construct the batch template.
-        let batch_template =
-            BatchTemplate::new(bitcoin_tx_inputs, bitcoin_tx_outputs, payload_bytes);
-
-        // 9 Return the batch template.
-        Ok(batch_template)
-    }
-
     /// Executes a batch of Entries from a `BatchTemplate`.
     ///
     /// Used by Nodes to execute a batch of Entries from a `BatchTemplate`.
@@ -253,7 +175,16 @@ impl ExecCtx {
         &mut self,
         batch_height: u64,
         batch_template: BatchTemplate,
-    ) -> Result<(), BatchExecutionError> {
+    ) -> Result<
+        (
+            BatchHeight,
+            PayloadVersion,
+            BatchTimestamp,
+            AggregateBLSSignature,
+            Vec<Entry>,
+        ),
+        BatchExecutionError,
+    > {
         // 1 Get the batch payload as bits.
         let batch_payload = batch_template.payload_bits().ok_or(
             BatchExecutionError::BatchTemplatePayloadBitsConversionError(
@@ -276,7 +207,7 @@ impl ExecCtx {
         let base_ops_price = 100;
 
         // 6 Decode payload version as as shortcal and session timestamp as a longval.
-        let _payload_version: u32 = ShortVal::decode_ape(&mut ape_bitstream)
+        let payload_version: u32 = ShortVal::decode_ape(&mut ape_bitstream)
             .map_err(BatchExecutionError::DecodePayloadVersionError)?
             .value();
 
@@ -285,14 +216,38 @@ impl ExecCtx {
             .map_err(BatchExecutionError::DecodeBatchTimestampError)?
             .value();
 
-        // 8 Decode entries from the patload one by one and execute them.
+        // 8 Decode aggregate BLS signature as a byte array.
+        let aggregate_bls_signature: [u8; 96] = {
+            // 8.1 Collect 768 bits from the APE bitstream.
+            let aggregate_bls_signature_bits: BitVec = ape_bitstream.by_ref().take(768).collect();
+            if aggregate_bls_signature_bits.len() != 768 {
+                return Err(BatchExecutionError::DecodeAggregateBLSSignatureError);
+            }
+
+            // 8.2 Convert the aggregate BLS signature bits to a byte array.
+            let bytes = aggregate_bls_signature_bits.to_bytes();
+            bytes
+                .try_into()
+                .map_err(|_| BatchExecutionError::DecodeAggregateBLSSignatureError)?
+        };
+
+        // 9 Initialize the executed entries list to collect the executed entries.
+        let mut executed_entries: Vec<Entry> = Vec::new();
+
+        // 10 Initialize the executed entry sighashes list.
+        let mut executed_entry_sighashes: Vec<[u8; 32]> = Vec::new();
+
+        // 11 Initialize the executed entry account BLS keys list.
+        let mut executed_entry_account_bls_keys: Vec<[u8; 48]> = Vec::new();
+
+        // 12 Decode entries from the patload one by one and execute them.
         loop {
-            // 8.1 Break out of the loop if the APE bitstream is empty.
+            // 12.1 Break out of the loop if the APE bitstream is empty.
             if ape_bitstream.next().is_none() {
                 break;
             }
 
-            // 8.2 Decode Entry from the APE bitstream.
+            // 12.2 Decode Entry from the APE bitstream.
             let entry = Entry::decode_ape(
                 self.engine_key,
                 batch_height,
@@ -307,51 +262,75 @@ impl ExecCtx {
             .await
             .map_err(BatchExecutionError::DecodeEntryError)?;
 
-            // 8.3 Execute the decoded `Entry`.
+            // 12.3 Execute the decoded `Entry`.
             match entry {
-                // 8.3.a The `Entry` is a `Liftup`.
+                // 12.3.a The `Entry` is a `Liftup`.
                 Entry::Liftup(liftup) => {
-                    // 8.3.a.1 Execute the `Liftup` `Entry`.
-                    if let Err(error) = self.execute_liftup(liftup, batch_timestamp).await {
-                        return Err(BatchExecutionError::LiftupExecutionError(error));
+                    // 12.3.a.1 Execute the `Liftup` `Entry`.
+                    match self.execute_liftup(&liftup, batch_timestamp).await {
+                        // 12.3.a.1.a Success.
+                        Ok(entry) => {
+                            // 12.3.a.1.a.1 Add the liftup entry to the executed entries.
+                            executed_entries.push(entry);
+
+                            // 12.3.a.1.a.2 Add the sighash of the `Liftup`.
+                            {
+                                let sighash = liftup
+                                    .sighash()
+                                    .map_err(BatchExecutionError::LiftupSighashError)?;
+                                executed_entry_sighashes.push(sighash);
+                            }
+
+                            // 12.3.a.1.a.3 Add the BLS key of the `RootAccount` of the `Liftup`.
+                            {
+                                let account_bls_key = liftup.root_account.bls_key();
+                                executed_entry_account_bls_keys.push(account_bls_key);
+                            }
+                        }
+                        // 12.3.a.1.b Error.
+                        Err(error) => return Err(BatchExecutionError::LiftupExecutionError(error)),
                     }
                 }
                 _ => panic!("Not implemented yet."),
             }
         }
 
-        // 9 Return Ok.
-        Ok(())
+        // 13 Verify the aggregate BLS signature.
+        if !bls_verify_aggregate(
+            executed_entry_account_bls_keys,
+            executed_entry_sighashes,
+            aggregate_bls_signature,
+        ) {
+            return Err(BatchExecutionError::AggregateBLSSignatureVerificationError);
+        }
+
+        // 14 Return the batch height, payload version, batch timestamp, aggregate BLS signature, and executed entries.
+        Ok((
+            batch_height,
+            payload_version,
+            batch_timestamp,
+            aggregate_bls_signature,
+            executed_entries,
+        ))
     }
 
     /// Executes a `Liftup` Entry.
     pub async fn execute_liftup(
         &mut self,
-        liftup: Liftup,
+        liftup: &Liftup,
         execution_timestamp: u64,
     ) -> Result<Entry, LiftupExecutionError> {
         // 1 Execute the liftup.
         match self
-            .execute_liftup_internal(&liftup, execution_timestamp)
+            .execute_liftup_internal(liftup, execution_timestamp)
             .await
         {
             // 1.a Success.
             Ok(_) => {
-                // 1.a.1 Add Lifts inside the Liftup to the added tx inputs.
-                self.added_tx_inputs.extend(
-                    liftup
-                        .lift_prevtxos
-                        .iter()
-                        .map(|lift| (lift.outpoint(), lift.txout().clone())),
-                );
+                // 1.a.1 Construct the Liftup entry.
+                let liftup_entry = Entry::new_liftup(liftup.clone());
 
-                // 1.a.2 Construct the Liftup entry.
-                let liftup_entry = Entry::new_liftup(liftup);
-
-                // 1.a.3 Add the liftup entry to the executed entries.
-                self.executed_entries.push(liftup_entry.clone());
-
-                // 1.a.4 Return Ok.
+                // 1.a.2 Return the liftup entry.
                 Ok(liftup_entry)
             }
             // 1.b Error.

@@ -1,4 +1,4 @@
-use crate::constructive::entry::entry_kinds::liftup::ext::validations::validate_overall::validate_overall_error::LiftupValidateOverallError;
+use crate::constructive::entry::entry_kinds::liftup::ext::pre_validations::validate_overall::validate_overall_error::LiftupValidateOverallError;
 use crate::constructive::entry::entry_kinds::liftup::liftup::Liftup;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 use crate::inscriptive::registery::registery::REGISTERY;
@@ -15,14 +15,19 @@ impl Liftup {
         utxo_set: &UTXO_SET,
         registery: &REGISTERY,
         graveyard: &GRAVEYARD,
+        bls_signature: [u8; 96],
     ) -> Result<(), LiftupValidateOverallError> {
-        // 1 Validate the root account.
+        // 1 Validate the BLS signature.
+        self.bls_verify(bls_signature)
+            .map_err(LiftupValidateOverallError::ValidateBLSSignatureError)?;
+
+        // 2 Validate the root account.
         self.root_account
             .validate_root_account(registery, graveyard)
             .await
             .map_err(LiftupValidateOverallError::ValidateRootAccountError)?;
 
-        // 2 Validate the target against the execution batch height.
+        // 3 Validate the target against the execution batch height.
         if let Err((targeted_at_batch_height, execution_batch_height_err)) =
             self.target.validate(execution_batch_height)
         {
@@ -32,12 +37,12 @@ impl Liftup {
             });
         }
 
-        // 3 Validate the lifts.
+        // 4 Validate the lifts.
         self.validate_lifts(engine_key, utxo_set)
             .await
             .map_err(LiftupValidateOverallError::ValidateLiftsError)?;
 
-        // 4 Ok.
+        // 5 Ok.
         Ok(())
     }
 }

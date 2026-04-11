@@ -1,4 +1,4 @@
-use crate::constructive::entries::entry_kinds::liftup::ext::hash::sighash::error::sighash_error::LiftupSighashError;
+use crate::constructive::entries::entry_kinds::liftup::ext::signature::sighash::error::sighash_error::LiftupSighashError;
 use crate::constructive::entries::entry_kinds::liftup::liftup::Liftup;
 use crate::transmutative::hash::{Hash, HashTag};
 

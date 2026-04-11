@@ -1,7 +1,8 @@
 use crate::constructive::bitcoiny::batch_template::batch_template::BatchTemplate;
 use crate::constructive::entry::entry::entry::Entry;
 use crate::constructive::entry::entry_kinds::liftup::liftup::Liftup;
-use crate::executive::exec_ctx::errors::into_batch_template_error::IntoBatchTemplateError;
+use crate::constructive::valtype::val::long_val::long_val::LongVal;
+use crate::constructive::valtype::val::short_val::short_val::ShortVal;
 use crate::executive::exec_ctx::exec_ctx::ExecCtx;
 use crate::executive::exec_ctx::exec_ctx::EXEC_CTX;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
@@ -10,8 +11,17 @@ use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 use crate::inscriptive::registery::registery::REGISTERY;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
 use crate::operative::tasks::engine_session::session_pool::error::exec_liftup_in_pool_error::ExecLiftupInPoolError;
+use crate::operative::tasks::engine_session::session_pool::error::into_batch_template_error::IntoBatchTemplateError;
+use crate::transmutative::bls::agg::bls_aggregate;
+use crate::transmutative::codec::bitvec_ext::BitVecExt;
+use bit_vec::BitVec;
+use bitcoin::{OutPoint, TxOut};
+use bls_on_arkworks::errors::BLSError;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+
+/// A type alias for a vector of bytes.
+type Bytes = Vec<u8>;
 
 /// The maximum number of entries that can be in the pool.
 const MAX_IN_POOL_ENTRIES: usize = 1000;
@@ -54,8 +64,17 @@ pub struct SessionPool {
     // The exec container.
     pub exec_container: EXEC_CTX,
 
-    // The number of entries in the pool.
-    pub in_pool_entries_count: usize,
+    // The entries that have been added in the pool.
+    pub added_entries: Vec<Entry>,
+
+    // The Bitcoin transaction inputs that have been added.
+    pub added_tx_inputs: Vec<(OutPoint, TxOut)>,
+
+    // The Bitcoin transaction outputs that have been added.
+    pub added_tx_outputs: Vec<TxOut>,
+
+    // The individual `Entry` BLS signatures that have been added.
+    pub added_individual_entry_bls_signatures: Vec<[u8; 96]>,
 }
 
 /// Guarded `SessionPool`.
@@ -92,7 +111,10 @@ impl SessionPool {
             coin_manager: Arc::clone(coin_manager),
             flame_manager: Arc::clone(flame_manager),
             exec_container,
-            in_pool_entries_count: 0,
+            added_entries: Vec::new(),
+            added_tx_inputs: Vec::new(),
+            added_tx_outputs: Vec::new(),
+            added_individual_entry_bls_signatures: Vec::new(),
         };
 
         // 3 Guard the session pool.
@@ -113,8 +135,17 @@ impl SessionPool {
             _exec_container.flush().await;
         }
 
-        // 2 Reset the number of entries in the pool.
-        self.in_pool_entries_count = 0;
+        // 2 Reset the added entries.
+        self.added_entries = Vec::new();
+
+        // 3 Reset the APE encoded entries.
+        self.added_tx_inputs = Vec::new();
+
+        // 4 Reset the added Bitcoin transaction outputs.
+        self.added_tx_outputs = Vec::new();
+
+        // 6 Reset the added individual entry BLS signatures.
+        self.added_individual_entry_bls_signatures = Vec::new();
     }
 
     /// Starts the session of the `SessionPool`.
@@ -137,27 +168,91 @@ impl SessionPool {
         self.state = SessionPoolState::Inactive;
     }
 
-    /// Returns the `BatchTemplate` of locally executed Entries in the pool.
-    pub async fn batch_template(
+    /// Aggregates the BLS signatures of the added entries.
+    pub fn aggregate_bls_signature(&self) -> Result<[u8; 96], BLSError> {
+        bls_aggregate(self.added_individual_entry_bls_signatures.clone())
+    }
+
+    /// Converts the `ExecCtx` into a `BatchTemplate`.
+    pub async fn into_batch_template(
         &mut self,
         batch_height: u64,
         batch_timestamp: u64,
         payload_version: u32,
     ) -> Result<BatchTemplate, IntoBatchTemplateError> {
-        // 1 Convert the `ExecCtx` into a `BatchTemplate`.
-        self.exec_container
-            .lock()
-            .await
-            .into_batch_template(batch_height, batch_timestamp, payload_version)
-            .await
+        // 1 Initialize the bit vector for the payload.
+        let mut payload_bits: BitVec = BitVec::new();
+
+        // 2 Encode the payload version.
+        {
+            // 2.1 Encode the payload version.
+            let payload_version_bits = ShortVal::new(payload_version).encode_ape();
+
+            // 2.2 Extend the payload bits with the payload version bits.
+            payload_bits.extend(payload_version_bits);
+        }
+
+        // 3 Encode the batch timestamp.
+        {
+            // 3.1 Encode the batch timestamp.
+            let batch_timestamp_bits = LongVal::new(batch_timestamp).encode_ape();
+
+            // 3.2 Extend the payload bits with the batch timestamp bits.
+            payload_bits.extend(batch_timestamp_bits);
+        }
+
+        // 4 Encode the aggregate BLS signature.
+        {
+            // 4.1 Get the aggregate BLS signature.
+            let aggregate_bls_signature = self.aggregate_bls_signature().map_err(|_| IntoBatchTemplateError::AggregateBLSSignatureError)?;
+
+            // 4.2 Convert the aggregate BLS signature to bits.
+            let aggregate_bls_signature_bits = BitVec::from_bytes(&aggregate_bls_signature);
+
+            // 4.3 Extend the payload bits with the aggregate BLS signature bits.
+            payload_bits.extend(aggregate_bls_signature_bits);
+        }
+        
+        // 5 Encode the added entries.
+        for entry in &self.added_entries {
+            // 5.1 Encode the entry as APE bits.
+            let entry_ape_bits = entry
+                .encode_ape(batch_height, &self.registery, true, true)
+                .await
+                .map_err(IntoBatchTemplateError::EntryAPEEncodeError)?;
+
+            // 5.2 Extend the payload bits with the entry APE bits.
+            payload_bits.extend(entry_ape_bits);
+        }
+
+        // 6 Convert the payload bits to payload bytes.
+        let payload_bytes: Bytes = payload_bits.to_payload_bytes();
+
+        // 7 Collect the Bitcoin transaction inputs.
+        let bitcoin_tx_inputs: Vec<OutPoint> = self
+            .added_tx_inputs
+            .iter()
+            .map(|(outpoint, _)| outpoint.clone())
+            .collect();
+
+        // 8 Get the Bitcoin transaction outputs.
+        let bitcoin_tx_outputs: Vec<TxOut> = self.added_tx_outputs.clone();
+
+        // 9 Construct the batch template.
+        let batch_template =
+            BatchTemplate::new(bitcoin_tx_inputs, bitcoin_tx_outputs, payload_bytes);
+
+        // 10 Return the batch template.
+        Ok(batch_template)
     }
 
     /// Executes a `Liftup` entry in the `SessionPool`.
     pub async fn exec_liftup_in_pool(
         &mut self,
-        liftup: Liftup,
         execution_batch_height: u64,
         execution_timestamp: u64,
+        liftup: &Liftup,
+        liftup_bls_signature: [u8; 96],
     ) -> Result<Entry, ExecLiftupInPoolError> {
         // 1 Check the pool session status.
         match self.state {
@@ -172,7 +267,7 @@ impl SessionPool {
             // 1.c The session is active but it might be overloaded.
             _ => {
                 // 1.c.1 Check if the pool is overloaded.
-                if self.in_pool_entries_count >= MAX_IN_POOL_ENTRIES {
+                if self.added_entries.len() >= MAX_IN_POOL_ENTRIES {
                     return Err(ExecLiftupInPoolError::PoolOverloadedError);
                 }
             }
@@ -187,6 +282,7 @@ impl SessionPool {
                     &self.utxo_set,
                     &self.registery,
                     &self.graveyard,
+                    liftup_bls_signature,
                 )
                 .await
                 .map_err(|err| ExecLiftupInPoolError::LiftupValidateOverallError(err))?;
@@ -208,10 +304,24 @@ impl SessionPool {
         {
             // 4.a Success.
             Ok(liftup_entry) => {
-                // 4.a.1 Increment the number of entries in the pool.
-                self.in_pool_entries_count += 1;
+                // 4.a.1 Add the liftup entry to the added entries.
+                self.added_entries.push(liftup_entry.clone());
 
-                // 4.a.2 Return the liftup entry.
+                // 4.a.2 Add the liftup BLS signature to the added individual entry BLS signatures.
+                self.added_individual_entry_bls_signatures
+                    .push(liftup_bls_signature);
+
+                // 4.a.3 Add internal Lifts inside the Liftup to the added Bitcoin transaction inputs.
+                {
+                    self.added_tx_inputs.extend(
+                        liftup
+                            .lift_prevtxos
+                            .iter()
+                            .map(|lift| (lift.outpoint(), lift.txout().clone())),
+                    );
+                }
+
+                // 4.a.4 Return the liftup entry.
                 Ok(liftup_entry)
             }
 

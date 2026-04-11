@@ -4,4 +4,5 @@ use crate::constructive::entry::entry::ext::codec::ape::encode::error::encode_er
 #[derive(Debug, Clone)]
 pub enum IntoBatchTemplateError {
     EntryAPEEncodeError(EntryAPEEncodeError),
+    AggregateBLSSignatureError,
 }
