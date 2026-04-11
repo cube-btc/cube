@@ -1,7 +1,7 @@
 use crate::constructive::core_types::target::target::Target;
 use crate::constructive::{
     entity::account::root_account::root_account::RootAccount,
-    entry::entry_types::liftup::liftup::Liftup, txo::lift::lift::Lift,
+    entry::entry_kinds::liftup::liftup::Liftup, txo::lift::lift::Lift,
 };
 use crate::inscriptive::registery::registery::REGISTERY;
 use crate::inscriptive::sync_manager::sync_manager::SYNC_MANAGER;

@@ -1,5 +1,5 @@
 use crate::{
-    constructive::entry::entry_types::call::call::Call,
+    constructive::entry::entry_kinds::call::call::Call,
     executive::{
         vm::program_execution::{caller::Caller, exec::execute, exec_error::ExecutionError},
         stack::stack_item::StackItem,

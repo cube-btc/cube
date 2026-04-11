@@ -1,4 +1,4 @@
-use crate::constructive::entry::entry_types::liftup::ext::validations::validate_overall::validate_overall_error::LiftupValidateOverallError;
+use crate::constructive::entry::entry_kinds::liftup::ext::validations::validate_overall::validate_overall_error::LiftupValidateOverallError;
 use crate::executive::entry_executions::liftup_execution::error::liftup_execution_error::LiftupExecutionError;
 
 /// Errors associated with executing a `Liftup` entry in the `SessionPool`.

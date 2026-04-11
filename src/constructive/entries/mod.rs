@@ -1,2 +1,2 @@
 pub mod entry;
-pub mod entry_types;
+pub mod entry_kinds;

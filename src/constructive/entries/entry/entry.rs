@@ -1,5 +1,5 @@
-use crate::constructive::entry::entry_types::call::call::Call;
-use crate::constructive::entry::entry_types::liftup::liftup::Liftup;
+use crate::constructive::entry::entry_kinds::call::call::Call;
+use crate::constructive::entry::entry_kinds::liftup::liftup::Liftup;
 use serde::{Deserialize, Serialize};
 
 /// Represents an `Entry`.

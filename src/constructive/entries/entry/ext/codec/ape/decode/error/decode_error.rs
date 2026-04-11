@@ -1,5 +1,5 @@
-use crate::constructive::entry::entry_types::call::ape::decode::error::decode_error::CallEntryAPEDecodeError;
-use crate::constructive::entry::entry_types::liftup::ext::codec::ape::decode::error::decode_error::LiftupAPEDecodeError;
+use crate::constructive::entry::entry_kinds::call::ape::decode::error::decode_error::CallEntryAPEDecodeError;
+use crate::constructive::entry::entry_kinds::liftup::ext::codec::ape::decode::error::decode_error::LiftupAPEDecodeError;
 
 /// Enum to represent errors that can occur when decoding an `Entry` from an Airly Payload Encoding (APE) bitstream.
 #[derive(Debug, Clone, PartialEq, Eq)]

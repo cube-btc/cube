@@ -1,5 +1,5 @@
 use crate::constructive::entry::entry::entry::Entry;
-use crate::constructive::entry::entry_types::liftup::liftup::Liftup;
+use crate::constructive::entry::entry_kinds::liftup::liftup::Liftup;
 
 use super::error::EntrySBEDecodeError;
 
@@ -11,12 +11,11 @@ impl Entry {
             return Err(EntrySBEDecodeError::EntrySBEVariantDiscriminantMissingError);
         }
 
-        // 2 Read the discriminant and slice the payload after it.
-        let variant_tag = bytes[0];
-        let payload = &bytes[1..];
+        // 2 Read the entry kind byte.
+        let entry_kind_byte = bytes[0];
 
-        // 3 Match on the discriminant.
-        match variant_tag {
+        // 3 Match on the entry type byte.
+        match entry_kind_byte {
             // 3.a `Call` (`0x01`) — SBE not implemented.
             0x01 => {
                 panic!(
@@ -24,18 +23,16 @@ impl Entry {
                 );
             }
 
-            // 3.b `Liftup` (`0x04`).
+            // 3.b `Liftup` (`0x04`): decode from the full buffer (`Liftup::decode_sbe` consumes the tag).
             0x04 => {
-                // 3.b.1 Decode the `Liftup` from the remaining bytes.
-                let liftup = Liftup::decode_sbe(payload)
+                let liftup = Liftup::decode_sbe(bytes)
                     .map_err(|err| EntrySBEDecodeError::LiftupSBEDecodeError(err))?;
 
-                // 3.b.2 Return the `Entry`.
                 Ok(Entry::Liftup(liftup))
             }
 
-            // 3.c Unknown discriminant.
-            b => Err(EntrySBEDecodeError::UnknownEntrySBEVariantDiscriminantByteError(b)),
+            // 3.c Unknown entry kind byte.
+            b => Err(EntrySBEDecodeError::UnknownEntryKindByteError(b)),
         }
     }
 }

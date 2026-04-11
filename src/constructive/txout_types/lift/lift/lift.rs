@@ -105,6 +105,11 @@ impl Lift {
         }
     }
 
+    /// Returns the lift value in satoshis.
+    pub fn lift_value_in_satoshis(&self) -> u64 {
+        self.txout().value.to_sat()
+    }
+
     /// Returns a JSON representation of the Lift struct
     pub fn json(&self) -> Value {
         match self {

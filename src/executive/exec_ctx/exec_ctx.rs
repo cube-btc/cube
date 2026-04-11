@@ -9,7 +9,7 @@ use crate::inscriptive::registery::registery::REGISTERY;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
 use crate::transmutative::codec::bitvec_ext::BitVecExt;
 use crate::{
-    constructive::entry::entry_types::liftup::liftup::Liftup,
+    constructive::entry::entry_kinds::liftup::liftup::Liftup,
     executive::entry_executions::liftup_execution::error::liftup_execution_error::LiftupExecutionError,
     executive::exec_ctx::errors::apply_changes_error::ApplyChangesError,
 };

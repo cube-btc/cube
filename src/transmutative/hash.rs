@@ -28,7 +28,7 @@ pub enum HashTag {
     // FlameConfig
     FlameConfig,
     // Sighashes
-    SighashLiftup,
+    LiftupEntrySighash,
 }
 
 impl HashTag {
@@ -53,7 +53,7 @@ impl HashTag {
                 format!("{}/{}", baked::PROJECT_TAG, "bls/keyauth")
             }
             HashTag::FlameConfig => format!("{}/{}", baked::PROJECT_TAG, "flameconfig"),
-            HashTag::SighashLiftup => format!("{}/{}", baked::PROJECT_TAG, "sighash/liftup"),
+            HashTag::LiftupEntrySighash => format!("{}/{}/{}/{}", baked::PROJECT_TAG, "sighash", "entry", "liftup"),
         }
     }
 }

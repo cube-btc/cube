@@ -15,25 +15,10 @@ impl Entry {
                 "Entry::encode_sbe: Call SBE is not implemented (discriminant 0x01 reserved)"
             ),
 
-            // 1.b The `Entry` is a `Liftup`.
-            Entry::Liftup(liftup) => {
-                // 1.b.1 Encode the inner `Liftup` SBE payload.
-                let liftup_bytes = liftup
-                    .encode_sbe()
-                    .map_err(|err| EntrySBEEncodeError::LiftupSBEEncodeError(err))?;
-
-                // 1.b.2 Allocate the output: discriminant plus `Liftup` payload.
-                let mut out = Bytes::with_capacity(1 + liftup_bytes.len());
-
-                // 1.b.3 Push the `Liftup` entry discriminant.
-                out.push(0x04);
-
-                // 1.b.4 Append the `Liftup` SBE bytes.
-                out.extend_from_slice(&liftup_bytes);
-
-                // 1.b.5 Return the buffer.
-                Ok(out)
-            }
+            // 1.b The `Entry` is a `Liftup` — SBE is the `Liftup` encoding (leading `0x04` is inside `Liftup::encode_sbe`).
+            Entry::Liftup(liftup) => liftup
+                .encode_sbe()
+                .map_err(|err| EntrySBEEncodeError::LiftupSBEEncodeError(err)),
         }
     }
 }

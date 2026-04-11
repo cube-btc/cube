@@ -1,7 +1,7 @@
 use crate::constructive::entry::entry::ext::codec::ape::decode::error::decode_error::EntryAPEDecodeError;
 use crate::constructive::entry::entry::entry::Entry;
-use crate::constructive::entry::entry_types::call::call::Call;
-use crate::constructive::entry::entry_types::liftup::liftup::Liftup;
+use crate::constructive::entry::entry_kinds::call::call::Call;
+use crate::constructive::entry::entry_kinds::liftup::liftup::Liftup;
 use crate::inscriptive::registery::registery::REGISTERY;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
 use bitcoin::OutPoint;
