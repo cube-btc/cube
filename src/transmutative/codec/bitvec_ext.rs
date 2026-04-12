@@ -6,14 +6,14 @@ type Bytes = Vec<u8>;
 /// Trait for BitVec extensions.
 pub trait BitVecExt {
     /// Converts a BitVec to a payload bytes vector.
-    fn to_payload_bytes(&self) -> Bytes;
+    fn to_ape_payload_bytes(&self) -> Bytes;
 
     /// Converts a payload bytes vector to a BitVec.
-    fn from_payload_bytes(bytes: Bytes) -> Option<BitVec>;
+    fn from_ape_payload_bytes(bytes: Bytes) -> Option<BitVec>;
 }
 
 impl BitVecExt for BitVec {
-    fn to_payload_bytes(&self) -> Bytes {
+    fn to_ape_payload_bytes(&self) -> Bytes {
         // 1. Calculate the number of zero-padded bits.
         let bit_length: usize = self.len();
 
@@ -36,7 +36,7 @@ impl BitVecExt for BitVec {
         bytes
     }
 
-    fn from_payload_bytes(bytes: Bytes) -> Option<BitVec> {
+    fn from_ape_payload_bytes(bytes: Bytes) -> Option<BitVec> {
         // 1. Read the padding-length prefix; missing byte means empty / invalid payload.
         let pad_byte = *bytes.first()?;
 

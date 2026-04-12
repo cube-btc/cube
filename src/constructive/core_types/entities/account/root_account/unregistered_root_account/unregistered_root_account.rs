@@ -6,6 +6,7 @@ use crate::transmutative::bls::bls_ser::{
 use crate::inscriptive::flame_manager::flame_config::flame_config::FMAccountFlameConfig;
 use crate::transmutative::secp::schnorr::Bytes32;
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct UnregisteredRootAccount {
@@ -59,7 +60,7 @@ impl UnregisteredRootAccount {
     /// Validates the `UnregisteredRootAccount`'s Schnorr and BLS keys.
     pub fn validate_schnorr_and_bls_key(&self) -> bool {
         // 1 Verify that the account key is indeed a valid Schnorr public key.
-        if !self.account_key_to_be_registered.to_even_point().is_none() {
+        if self.account_key_to_be_registered.to_even_point().is_none() {
             return false;
         }
 
@@ -67,6 +68,41 @@ impl UnregisteredRootAccount {
 
         // 3 Return true.
         true
+    }
+
+    /// Returns the unregistered root account as a JSON object.
+    pub fn json(&self) -> Value {
+        let mut obj = Map::new();
+
+        obj.insert(
+            "kind".to_string(),
+            Value::String("unregistered".to_string()),
+        );
+
+        obj.insert(
+            "account_key_to_be_registered".to_string(),
+            Value::String(hex::encode(self.account_key_to_be_registered)),
+        );
+
+        obj.insert(
+            "bls_key_to_be_configured".to_string(),
+            Value::String(hex::encode(self.bls_key_to_be_configured)),
+        );
+
+        obj.insert(
+            "flame_config_to_be_configured".to_string(),
+            match &self.flame_config_to_be_configured {
+                Some(flame_config) => flame_config.json(),
+                None => Value::Null,
+            },
+        );
+
+        obj.insert(
+            "authorization_signature".to_string(),
+            Value::String(hex::encode(self.authorization_signature)),
+        );
+
+        Value::Object(obj)
     }
 }
 

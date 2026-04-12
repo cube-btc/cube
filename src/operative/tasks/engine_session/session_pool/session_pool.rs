@@ -204,7 +204,9 @@ impl SessionPool {
         // 4 Encode the aggregate BLS signature.
         {
             // 4.1 Get the aggregate BLS signature.
-            let aggregate_bls_signature = self.aggregate_bls_signature().map_err(|_| IntoBatchTemplateError::AggregateBLSSignatureError)?;
+            let aggregate_bls_signature = self
+                .aggregate_bls_signature()
+                .map_err(|_| IntoBatchTemplateError::AggregateBLSSignatureError)?;
 
             // 4.2 Convert the aggregate BLS signature to bits.
             let aggregate_bls_signature_bits = BitVec::from_bytes(&aggregate_bls_signature);
@@ -212,7 +214,7 @@ impl SessionPool {
             // 4.3 Extend the payload bits with the aggregate BLS signature bits.
             payload_bits.extend(aggregate_bls_signature_bits);
         }
-        
+
         // 5 Encode the added entries.
         for entry in &self.added_entries {
             // 5.1 Encode the entry as APE bits.
@@ -226,7 +228,7 @@ impl SessionPool {
         }
 
         // 6 Convert the payload bits to payload bytes.
-        let payload_bytes: Bytes = payload_bits.to_payload_bytes();
+        let payload_bytes: Bytes = payload_bits.to_ape_payload_bytes();
 
         // 7 Collect the Bitcoin transaction inputs.
         let bitcoin_tx_inputs: Vec<OutPoint> = self
@@ -315,7 +317,7 @@ impl SessionPool {
                 {
                     self.added_tx_inputs.extend(
                         liftup
-                            .lift_prevtxos
+                            .lift_tx_inputs
                             .iter()
                             .map(|lift| (lift.outpoint(), lift.txout().clone())),
                     );

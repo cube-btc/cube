@@ -3,11 +3,16 @@ use crate::constructive::{
     entity::account::root_account::root_account::RootAccount,
     entry::entry_kinds::liftup::liftup::Liftup, txo::lift::lift::Lift,
 };
+use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
+use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
+use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 use crate::inscriptive::registery::registery::REGISTERY;
 use crate::inscriptive::sync_manager::sync_manager::SYNC_MANAGER;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
+use crate::operative::tasks::engine_session::session_pool::session_pool::SessionPool;
 use crate::transmutative::key::KeyHolder;
 use colored::Colorize;
+
 // lift
 pub async fn lift_command(
     engine_key: [u8; 32],
@@ -17,6 +22,9 @@ pub async fn lift_command(
     sync_manager: &SYNC_MANAGER,
     utxo_set: &UTXO_SET,
     registery: &REGISTERY,
+    graveyard: &GRAVEYARD,
+    coin_manager: &COIN_MANAGER,
+    flame_manager: &FLAME_MANAGER,
 ) {
     // 1 Scan the UTXO set and collect the self owned lifts.
     let self_owned_lifts: Vec<Lift> = {
@@ -46,5 +54,41 @@ pub async fn lift_command(
     let target = Target::new(current_batch_height_tip);
 
     // 6 Construct the Liftup.
-    let _liftup = Liftup::new(root_account, target, self_owned_lifts);
+    let liftup = Liftup::new(root_account, target, self_owned_lifts);
+
+    // 7 Construct session pool.
+    let session_pool = SessionPool::construct(
+        engine_key,
+        utxo_set,
+        registery,
+        graveyard,
+        coin_manager,
+        flame_manager,
+    );
+
+    // 8 Begin the session of the session pool.
+    session_pool.lock().await.begin_session();
+
+    // 9 Execute the liftup in the session pool.
+    let result = session_pool
+        .lock()
+        .await
+        .exec_liftup_in_pool(
+            current_batch_height_tip,
+            current_batch_height_tip,
+            &liftup,
+            [0; 96],
+        )
+        .await;
+
+    match result {
+        Ok(_) => {
+            println!("{}", format!("Liftup entry successfully executed.").green());
+        }
+        Err(error) => {
+            println!("{}", format!("Error executing liftup: {:?}", error).red());
+        }
+    }
+
+    // 10 End the session of the session pool.
 }

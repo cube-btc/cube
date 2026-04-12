@@ -125,7 +125,7 @@ impl ExecCtx {
     }
 
     /// Applies the changes to the `ExecCtx` collectively for all Entries in the container.
-    async fn _apply_changes(
+    pub async fn apply_changes(
         &mut self,
         new_projector_height: u64,
         projector_expiry_height: u64,
@@ -211,10 +211,14 @@ impl ExecCtx {
             .map_err(BatchExecutionError::DecodePayloadVersionError)?
             .value();
 
+        println!("BE Payload version: {}", payload_version);
+
         // 7 Decode batch timestamp as a longval used as the execution timestamp for all entries.
         let batch_timestamp: u64 = LongVal::decode_ape(&mut ape_bitstream)
             .map_err(BatchExecutionError::DecodeBatchTimestampError)?
             .value();
+
+        println!("BE Batch timestamp: {}", batch_timestamp);
 
         // 8 Decode aggregate BLS signature as a byte array.
         let aggregate_bls_signature: [u8; 96] = {
@@ -231,6 +235,11 @@ impl ExecCtx {
                 .map_err(|_| BatchExecutionError::DecodeAggregateBLSSignatureError)?
         };
 
+        println!(
+            "BE Aggregate BLS signature: {}",
+            hex::encode(aggregate_bls_signature)
+        );
+
         // 9 Initialize the executed entries list to collect the executed entries.
         let mut executed_entries: Vec<Entry> = Vec::new();
 
@@ -242,11 +251,6 @@ impl ExecCtx {
 
         // 12 Decode entries from the patload one by one and execute them.
         loop {
-            // 12.1 Break out of the loop if the APE bitstream is empty.
-            if ape_bitstream.next().is_none() {
-                break;
-            }
-
             // 12.2 Decode Entry from the APE bitstream.
             let entry = Entry::decode_ape(
                 self.engine_key,
@@ -292,6 +296,11 @@ impl ExecCtx {
                     }
                 }
                 _ => panic!("Not implemented yet."),
+            }
+
+            // 12.1 Break out of the loop if the APE bitstream is empty.
+            if ape_bitstream.next().is_none() {
+                break;
             }
         }
 

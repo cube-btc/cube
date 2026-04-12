@@ -100,3 +100,12 @@ impl SyncManager {
             .insert(b"batch_sync_height", height.to_be_bytes().to_vec());
     }
 }
+
+/// Erases the sync manager by db path.
+pub fn erase_sync_manager(chain: Chain) {
+    // Sync manager db path.
+    let sync_manager_db_path = format!("storage/{}/sync_manager", chain.to_string());
+
+    // Erase the sync manager db path.
+    let _ = std::fs::remove_dir_all(sync_manager_db_path);
+}

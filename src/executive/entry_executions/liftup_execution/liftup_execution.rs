@@ -29,7 +29,7 @@ impl ExecCtx {
         let root_account = &liftup.root_account;
 
         // 6 Validate scriptpubkeys of the lifts.
-        for lift in &liftup.lift_prevtxos { 
+        for lift in &liftup.lift_tx_inputs { 
             // 6.1 Match on the lift type.
             match lift {
                 // 6.1.a The lift is a `LiftV1`.

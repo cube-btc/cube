@@ -19,9 +19,9 @@ impl Liftup {
         })?;
 
         // 3 Ensure the `lift_prevtxos` count fits a `u32` count prefix.
-        let lift_prevtxos_count_u32 = u32::try_from(self.lift_prevtxos.len()).map_err(|_| {
+        let lift_prevtxos_count_u32 = u32::try_from(self.lift_tx_inputs.len()).map_err(|_| {
             LiftupSBEEncodeError::LiftupSBETooManyLiftsForU32CountPrefix {
-                count: self.lift_prevtxos.len(),
+                count: self.lift_tx_inputs.len(),
             }
         })?;
 
@@ -44,7 +44,7 @@ impl Liftup {
         bytes.extend_from_slice(&lift_prevtxos_count_u32.to_le_bytes());
 
         // 10 Encode each `Lift` SBE payload in order.
-        for lift in &self.lift_prevtxos {
+        for lift in &self.lift_tx_inputs {
             bytes.extend(lift.encode_sbe());
         }
 

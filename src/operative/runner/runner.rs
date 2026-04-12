@@ -8,6 +8,12 @@ use crate::communicative::rpc::bitcoin_rpc::bitcoin_rpc::validate_rpc;
 use crate::communicative::rpc::bitcoin_rpc::bitcoin_rpc_holder::BitcoinRPCHolder;
 use crate::communicative::tcp::tcp::open_port;
 use crate::communicative::tcp::tcp::port_number;
+use crate::inscriptive::coin_manager::coin_manager::CoinManager;
+use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
+use crate::inscriptive::flame_manager::flame_manager::FlameManager;
+use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
+use crate::inscriptive::graveyard::graveyard::Graveyard;
+use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 use crate::inscriptive::registery::registery::Registery;
 use crate::inscriptive::registery::registery::REGISTERY;
 use crate::inscriptive::sync_manager::sync_manager::SyncManager;
@@ -82,6 +88,33 @@ pub async fn run(
         Some(utxo_set) => utxo_set,
         None => {
             println!("{}", "Error initializing utxo set.".red());
+            return;
+        }
+    };
+
+    // 8 Initialize graveyard.
+    let graveyard: GRAVEYARD = match Graveyard::new(chain) {
+        Ok(graveyard) => graveyard,
+        Err(err) => {
+            println!("{} {:?}", "Error initializing graveyard: ".red(), err);
+            return;
+        }
+    };
+
+    // 9 Initialize coin manager.
+    let coin_manager: COIN_MANAGER = match CoinManager::new(chain) {
+        Ok(coin_manager) => coin_manager,
+        Err(err) => {
+            println!("{} {:?}", "Error initializing coin manager: ".red(), err);
+            return;
+        }
+    };
+
+    // 10 Initialize flame manager.
+    let flame_manager: FLAME_MANAGER = match FlameManager::new(chain) {
+        Ok(flame_manager) => flame_manager,
+        Err(err) => {
+            println!("{} {:?}", "Error initializing flame manager: ".red(), err);
             return;
         }
     };
@@ -180,6 +213,9 @@ pub async fn run(
                 &utxo_set,
                 &sync_manager,
                 &registery,
+                &graveyard,
+                &coin_manager,
+                &flame_manager,
             )
             .await;
         }

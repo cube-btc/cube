@@ -1,5 +1,5 @@
-use crate::constructive::entry::entry::ext::codec::ape::decode::error::decode_error::EntryAPEDecodeError;
 use crate::constructive::entry::entry::entry::Entry;
+use crate::constructive::entry::entry::ext::codec::ape::decode::error::decode_error::EntryAPEDecodeError;
 use crate::constructive::entry::entry_kinds::call::call::Call;
 use crate::constructive::entry::entry_kinds::liftup::liftup::Liftup;
 use crate::inscriptive::registery::registery::REGISTERY;
@@ -29,7 +29,7 @@ impl Entry {
         // 2 Match on whether the `Entry` is from the `Common Branch` or the `Uncommon Branch`.
         let entry: Entry = match common_or_uncommon_branch_bit {
             // 2.a The `Entry` is from the `Common Branch`.
-            true => {
+            false => {
                 // 2.a.1 Collect one bit to determine if the `Entry` is a `Move` or a `Call`.
                 let move_or_call_bit = bit_stream
                     .next()
@@ -60,7 +60,7 @@ impl Entry {
             }
 
             // 2.b The `Entry` is from the `Uncommon Branch`.
-            false => {
+            true => {
                 // 2.b.1 Collect one bit to determine if the `Entry` is in the Liquidity Branch or the Outer Branch.
                 let liquidity_or_outer_branch_bit = bit_stream
                     .next()
@@ -69,7 +69,7 @@ impl Entry {
                 // 2.b.2 Match on whether the `Entry` is in the Liquidity Branch or the Outer Branch.
                 match liquidity_or_outer_branch_bit {
                     // 2.b.2.a The `Entry` is in the Liquidity Branch.
-                    true => {
+                    false => {
                         // 2.b.2.a.1 Collect one bit to determine if the `Entry` is `Add` or `Sub`.
                         let add_or_sub_bit = bit_stream
                             .next()
@@ -78,15 +78,15 @@ impl Entry {
                         // 2.b.2.a.2 Match on whether the `Entry` is a `Add` or a `Sub`.
                         match add_or_sub_bit {
                             // 2.b.2.a.2.a The `Entry` is a `Add`.
-                            true => panic!("Add is not implemented yet."),
+                            false => panic!("Add is not implemented yet."),
 
                             // 2.b.2.a.2.b The `Entry` is a `Sub`.
-                            false => panic!("Sub is not implemented yet."),
+                            true => panic!("Sub is not implemented yet."),
                         }
                     }
 
                     // 2.b.2.b The `Entry` is in the Outer Branch.
-                    false => {
+                    true => {
                         // 2.b.2.b.1 Collect one bit to determine if the `Entry` is in the `Gateway Branch` or the `Outer Right Branch`.
                         let gateway_or_outer_right_branch_bit = bit_stream
                             .next()
@@ -95,7 +95,7 @@ impl Entry {
                         // 2.b.2.b.1 Match on whether the `Entry` is in the Gateway Branch or the Outer Right Branch.
                         match gateway_or_outer_right_branch_bit {
                             // 2.b.2.b.1.a The `Entry` is in the Gateway Branch.
-                            true => {
+                            false => {
                                 // 2.b.2.b.1.a.1 Collect one bit to determine if the `Entry` is a `Liftup` or a `Swapout`.
                                 let liftup_or_swapout_bit = bit_stream
                                     .next()
@@ -104,7 +104,7 @@ impl Entry {
                                 // 2.b.2.b.1.a.1 Match on whether the `Entry` is a `Liftup` or a `Swapout`.
                                 match liftup_or_swapout_bit {
                                     // 2.b.2.b.1.a.1.a The `Entry` is a `Liftup`.
-                                    true => {
+                                    false => {
                                         // 2.b.2.b.1.a.1.a.1 Decode the `Liftup` entry.
                                         let liftup_entry: Liftup = Liftup::decode_ape(
                                             engine_key,
@@ -123,12 +123,12 @@ impl Entry {
                                     }
 
                                     // 2.b.2.b.1.a.1.b The `Entry` is a `Swapout`.
-                                    false => panic!("Swapout is not implemented yet."),
+                                    true => panic!("Swapout is not implemented yet."),
                                 }
                             }
 
                             // 2.b.2.b.1.b The `Entry` is in the Outer Right Branch.
-                            false => {
+                            true => {
                                 // Collect one bit to determine if the `Entry` is in the `Outer Lowermost Branch` or the `Reserved Branch`.
                                 let outer_lowermost_or_reserved_branch_bit =
                                     bit_stream.next().ok_or(
@@ -138,7 +138,7 @@ impl Entry {
                                 // 2.b.2.b.1.b.1 Match on whether the `Entry` is in the `Outer Lowermost Branch` or the `Reserved Branch`.
                                 match outer_lowermost_or_reserved_branch_bit {
                                     // 2.b.2.b.1.b.1.a The `Entry` is in the `Outer Lowermost Branch`.
-                                    true => {
+                                    false => {
                                         // 2.b.2.b.1.b.1.a.1 Collect one bit to determine if the `Entry` is a `Deploy` or a `Config`.
                                         let deploy_or_config_bit = bit_stream.next().ok_or(
                                             EntryAPEDecodeError::DeployOrConfigBitCollectError,
@@ -147,15 +147,15 @@ impl Entry {
                                         // 2.b.2.b.1.b.1.a.2 Match on whether the `Entry` is a `Deploy` or a `Config`.
                                         match deploy_or_config_bit {
                                             // 2.b.2.b.1.b.1.a.2.a The `Entry` is a `Deploy`.
-                                            true => panic!("Deploy is not implemented yet."),
+                                            false => panic!("Deploy is not implemented yet."),
 
                                             // 2.b.2.b.1.b.1.a.2.b The `Entry` is a `Config`.
-                                            false => panic!("Config is not implemented yet."),
+                                            true => panic!("Config is not implemented yet."),
                                         }
                                     }
 
                                     // 2.b.2.b.1.b.1.b The `Entry` is in the `Reserved Branch`.
-                                    false => {
+                                    true => {
                                         return Err(
                                             EntryAPEDecodeError::ReservedBranchEncounteredError,
                                         )

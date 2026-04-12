@@ -7,6 +7,7 @@ use crate::{
     inscriptive::flame_manager::flame_config::flame_config::FMAccountFlameConfig,
 };
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct RegisteredButUnconfiguredRootAccount {
@@ -68,6 +69,46 @@ impl RegisteredButUnconfiguredRootAccount {
 
         // 2 Return true.
         true
+    }
+
+    /// Returns the registered but unconfigured root account as a JSON object.
+    pub fn json(&self) -> Value {
+        let mut obj = Map::new();
+
+        obj.insert(
+            "kind".to_string(),
+            Value::String("registered_but_unconfigured".to_string()),
+        );
+
+        obj.insert(
+            "account_key".to_string(),
+            Value::String(hex::encode(self.account_key)),
+        );
+
+        obj.insert(
+            "registery_index".to_string(),
+            Value::String(self.registery_index.to_string()),
+        );
+
+        obj.insert(
+            "bls_key_to_be_configured".to_string(),
+            Value::String(hex::encode(self.bls_key_to_be_configured)),
+        );
+
+        obj.insert(
+            "flame_config_to_be_configured".to_string(),
+            match &self.flame_config_to_be_configured {
+                Some(flame_config) => flame_config.json(),
+                None => Value::Null,
+            },
+        );
+
+        obj.insert(
+            "authorization_signature".to_string(),
+            Value::String(hex::encode(self.authorization_signature)),
+        );
+
+        Value::Object(obj)
     }
 }
 

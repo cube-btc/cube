@@ -41,7 +41,7 @@ impl UTXOSet {
     /// Creates the UTXOSet instance.
     pub fn new(chain: Chain) -> Option<UTXO_SET> {
         // Collect UTXOs from db.
-        let utxos_path = format!("{}/{}/{}", "storage", chain.to_string(), "set/utxo");
+        let utxos_path = format!("{}/{}/{}", "storage", chain.to_string(), "utxo_set");
         let utxos_db = sled::open(utxos_path).ok()?;
 
         let mut utxos = HashMap::<OutPoint, TxOut>::new();
@@ -170,4 +170,13 @@ impl UTXOSet {
 
         Ok(())
     }
+}
+
+/// Erases the UTXO set by db path.
+pub fn erase_utxo_set(chain: Chain) {
+    // UTXO set db path.
+    let utxo_set_db_path = format!("storage/{}/utxo_set", chain.to_string());
+
+    // Erase the UTXO set db path.
+    let _ = std::fs::remove_dir_all(utxo_set_db_path);
 }

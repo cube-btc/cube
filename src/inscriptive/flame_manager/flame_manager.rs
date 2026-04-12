@@ -477,3 +477,12 @@ impl FlameManager {
         self.backup_of_delta.flush();
     }
 }
+
+/// Erases the flame manager by db path.
+pub fn erase_flame_manager(chain: Chain) {
+    // Flame manager db path.
+    let flame_manager_db_path = format!("storage/{}/flames", chain.to_string());
+
+    // Erase the path.
+    let _ = std::fs::remove_dir_all(flame_manager_db_path);
+}

@@ -42,7 +42,7 @@ impl Liftup {
         // 4 Encode the number of lifts.
         {
             // 4.1 Get the number of lifts.
-            let number_of_lifts = self.lift_prevtxos.len();
+            let number_of_lifts = self.lift_tx_inputs.len();
 
             // 4.2 Convert the number of lifts into a `ShortVal`.
             let number_of_lifts_as_shortval = ShortVal::new(number_of_lifts as u32);
@@ -53,7 +53,7 @@ impl Liftup {
 
         // 5 Encode variable-width lift kind tags: `0` => unknown (one bit); `10` => v1, `11` => v2 (prefix `1` then subtype bit).
         {
-            for lift in &self.lift_prevtxos {
+            for lift in &self.lift_tx_inputs {
                 match lift {
                     // b0 for unknown
                     Lift::Unknown { .. } => {

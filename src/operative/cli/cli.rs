@@ -1,4 +1,7 @@
 use crate::communicative::peer::peer::PEER;
+use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
+use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
+use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 use crate::inscriptive::registery::registery::REGISTERY;
 use crate::inscriptive::sync_manager::sync_manager::SYNC_MANAGER;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
@@ -48,6 +51,9 @@ pub async fn run_node_cli(
     utxo_set: &UTXO_SET,
     sync_manager: &SYNC_MANAGER,
     registery: &REGISTERY,
+    graveyard: &GRAVEYARD,
+    coin_manager: &COIN_MANAGER,
+    flame_manager: &FLAME_MANAGER,
 ) {
     // 1 Print the CLI prompt.
     print_cli_prompt();
@@ -91,6 +97,9 @@ pub async fn run_node_cli(
                     sync_manager,
                     utxo_set,
                     registery,
+                    graveyard,
+                    coin_manager,
+                    flame_manager,
                 )
                 .await
             }

@@ -4,6 +4,7 @@ use crate::constructive::entity::account::root_account::unregistered_root_accoun
 use crate::transmutative::key::KeyHolder;
 use crate::inscriptive::registery::registery::REGISTERY;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use crate::transmutative::hash::Hash;
 use crate::transmutative::hash::HashTag;
 use crate::transmutative::secp::schnorr;
@@ -125,6 +126,21 @@ impl RootAccount {
 
                 // 5.b.4 Return the `RootAccount`.
                 root_account
+            }
+        }
+    }
+
+    /// Returns the root account as a JSON object.
+    pub fn json(&self) -> Value {
+        match self {
+            Self::UnregisteredRootAccount(unregistered_root_account) => {
+                unregistered_root_account.json()
+            }
+            Self::RegisteredButUnconfiguredRootAccount(
+                registered_but_unconfigured_root_account,
+            ) => registered_but_unconfigured_root_account.json(),
+            Self::RegisteredAndConfiguredRootAccount(registered_and_configured_root_account) => {
+                registered_and_configured_root_account.json()
             }
         }
     }

@@ -11,7 +11,7 @@ impl Liftup {
         utxo_set: &UTXO_SET,
     ) -> Result<(), LiftupValidateLiftsError> {
         // 1 Validate the structures of the `Lift`s in the `Liftup`.
-        for lift in &self.lift_prevtxos {
+        for lift in &self.lift_tx_inputs {
             // 1.1 Validate the lift account key.
             if lift.account_key() != self.root_account.account_key() {
                 return Err(
@@ -59,7 +59,7 @@ impl Liftup {
             let _utxo_set = utxo_set.lock().await;
 
             // 2.2 Validate the `Lift`s in the `Liftup` are indeed valid UTXOs.
-            if let Err(invalid_lift) = _utxo_set.validate_lifts(&self.lift_prevtxos) {
+            if let Err(invalid_lift) = _utxo_set.validate_lifts(&self.lift_tx_inputs) {
                 return Err(
                     LiftupValidateLiftsError::FailedToValidateLiftWithTheUTXOSetError(invalid_lift),
                 );
