@@ -2,6 +2,7 @@ use crate::constructive::bitcoiny::batch_template::batch_template::BatchTemplate
 use crate::constructive::core_types::valtypes::val::long_val::long_val::LongVal;
 use crate::constructive::core_types::valtypes::val::short_val::short_val::ShortVal;
 use crate::constructive::entry::entry::entry::Entry;
+use crate::constructive::txout_types::projector::projector::Projector;
 use crate::executive::exec_ctx::errors::batch_execution_error::BatchExecutionError;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
 use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
@@ -201,57 +202,101 @@ impl ExecCtx {
         // 4 Turn the Bitcoin transaction outputs into an iterator.
         let mut _tx_outputs_iter = batch_template.bitcoin_tx_outputs.iter();
 
-        // 5 Return params from the params manager: TODO
+        // 5 Get the payload tx input.
+        let _payload_tx_input = {
+            // 5.1 Iterate one tx input for the payload.
+            let tx_input = tx_inputs_iter
+                .next()
+                .ok_or(BatchExecutionError::FailedToGetPayloadTxInputError)?;
+
+            // 5.2 Return the payload outpoint.
+            tx_input.clone()
+        };
+
+        // 6 Get the payload tx output.
+        let _payload_tx_output = {
+            // 6.1 Iterate one tx output for the payload.
+            let tx_output = _tx_outputs_iter
+                .next()
+                .ok_or(BatchExecutionError::FailedToGetPayloadTxOutputError)?;
+
+            // 6.2 Return the payload tx output.
+            tx_output.clone()
+        };
+
+        // 7 Return params from the params manager: TODO
         let decode_account_rank_as_longval = true;
         let decode_contract_rank_as_longval = true;
         let base_ops_price = 100;
 
-        // 6 Decode payload version as as shortcal and session timestamp as a longval.
+        // 8 Decode payload version as as shortcal and session timestamp as a longval.
         let payload_version: u32 = ShortVal::decode_ape(&mut ape_bitstream)
             .map_err(BatchExecutionError::DecodePayloadVersionError)?
             .value();
 
-        println!("BE Payload version: {}", payload_version);
-
-        // 7 Decode batch timestamp as a longval used as the execution timestamp for all entries.
+        // 9 Decode batch timestamp as a longval used as the execution timestamp for all entries.
         let batch_timestamp: u64 = LongVal::decode_ape(&mut ape_bitstream)
             .map_err(BatchExecutionError::DecodeBatchTimestampError)?
             .value();
 
-        println!("BE Batch timestamp: {}", batch_timestamp);
-
-        // 8 Decode aggregate BLS signature as a byte array.
+        // 10 Decode aggregate BLS signature as a byte array.
         let aggregate_bls_signature: [u8; 96] = {
-            // 8.1 Collect 768 bits from the APE bitstream.
+            // 10.1 Collect 768 bits from the APE bitstream.
             let aggregate_bls_signature_bits: BitVec = ape_bitstream.by_ref().take(768).collect();
             if aggregate_bls_signature_bits.len() != 768 {
                 return Err(BatchExecutionError::DecodeAggregateBLSSignatureError);
             }
 
-            // 8.2 Convert the aggregate BLS signature bits to a byte array.
+            // 10.2 Convert the aggregate BLS signature bits to a byte array.
             let bytes = aggregate_bls_signature_bits.to_bytes();
             bytes
                 .try_into()
                 .map_err(|_| BatchExecutionError::DecodeAggregateBLSSignatureError)?
         };
 
-        println!(
-            "BE Aggregate BLS signature: {}",
-            hex::encode(aggregate_bls_signature)
-        );
+        // 11 Collect the projector presence bit.
+        let projector_presence_bit: bool = ape_bitstream
+            .next()
+            .ok_or(BatchExecutionError::FailedToCollectProjectorPresenceBitError)?;
 
-        // 9 Initialize the executed entries list to collect the executed entries.
+        // 12 Construct the projector if it is present.
+        // Not yet supported for the time being.
+        let _projector: Option<Projector> = {
+            match projector_presence_bit {
+                // 12.a The projector is present.
+                true => {
+                    // 12.a.1 Iterate one tx output for the projector.
+                    let tx_output = _tx_outputs_iter
+                        .next()
+                        .ok_or(BatchExecutionError::FailedToCollectProjectorTxOutputError)?;
+
+                    // 12.a.2 Construct the projector.
+                    let projector = Some(Projector {
+                        scriptpubkey: tx_output.script_pubkey.as_bytes().to_vec(),
+                        satoshi_amount: tx_output.value.to_sat(),
+                    });
+
+                    // 12.a.3 Return the projector.
+                    projector
+                }
+
+                // 12.b The projector is not present.
+                false => None,
+            }
+        };
+
+        // 13 Initialize the executed entries list to collect the executed entries.
         let mut executed_entries: Vec<Entry> = Vec::new();
 
-        // 10 Initialize the executed entry sighashes list.
+        // 14 Initialize the executed entry sighashes list.
         let mut executed_entry_sighashes: Vec<[u8; 32]> = Vec::new();
 
-        // 11 Initialize the executed entry account BLS keys list.
+        // 15 Initialize the executed entry account BLS keys list.
         let mut executed_entry_account_bls_keys: Vec<[u8; 48]> = Vec::new();
 
-        // 12 Decode entries from the patload one by one and execute them.
+        // 16 Decode entries from the patload one by one and execute them.
         loop {
-            // 12.2 Decode Entry from the APE bitstream.
+            // 16.2 Decode Entry from the APE bitstream.
             let entry = Entry::decode_ape(
                 self.engine_key,
                 batch_height,
@@ -266,18 +311,18 @@ impl ExecCtx {
             .await
             .map_err(BatchExecutionError::DecodeEntryError)?;
 
-            // 12.3 Execute the decoded `Entry`.
+            // 16.3 Execute the decoded `Entry`.
             match entry {
-                // 12.3.a The `Entry` is a `Liftup`.
+                // 16.3.a The `Entry` is a `Liftup`.
                 Entry::Liftup(liftup) => {
-                    // 12.3.a.1 Execute the `Liftup` `Entry`.
+                    // 16.3.a.1 Execute the `Liftup` `Entry`.
                     match self.execute_liftup(&liftup, batch_timestamp).await {
-                        // 12.3.a.1.a Success.
+                        // 16.3.a.1.a Success.
                         Ok(entry) => {
-                            // 12.3.a.1.a.1 Add the liftup entry to the executed entries.
+                            // 16.3.a.1.a.1 Add the liftup entry to the executed entries.
                             executed_entries.push(entry);
 
-                            // 12.3.a.1.a.2 Add the sighash of the `Liftup`.
+                            // 16.3.a.1.a.2 Add the sighash of the `Liftup`.
                             {
                                 let sighash = liftup
                                     .sighash()
@@ -285,26 +330,26 @@ impl ExecCtx {
                                 executed_entry_sighashes.push(sighash);
                             }
 
-                            // 12.3.a.1.a.3 Add the BLS key of the `RootAccount` of the `Liftup`.
+                            // 16.3.a.1.a.3 Add the BLS key of the `RootAccount` of the `Liftup`.
                             {
                                 let account_bls_key = liftup.root_account.bls_key();
                                 executed_entry_account_bls_keys.push(account_bls_key);
                             }
                         }
-                        // 12.3.a.1.b Error.
+                        // 16.3.a.1.b Error.
                         Err(error) => return Err(BatchExecutionError::LiftupExecutionError(error)),
                     }
                 }
                 _ => panic!("Not implemented yet."),
             }
 
-            // 12.1 Break out of the loop if the APE bitstream is empty.
+            // 16.1 Break out of the loop if the APE bitstream is empty.
             if ape_bitstream.next().is_none() {
                 break;
             }
         }
 
-        // 13 Verify the aggregate BLS signature.
+        // 17 Verify the aggregate BLS signature.
         if !bls_verify_aggregate(
             executed_entry_account_bls_keys,
             executed_entry_sighashes,
@@ -313,7 +358,7 @@ impl ExecCtx {
             return Err(BatchExecutionError::AggregateBLSSignatureVerificationError);
         }
 
-        // 14 Return the batch height, payload version, batch timestamp, aggregate BLS signature, and executed entries.
+        // 18 Return the batch height, payload version, batch timestamp, aggregate BLS signature, and executed entries.
         Ok((
             batch_height,
             payload_version,

@@ -1,6 +1,7 @@
 use crate::constructive::bitcoiny::batch_template::batch_template::BatchTemplate;
 use crate::constructive::entry::entry::entry::Entry;
 use crate::constructive::entry::entry_kinds::liftup::liftup::Liftup;
+use crate::constructive::txout_types::projector::projector::Projector;
 use crate::constructive::valtype::val::long_val::long_val::LongVal;
 use crate::constructive::valtype::val::short_val::short_val::ShortVal;
 use crate::executive::exec_ctx::exec_ctx::ExecCtx;
@@ -215,36 +216,54 @@ impl SessionPool {
             payload_bits.extend(aggregate_bls_signature_bits);
         }
 
-        // 5 Encode the added entries.
+        // 5 Retrieve the projector.
+        // Not set for the time being.
+        let projector: Option<Projector> = None;
+
+        // 6 Insert a bit to the beginning of the payload bits to indicate the presence of the projector.
+        match projector {
+            // 6.a The projector is set.
+            Some(_) => {
+                // 6.a.1 Push true bit to indicate the presence of the projector.
+                payload_bits.push(true);
+            }
+            // 6.b The projector is not set.
+            None => {
+                // 6.b.1 Push false bit to indicate the absence of the projector.
+                payload_bits.push(false);
+            }
+        }
+
+        // 7 Encode the added entries.
         for entry in &self.added_entries {
-            // 5.1 Encode the entry as APE bits.
+            // 7.1 Encode the entry as APE bits.
             let entry_ape_bits = entry
                 .encode_ape(batch_height, &self.registery, true, true)
                 .await
                 .map_err(IntoBatchTemplateError::EntryAPEEncodeError)?;
 
-            // 5.2 Extend the payload bits with the entry APE bits.
+            // 7.2 Extend the payload bits with the entry APE bits.
             payload_bits.extend(entry_ape_bits);
         }
 
-        // 6 Convert the payload bits to payload bytes.
+        // 8 Convert the payload bits to payload bytes.
         let payload_bytes: Bytes = payload_bits.to_ape_payload_bytes();
 
-        // 7 Collect the Bitcoin transaction inputs.
+        // 9 Collect the Bitcoin transaction inputs.
         let bitcoin_tx_inputs: Vec<OutPoint> = self
             .added_tx_inputs
             .iter()
             .map(|(outpoint, _)| outpoint.clone())
             .collect();
 
-        // 8 Get the Bitcoin transaction outputs.
+        // 10 Get the Bitcoin transaction outputs.
         let bitcoin_tx_outputs: Vec<TxOut> = self.added_tx_outputs.clone();
 
-        // 9 Construct the batch template.
+        // 11 Construct the batch template.
         let batch_template =
             BatchTemplate::new(bitcoin_tx_inputs, bitcoin_tx_outputs, payload_bytes);
 
-        // 10 Return the batch template.
+        // 12 Return the batch template.
         Ok(batch_template)
     }
 
