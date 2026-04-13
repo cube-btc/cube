@@ -8,13 +8,17 @@ use crate::constructive::entries::entry_kinds::liftup::ext::signature::sighash::
 #[derive(Debug, Clone)]
 pub enum BatchExecutionError {
     BatchTemplatePayloadBitsConversionError(Vec<u8>),
-    FailedToGetPayloadTxInputError,
-    FailedToGetPayloadTxOutputError,
     DecodePayloadVersionError(ShortValAPEDecodeError),
     DecodeBatchTimestampError(LongValAPEDecodeError),
     DecodeAggregateBLSSignatureError,
+    DecodeExtraInCountError(ShortValAPEDecodeError),
     FailedToCollectProjectorPresenceBitError,
-    FailedToCollectProjectorTxOutputError,
+    // Iter & collect txin/out errors.
+    FailedToIterAndGetPayloadTxInputError,
+    FailedToIterAndGetPayloadTxOutputError,
+    FailedToIterateExtraInsError,
+    FailedToIterAndGetProjectorTxOutputError,
+    //
     DecodeEntryError(EntryAPEDecodeError),
     LiftupExecutionError(LiftupExecutionError),
     LiftupSighashError(LiftupSighashError),

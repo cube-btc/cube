@@ -180,6 +180,7 @@ impl SessionPool {
         batch_height: u64,
         batch_timestamp: u64,
         payload_version: u32,
+        extra_in_count: u32,
     ) -> Result<BatchTemplate, IntoBatchTemplateError> {
         // 1 Initialize the bit vector for the payload.
         let mut payload_bits: BitVec = BitVec::new();
@@ -216,54 +217,63 @@ impl SessionPool {
             payload_bits.extend(aggregate_bls_signature_bits);
         }
 
-        // 5 Retrieve the projector.
+        // 5 Encode the extra input count.
+        {
+            // 5.1 Encode the extra input count.
+            let extra_input_count_bits = ShortVal::new(extra_in_count).encode_ape();
+
+            // 5.2 Extend the payload bits with the extra input count bits.
+            payload_bits.extend(extra_input_count_bits);
+        }
+
+        // 6 Retrieve the projector.
         // Not set for the time being.
         let projector: Option<Projector> = None;
 
-        // 6 Insert a bit to the beginning of the payload bits to indicate the presence of the projector.
+        // 7 Insert a bit to the beginning of the payload bits to indicate the presence of the projector.
         match projector {
-            // 6.a The projector is set.
+            // 7.a The projector is set.
             Some(_) => {
-                // 6.a.1 Push true bit to indicate the presence of the projector.
+                // 7.a.1 Push true bit to indicate the presence of the projector.
                 payload_bits.push(true);
             }
-            // 6.b The projector is not set.
+            // 7.b The projector is not set.
             None => {
-                // 6.b.1 Push false bit to indicate the absence of the projector.
+                // 7.b.1 Push false bit to indicate the absence of the projector.
                 payload_bits.push(false);
             }
         }
 
-        // 7 Encode the added entries.
+        // 8 Encode the added entries.
         for entry in &self.added_entries {
-            // 7.1 Encode the entry as APE bits.
+            // 8.1 Encode the entry as APE bits.
             let entry_ape_bits = entry
                 .encode_ape(batch_height, &self.registery, true, true)
                 .await
                 .map_err(IntoBatchTemplateError::EntryAPEEncodeError)?;
 
-            // 7.2 Extend the payload bits with the entry APE bits.
+            // 8.2 Extend the payload bits with the entry APE bits.
             payload_bits.extend(entry_ape_bits);
         }
 
-        // 8 Convert the payload bits to payload bytes.
+        // 9 Convert the payload bits to payload bytes.
         let payload_bytes: Bytes = payload_bits.to_ape_payload_bytes();
 
-        // 9 Collect the Bitcoin transaction inputs.
+        // 10 Collect the Bitcoin transaction inputs.
         let bitcoin_tx_inputs: Vec<OutPoint> = self
             .added_tx_inputs
             .iter()
             .map(|(outpoint, _)| outpoint.clone())
             .collect();
 
-        // 10 Get the Bitcoin transaction outputs.
+        // 11 Get the Bitcoin transaction outputs.
         let bitcoin_tx_outputs: Vec<TxOut> = self.added_tx_outputs.clone();
 
-        // 11 Construct the batch template.
+        // 12 Construct the batch template.
         let batch_template =
             BatchTemplate::new(bitcoin_tx_inputs, bitcoin_tx_outputs, payload_bytes);
 
-        // 12 Return the batch template.
+        // 13 Return the batch template.
         Ok(batch_template)
     }
 

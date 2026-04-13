@@ -23,15 +23,15 @@ impl Payload {
         }
     }
 
-    /// Returns the scriptpubkey for the Payload struct.
+    /// Returns the scriptpubkey for the Payload.
     pub fn scriptpubkey(&self) -> Option<Bytes> {
         return_payload_scriptpubkey(self.engine_key, &self.payload_bytes)
     }
 }
 
-/// Returns a taproot for the Payload struct.
-pub fn return_payload_taproot(engine_key: [u8; 32], payload_bytes: &Vec<u8>) -> Option<TapRoot> {
-    // 1 Construct the tapscript
+/// Returns a tapscript for the Payload.
+pub fn return_payload_tapscript(engine_key: [u8; 32], payload_bytes: &Vec<u8>) -> Option<Vec<u8>> {
+    // 1 Initialize the tapscript.
     let mut tapscript = Vec::<u8>::new();
 
     // 2 Encode the tapscript
@@ -87,19 +87,28 @@ pub fn return_payload_taproot(engine_key: [u8; 32], payload_bytes: &Vec<u8>) -> 
         tapscript.push(0x68);
     }
 
-    // 3 Construct the tapleaf
+    // 3 Return the tapscript
+    Some(tapscript)
+}
+
+/// Returns a taproot for the Payload.
+pub fn return_payload_taproot(engine_key: [u8; 32], payload_bytes: &Vec<u8>) -> Option<TapRoot> {
+    // 1 Get the tapscript.
+    let tapscript = return_payload_tapscript(engine_key, payload_bytes)?;
+
+    // 2 Construct the tapleaf.
     let tapleaf = TapLeaf::new(tapscript);
 
-    // 4 Construct the taproot
+    // 3 Construct the taproot.
     let taproot = TapRoot::script_path_only_single(tapleaf);
 
-    // 5 Return the taproot
+    // 4 Return the taproot.
     Some(taproot)
 }
 
-/// Returns a scriptpubkey for the Payload struct.
+/// Returns a scriptpubkey for the Payload.
 pub fn return_payload_scriptpubkey(engine_key: [u8; 32], payload_bytes: &Vec<u8>) -> Option<Bytes> {
-    // 1 Construct the taproot
+    // 1 Get the taproot.
     let taproot = return_payload_taproot(engine_key, payload_bytes)?;
 
     // 2 Return the scriptpubkey
