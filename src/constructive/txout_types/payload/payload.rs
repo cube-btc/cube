@@ -36,51 +36,54 @@ pub fn return_payload_taproot(engine_key: [u8; 32], payload_bytes: &Vec<u8>) -> 
 
     // 2 Encode the tapscript
     {
-        // 2.1 OP_IF (0x63)
-        tapscript.push(0x63);
-
-        // 2.2 Payload reveal clause: <OP_0> OP_IF <Payload Bytes> OP_ENDIF <Engine Key> OP_CHECKSIG
+        // 2.1 Encode the payload bytes
         {
-            // 2.2.1 OP_0 (0x00)
+            // 2.1.1 OP_0 (0x00)
             tapscript.push(0x00);
 
-            // 2.2.2 OP_IF (0x63)
+            // 2.1.2 OP_IF (0x63)
             tapscript.push(0x63);
 
-            // 2.2.3 Push the payload bytes
+            // 2.1.3 Push the payload bytes
             tapscript.extend(payload_bytes.prefix_pushdata());
 
-            // 2.2.4 OP_ENDIF (0x68)
+            // 2.1.4 OP_ENDIF (0x68)
             tapscript.push(0x68);
+        }
 
-            // 2.2.5 Push engine key
+        // 2.2 OP_IF (0x63)
+        tapscript.push(0x63);
+
+        // 2.3 Engine spend clause: <Engine Key> OP_CHECKSIG
+        {
+            // 2.3.1 Push engine key
             tapscript.push(0x20); // OP_PUSHDATA_32
             tapscript.extend(engine_key); // Engine Key 32-bytes
 
-            // 2.2.6 OP_CHECKSIG (0xac)
+            // 2.3.2 OP_CHECKSIG (0xac)
             tapscript.push(0xac);
         }
 
-        // 2.3 OP_ELSE (0x67)
+        // 2.4 OP_ELSE (0x67)
         tapscript.push(0x67);
 
-        // 2.4 Anyone-can-spend after timeout clause: <3 months> OP_CHECKSEQUENCEVERIFY OP_DROP OP_1
+        // 2.5 Anyone-can-spend after timeout clause: <3 months> OP_CHECKSEQUENCEVERIFY OP_DROP OP_1
         // This forces Engine to not halt operations.
         {
-            // 2.4.1 <3 months>
+            // 2.5.1 <3 months>
             tapscript.extend(Vec::<u8>::csv_script(CSVFlag::CSVThreeMonths));
 
-            // 2.4.2 OP_CHECKSEQUENCEVERIFY (0xb2)
+            // 2.5.2 OP_CHECKSEQUENCEVERIFY (0xb2)
             tapscript.push(0xb2);
 
-            // 2.4.3 OP_DROP (0x75)
+            // 2.5.3 OP_DROP (0x75)
             tapscript.push(0x75);
 
-            // 2.4.4 OP_1 (0x51)
+            // 2.5.4 OP_1 (0x51)
             tapscript.push(0x51);
         }
 
-        // 2.5 OP_ENDIF (0x68)
+        // 2.6 OP_ENDIF (0x68)
         tapscript.push(0x68);
     }
 
