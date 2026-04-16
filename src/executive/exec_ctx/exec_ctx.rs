@@ -1,4 +1,3 @@
-use crate::constructive::bitcoiny::batch_template::batch_template::BatchTemplate;
 use crate::constructive::core_types::valtypes::val::long_val::long_val::LongVal;
 use crate::constructive::core_types::valtypes::val::short_val::short_val::ShortVal;
 use crate::constructive::entry::entry::entry::Entry;
@@ -10,12 +9,14 @@ use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 use crate::inscriptive::registery::registery::REGISTERY;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
 use crate::transmutative::bls::verify::bls_verify_aggregate;
+use crate::transmutative::codec::bitvec_ext::BitVecExt;
 use crate::{
     constructive::entry::entry_kinds::liftup::liftup::Liftup,
     executive::entry_executions::liftup_execution::error::liftup_execution_error::LiftupExecutionError,
     executive::exec_ctx::errors::apply_changes_error::ApplyChangesError,
 };
 use bit_vec::BitVec;
+use bitcoin::{OutPoint, TxOut};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -169,13 +170,13 @@ impl ExecCtx {
         Ok(())
     }
 
-    /// Executes a batch of Entries from a `BatchTemplate`.
-    ///
-    /// Used by Nodes to execute a batch of Entries from a `BatchTemplate`.
+    /// Executes a batch.
     pub async fn execute_batch(
         &mut self,
         batch_height: u64,
-        batch_template: BatchTemplate,
+        payload_bytes: Vec<u8>,
+        tx_inputs: Vec<OutPoint>,
+        tx_outputs: Vec<TxOut>,
     ) -> Result<
         (
             BatchHeight,
@@ -186,21 +187,18 @@ impl ExecCtx {
         ),
         BatchExecutionError,
     > {
-        // 1 Get the batch payload as bits.
-        let batch_payload = batch_template.payload_bits().ok_or(
-            BatchExecutionError::BatchTemplatePayloadBitsConversionError(
-                batch_template.payload_bytes.clone(),
-            ),
-        )?;
+        // 1 Convert the payload bytes to APE bits.
+        let batch_payload = BitVec::from_ape_payload_bytes(payload_bytes.clone())
+            .ok_or(BatchExecutionError::BatchTemplatePayloadBitsConversionError(payload_bytes))?;
 
-        // 2 Turn the APE payload into an iterator.
+        // 2 Turn the APE bits into an iterator.
         let mut ape_bitstream = batch_payload.iter();
 
         // 3 Turn the Bitcoin transaction inputs into an iterator.
-        let mut tx_inputs_iter = batch_template.bitcoin_tx_inputs.into_iter();
+        let mut tx_inputs_iter = tx_inputs.into_iter();
 
         // 4 Turn the Bitcoin transaction outputs into an iterator.
-        let mut _tx_outputs_iter = batch_template.bitcoin_tx_outputs.iter();
+        let mut _tx_outputs_iter = tx_outputs.iter();
 
         // 5 Return params from the params manager: TODO
         let decode_account_rank_as_longval = true;
@@ -288,6 +286,7 @@ impl ExecCtx {
                     let projector = Some(Projector {
                         scriptpubkey: tx_output.script_pubkey.as_bytes().to_vec(),
                         satoshi_amount: tx_output.value.to_sat(),
+                        location: None,
                     });
 
                     // 14.a.3 Return the projector.

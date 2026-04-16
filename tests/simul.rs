@@ -201,7 +201,7 @@ mod simul_tests {
         let batch_template = session_pool
             .lock()
             .await
-            .into_batch_template(batch_height, batch_timestamp, payload_version)
+            .into_batch_template(batch_height, batch_timestamp, payload_version, 0)
             .await
             .map_err(|error| {
                 format!(
@@ -225,11 +225,6 @@ mod simul_tests {
         // Now that we have the batch template, we consider this delivered to the Node from the Engine for execution.
         // So we better drop the session pool now and contstruct an ExecCtx to execute the batch.
 
-        println!(
-            "Batch template: {}",
-            to_string_pretty(&batch_template.json()).expect("serde_json::Value should serialize")
-        );
-
         // 23 Construct an ExecCtx.
         let exec_ctx: EXEC_CTX = ExecCtx::construct(
             engine_key,
@@ -239,6 +234,33 @@ mod simul_tests {
             Arc::clone(&coin_manager),
             Arc::clone(&flame_manager),
         );
+
+        println!("pre batch execution prints:");
+
+        // print the batch template
+        println!(
+            "Batch template: {}",
+            to_string_pretty(&batch_template.json()).expect("serde_json::Value should serialize")
+        );
+
+        let prev_payload_tx_outpoint = OutPoint {
+            txid: Txid::from_byte_array([0x00u8; 32]),
+            vout: 0,
+        };
+
+        let new_payload_txout = TxOut {
+            value: Amount::from_sat(0),
+            script_pubkey: ScriptBuf::from(vec![0x00u8; 32]),
+        };
+
+        let mut bitcoin_tx_inputs = Vec::<OutPoint>::new();
+        let mut bitcoin_tx_outputs = Vec::<TxOut>::new();
+
+        bitcoin_tx_inputs.push(prev_payload_tx_outpoint);
+        bitcoin_tx_outputs.push(new_payload_txout);
+
+        bitcoin_tx_inputs.extend(batch_template.bitcoin_tx_inputs);
+        bitcoin_tx_outputs.extend(batch_template.bitcoin_tx_outputs);
 
         // 24 Execute the batch.
         let (
@@ -250,9 +272,16 @@ mod simul_tests {
         ) = exec_ctx
             .lock()
             .await
-            .execute_batch(batch_height, batch_template)
+            .execute_batch(
+                batch_height,
+                batch_template.payload_bytes,
+                bitcoin_tx_inputs,
+                bitcoin_tx_outputs,
+            )
             .await
             .map_err(|error| format!("Failed to execute the batch: {:?}", error))?;
+
+        println!("post batch execution prints:");
 
         // Post-execution Prints
         {

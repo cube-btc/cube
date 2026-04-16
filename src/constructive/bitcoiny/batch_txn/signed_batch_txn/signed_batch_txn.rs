@@ -7,13 +7,21 @@ use crate::constructive::entry::entry::entry::Entry;
 use crate::constructive::txout_types::lift::lift::Lift;
 use crate::constructive::txout_types::payload::payload::Payload;
 use crate::constructive::txout_types::projector::projector::Projector;
+use crate::transmutative::codec::varint::encode_varint;
+use crate::transmutative::hash::sha256;
 use crate::transmutative::key::KeyHolder;
 use crate::transmutative::secp::schnorr::{self, SchnorrSigningMode};
-use bitcoin::{Amount, OutPoint, ScriptBuf, TxOut};
+use bitcoin::hashes::Hash;
+use bitcoin::{Amount, OutPoint, ScriptBuf, TxOut, Txid};
 
 // Bare transaction fields:
 const N_VERSION: [u8; 4] = [0x02, 0x00, 0x00, 0x00];
 const N_LOCKTIME: [u8; 4] = [0x00, 0x00, 0x00, 0x00];
+const N_SEQUENCE_MAX: [u8; 4] = [0xff, 0xff, 0xff, 0xff];
+
+/// BIP141 witness serialization marker and flag.
+const SEGWIT_MARKER: u8 = 0x00;
+const SEGWIT_FLAG: u8 = 0x01;
 
 type Bytes = Vec<u8>;
 
@@ -212,5 +220,83 @@ impl SignedBatchTxn {
             tx_inputs,
             tx_outputs: unsigned_batch_txn.tx_outputs,
         })
+    }
+
+    /// Serializes the Bitcoin transaction.
+    pub fn serialize_bytes(&self) -> Vec<u8> {
+        let mut buf = Vec::new();
+        buf.extend_from_slice(&N_VERSION);
+        buf.push(SEGWIT_MARKER);
+        buf.push(SEGWIT_FLAG);
+
+        buf.extend_from_slice(&encode_varint(self.tx_inputs.len() as u64));
+        for (outpoint, _, _) in &self.tx_inputs {
+            push_legacy_txin(&mut buf, outpoint);
+        }
+
+        buf.extend_from_slice(&encode_varint(self.tx_outputs.len() as u64));
+        for txout in &self.tx_outputs {
+            push_txout(&mut buf, txout);
+        }
+
+        for (_, _, w) in &self.tx_inputs {
+            push_witness(&mut buf, w);
+        }
+
+        buf.extend_from_slice(&N_LOCKTIME);
+        buf
+    }
+
+    /// Serializes the transaction for txid.
+    pub fn serialize_bytes_for_txid(&self) -> Vec<u8> {
+        let mut buf = Vec::new();
+        buf.extend_from_slice(&N_VERSION);
+
+        buf.extend_from_slice(&encode_varint(self.tx_inputs.len() as u64));
+        for (outpoint, _, _) in &self.tx_inputs {
+            push_legacy_txin(&mut buf, outpoint);
+        }
+
+        buf.extend_from_slice(&encode_varint(self.tx_outputs.len() as u64));
+        for txout in &self.tx_outputs {
+            push_txout(&mut buf, txout);
+        }
+
+        buf.extend_from_slice(&N_LOCKTIME);
+        buf
+    }
+
+    /// Returns the transaction id.
+    pub fn txid(&self) -> Txid {
+        let preimage = self.serialize_bytes_for_txid();
+        let first = sha256(&preimage);
+        Txid::from_byte_array(sha256(&first))
+    }
+}
+
+fn push_outpoint(buf: &mut Vec<u8>, outpoint: &OutPoint) {
+    buf.extend_from_slice(&outpoint.txid.to_byte_array());
+    buf.extend_from_slice(&outpoint.vout.to_le_bytes());
+}
+
+fn push_legacy_txin(buf: &mut Vec<u8>, outpoint: &OutPoint) {
+    push_outpoint(buf, outpoint);
+    buf.push(0x00); // empty scriptSig
+    buf.extend_from_slice(&N_SEQUENCE_MAX);
+}
+
+fn push_txout(buf: &mut Vec<u8>, txout: &TxOut) {
+    buf.extend_from_slice(&txout.value.to_sat().to_le_bytes());
+    let spk = txout.script_pubkey.as_bytes();
+    buf.extend_from_slice(&encode_varint(spk.len() as u64));
+    buf.extend_from_slice(spk);
+}
+
+/// One input’s witness stack (BIP141): stack item count, then each item length-prefixed.
+fn push_witness(buf: &mut Vec<u8>, witness: &Witness) {
+    buf.extend_from_slice(&encode_varint(witness.len() as u64));
+    for item in witness {
+        buf.extend_from_slice(&encode_varint(item.len() as u64));
+        buf.extend_from_slice(item);
     }
 }

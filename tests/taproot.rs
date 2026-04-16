@@ -17,14 +17,14 @@ mod taproot_tests {
         let expected: Vec<u8> =
             hex::decode("b220872a5f6915e7779e659c2925b4b6cef6c1792f2e7bed0ba6331631fa7c63")?;
 
-        assert_eq!(tap_branch.hash().to_vec(), expected);
+        assert_eq!(tap_branch.tapbranch_hash().to_vec(), expected);
 
         // Test - Reversed order does not affect the branch
 
         let tap_branch_reversed: TapBranch =
             TapBranch::new(tap_leaf_2.into_branch(), tap_leaf_1.into_branch());
 
-        assert_eq!(tap_branch_reversed.hash().to_vec(), expected);
+        assert_eq!(tap_branch_reversed.tapbranch_hash().to_vec(), expected);
 
         // Test - Branch two TapBranches
 
@@ -40,7 +40,7 @@ mod taproot_tests {
         let expected_upper: Vec<u8> =
             hex::decode("a590e5a5cc3576cacb587676397bb8c7fa8645279ce740e5bf48bc7c25b1d813")?;
 
-        assert_eq!(upper_tap_branch.hash().to_vec(), expected_upper);
+        assert_eq!(upper_tap_branch.tapbranch_hash().to_vec(), expected_upper);
 
         Ok(())
     }
