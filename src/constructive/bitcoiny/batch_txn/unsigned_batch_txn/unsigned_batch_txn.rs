@@ -1,13 +1,10 @@
-use crate::constructive::entry::entry::entry::Entry;
 use crate::constructive::txn::ext::OutpointExt;
-use crate::constructive::txout_types::payload::payload::Payload;
-use crate::constructive::txout_types::projector::projector::Projector;
 use crate::transmutative::hash::{sha256, Hash, HashTag};
 use crate::{
     constructive::bitcoiny::batch_txn::unsigned_batch_txn::error::construct_error::UnsignedBatchTxnConstructError,
     transmutative::codec::varint::encode_varint,
 };
-use bitcoin::{Amount, OutPoint, ScriptBuf, TxOut};
+use bitcoin::{OutPoint, TxOut};
 
 // Bare transaction fields:
 const N_VERSION: [u8; 4] = [0x02, 0x00, 0x00, 0x00];
@@ -40,12 +37,12 @@ impl UnsignedBatchTxn {
         prev_payload_tx_input: (OutPoint, TxOut),
         // Extra inputs for expired projectors
         extra_in_tx_inputs: Vec<(OutPoint, TxOut)>,
-        // Entry prevouts
-        entries: Vec<Entry>,
+        // Entry lift tx inputs
+        lift_tx_inputs: Vec<(OutPoint, TxOut)>,
         // Payload output
-        new_payload: Payload,
+        new_payload_txout: TxOut,
         // Projector output
-        new_projector: Option<Projector>,
+        new_projector_txout: Option<TxOut>,
         // Bitcoin transaction fee
         bitcoin_transaction_fee: u64,
     ) -> Result<UnsignedBatchTxn, UnsignedBatchTxnConstructError> {
@@ -75,27 +72,16 @@ impl UnsignedBatchTxn {
             }
 
             // Push the Liftup prevouts to the tx inputs.
-            for entry in &entries {
-                if let Entry::Liftup(liftup) = entry {
-                    for lift in &liftup.lift_tx_inputs {
-                        tx_inputs.push((lift.outpoint(), lift.txout()));
+            for (outpoint, txout) in lift_tx_inputs {
+                tx_inputs.push((outpoint, txout.clone()));
 
-                        // Add the lift value to the tx inputs value sum.
-                        tx_inputs_value_sum += lift.lift_value_in_satoshis();
-                    }
-                }
+                // Add the lift value to the tx inputs value sum.
+                tx_inputs_value_sum += txout.value.to_sat();
             }
         }
 
         // Initialize the swapout tx outputs.
         let mut _swapout_tx_outputs = Vec::<TxOut>::new();
-
-        // Fill swapout tx outputs.
-        for _entry in &entries {
-            //if let Entry::Swapout(swapout) = entry {
-            //    swapout_tx_outputs.push(swapout.txout());
-            //}
-        }
 
         // Calculate the change value.
         let change_value = {
@@ -106,8 +92,8 @@ impl UnsignedBatchTxn {
             change_value += tx_inputs_value_sum;
 
             // Add projector values to the change value.
-            if let Some(projector) = &new_projector {
-                change_value.checked_sub(projector.satoshi_amount).ok_or(
+            if let Some(projector_txout) = &new_projector_txout {
+                change_value.checked_sub(projector_txout.value.to_sat()).ok_or(
                     UnsignedBatchTxnConstructError::ChangeValueProjectorValueCheckedSubError,
                 )?;
             }
@@ -131,35 +117,14 @@ impl UnsignedBatchTxn {
         // Fill transaction outputs.
         {
             // Push the new payload output to the tx outputs.
-            {
-                // Get the new payload scriptpubkey.
-                let new_payload_scriptpubkey = new_payload
-                    .scriptpubkey()
-                    .ok_or(UnsignedBatchTxnConstructError::NewPayloadScriptpubkeyError)?;
-
-                // Construct the payload txout.
-                let new_payload_txout = TxOut {
-                    value: Amount::from_sat(change_value),
-                    script_pubkey: ScriptBuf::from(new_payload_scriptpubkey),
-                };
-
-                // Push the payload txout to the tx outputs.
-                tx_outputs.push(new_payload_txout);
-            }
+            tx_outputs.push(TxOut {
+                value: bitcoin::Amount::from_sat(change_value),
+                script_pubkey: new_payload_txout.script_pubkey,
+            });
 
             // Push the new projector output to the tx outputs.
-            if let Some(projector) = &new_projector {
-                // Get the projector scriptpubkey.
-                let new_projector_scriptpubkey = projector.scriptpubkey.clone();
-
-                // Construct the projector txout.
-                let new_projector_txout = TxOut {
-                    value: Amount::from_sat(projector.satoshi_amount),
-                    script_pubkey: ScriptBuf::from(new_projector_scriptpubkey),
-                };
-
-                // Push the projector txout to the tx outputs.
-                tx_outputs.push(new_projector_txout);
+            if let Some(projector_txout) = new_projector_txout {
+                tx_outputs.push(projector_txout);
             }
 
             // Extend the tx outputs with the swapout tx outputs.

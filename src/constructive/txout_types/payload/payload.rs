@@ -4,33 +4,53 @@ use crate::transmutative::codec::csv::CSVFlag;
 use crate::transmutative::codec::prefix::Prefix;
 use serde::Deserialize;
 use serde::Serialize;
+use bitcoin::{OutPoint, TxOut};
 
 // A type alias for bytes.
 type Bytes = Vec<u8>;
 
 type TapLeafHash = [u8; 32];
-
 type TapScript = Vec<u8>;
-
 type ControlBlock = Vec<u8>;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Payload {
     pub engine_key: [u8; 32],
     pub payload_bytes: Vec<u8>,
+    pub location: Option<(OutPoint, TxOut)>,
 }
 
 impl Payload {
     /// Creates a new Payload struct.
-    pub fn new(engine_key: [u8; 32], payload_bytes: Vec<u8>) -> Payload {
+    pub fn new(engine_key: [u8; 32], payload_bytes: Vec<u8>, location: Option<(OutPoint, TxOut)>) -> Payload {
         Payload {
             engine_key,
             payload_bytes,
+            location,
         }
     }
 
+    /// Returns the location of the Payload.
+    pub fn location(&self) -> Option<(OutPoint, TxOut)> {
+        self.location.clone()
+    }
+
+    /// Returns the outpoint for the Payload.
+    pub fn outpoint(&self) -> Option<OutPoint> {
+        self.location
+            .as_ref()
+            .map(|(outpoint, _txout)| outpoint.clone())
+    }
+
+    /// Returns the txout for the Payload.
+    pub fn txout(&self) -> Option<TxOut> {
+        self.location
+            .as_ref()
+            .map(|(_outpoint, txout)| txout.clone())
+    }
+
     /// Returns the scriptpubkey for the Payload.
-    pub fn scriptpubkey(&self) -> Option<Bytes> {
+    pub fn calculated_scriptpubkey(&self) -> Option<Bytes> {
         return_payload_scriptpubkey(self.engine_key, &self.payload_bytes)
     }
 
