@@ -8,6 +8,10 @@ use serde_json::{Map, Value};
 // A type alias for bytes.
 type Bytes = Vec<u8>;
 
+type TapLeafHash = [u8; 32];
+type TapScript = Vec<u8>;
+type ControlBlock = Vec<u8>;
+
 /// Non-interactive, but trusted, placeholder Lift implementation.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct LiftV1 {
@@ -114,6 +118,33 @@ impl LiftV1 {
 
         // 9 Return the lift JSON object
         Value::Object(obj)
+    }
+
+    /// Returns (tapleaf_hash, tapscript, control_block_bytes) for this LiftV1's P2TR script path.
+    pub fn p2tr_script_path_spend_elements(&self) -> (TapLeafHash, TapScript, ControlBlock) {
+        // For LiftV1 we construct a single-leaf, script-path-only TapRoot.
+        let taproot = self
+            .taproot()
+            .expect("LiftV1 must always have a TapRoot for P2TR script-path spends");
+
+        let tree = taproot
+            .tree()
+            .expect("TapRoot for LiftV1 must contain a TapTree");
+
+        let leaves = tree.leaves();
+        let tapleaf = leaves
+            .first()
+            .expect("TapTree for LiftV1 must contain at least one TapLeaf");
+
+        let tapleaf_hash: TapLeafHash = tapleaf.tapleaf_hash();
+        let tapscript: TapScript = tapleaf.tap_script();
+
+        let control_block_bytes: ControlBlock = taproot
+            .control_block(0)
+            .expect("TapRoot for LiftV1 must produce a control block for leaf index 0")
+            .to_vec();
+
+        (tapleaf_hash, tapscript, control_block_bytes)
     }
 }
 

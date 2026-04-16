@@ -42,7 +42,7 @@ impl TapLeaf {
         }
     }
 
-    pub fn hash(&self) -> [u8; 32] {
+    pub fn tapleaf_hash(&self) -> [u8; 32] {
         hash_tap_leaf(&self.tap_script, self.leaf_version)
     }
 
@@ -64,13 +64,13 @@ pub struct TapBranch {
 impl TapBranch {
     pub fn new(first: Branch, second: Branch) -> TapBranch {
         let first_branch = match &first {
-            Branch::Leaf(leaf) => leaf.hash(),
-            Branch::Branch(branch) => branch.hash(),
+            Branch::Leaf(leaf) => leaf.tapleaf_hash(),
+            Branch::Branch(branch) => branch.tapbranch_hash(),
         };
 
         let second_branch = match &second {
-            Branch::Leaf(leaf) => leaf.hash(),
-            Branch::Branch(branch) => branch.hash(),
+            Branch::Leaf(leaf) => leaf.tapleaf_hash(),
+            Branch::Branch(branch) => branch.tapbranch_hash(),
         };
 
         match &first_branch.cmp(&second_branch) {
@@ -85,15 +85,15 @@ impl TapBranch {
         }
     }
 
-    pub fn hash(&self) -> [u8; 32] {
+    pub fn tapbranch_hash(&self) -> [u8; 32] {
         let left_branch = match &self.left_branch {
-            Branch::Branch(branch) => branch.hash(),
-            Branch::Leaf(leaf) => leaf.hash(),
+            Branch::Branch(branch) => branch.tapbranch_hash(),
+            Branch::Leaf(leaf) => leaf.tapleaf_hash(),
         };
 
         let right_branch = match &self.right_branch {
-            Branch::Branch(branch) => branch.hash(),
-            Branch::Leaf(leaf) => leaf.hash(),
+            Branch::Branch(branch) => branch.tapbranch_hash(),
+            Branch::Leaf(leaf) => leaf.tapleaf_hash(),
         };
 
         hash_tap_branch(left_branch, right_branch)
@@ -228,8 +228,8 @@ impl TapTree {
         let uppermost_branch = tree_builder(&leaves, None).0;
 
         let tap_branch = match &uppermost_branch {
-            Branch::Leaf(leaf) => leaf.hash(),
-            Branch::Branch(branch) => branch.hash(),
+            Branch::Leaf(leaf) => leaf.tapleaf_hash(),
+            Branch::Branch(branch) => branch.tapbranch_hash(),
         };
 
         TapTree {
@@ -322,19 +322,19 @@ pub fn tree_builder(leaves: &Vec<TapLeaf>, index: Option<usize>) -> (Branch, Opt
                             let second: Branch = current_level[iterator + 1].clone();
 
                             let first_bytes = match &first {
-                                Branch::Leaf(leaf) => leaf.hash(),
-                                Branch::Branch(branch) => branch.hash(),
+                                Branch::Leaf(leaf) => leaf.tapleaf_hash(),
+                                Branch::Branch(branch) => branch.tapbranch_hash(),
                             };
 
                             let second_bytes = match &second {
-                                Branch::Leaf(leaf) => leaf.hash(),
-                                Branch::Branch(branch) => branch.hash(),
+                                Branch::Leaf(leaf) => leaf.tapleaf_hash(),
+                                Branch::Branch(branch) => branch.tapbranch_hash(),
                             };
 
                             let lookup_bytes = match &lookup {
                                 Some(branch) => match branch {
-                                    Branch::Leaf(leaf) => leaf.hash(),
-                                    Branch::Branch(branch) => branch.hash(),
+                                    Branch::Leaf(leaf) => leaf.tapleaf_hash(),
+                                    Branch::Branch(branch) => branch.tapbranch_hash(),
                                 },
                                 None => [0u8; 32],
                             };

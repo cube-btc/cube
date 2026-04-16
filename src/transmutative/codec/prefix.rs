@@ -1,4 +1,5 @@
 type Bytes = Vec<u8>;
+use super::varint::encode_varint;
 
 pub trait Prefix {
     // Interpret bytes as stack push and prefix them with OP_PUSHDATA.
@@ -84,31 +85,7 @@ impl Prefix for Bytes {
     }
 
     fn prefix_compact_size(&self) -> Bytes {
-        let mut bytes = Vec::<u8>::new();
-        let data_len = self.len();
-
-        match data_len {
-            0..=252 => bytes.extend(vec![data_len as u8]),
-            253..=65535 => {
-                bytes.extend([0xfd]);
-
-                let data_len_bytes: [u8; 2] = (data_len as u16).to_le_bytes();
-                bytes.extend(data_len_bytes);
-            }
-            65536..=4294967295 => {
-                bytes.extend([0xfe]);
-
-                let data_len_bytes: [u8; 4] = (data_len as u32).to_le_bytes();
-                bytes.extend(data_len_bytes);
-            }
-            4294967296..=18446744073709551615 => {
-                bytes.extend([0xff]);
-
-                let data_len_bytes: [u8; 8] = (data_len as u64).to_le_bytes();
-                bytes.extend(data_len_bytes);
-            }
-            _ => panic!("The data cannot be prefixed because it is too large."),
-        }
+        let mut bytes = encode_varint(self.len() as u64);
         bytes.extend(self);
         bytes
     }

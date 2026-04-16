@@ -8,6 +8,12 @@ use serde::Serialize;
 // A type alias for bytes.
 type Bytes = Vec<u8>;
 
+type TapLeafHash = [u8; 32];
+
+type TapScript = Vec<u8>;
+
+type ControlBlock = Vec<u8>;
+
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Payload {
     pub engine_key: [u8; 32],
@@ -26,6 +32,33 @@ impl Payload {
     /// Returns the scriptpubkey for the Payload.
     pub fn scriptpubkey(&self) -> Option<Bytes> {
         return_payload_scriptpubkey(self.engine_key, &self.payload_bytes)
+    }
+
+    /// Returns the P2TR script-path spend elements for the Payload.
+    pub fn p2tr_script_path_spend_elements(&self) -> (TapLeafHash, TapScript, ControlBlock) {
+        // For Payload we construct a single-leaf, script-path-only TapRoot.
+        let taproot = self
+            .taproot()
+            .expect("This should never happen: Payload must always have a TapRoot for P2TR script-path spends");
+
+        let tree = taproot
+            .tree()
+            .expect("This should never happen: TapRoot for Payload must contain a TapTree");
+
+        let leaves = tree.leaves();
+        let tapleaf = leaves.first().expect(
+            "This should never happen: TapTree for Payload must contain at least one TapLeaf",
+        );
+
+        let tapleaf_hash: TapLeafHash = tapleaf.tapleaf_hash();
+        let tapscript: TapScript = tapleaf.tap_script();
+
+        let control_block_bytes: ControlBlock = taproot
+            .control_block(0)
+            .expect("This should never happen: TapRoot for Payload must produce a control block for leaf index 0")
+            .to_vec();
+
+        (tapleaf_hash, tapscript, control_block_bytes)
     }
 }
 
