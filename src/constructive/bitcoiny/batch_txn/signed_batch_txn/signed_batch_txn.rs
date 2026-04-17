@@ -13,6 +13,7 @@ use crate::transmutative::key::KeyHolder;
 use crate::transmutative::secp::schnorr::{self, SchnorrSigningMode};
 use bitcoin::hashes::Hash;
 use bitcoin::{Amount, OutPoint, ScriptBuf, TxOut, Txid};
+use serde::{Deserialize, Serialize};
 
 // Bare transaction fields:
 const N_VERSION: [u8; 4] = [0x02, 0x00, 0x00, 0x00];
@@ -28,7 +29,7 @@ type Bytes = Vec<u8>;
 type Witness = Vec<Bytes>;
 
 /// Represents a signed batch transaction.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignedBatchTxn {
     /// The Bitcoin transaction inputs of the batch.
     pub tx_inputs: Vec<(OutPoint, TxOut, Witness)>,
@@ -220,6 +221,19 @@ impl SignedBatchTxn {
             tx_inputs,
             tx_outputs: unsigned_batch_txn.tx_outputs,
         })
+    }
+
+    /// Returns the transaction input outpoints.
+    pub fn tx_input_outpoints(&self) -> Vec<OutPoint> {
+        self.tx_inputs
+            .iter()
+            .map(|(outpoint, _, _)| outpoint.clone())
+            .collect()
+    }
+
+    /// Returns the transaction outputs.
+    pub fn tx_outputs(&self) -> Vec<TxOut> {
+        self.tx_outputs.clone()
     }
 
     /// Serializes the Bitcoin transaction.

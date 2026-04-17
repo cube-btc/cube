@@ -5,6 +5,7 @@ use crate::{
     transmutative::codec::varint::encode_varint,
 };
 use bitcoin::{OutPoint, TxOut};
+use serde::{Deserialize, Serialize};
 
 // Bare transaction fields:
 const N_VERSION: [u8; 4] = [0x02, 0x00, 0x00, 0x00];
@@ -20,7 +21,7 @@ const TAPSCRIPT_DEFAULT_CODESEPARATOR_POS: u32 = 0xffff_ffff;
 pub type TapLeafHash = [u8; 32];
 
 /// Represents an unsigned batch transaction.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UnsignedBatchTxn {
     /// The Bitcoin transaction inputs of the batch.
     pub tx_inputs: Vec<(OutPoint, TxOut)>,

@@ -107,7 +107,7 @@ impl ChainSync for SYNC_MANAGER {
         println!("Bitcoin chain tip: #{}", bitcoin_node_chain_tip);
 
         'outer_sync_iteration: loop {
-            // Retrieve cube node's sync height.
+            // Retrieve Bitcoin sync height.
             let cube_node_sync_height = {
                 let _sync_manager = sync_manager.lock().await;
                 _sync_manager.bitcoin_sync_height_tip()
@@ -234,10 +234,10 @@ impl ChainSync for SYNC_MANAGER {
                         }
                     }
 
-                    // Set the new bitcoin sync height.
+                    // Set the new bitcoin sync height tip.
                     {
                         let mut _sync_manager = sync_manager.lock().await;
-                        _sync_manager.set_bitcoin_sync_height(height_to_sync);
+                        _sync_manager.set_bitcoin_sync_height_tip(height_to_sync);
                     }
 
                     // TODO set the new rollup sync height.

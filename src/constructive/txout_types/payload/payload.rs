@@ -1,10 +1,14 @@
 use crate::constructive::taproot::{TapLeaf, TapRoot, P2TR};
+use crate::inscriptive::baked;
+use crate::operative::run_args::chain::Chain;
+use crate::transmutative::codec::address::encode_p2tr;
 use crate::transmutative::codec::csv::CSVEncode;
 use crate::transmutative::codec::csv::CSVFlag;
 use crate::transmutative::codec::prefix::Prefix;
+use bitcoin::hashes::Hash;
+use bitcoin::{Amount, OutPoint, ScriptBuf, TxOut, Txid};
 use serde::Deserialize;
 use serde::Serialize;
-use bitcoin::{OutPoint, TxOut};
 
 // A type alias for bytes.
 type Bytes = Vec<u8>;
@@ -22,12 +26,28 @@ pub struct Payload {
 
 impl Payload {
     /// Creates a new Payload struct.
-    pub fn new(engine_key: [u8; 32], payload_bytes: Vec<u8>, location: Option<(OutPoint, TxOut)>) -> Payload {
+    pub fn new(
+        engine_key: [u8; 32],
+        payload_bytes: Vec<u8>,
+        location: Option<(OutPoint, TxOut)>,
+    ) -> Payload {
         Payload {
             engine_key,
             payload_bytes,
             location,
         }
+    }
+
+    /// Serializes the Payload with bincode.
+    pub fn serialize(&self) -> Option<Vec<u8>> {
+        bincode::serde::encode_to_vec(self, bincode::config::standard()).ok()
+    }
+
+    /// Deserializes a Payload from bincode bytes.
+    pub fn deserialize(bytes: &[u8]) -> Option<Payload> {
+        bincode::serde::decode_from_slice::<Payload, _>(bytes, bincode::config::standard())
+            .ok()
+            .map(|(payload, _)| payload)
     }
 
     /// Returns the location of the Payload.
@@ -172,4 +192,95 @@ impl P2TR for Payload {
     fn taproot(&self) -> Option<TapRoot> {
         return_payload_taproot(self.engine_key, &self.payload_bytes)
     }
+}
+
+/// Returns a genesis engine payload address.
+pub fn genesis_payload_address(chain: Chain) -> String {
+    // 1 Get the engine key and payload bytes.
+    let engine_key: [u8; 32] = match chain {
+        Chain::Testbed => baked::SIGNET_ENGINE_PUBLIC_KEY,
+        Chain::Signet => baked::SIGNET_ENGINE_PUBLIC_KEY,
+        Chain::Mainnet => baked::MAINNET_ENGINE_PUBLIC_KEY,
+    };
+
+    // 2 Get the payload bytes.
+    let payload_bytes = baked::GENESIS_INSCRIPTION.to_vec();
+
+    // 3 Construct the genesis payload without location.
+    let genesis_payload_without_location = Payload::new(engine_key, payload_bytes, None);
+
+    // 4 Get the scriptpubkey for the genesis payload.
+    let genesis_payload_taproot = genesis_payload_without_location
+        .taproot()
+        .expect("Failed to get taproot.");
+
+    // 5 Get the tweaked key for the genesis payload.
+    let genesis_payload_taproot_key: [u8; 32] = genesis_payload_taproot
+        .tweaked_key()
+        .expect("Failed to get tweaked key.")
+        .serialize_xonly();
+
+    // 6 Encode the tweaked key into an address.
+    let genesis_payload_address =
+        encode_p2tr(chain, genesis_payload_taproot_key).expect("Failed to encode p2tr address.");
+
+    // 7 Return the genesis payload address.
+    genesis_payload_address
+}
+
+/// Returns a genesis engine payload.
+pub fn genesis_payload(chain: Chain) -> Payload {
+    // 1 Get the engine key and payload bytes.
+    let engine_key: [u8; 32] = match chain {
+        Chain::Testbed => baked::SIGNET_ENGINE_PUBLIC_KEY,
+        Chain::Signet => baked::SIGNET_ENGINE_PUBLIC_KEY,
+        Chain::Mainnet => baked::MAINNET_ENGINE_PUBLIC_KEY,
+    };
+
+    // 2 Get the payload bytes.
+    let payload_bytes = baked::GENESIS_INSCRIPTION.to_vec();
+
+    // 3 Get the genesis payload txid and vout.
+    let genesis_payload_txid: [u8; 32] = match chain {
+        Chain::Testbed => baked::SIGNET_GENESIS_PAYLOAD_TX_ID,
+        Chain::Signet => baked::SIGNET_GENESIS_PAYLOAD_TX_ID,
+        Chain::Mainnet => baked::MAINNET_GENESIS_PAYLOAD_TX_ID,
+    };
+
+    // 4 Get the genesis payload vout.
+    let genesis_payload_vout: u32 = match chain {
+        Chain::Testbed => baked::SIGNET_GENESIS_PAYLOAD_VOUT,
+        Chain::Signet => baked::SIGNET_GENESIS_PAYLOAD_VOUT,
+        Chain::Mainnet => baked::MAINNET_GENESIS_PAYLOAD_VOUT,
+    };
+
+    // 5 Construct the genesis payload without location.
+    let genesis_payload_without_location = Payload::new(engine_key, payload_bytes, None);
+
+    // 6 Get the scriptpubkey for the genesis payload.
+    let genesis_payload_scriptpubkey = genesis_payload_without_location
+        .calculated_scriptpubkey()
+        .expect("Failed to get scriptpubkey.");
+
+    // 7 Construct the location for the genesis payload.
+    let location = (
+        OutPoint::new(
+            Txid::from_raw_hash(Hash::from_byte_array(genesis_payload_txid)),
+            genesis_payload_vout,
+        ),
+        TxOut {
+            value: Amount::from_sat(0),
+            script_pubkey: ScriptBuf::from(genesis_payload_scriptpubkey),
+        },
+    );
+
+    // 8 Construct the genesis payload with location.
+    let genesis_payload = Payload::new(
+        engine_key,
+        genesis_payload_without_location.payload_bytes.clone(),
+        Some(location),
+    );
+
+    // 9 Return the genesis payload.
+    genesis_payload
 }

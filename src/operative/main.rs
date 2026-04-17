@@ -1,6 +1,7 @@
 use colored::Colorize;
 use cube::{
     communicative::rpc::bitcoin_rpc::bitcoin_rpc_holder::BitcoinRPCHolder,
+    constructive::txout_types::payload::payload::genesis_payload_address,
     operative::{
         run_args::{
             chain::Chain, operating_kind::OperatingKind, resource_mode::ResourceMode,
@@ -13,6 +14,7 @@ use cube::{
         secp::schnorr::generate_secret,
     },
 };
+use serde_json::json;
 use std::{env, io::BufRead};
 
 fn main() {
@@ -24,10 +26,13 @@ fn main() {
         // 2.a Generate a random secret key and print it as an nsec.
         2 => gensec(&args),
 
-        // 2.b Run the appropriate mode based on the arguments.
+        // 2.b Print genesis parameters.
+        3 => genesis(&args),
+
+        // 2.c Run the appropriate mode based on the arguments.
         8 => run(&args),
 
-        // 2.c Invalid arguments.
+        // 2.d Invalid arguments.
         _ => print_correct_usage(),
     }
 }
@@ -158,6 +163,43 @@ fn gensec(args: &Vec<String>) {
 
             // 1.a.4 Return.
             return;
+        }
+
+        // 1.b Command is invalid.
+        _ => print_correct_usage(),
+    }
+}
+
+/// Prints genesis params as pretty JSON.
+fn genesis(args: &Vec<String>) {
+    // 1 Match the argument name.
+    match args[1].to_lowercase().as_str() {
+        // 1.a Command is 'genesis'.
+        "genesis" => {
+            // 1.a.1 Parse chain.
+            let chain = match args[2].to_lowercase().as_str() {
+                "signet" => Chain::Signet,
+                "mainnet" => Chain::Mainnet,
+                "testbed" => Chain::Testbed,
+                _ => {
+                    eprintln!("{}", "Invalid <chain>.".red());
+                    return;
+                }
+            };
+
+            // 1.a.2 Build the genesis params object.
+            let genesis_params = json!({
+                "genesis_payload_address": genesis_payload_address(chain),
+            });
+
+            // 1.a.3 Print pretty JSON.
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&json!({
+                    "genesis_params": genesis_params
+                }))
+                .expect("Failed to serialize genesis params.")
+            );
         }
 
         // 1.b Command is invalid.
@@ -310,7 +352,7 @@ fn print_correct_usage() {
     eprintln!(
         "{}",
         format!(
-            "Usage: <mode> <chain> <kind> <bitcoin-rpc-url> <bitcoin-rpc-user> <bitcoin-rpc-password>"
+            "Usage:\n  gensec\n  genesis <mainnet|signet|testbed>\n  <mode> <chain> <kind> <bitcoin-rpc-url> <bitcoin-rpc-user> <bitcoin-rpc-password> <syncinflight?>"
         )
         .red()
     );
