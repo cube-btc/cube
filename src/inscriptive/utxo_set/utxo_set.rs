@@ -96,6 +96,13 @@ impl UTXOSet {
         }
     }
 
+    /// Removes every listed UTXO that is present in the set. Outpoints that are not in the set are ignored.
+    pub fn safe_remove_utxos(&mut self, outpoints: Vec<OutPoint>) {
+        for outpoint in outpoints {
+            self.remove_utxo(&outpoint);
+        }
+    }
+
     /// Returns UTXOs in this set whose script pubkey matches self owned `Lift` transaction outputs.
     ///
     /// Used by an `Account` to scan the UTXO set and collect the self owned `Lift`s.

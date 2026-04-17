@@ -53,12 +53,16 @@ pub async fn lift_command(
     // 5 Construct the target.
     let target = Target::new(current_batch_height_tip);
 
-    // 6 Construct the Liftup.
+    // 6 Construct the execution timestamp.
+    let execution_timestamp = 0;
+
+    // 7 Construct the Liftup.
     let liftup = Liftup::new(root_account, target, self_owned_lifts);
 
-    // 7 Construct session pool.
+    // 8 Construct session pool.
     let session_pool = SessionPool::construct(
         engine_key,
+        sync_manager,
         utxo_set,
         registery,
         graveyard,
@@ -66,19 +70,14 @@ pub async fn lift_command(
         flame_manager,
     );
 
-    // 8 Begin the session of the session pool.
+    // 9 Begin the session of the session pool.
     session_pool.lock().await.begin_session();
 
-    // 9 Execute the liftup in the session pool.
+    // 10 Execute the liftup in the session pool.
     let result = session_pool
         .lock()
         .await
-        .exec_liftup_in_pool(
-            current_batch_height_tip,
-            current_batch_height_tip,
-            &liftup,
-            [0; 96],
-        )
+        .exec_liftup_in_pool(execution_timestamp, &liftup, [0; 96])
         .await;
 
     match result {
@@ -89,6 +88,4 @@ pub async fn lift_command(
             println!("{}", format!("Error executing liftup: {:?}", error).red());
         }
     }
-
-    // 10 End the session of the session pool.
 }

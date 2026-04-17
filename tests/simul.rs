@@ -2,6 +2,7 @@
 mod simul_tests {
     use bitcoin::hashes::Hash;
     use bitcoin::{Amount, OutPoint, ScriptBuf, TxOut, Txid};
+    use cube::constructive::bitcoiny::batch_container::batch_container::BatchContainer;
     use cube::constructive::core_types::entities::account::root_account::root_account::RootAccount;
     use cube::constructive::core_types::target::target::Target;
     use cube::constructive::entries::entry_kinds::liftup::liftup::Liftup;
@@ -44,8 +45,8 @@ mod simul_tests {
             0x42, 0xee, 0xf0, 0x9e,
         ];
 
-        // 2 Construct batch height, timestamp, and payload version.
-        let (batch_height, batch_timestamp, payload_version) = (1, 1776015147, 1);
+        // 2 Construct batch timestamp and payload version.
+        let (batch_timestamp, payload_version) = (1776015147, 1);
 
         // 3 Construct self secret key.
         let secret_key: [u8; 32] =
@@ -76,7 +77,7 @@ mod simul_tests {
 
         // 8 Erase and construct the sync manager.
         erase_sync_manager(chain);
-        let _sync_manager: SYNC_MANAGER =
+        let sync_manager: SYNC_MANAGER =
             SyncManager::new(chain).expect("Failed to create sync manager.");
 
         // 9 Erase and construct the UTXO set.
@@ -131,10 +132,20 @@ mod simul_tests {
             // 15.1 Construct the Root Account.
             let root_account = RootAccount::self_root_account(&key_holder, &registery).await;
 
-            // 15.2 Construct the Target aimed at the Engine's batch height.
-            let target = Target::new(batch_height);
+            // 15.2 Get the current batch sync height tip.
+            // If not in-flight, retrieve this from Engine instead of sync manager as that will be more accurate.
+            let current_batch_height_tip = {
+                // 15.2.1 Lock the sync manager.
+                let _sync_manager = sync_manager.lock().await;
 
-            // 15.3 Construct the Liftup.
+                // 15.2.2 Get the current batch sync height tip.
+                _sync_manager.cube_batch_sync_height_tip()
+            };
+
+            // 15.3 Construct the Target aimed at the Engine's batch height.
+            let target = Target::new(current_batch_height_tip + 1);
+
+            // 15.4 Construct the Liftup.
             Liftup::new(root_account, target, vec![lift])
         };
 
@@ -142,6 +153,9 @@ mod simul_tests {
         let liftup_bls_signature = liftup
             .bls_sign(key_holder)
             .expect("Failed to BLS sign the Liftup.");
+
+        // `bls_sign` consumes the key holder; recreate it for `into_batch_container` / Schnorr signing.
+        let key_holder = KeyHolder::new(secret_key).expect("Failed to create key holder.");
 
         // Prints
         {
@@ -168,6 +182,7 @@ mod simul_tests {
         // 17 Construct session pool.
         let session_pool: SESSION_POOL = SessionPool::construct(
             engine_key,
+            &Arc::clone(&sync_manager),
             &Arc::clone(&utxo_set),
             &Arc::clone(&registery),
             &Arc::clone(&graveyard),
@@ -188,7 +203,7 @@ mod simul_tests {
         let _liftup_entry = session_pool
             .lock()
             .await
-            .exec_liftup_in_pool(batch_height, batch_timestamp, &liftup, liftup_bls_signature)
+            .exec_liftup_in_pool(batch_timestamp, &liftup, liftup_bls_signature)
             .await
             .map_err(|error| {
                 format!(
@@ -197,15 +212,15 @@ mod simul_tests {
                 )
             })?;
 
-        // 20 Convert the session pool to a batch template.
-        let batch_template = session_pool
+        // 20 Convert the session pool to a batch container.
+        let batch_container: BatchContainer = session_pool
             .lock()
             .await
-            .into_batch_template(batch_height, batch_timestamp, payload_version, 0)
+            .into_batch_container(batch_timestamp, payload_version, 0, &key_holder)
             .await
             .map_err(|error| {
                 format!(
-                    "Failed to convert the session pool to a batch template: {:?}",
+                    "Failed to convert the session pool to a batch container: {:?}",
                     error
                 )
             })?;
@@ -216,18 +231,19 @@ mod simul_tests {
             let mut _session_pool = session_pool.lock().await;
 
             // 21.2 Flush the session pool.
-            _session_pool.flush().await;
+            _session_pool.end_session().await;
         }
 
         // 22 Drop the session pool.
         drop(session_pool);
 
-        // Now that we have the batch template, we consider this delivered to the Node from the Engine for execution.
-        // So we better drop the session pool now and contstruct an ExecCtx to execute the batch.
+        // Now that we have the batch container, we consider this delivered to the Node from the Engine for execution.
+        // So we better drop the session pool now and construct an ExecCtx to execute the batch.
 
         // 23 Construct an ExecCtx.
         let exec_ctx: EXEC_CTX = ExecCtx::construct(
             engine_key,
+            Arc::clone(&sync_manager),
             Arc::clone(&utxo_set),
             Arc::clone(&registery),
             Arc::clone(&graveyard),
@@ -235,32 +251,8 @@ mod simul_tests {
             Arc::clone(&flame_manager),
         );
 
-        println!("pre batch execution prints:");
-
-        // print the batch template
-        println!(
-            "Batch template: {}",
-            to_string_pretty(&batch_template.json()).expect("serde_json::Value should serialize")
-        );
-
-        let prev_payload_tx_outpoint = OutPoint {
-            txid: Txid::from_byte_array([0x00u8; 32]),
-            vout: 0,
-        };
-
-        let new_payload_txout = TxOut {
-            value: Amount::from_sat(0),
-            script_pubkey: ScriptBuf::from(vec![0x00u8; 32]),
-        };
-
-        let mut bitcoin_tx_inputs = Vec::<OutPoint>::new();
-        let mut bitcoin_tx_outputs = Vec::<TxOut>::new();
-
-        bitcoin_tx_inputs.push(prev_payload_tx_outpoint);
-        bitcoin_tx_outputs.push(new_payload_txout);
-
-        bitcoin_tx_inputs.extend(batch_template.bitcoin_tx_inputs);
-        bitcoin_tx_outputs.extend(batch_template.bitcoin_tx_outputs);
+        // Spent Bitcoin inputs (for UTXO set updates after apply); snapshot before execute_batch consumes the container.
+        let spent_bitcoin_tx_inputs = batch_container.bitcoin_tx_inputs();
 
         // 24 Execute the batch.
         let (
@@ -269,15 +261,11 @@ mod simul_tests {
             batch_timestamp,
             aggregate_bls_signature,
             executed_entries,
+            new_payload,
         ) = exec_ctx
             .lock()
             .await
-            .execute_batch(
-                batch_height,
-                batch_template.payload_bytes,
-                bitcoin_tx_inputs,
-                bitcoin_tx_outputs,
-            )
+            .execute_batch(batch_container)
             .await
             .map_err(|error| format!("Failed to execute the batch: {:?}", error))?;
 
@@ -303,7 +291,7 @@ mod simul_tests {
 
             // 25.2 Apply the changes to the exec ctx.
             _exec_ctx
-                .apply_changes(batch_height, batch_timestamp)
+                .apply_changes(batch_height, new_payload, spent_bitcoin_tx_inputs, 0)
                 .await
                 .map_err(|error| {
                     format!("Failed to apply the changes to the exec ctx: {:?}", error)
@@ -325,7 +313,7 @@ mod simul_tests {
             );
         }
 
-        // 26 Return OK.
+        // 25 Return OK.
         Ok(())
     }
 }

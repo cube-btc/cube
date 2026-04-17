@@ -236,6 +236,18 @@ impl SignedBatchTxn {
         self.tx_outputs.clone()
     }
 
+    /// Serializes this value with bincode.
+    pub fn serialize(&self) -> Option<Vec<u8>> {
+        bincode::serde::encode_to_vec(self, bincode::config::standard()).ok()
+    }
+
+    /// Deserializes a signed batch transaction from bincode bytes.
+    pub fn deserialize(bytes: &[u8]) -> Option<Self> {
+        bincode::serde::decode_from_slice::<Self, _>(bytes, bincode::config::standard())
+            .ok()
+            .map(|(signed_batch_txn, _)| signed_batch_txn)
+    }
+
     /// Serializes the Bitcoin transaction.
     pub fn serialize_bytes(&self) -> Vec<u8> {
         let mut buf = Vec::new();

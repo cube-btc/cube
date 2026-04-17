@@ -1,4 +1,7 @@
-use crate::constructive::bitcoiny::batch_txn::signed_batch_txn::signed_batch_txn::SignedBatchTxn;
+use crate::constructive::{
+    bitcoiny::batch_txn::signed_batch_txn::signed_batch_txn::SignedBatchTxn,
+    txout_types::payload::payload::Payload,
+};
 use bitcoin::{OutPoint, TxOut};
 use serde::{Deserialize, Serialize};
 
@@ -7,6 +10,9 @@ use serde::{Deserialize, Serialize};
 pub struct BatchContainer {
     /// Batch height.
     pub batch_height: u64,
+
+    /// Engine x-only public key (identifies the payload taproot).
+    pub engine_key: [u8; 32],
 
     /// Payload bytes.
     pub payload_bytes: Vec<u8>,
@@ -19,14 +25,26 @@ impl BatchContainer {
     /// Constructs a batch container.
     pub fn new(
         batch_height: u64,
+        engine_key: [u8; 32],
         payload_bytes: Vec<u8>,
         signed_batch_txn: SignedBatchTxn,
     ) -> Self {
         Self {
             batch_height,
+            engine_key,
             payload_bytes,
             signed_batch_txn,
         }
+    }
+
+    /// Returns the batch height.
+    pub fn batch_height(&self) -> u64 {
+        self.batch_height
+    }
+
+    /// Returns the payload bytes.
+    pub fn payload_bytes(&self) -> Vec<u8> {
+        self.payload_bytes.clone()
     }
 
     /// Returns the transaction input outpoints.
@@ -37,5 +55,37 @@ impl BatchContainer {
     /// Returns the Bitcoin transaction outputs.
     pub fn bitcoin_tx_outputs(&self) -> Vec<TxOut> {
         self.signed_batch_txn.tx_outputs()
+    }
+
+    /// Returns the previous payload location.
+    pub fn prev_payload_outpoint(&self) -> OutPoint {   
+        self.bitcoin_tx_inputs()[0]
+    }
+
+    /// Returns the new payload from the first Bitcoin transaction output.
+    pub fn new_payload(&self) -> Payload {
+        // 1 Get the transaction id.
+        let txid = self.signed_batch_txn.txid();
+
+        // 2 Get the payload transaction output.
+        let payload_txout = self.signed_batch_txn.tx_outputs()[0].clone();
+
+        // 3 Construct the location.
+        let location = (OutPoint::new(txid, 0), payload_txout);
+
+        // 4 Construct the new payload.
+        Payload::new(self.engine_key, self.payload_bytes.clone(), Some(location))
+    }
+
+    /// Serializes this value with bincode.
+    pub fn serialize(&self) -> Option<Vec<u8>> {
+        bincode::serde::encode_to_vec(self, bincode::config::standard()).ok()
+    }
+
+    /// Deserializes a batch container from bincode bytes.
+    pub fn deserialize(bytes: &[u8]) -> Option<Self> {
+        bincode::serde::decode_from_slice::<Self, _>(bytes, bincode::config::standard())
+            .ok()
+            .map(|(batch_container, _)| batch_container)
     }
 }

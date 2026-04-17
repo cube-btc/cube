@@ -1,6 +1,8 @@
-use crate::constructive::bitcoiny::batch_template::batch_template::BatchTemplate;
+use crate::constructive::bitcoiny::batch_container::batch_container::BatchContainer;
+use crate::constructive::bitcoiny::batch_txn::signed_batch_txn::signed_batch_txn::SignedBatchTxn;
 use crate::constructive::entry::entry::entry::Entry;
 use crate::constructive::entry::entry_kinds::liftup::liftup::Liftup;
+use crate::constructive::txout_types::payload::payload::Payload;
 use crate::constructive::txout_types::projector::projector::Projector;
 use crate::constructive::valtype::val::long_val::long_val::LongVal;
 use crate::constructive::valtype::val::short_val::short_val::ShortVal;
@@ -10,11 +12,13 @@ use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
 use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::sync_manager::sync_manager::SYNC_MANAGER;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
 use crate::operative::tasks::engine_session::session_pool::error::exec_liftup_in_pool_error::ExecLiftupInPoolError;
-use crate::operative::tasks::engine_session::session_pool::error::into_batch_template_error::IntoBatchTemplateError;
+use crate::operative::tasks::engine_session::session_pool::error::into_batch_container_error::IntoBatchContainerError;
 use crate::transmutative::bls::agg::bls_aggregate;
 use crate::transmutative::codec::bitvec_ext::BitVecExt;
+use crate::transmutative::key::KeyHolder;
 use bit_vec::BitVec;
 use bitcoin::{OutPoint, TxOut};
 use bls_on_arkworks::errors::BLSError;
@@ -46,6 +50,8 @@ pub struct SessionPool {
 
     // The engine key.
     pub engine_key: [u8; 32],
+
+    pub sync_manager: SYNC_MANAGER,
 
     // The utxo set.
     pub utxo_set: UTXO_SET,
@@ -86,6 +92,7 @@ impl SessionPool {
     /// Constructs the `SessionPool`.    
     pub fn construct(
         engine_key: [u8; 32],
+        sync_manager: &SYNC_MANAGER,
         utxo_set: &UTXO_SET,
         registery: &REGISTERY,
         graveyard: &GRAVEYARD,
@@ -95,6 +102,7 @@ impl SessionPool {
         // 1 Construct the exec container.
         let exec_container = ExecCtx::construct(
             engine_key,
+            Arc::clone(sync_manager),
             Arc::clone(utxo_set),
             Arc::clone(registery),
             Arc::clone(graveyard),
@@ -106,6 +114,7 @@ impl SessionPool {
         let session_pool = SessionPool {
             state: SessionPoolState::Inactive,
             engine_key,
+            sync_manager: Arc::clone(sync_manager),
             utxo_set: Arc::clone(utxo_set),
             registery: Arc::clone(registery),
             graveyard: Arc::clone(graveyard),
@@ -126,7 +135,7 @@ impl SessionPool {
     }
 
     /// Flushes the `SessionPool`.
-    pub async fn flush(&mut self) {
+    async fn flush(&mut self) {
         // 1 Flush the execution context.
         {
             // 1.1 Lock the execution context.
@@ -165,8 +174,12 @@ impl SessionPool {
     }
 
     /// Ends the session of the `SessionPool`.
-    pub fn end_session(&mut self) {
+    pub async fn end_session(&mut self) {
+        // 1 Set the state of the session pool to inactive.
         self.state = SessionPoolState::Inactive;
+
+        // 2 Flush the session pool.
+        self.flush().await;
     }
 
     /// Aggregates the BLS signatures of the added entries.
@@ -174,113 +187,147 @@ impl SessionPool {
         bls_aggregate(self.added_individual_entry_bls_signatures.clone())
     }
 
-    /// Converts the `ExecCtx` into a `BatchTemplate`.
-    pub async fn into_batch_template(
+    /// Converts the `ExecCtx` into a `BatchContainer`.
+    pub async fn into_batch_container(
         &mut self,
-        batch_height: u64,
         batch_timestamp: u64,
         payload_version: u32,
-        extra_in_count: u32,
-    ) -> Result<BatchTemplate, IntoBatchTemplateError> {
-        // 1 Initialize the bit vector for the payload.
+        bitcoin_transaction_fee: u64,
+        engine_keyholder: &KeyHolder,
+    ) -> Result<BatchContainer, IntoBatchContainerError> {
+        // 1 Retrieve tips from the sync manager.
+        let (new_cube_batch_height, prev_payload): (u64, Payload) = {
+            // 1.1 Lock the sync manager.
+            let _sync_manager = self.sync_manager.lock().await;
+
+            // 1.2 Get the new cube batch height.
+            let new_cube_batch_height = _sync_manager.cube_batch_sync_height_tip() + 1;
+
+            // 1.3 Get the prev payload.
+            let prev_payload = _sync_manager.payload_tip();
+
+            // 1.4 Return the new cube batch height and prev payload.
+            (new_cube_batch_height, prev_payload)
+        };
+
+        // 2 Initialize the bit vector for the payload.
         let mut payload_bits: BitVec = BitVec::new();
 
-        // 2 Encode the payload version.
+        // 3 Encode the payload version.
         {
-            // 2.1 Encode the payload version.
+            // 3.1 Encode the payload version.
             let payload_version_bits = ShortVal::new(payload_version).encode_ape();
 
-            // 2.2 Extend the payload bits with the payload version bits.
+            // 3.2 Extend the payload bits with the payload version bits.
             payload_bits.extend(payload_version_bits);
         }
 
-        // 3 Encode the batch timestamp.
+        // 4 Encode the batch timestamp.
         {
-            // 3.1 Encode the batch timestamp.
+            // 4.1 Encode the batch timestamp.
             let batch_timestamp_bits = LongVal::new(batch_timestamp).encode_ape();
 
-            // 3.2 Extend the payload bits with the batch timestamp bits.
+            // 4.2 Extend the payload bits with the batch timestamp bits.
             payload_bits.extend(batch_timestamp_bits);
         }
 
-        // 4 Encode the aggregate BLS signature.
+        // 5 Encode the aggregate BLS signature.
         {
-            // 4.1 Get the aggregate BLS signature.
+            // 5.1 Get the aggregate BLS signature.
             let aggregate_bls_signature = self
                 .aggregate_bls_signature()
-                .map_err(|_| IntoBatchTemplateError::AggregateBLSSignatureError)?;
+                .map_err(|_| IntoBatchContainerError::AggregateBLSSignatureError)?;
 
-            // 4.2 Convert the aggregate BLS signature to bits.
+            // 5.2 Convert the aggregate BLS signature to bits.
             let aggregate_bls_signature_bits = BitVec::from_bytes(&aggregate_bls_signature);
 
-            // 4.3 Extend the payload bits with the aggregate BLS signature bits.
+            // 5.3 Extend the payload bits with the aggregate BLS signature bits.
             payload_bits.extend(aggregate_bls_signature_bits);
         }
 
-        // 5 Encode the extra input count.
+        // 6 Encode the expired projectors count: Currently always encoded as 0 as a placeholder.
+        // Expired projectors logic is not supported for the time being.
         {
-            // 5.1 Encode the extra input count.
-            let extra_input_count_bits = ShortVal::new(extra_in_count).encode_ape();
+            // 6.1 Set the expired projectors count to 0 as a placeholder.
+            let expired_projectors_count = 0;
 
-            // 5.2 Extend the payload bits with the extra input count bits.
-            payload_bits.extend(extra_input_count_bits);
+            // 6.2 Encode the expired projectors count.
+            let expired_projectors_count_bits =
+                ShortVal::new(expired_projectors_count).encode_ape();
+
+            // 6.3 Extend the payload bits with the expired projectors count bits.
+            payload_bits.extend(expired_projectors_count_bits);
         }
 
-        // 6 Retrieve the projector.
+        // 7 Retrieve the new projector.
         // Not set for the time being.
-        let projector: Option<Projector> = None;
+        let new_projector: Option<Projector> = None;
 
-        // 7 Insert a bit to the beginning of the payload bits to indicate the presence of the projector.
-        match projector {
-            // 7.a The projector is set.
+        // 8 Insert a bit to the beginning of the payload bits to indicate the presence of the new projector.
+        match new_projector {
+            // 8.a The new projector is set.
             Some(_) => {
-                // 7.a.1 Push true bit to indicate the presence of the projector.
+                // 8.a.1 Push true bit to indicate the presence of the projector.
                 payload_bits.push(true);
             }
-            // 7.b The projector is not set.
+            // 8.b The new projector is not set.
             None => {
-                // 7.b.1 Push false bit to indicate the absence of the projector.
+                // 8.b.1 Push false bit to indicate the absence of the projector.
                 payload_bits.push(false);
             }
         }
 
-        // 8 Encode the added entries.
+        // 9 Encode the added entries.
         for entry in &self.added_entries {
-            // 8.1 Encode the entry as APE bits.
+            // 9.1 Encode the entry as APE bits.
             let entry_ape_bits = entry
-                .encode_ape(batch_height, &self.registery, true, true)
+                .encode_ape(new_cube_batch_height, &self.registery, true, true)
                 .await
-                .map_err(IntoBatchTemplateError::EntryAPEEncodeError)?;
+                .map_err(IntoBatchContainerError::EntryAPEEncodeError)?;
 
-            // 8.2 Extend the payload bits with the entry APE bits.
+            // 9.2 Extend the payload bits with the entry APE bits.
             payload_bits.extend(entry_ape_bits);
         }
 
-        // 9 Convert the payload bits to payload bytes.
+        // 10 Convert the payload bits to payload bytes.
         let payload_bytes: Bytes = payload_bits.to_ape_payload_bytes();
 
-        // 10 Collect the Bitcoin transaction inputs.
-        let bitcoin_tx_inputs: Vec<OutPoint> = self
-            .added_tx_inputs
-            .iter()
-            .map(|(outpoint, _)| outpoint.clone())
-            .collect();
+        // 11 Get prev projectors from sync manager: Not implemented for the time being.
+        let prev_projectors = Vec::<Projector>::new();
 
-        // 11 Get the Bitcoin transaction outputs.
-        let bitcoin_tx_outputs: Vec<TxOut> = self.added_tx_outputs.clone();
+        // 12 Get the executed entries.
+        let executed_entries: Vec<Entry> = self.added_entries.clone();
 
-        // 12 Construct the batch template.
-        let batch_template =
-            BatchTemplate::new(bitcoin_tx_inputs, bitcoin_tx_outputs, payload_bytes);
+        // 13 Construct the new payload.
+        let new_payload = Payload::new(self.engine_key, payload_bytes.clone(), None);
 
-        // 13 Return the batch template.
-        Ok(batch_template)
+        // 14 Construct the signed batch transaction.
+        let signed_batch_txn = SignedBatchTxn::construct(
+            prev_payload,
+            prev_projectors,
+            executed_entries,
+            new_payload,
+            new_projector,
+            bitcoin_transaction_fee,
+            engine_keyholder,
+        )
+        .map_err(|err| IntoBatchContainerError::SignedBatchTxnConstructError(err))?;
+
+        // 15 Construct the batch container.
+        let batch_container = BatchContainer::new(
+            new_cube_batch_height,
+            self.engine_key,
+            payload_bytes,
+            signed_batch_txn,
+        );
+
+        // 16 Return the batch container.
+        Ok(batch_container)
     }
 
     /// Executes a `Liftup` entry in the `SessionPool`.
     pub async fn exec_liftup_in_pool(
         &mut self,
-        execution_batch_height: u64,
         execution_timestamp: u64,
         liftup: &Liftup,
         liftup_bls_signature: [u8; 96],
@@ -304,12 +351,24 @@ impl SessionPool {
             }
         };
 
-        // 2 Run pre-validations.
+        // 2 Retrieve tips from the sync manager.
+        let new_cube_batch_height: u64 = {
+            // 2.1 Lock the sync manager.
+            let _sync_manager = self.sync_manager.lock().await;
+
+            // 2.2 Get the new cube batch height.
+            let new_cube_batch_height = _sync_manager.cube_batch_sync_height_tip() + 1;
+
+            // 2.3 Return the new cube batch height.
+            new_cube_batch_height
+        };
+
+        // 3 Run pre-validations.
         {
             liftup
                 .validate_overall(
                     self.engine_key,
-                    execution_batch_height,
+                    new_cube_batch_height,
                     &self.utxo_set,
                     &self.registery,
                     &self.graveyard,
@@ -319,13 +378,13 @@ impl SessionPool {
                 .map_err(|err| ExecLiftupInPoolError::LiftupValidateOverallError(err))?;
         }
 
-        // 3 Prepare for the execution by backing up the execution context.
+        // 4 Prepare for the execution by backing up the execution context.
         {
             let mut _exec_container = self.exec_container.lock().await;
             _exec_container.pre_execution().await;
         }
 
-        // 4 Execute the liftup in the execution context.
+        // 5 Execute the liftup in the execution context.
         match self
             .exec_container
             .lock()
@@ -333,16 +392,16 @@ impl SessionPool {
             .execute_liftup(liftup, execution_timestamp)
             .await
         {
-            // 4.a Success.
+            // 5.a Success.
             Ok(liftup_entry) => {
-                // 4.a.1 Add the liftup entry to the added entries.
+                // 5.a.1 Add the liftup entry to the added entries.
                 self.added_entries.push(liftup_entry.clone());
 
-                // 4.a.2 Add the liftup BLS signature to the added individual entry BLS signatures.
+                // 5.a.2 Add the liftup BLS signature to the added individual entry BLS signatures.
                 self.added_individual_entry_bls_signatures
                     .push(liftup_bls_signature);
 
-                // 4.a.3 Add internal Lifts inside the Liftup to the added Bitcoin transaction inputs.
+                // 5.a.3 Add internal Lifts inside the Liftup to the added Bitcoin transaction inputs.
                 {
                     self.added_tx_inputs.extend(
                         liftup
@@ -352,18 +411,18 @@ impl SessionPool {
                     );
                 }
 
-                // 4.a.4 Return the liftup entry.
+                // 5.a.4 Return the liftup entry.
                 Ok(liftup_entry)
             }
 
-            // 4.b Error.
+            // 5.b Error.
             Err(error) => {
-                // 4.b.1 Rollback the execution.
+                // 5.b.1 Rollback the execution.
                 {
                     self.exec_container.lock().await.rollback_last().await;
                 }
 
-                // 4.b.2 Return the error.
+                // 5.b.2 Return the error.
                 Err(ExecLiftupInPoolError::LiftupExecutionError(error))
             }
         }
