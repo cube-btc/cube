@@ -46,6 +46,8 @@ impl UnsignedBatchTxn {
         // Bitcoin transaction fee
         bitcoin_transaction_fee: u64,
     ) -> Result<UnsignedBatchTxn, UnsignedBatchTxnConstructError> {
+        println!("bitcoin_transaction_fee: {}", bitcoin_transaction_fee);
+
         // Initialzie the tx inputs.
         let mut tx_inputs = Vec::new();
 
@@ -86,32 +88,34 @@ impl UnsignedBatchTxn {
         // Calculate the change value.
         let change_value = {
             // Initialize the change value to tx inputs value sum.
-            let mut change_value = 0;
+            let mut change_val = 0;
 
             // Add tx_inputs_value_sum
-            change_value += tx_inputs_value_sum;
+            change_val += tx_inputs_value_sum;
 
             // Add projector values to the change value.
             if let Some(projector_txout) = &new_projector_txout {
-                change_value.checked_sub(projector_txout.value.to_sat()).ok_or(
-                    UnsignedBatchTxnConstructError::ChangeValueProjectorValueCheckedSubError,
-                )?;
+                change_val = change_val
+                    .checked_sub(projector_txout.value.to_sat())
+                    .ok_or(
+                        UnsignedBatchTxnConstructError::ChangeValueProjectorValueCheckedSubError,
+                    )?;
             }
 
             // Add swapout values to the change value.
             for tx_output in &_swapout_tx_outputs {
-                change_value.checked_sub(tx_output.value.to_sat()).ok_or(
+                change_val = change_val.checked_sub(tx_output.value.to_sat()).ok_or(
                     UnsignedBatchTxnConstructError::ChangeValueSwapoutValueCheckedSubError,
                 )?;
             }
 
             // Minus the bitcoin transaction fee from the change value.
-            change_value.checked_sub(bitcoin_transaction_fee).ok_or(
+            change_val = change_val.checked_sub(bitcoin_transaction_fee).ok_or(
                 UnsignedBatchTxnConstructError::ChangeValueBitcoinTransactionFeeCheckedSubError,
             )?;
 
             // Return the change value.
-            change_value
+            change_val
         };
 
         // Fill transaction outputs.

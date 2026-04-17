@@ -143,7 +143,10 @@ pub fn return_liftv2_taproot(account_key: [u8; 32], engine_key: [u8; 32]) -> Opt
     let sweep_path_tapscript: Vec<u8> = {
         let mut tapscript = Vec::<u8>::new();
 
-        tapscript.extend(Bytes::csv_script(CSVFlag::CSVThreeMonths)); // Relative Timelock
+        tapscript.extend(Bytes::csv_num_encode(CSVFlag::CSVThreeMonths)); // Relative Timelock
+        tapscript.push(0xb2); // OP_CHECKSEQUENCEVERIFY
+        tapscript.push(0x75); // OP_DROP
+
         tapscript.push(0x20); // OP_PUSHDATA_32
         tapscript.extend(account_key); // Account Key 32-bytes
         tapscript.push(0xac); // OP_CHECKSIG

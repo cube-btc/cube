@@ -18,7 +18,7 @@ pub enum CSVFlag {
 
 pub trait CSVEncode {
     fn n_sequence(flag: CSVFlag) -> Bytes;
-    fn csv_script(flag: CSVFlag) -> Bytes;
+    fn csv_num_encode(flag: CSVFlag) -> Bytes;
 }
 
 impl CSVEncode for Bytes {
@@ -42,7 +42,7 @@ impl CSVEncode for Bytes {
         encoded
     }
 
-    fn csv_script(flag: CSVFlag) -> Bytes {
+    fn csv_num_encode(flag: CSVFlag) -> Bytes {
         let mut encoded = Vec::<u8>::new();
 
         match flag {
@@ -58,12 +58,6 @@ impl CSVEncode for Bytes {
             CSVFlag::CSVYear => encoded.extend(vec![0x03, 0x50, 0xcd, 0x00]),
             CSVFlag::Days(days) => encoded.extend(&days_to_bytes(days, true).prefix_pushdata()),
         }
-
-        // OP_CHECKSEQUENCEVERIFY
-        encoded.push(0xb2);
-
-        // OP_DROP
-        encoded.push(0x75);
 
         encoded
     }

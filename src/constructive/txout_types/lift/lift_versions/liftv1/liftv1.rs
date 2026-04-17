@@ -1,5 +1,7 @@
 use crate::constructive::taproot::{TapLeaf, TapRoot, P2TR};
 use crate::constructive::txn::ext::OutpointExt;
+use crate::operative::run_args::chain::Chain;
+use crate::transmutative::codec::address::encode_p2tr;
 use bitcoin::{OutPoint, TxOut};
 use hex;
 use serde::{Deserialize, Serialize};
@@ -175,6 +177,22 @@ pub fn return_liftv1_taproot(account_key: [u8; 32], engine_key: [u8; 32]) -> Opt
 
     // 6 Return the taproot
     Some(taproot)
+}
+
+/// Returns a Bech32-encoded P2TR address for the LiftV1 struct.
+pub fn return_liftv1_address(
+    chain: Chain,
+    account_key: [u8; 32],
+    engine_key: [u8; 32],
+) -> Option<String> {
+    let taproot = return_liftv1_taproot(account_key, engine_key)?;
+    let address = match encode_p2tr(chain, taproot.tweaked_key().unwrap().serialize_xonly()) {
+        Some(address) => address,
+        None => {
+            return None;
+        }
+    };
+    Some(address)
 }
 
 /// Returns a scriptpubkey for the LiftV1 struct.

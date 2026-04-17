@@ -124,7 +124,7 @@ pub fn return_payload_tapscript(engine_key: [u8; 32], payload_bytes: &Vec<u8>) -
         // This forces Engine to not halt operations.
         {
             // 2.5.1 <3 months>
-            tapscript.extend(Vec::<u8>::csv_script(CSVFlag::CSVThreeMonths));
+            tapscript.extend(Vec::<u8>::csv_num_encode(CSVFlag::CSVThreeMonths));
 
             // 2.5.2 OP_CHECKSEQUENCEVERIFY (0xb2)
             tapscript.push(0xb2);
