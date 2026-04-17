@@ -1,7 +1,6 @@
 use crate::constructive::taproot::{TapLeaf, TapRoot, P2TR};
 use crate::inscriptive::baked;
 use crate::operative::run_args::chain::Chain;
-use crate::transmutative::codec::address::encode_p2tr;
 use crate::transmutative::codec::csv::CSVEncode;
 use crate::transmutative::codec::csv::CSVFlag;
 use crate::transmutative::codec::prefix::Prefix;
@@ -192,40 +191,6 @@ impl P2TR for Payload {
     fn taproot(&self) -> Option<TapRoot> {
         return_payload_taproot(self.engine_key, &self.payload_bytes)
     }
-}
-
-/// Returns a genesis engine payload address.
-pub fn genesis_payload_address(chain: Chain) -> String {
-    // 1 Get the engine key and payload bytes.
-    let engine_key: [u8; 32] = match chain {
-        Chain::Testbed => baked::SIGNET_ENGINE_PUBLIC_KEY,
-        Chain::Signet => baked::SIGNET_ENGINE_PUBLIC_KEY,
-        Chain::Mainnet => baked::MAINNET_ENGINE_PUBLIC_KEY,
-    };
-
-    // 2 Get the payload bytes.
-    let payload_bytes = baked::GENESIS_INSCRIPTION.to_vec();
-
-    // 3 Construct the genesis payload without location.
-    let genesis_payload_without_location = Payload::new(engine_key, payload_bytes, None);
-
-    // 4 Get the scriptpubkey for the genesis payload.
-    let genesis_payload_taproot = genesis_payload_without_location
-        .taproot()
-        .expect("Failed to get taproot.");
-
-    // 5 Get the tweaked key for the genesis payload.
-    let genesis_payload_taproot_key: [u8; 32] = genesis_payload_taproot
-        .tweaked_key()
-        .expect("Failed to get tweaked key.")
-        .serialize_xonly();
-
-    // 6 Encode the tweaked key into an address.
-    let genesis_payload_address =
-        encode_p2tr(chain, genesis_payload_taproot_key).expect("Failed to encode p2tr address.");
-
-    // 7 Return the genesis payload address.
-    genesis_payload_address
 }
 
 /// Returns a genesis engine payload.
