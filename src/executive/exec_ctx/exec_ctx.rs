@@ -1,4 +1,5 @@
 use crate::constructive::bitcoiny::batch_container::batch_container::BatchContainer;
+use crate::constructive::bitcoiny::batch_record::batch_record::BatchRecord;
 use crate::constructive::core_types::valtypes::val::long_val::long_val::LongVal;
 use crate::constructive::core_types::valtypes::val::short_val::short_val::ShortVal;
 use crate::constructive::entry::entry::entry::Entry;
@@ -20,34 +21,9 @@ use crate::{
     executive::exec_ctx::errors::apply_changes_error::ApplyChangesError,
 };
 use bit_vec::BitVec;
-use bitcoin::hashes::Hash;
 use bitcoin::OutPoint;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-
-/// A type alias for the batch height.
-type NewBatchHeight = u64;
-
-/// A type alias for the payload version.
-type PayloadVersion = u32;
-
-/// A type alias for the batch timestamp.
-type BatchTimestamp = u64;
-
-/// A type alias for the aggregate BLS signature.
-type AggregateBLSSignature = [u8; 96];
-
-/// A type alias for the expired projector outpoints.
-type ExpiredProjectorOutpoints = Vec<OutPoint>;
-
-/// A type alias for the new payload.
-type NewPayload = Payload;
-
-/// A type alias for the new projector.
-type NewProjector = Option<Projector>;
-
-/// A type alias for the batch txid.
-type BatchTxid = [u8; 32];
 
 /// `ExecCtx` contains a set of executed entries.
 pub struct ExecCtx {
@@ -174,53 +150,62 @@ impl ExecCtx {
     /// Applies the changes to the `ExecCtx` collectively for all Entries in the container.
     pub async fn apply_changes(
         &mut self,
-        new_batch_height: u64,
-        new_payload: Payload,
-        spent_bitcoin_tx_inputs: Vec<OutPoint>,
-        projector_expiry_gap: u64,
+        batch_record: &BatchRecord,
     ) -> Result<(), ApplyChangesError> {
-        // 1 Calculate the projector expiry height.
+        // 1 Get the new batch height.
+        let new_batch_height = batch_record.batch_container.batch_height();
+
+        // 2 Get the new payload.
+        let new_payload = batch_record.new_payload.clone();
+
+        // 3 Get the spent Bitcoin transaction inputs.
+        let spent_bitcoin_tx_inputs = batch_record.batch_container.bitcoin_tx_inputs();
+
+        // 4 Get the projector expiry gap from params manager: Placeholder for the time being.
+        let projector_expiry_gap = 1024;
+
+        // 5 Calculate the projector expiry height.
         let projector_expiry_height = new_batch_height + projector_expiry_gap;
 
-        // 2 Apply changes to the coin manager.
+        // 6 Apply changes to the coin manager.
         {
-            // 2.1 Lock the coin manager.
+            // 6.1 Lock the coin manager.
             let mut _coin_manager = self.coin_manager.lock().await;
 
-            // 2.2 Apply changes to the coin manager.
+            // 6.2 Apply changes to the coin manager.
             if let Err(error) = _coin_manager.apply_changes() {
                 return Err(ApplyChangesError::CoinManagerApplyChangesError(error));
             }
         }
 
-        // 3 Apply changes to the graveyard.
+        // 7 Apply changes to the graveyard.
         {
-            // 3.1 Lock the graveyard.
+            // 7.1 Lock the graveyard.
             let mut _graveyard = self.graveyard.lock().await;
 
-            // 3.2 Apply changes to the graveyard.
+            // 7.2 Apply changes to the graveyard.
             if let Err(error) = _graveyard.apply_changes() {
                 return Err(ApplyChangesError::GraveyardApplyChangesError(error));
             }
         }
 
-        // 4 Apply changes to the registery.
+        // 8 Apply changes to the registery.
         {
-            // 4.1 Lock the registery.
+            // 8.1 Lock the registery.
             let mut _registery = self.registery.lock().await;
 
-            // 4.2 Apply changes to the registery.
+            // 8.2 Apply changes to the registery.
             if let Err(error) = _registery.apply_changes() {
                 return Err(ApplyChangesError::RegisteryApplyChangesError(error));
             }
         }
 
-        // 5 Apply changes to the flame manager.
+        // 9 Apply changes to the flame manager.
         {
-            // 5.1 Lock the flame manager.
+            // 9.1 Lock the flame manager.
             let mut _flame_manager = self.flame_manager.lock().await;
 
-            // 5.2 Apply changes to the flame manager.
+            // 9.2 Apply changes to the flame manager.
             if let Err(error) = _flame_manager
                 .apply_changes(
                     &self.coin_manager,
@@ -234,52 +219,39 @@ impl ExecCtx {
             }
         }
 
-        // 6 Update tips in the sync manager.
+        // 10 Update tips in the sync manager.
         {
-            // 6.1 Lock the sync manager.
+            // 10.1 Lock the sync manager.
             let mut _sync_manager = self.sync_manager.lock().await;
 
-            // 6.2 Update the cube batch sync height tip.
+            // 10.2 Update the cube batch sync height tip.
             _sync_manager.set_cube_batch_sync_height_tip(new_batch_height);
 
-            // 6.3 Update the payload tip.
+            // 10.3 Update the payload tip.
             _sync_manager.set_payload_tip(new_payload);
         }
 
-        // 7 Safe-remove spent lift tx inputs from the utxo set (as this may be in-flight execution).
+        // 11 Safe-remove spent lift tx inputs from the utxo set (as this may be in-flight execution).
         {
-            // 7.1 Lock the utxo set.
+            // 11.1 Lock the utxo set.
             let mut _utxo_set = self.utxo_set.lock().await;
 
-            // 7.2 Safe-remove spent lift tx inputs from the utxo set.
+            // 11.2 Safe-remove spent lift tx inputs from the utxo set.
             _utxo_set.safe_remove_utxos(spent_bitcoin_tx_inputs);
         }
 
-        // 8 Flush the container changes.
+        // 12 Flush the changes.
         self.flush().await;
 
-        // 9 Return Ok.
+        // 13 Return Ok.
         Ok(())
     }
 
     /// Executes a batch.
     pub async fn execute_batch(
         &mut self,
-        batch_container: BatchContainer,
-    ) -> Result<
-        (
-            NewBatchHeight,
-            BatchTxid,
-            PayloadVersion,
-            BatchTimestamp,
-            AggregateBLSSignature,
-            Vec<Entry>,
-            ExpiredProjectorOutpoints,
-            NewPayload,
-            NewProjector,
-        ),
-        BatchExecutionError,
-    > {
+        batch_container: &BatchContainer,
+    ) -> Result<BatchRecord, BatchExecutionError> {
         // 1 Get the batch height.
         let new_batch_height = batch_container.batch_height();
 
@@ -304,7 +276,7 @@ impl ExecCtx {
         }
 
         // 3 Get the payload bytes.
-        let payload_bytes = batch_container.payload_bytes();
+        let new_payload_bytes = batch_container.new_payload_bytes();
 
         // 4 Get the Bitcoin transaction inputs.
         let bitcoin_tx_inputs = batch_container.bitcoin_tx_inputs();
@@ -313,8 +285,8 @@ impl ExecCtx {
         let bitcoin_tx_outputs = batch_container.bitcoin_tx_outputs();
 
         // 6 Convert the payload bytes to APE bits.
-        let payload_ape_bits = BitVec::from_ape_payload_bytes(payload_bytes.clone()).ok_or(
-            BatchExecutionError::BatchTemplatePayloadBitsConversionError(payload_bytes.clone()),
+        let payload_ape_bits = BitVec::from_ape_payload_bytes(new_payload_bytes.clone()).ok_or(
+            BatchExecutionError::BatchTemplatePayloadBitsConversionError(new_payload_bytes.clone()),
         )?;
 
         // 7 Turn the APE bits into an iterator.
@@ -420,7 +392,7 @@ impl ExecCtx {
             // 19.2 Construct the new payload.
             Payload::new(
                 self.engine_key,
-                payload_bytes.clone(),
+                new_payload_bytes.clone(),
                 Some((new_payload_outpoint, new_payload_txout)),
             )
         };
@@ -547,21 +519,20 @@ impl ExecCtx {
             return Err(BatchExecutionError::AggregateBLSSignatureVerificationError);
         }
 
-        // 28 Get the batch txid.
-        let batch_txid: [u8; 32] = batch_container.signed_batch_txn.txid().to_byte_array();
-
-        // 29 Return the batch height, payload version, batch timestamp, aggregate BLS signature, executed entries, and the new payload.
-        Ok((
-            new_batch_height,
-            batch_txid,
-            payload_version,
+        // 28 Construct the batch record.
+        let batch_record = BatchRecord::new(
+            batch_container.clone(),
             batch_timestamp,
+            payload_version,
             aggregate_bls_signature,
             executed_entries.clone(),
             expired_projector_outpoints.clone(),
             new_payload.clone(),
             new_projector.clone(),
-        ))
+        );
+
+        // 29 Return the batch record.
+        Ok(batch_record)
     }
 
     /// Executes a `Liftup` Entry.

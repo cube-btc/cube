@@ -41,11 +41,11 @@ impl Liftup {
         // 1 Construct the JSON object.
         let mut obj = Map::new();
 
-        // 2 Insert the kind.
-        obj.insert("kind".to_string(), Value::String("liftup".to_string()));
+        // 2 Insert the entry kind.
+        obj.insert("entry_kind".to_string(), Value::String("liftup".to_string()));
 
         // 3 Insert the root account.
-        obj.insert("root_account".to_string(), self.root_account.json());
+        obj.insert("account".to_string(), self.root_account.json());
 
         // 4 Insert the target.
         obj.insert(

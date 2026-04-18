@@ -115,7 +115,7 @@ mod simul_tests {
 
             // 14.3 Construct the TxOut.
             let txout = TxOut {
-                value: Amount::from_sat(10_000),
+                value: Amount::from_sat(25_000),
                 script_pubkey: ScriptBuf::from(lift_scriptpubkey),
             };
 
@@ -212,11 +212,19 @@ mod simul_tests {
                 )
             })?;
 
-        // 20 Convert the session pool to a batch container.
+        // 20 Construct the bitcoin transaction fee.
+        let bitcoin_transaction_fee = 500;
+
+        // 21 Convert the session pool to a batch container.
         let batch_container: BatchContainer = session_pool
             .lock()
             .await
-            .into_batch_container(batch_timestamp, payload_version, 0, &key_holder)
+            .into_batch_container(
+                batch_timestamp,
+                payload_version,
+                bitcoin_transaction_fee,
+                &key_holder,
+            )
             .await
             .map_err(|error| {
                 format!(
@@ -225,22 +233,22 @@ mod simul_tests {
                 )
             })?;
 
-        // 21 Flush the session pool.
+        // 22 Flush the session pool.
         {
-            // 21.1 Lock the session pool.
+            // 22.1 Lock the session pool.
             let mut _session_pool = session_pool.lock().await;
 
-            // 21.2 Flush the session pool.
+            // 22.2 Flush the session pool.
             _session_pool.end_session().await;
         }
 
-        // 22 Drop the session pool.
+        // 23 Drop the session pool.
         drop(session_pool);
 
         // Now that we have the batch container, we consider this delivered to the Node from the Engine for execution.
         // So we better drop the session pool now and construct an ExecCtx to execute the batch.
 
-        // 23 Construct an ExecCtx.
+        // 24 Construct an ExecCtx.
         let exec_ctx: EXEC_CTX = ExecCtx::construct(
             engine_key,
             Arc::clone(&sync_manager),
@@ -251,54 +259,37 @@ mod simul_tests {
             Arc::clone(&flame_manager),
         );
 
-        // Spent Bitcoin inputs (for UTXO set updates after apply); snapshot before execute_batch consumes the container.
-        let spent_bitcoin_tx_inputs = batch_container.bitcoin_tx_inputs();
-
-        // 24 Execute the batch.
-        let (
-            batch_height,
-            payload_version,
-            batch_timestamp,
-            aggregate_bls_signature,
-            executed_entries,
-            new_payload,
-        ) = exec_ctx
+        // 25 Execute the batch.
+        let batch_record = exec_ctx
             .lock()
             .await
-            .execute_batch(batch_container)
+            .execute_batch(&batch_container)
             .await
             .map_err(|error| format!("Failed to execute the batch: {:?}", error))?;
 
-        println!("post batch execution prints:");
-
-        // Post-execution Prints
+        // 26 Post-execution Prints
         {
-            println!("Post-execution Prints:");
-            println!("Batch height: {}", batch_height);
-            println!("Payload version: {}", payload_version);
-            println!("Batch timestamp: {}", batch_timestamp);
             println!(
-                "Aggregate BLS signature: {}",
-                hex::encode(aggregate_bls_signature)
+                "Batch Record: {}",
+                to_string_pretty(&batch_record.json()).expect("serde_json::Value should serialize")
             );
-            println!("Executed entries len: {}", executed_entries.len());
         }
 
-        // 25 Apply changes.
+        // 27 Apply changes.
         {
-            // 25.1 Lock the exec ctx.
+            // 27.1 Lock the exec ctx.
             let mut _exec_ctx = exec_ctx.lock().await;
 
-            // 25.2 Apply the changes to the exec ctx.
+            // 27.2 Apply the changes to the exec ctx.
             _exec_ctx
-                .apply_changes(batch_height, new_payload, spent_bitcoin_tx_inputs, 0)
+                .apply_changes(&batch_record)
                 .await
                 .map_err(|error| {
                     format!("Failed to apply the changes to the exec ctx: {:?}", error)
                 })?;
         }
 
-        // Print managers.
+        // 28 Print managers.
         {
             println!("Post-execution Manager Prints:");
             println!(
@@ -313,7 +304,7 @@ mod simul_tests {
             );
         }
 
-        // 25 Return OK.
+        // 29 Return OK.
         Ok(())
     }
 }

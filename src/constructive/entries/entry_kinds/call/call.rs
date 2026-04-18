@@ -2,6 +2,7 @@ use crate::constructive::calldata::calldata_elements::calldata_elements::Calldat
 use crate::constructive::entity::account::root_account::root_account::RootAccount;
 use crate::constructive::entity::contract::contract::Contract;
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 
 /// The holder of a call.
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -82,6 +83,52 @@ impl Call {
     /// Returns the total ops price.
     pub fn ops_price_total(&self) -> u32 {
         self.ops_price_base + self.ops_price_overhead.unwrap_or(0)
+    }
+
+    /// Returns the call entry as a JSON object.
+    pub fn json(&self) -> Value {
+        // 1 Construct the JSON object.
+        let mut obj = Map::new();
+
+        // 2 Insert the entry kind.
+        obj.insert("entry_kind".to_string(), Value::String("call".to_string()));
+
+        // 3 Insert the account.
+        obj.insert("account".to_string(), self.account.json());
+
+        // 4 Insert the contract.
+        obj.insert("contract".to_string(), self.contract.json());
+
+        // 5 Insert the method index.
+        obj.insert(
+            "method_index".to_string(),
+            Value::Number((self.method_index as u64).into()),
+        );
+
+        // 7 Insert the calldata elements.
+        obj.insert(
+            "calldata_elements".to_string(),
+            serde_json::to_value(&self.calldata_elements)
+                .expect("CalldataElement vector must serialize to JSON"),
+        );
+
+        // 8 Insert the ops budget.
+        obj.insert(
+            "ops_budget".to_string(),
+            match self.ops_budget {
+                Some(n) => Value::Number(n.into()),
+                None => Value::Null,
+            },
+        );
+
+        // 9 Insert the ops price total.
+        obj.insert(
+            "ops_price_total".to_string(),
+            Value::Number(self.ops_price_total().into()),
+        );
+
+        // 10 Return the JSON object.
+        Value::Object(obj)
     }
 
     /// Validation from the broader Entry context.

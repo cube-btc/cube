@@ -290,7 +290,7 @@ impl SessionPool {
         }
 
         // 10 Convert the payload bits to payload bytes.
-        let payload_bytes: Bytes = payload_bits.to_ape_payload_bytes();
+        let new_payload_bytes: Bytes = payload_bits.to_ape_payload_bytes();
 
         // 11 Get prev projectors from sync manager: Not implemented for the time being.
         let prev_projectors = Vec::<Projector>::new();
@@ -299,7 +299,7 @@ impl SessionPool {
         let executed_entries: Vec<Entry> = self.added_entries.clone();
 
         // 13 Construct the new payload.
-        let new_payload = Payload::new(self.engine_key, payload_bytes.clone(), None);
+        let new_payload = Payload::new(self.engine_key, new_payload_bytes.clone(), None);
 
         // 14 Construct the signed batch transaction.
         let signed_batch_txn = SignedBatchTxn::construct(
@@ -316,8 +316,7 @@ impl SessionPool {
         // 15 Construct the batch container.
         let batch_container = BatchContainer::new(
             new_cube_batch_height,
-            self.engine_key,
-            payload_bytes,
+            new_payload_bytes,
             signed_batch_txn,
         );
 

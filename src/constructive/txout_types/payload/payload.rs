@@ -1,4 +1,5 @@
 use crate::constructive::taproot::{TapLeaf, TapRoot, P2TR};
+use crate::constructive::txn::ext::OutpointExt;
 use crate::inscriptive::baked;
 use crate::operative::run_args::chain::Chain;
 use crate::transmutative::codec::csv::CSVEncode;
@@ -8,6 +9,7 @@ use bitcoin::hashes::Hash;
 use bitcoin::{Amount, OutPoint, ScriptBuf, TxOut, Txid};
 use serde::Deserialize;
 use serde::Serialize;
+use serde_json::{Map, Value};
 
 // A type alias for bytes.
 type Bytes = Vec<u8>;
@@ -73,6 +75,31 @@ impl Payload {
         return_payload_scriptpubkey(self.engine_key, &self.payload_bytes)
     }
 
+    /// Returns this payload as a JSON object.
+    pub fn json(&self) -> Value {
+        let mut obj = Map::new();
+
+        obj.insert(
+            "engine_key".to_string(),
+            Value::String(hex::encode(self.engine_key)),
+        );
+
+        obj.insert(
+            "payload_bytes".to_string(),
+            Value::String(hex::encode(&self.payload_bytes)),
+        );
+
+        obj.insert(
+            "location".to_string(),
+            match self.location.as_ref() {
+                Some(loc) => payload_location_json(loc),
+                None => Value::Null,
+            },
+        );
+
+        Value::Object(obj)
+    }
+
     /// Returns the P2TR script-path spend elements for the Payload.
     pub fn p2tr_script_path_spend_elements(&self) -> (TapLeafHash, TapScript, ControlBlock) {
         // For Payload we construct a single-leaf, script-path-only TapRoot.
@@ -99,6 +126,36 @@ impl Payload {
 
         (tapleaf_hash, tapscript, control_block_bytes)
     }
+}
+
+fn json_outpoint(outpoint: &OutPoint) -> Value {
+    let mut o = Map::new();
+    o.insert(
+        "txid".to_string(),
+        Value::String(hex::encode(outpoint.txhash())),
+    );
+    o.insert("vout".to_string(), Value::Number(outpoint.vout.into()));
+    Value::Object(o)
+}
+
+fn json_txout(txout: &TxOut) -> Value {
+    let mut o = Map::new();
+    o.insert(
+        "satoshis".to_string(),
+        Value::Number(txout.value.to_sat().into()),
+    );
+    o.insert(
+        "scriptpubkey".to_string(),
+        Value::String(hex::encode(txout.script_pubkey.as_bytes())),
+    );
+    Value::Object(o)
+}
+
+fn payload_location_json((outpoint, txout): &(OutPoint, TxOut)) -> Value {
+    let mut o = Map::new();
+    o.insert("outpoint".to_string(), json_outpoint(outpoint));
+    o.insert("txout".to_string(), json_txout(txout));
+    Value::Object(o)
 }
 
 /// Returns a tapscript for the Payload.

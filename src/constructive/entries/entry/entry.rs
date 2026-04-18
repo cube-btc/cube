@@ -1,6 +1,7 @@
 use crate::constructive::entry::entry_kinds::call::call::Call;
 use crate::constructive::entry::entry_kinds::liftup::liftup::Liftup;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 /// Represents an `Entry`.
 ///
@@ -28,5 +29,13 @@ impl Entry {
     /// Creates a new liftup entry.
     pub fn new_liftup(liftup: Liftup) -> Self {
         Self::Liftup(liftup)
+    }
+
+    /// Returns this entry as a JSON object.
+    pub fn json(&self) -> Value {
+        match self {
+            Entry::Call(call) => call.json(),
+            Entry::Liftup(liftup) => liftup.json(),
+        }
     }
 }
