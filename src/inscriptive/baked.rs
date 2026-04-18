@@ -22,6 +22,8 @@ pub const SIGNET_GENESIS_PAYLOAD_TX_ID: [u8; 32] = [
 ];
 // Output index of where the genesis payload is located.
 pub const SIGNET_GENESIS_PAYLOAD_VOUT: u32 = 0;
+// satoshi amount of the genesis payload.
+pub const SIGNET_GENESIS_PAYLOAD_AMOUNT: u64 = 100_000;
 
 /// Mainnet parameters.
 ///
@@ -41,3 +43,5 @@ pub const MAINNET_GENESIS_PAYLOAD_TX_ID: [u8; 32] = [
 ];
 // Output index of where the genesis payload is located.
 pub const MAINNET_GENESIS_PAYLOAD_VOUT: u32 = 0;
+// satoshi amount of the genesis payload.
+pub const MAINNET_GENESIS_PAYLOAD_AMOUNT: u64 = 0;

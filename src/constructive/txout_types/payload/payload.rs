@@ -219,33 +219,40 @@ pub fn genesis_payload(chain: Chain) -> Payload {
         Chain::Mainnet => baked::MAINNET_GENESIS_PAYLOAD_VOUT,
     };
 
-    // 5 Construct the genesis payload without location.
+    // 5 Get the genesis payload amount.
+    let genesis_payload_amount: u64 = match chain {
+        Chain::Testbed => baked::SIGNET_GENESIS_PAYLOAD_AMOUNT,
+        Chain::Signet => baked::SIGNET_GENESIS_PAYLOAD_AMOUNT,
+        Chain::Mainnet => baked::MAINNET_GENESIS_PAYLOAD_AMOUNT,
+    };
+
+    // 6 Construct the genesis payload without location.
     let genesis_payload_without_location = Payload::new(engine_key, payload_bytes, None);
 
-    // 6 Get the scriptpubkey for the genesis payload.
+    // 7 Get the scriptpubkey for the genesis payload.
     let genesis_payload_scriptpubkey = genesis_payload_without_location
         .calculated_scriptpubkey()
         .expect("Failed to get scriptpubkey.");
 
-    // 7 Construct the location for the genesis payload.
+    // 8 Construct the location for the genesis payload.
     let location = (
         OutPoint::new(
             Txid::from_raw_hash(Hash::from_byte_array(genesis_payload_txid)),
             genesis_payload_vout,
         ),
         TxOut {
-            value: Amount::from_sat(0),
+            value: Amount::from_sat(genesis_payload_amount),
             script_pubkey: ScriptBuf::from(genesis_payload_scriptpubkey),
         },
     );
 
-    // 8 Construct the genesis payload with location.
+    // 9 Construct the genesis payload with location.
     let genesis_payload = Payload::new(
         engine_key,
         genesis_payload_without_location.payload_bytes.clone(),
         Some(location),
     );
 
-    // 9 Return the genesis payload.
+    // 10 Return the genesis payload.
     genesis_payload
 }

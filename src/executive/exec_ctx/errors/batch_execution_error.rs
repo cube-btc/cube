@@ -11,28 +11,28 @@ type CurrentBatchSyncHeightTip = u64;
 /// A type alias for the new batch height.
 type NewBatchHeight = u64;
 
-/// A type alias for the latest payload outpoint.
-type LatestPayloadOutpoint = OutPoint;
+/// A type alias for the prev payload outpoint from the batch container.
+type PrevPayloadOutpointFromBatchContainer = OutPoint;
 
-/// A type alias for the new payload outpoint.
-type NewPayloadOutpoint = OutPoint;
+/// A type alias for the payload tip outpoint.
+type PayloadTipOutpoint = OutPoint;
 
 /// Errors associated with executing a batch of entries.
 #[derive(Debug, Clone)]
 pub enum BatchExecutionError {
     InvalidNewBatchHeightError(CurrentBatchSyncHeightTip, NewBatchHeight),
-    PayloadTipLocationNotFoundError,
-    PayloadOutpointMismatchError(LatestPayloadOutpoint, NewPayloadOutpoint),
     BatchTemplatePayloadBitsConversionError(Vec<u8>),
     DecodePayloadVersionError(ShortValAPEDecodeError),
     DecodeBatchTimestampError(LongValAPEDecodeError),
     DecodeAggregateBLSSignatureError,
-    DecodeExtraInCountError(ShortValAPEDecodeError),
+    DecodeExpiredProjectorsCountError(ShortValAPEDecodeError),
     FailedToCollectProjectorPresenceBitError,
     // Iter & collect txin/out errors.
     FailedToIterAndGetPayloadTxInputError,
+    PayloadTipLocationNotFoundError,
+    PayloadOutpointMismatchError(PrevPayloadOutpointFromBatchContainer, PayloadTipOutpoint),
     FailedToIterAndGetPayloadTxOutputError,
-    FailedToIterateExtraInsError,
+    FailedToIterateExpiredProjectorsError,
     FailedToIterAndGetProjectorTxOutputError,
     //
     DecodeEntryError(EntryAPEDecodeError),

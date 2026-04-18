@@ -57,26 +57,6 @@ impl BatchContainer {
         self.signed_batch_txn.tx_outputs()
     }
 
-    /// Returns the previous payload location.
-    pub fn prev_payload_outpoint(&self) -> OutPoint {   
-        self.bitcoin_tx_inputs()[0]
-    }
-
-    /// Returns the new payload from the first Bitcoin transaction output.
-    pub fn new_payload(&self) -> Payload {
-        // 1 Get the transaction id.
-        let txid = self.signed_batch_txn.txid();
-
-        // 2 Get the payload transaction output.
-        let payload_txout = self.signed_batch_txn.tx_outputs()[0].clone();
-
-        // 3 Construct the location.
-        let location = (OutPoint::new(txid, 0), payload_txout);
-
-        // 4 Construct the new payload.
-        Payload::new(self.engine_key, self.payload_bytes.clone(), Some(location))
-    }
-
     /// Serializes this value with bincode.
     pub fn serialize(&self) -> Option<Vec<u8>> {
         bincode::serde::encode_to_vec(self, bincode::config::standard()).ok()

@@ -6,6 +6,11 @@ pub trait OutpointExt {
     fn bytes_36(&self) -> [u8; 36];
     /// Returns the OutPoint from a 36 byte array.
     fn from_bytes36(bytes: &[u8; 36]) -> Option<OutPoint>;
+    /// Returns the OutPoint from a 32 byte array and a vout.
+    fn from_bytes32_and_vout(bytes32: [u8; 32], vout: u32) -> OutPoint;
+
+    /// Returns the OutPoint from a txid and a vout.
+    fn from_txid_and_vout(txid: Txid, vout: u32) -> OutPoint;
 
     /// Returns the OutPoint's transaction hash.
     fn txhash(&self) -> [u8; 32];
@@ -29,6 +34,15 @@ impl OutpointExt for OutPoint {
         Some(OutPoint::new(txid, vout))
     }
 
+    fn from_bytes32_and_vout(bytes32: [u8; 32], vout: u32) -> OutPoint {
+        let txid = Txid::from_byte_array(bytes32);
+        OutPoint::new(txid, vout)
+    }
+
+    fn from_txid_and_vout(txid: Txid, vout: u32) -> OutPoint {
+        OutPoint::new(txid, vout)
+    }
+
     fn txhash(&self) -> [u8; 32] {
         self.txid.to_byte_array()
     }
@@ -36,7 +50,6 @@ impl OutpointExt for OutPoint {
     fn vout(&self) -> u32 {
         self.vout
     }
-
 }
 
 pub trait TxOutExt {
@@ -45,12 +58,19 @@ pub trait TxOutExt {
     /// Returns the TxOut from a byte array.
     fn from_bytes(bytes: &[u8]) -> Option<TxOut>;
 
+    /// Returns the TxOut from a value and a scriptpubkey.
+    fn from_value_and_scriptpubkey(value: u64, scriptpubkey: Vec<u8>) -> Option<TxOut> {
+        Some(TxOut {
+            value: Amount::from_sat(value),
+            script_pubkey: ScriptBuf::from(scriptpubkey),
+        })
+    }
+
     /// Returns the TxOut's scriptpubkey.
     fn scriptpubkey(&self) -> Vec<u8>;
 
     /// Returns the TxOut's value.
     fn value_in_satoshis(&self) -> u64;
-    
 }
 
 impl TxOutExt for TxOut {
@@ -88,6 +108,13 @@ impl TxOutExt for TxOut {
         };
 
         Some(txout)
+    }
+
+    fn from_value_and_scriptpubkey(value: u64, scriptpubkey: Vec<u8>) -> Option<TxOut> {
+        Some(TxOut {
+            value: Amount::from_sat(value),
+            script_pubkey: ScriptBuf::from(scriptpubkey),
+        })
     }
 
     fn scriptpubkey(&self) -> Vec<u8> {
