@@ -1,3 +1,4 @@
+pub mod archival_manager;
 pub mod baked;
 pub mod coin_manager;
 pub mod flame_manager;

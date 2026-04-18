@@ -8,10 +8,12 @@ use crate::constructive::valtype::val::long_val::long_val::LongVal;
 use crate::constructive::valtype::val::short_val::short_val::ShortVal;
 use crate::executive::exec_ctx::exec_ctx::ExecCtx;
 use crate::executive::exec_ctx::exec_ctx::EXEC_CTX;
+use crate::inscriptive::archival_manager::archival_manager::ARCHIVAL_MANAGER;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
 use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::state_manager::state_manager::STATE_MANAGER;
 use crate::inscriptive::sync_manager::sync_manager::SYNC_MANAGER;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
 use crate::operative::tasks::engine_session::session_pool::error::exec_liftup_in_pool_error::ExecLiftupInPoolError;
@@ -68,6 +70,9 @@ pub struct SessionPool {
     // The flame manager.
     pub flame_manager: FLAME_MANAGER,
 
+    // The state manager.
+    pub state_manager: STATE_MANAGER,
+
     // The exec container.
     pub exec_container: EXEC_CTX,
 
@@ -98,6 +103,8 @@ impl SessionPool {
         graveyard: &GRAVEYARD,
         coin_manager: &COIN_MANAGER,
         flame_manager: &FLAME_MANAGER,
+        state_manager: &STATE_MANAGER,
+        archival_manager: Option<ARCHIVAL_MANAGER>,
     ) -> SESSION_POOL {
         // 1 Construct the exec container.
         let exec_container = ExecCtx::construct(
@@ -108,6 +115,8 @@ impl SessionPool {
             Arc::clone(graveyard),
             Arc::clone(coin_manager),
             Arc::clone(flame_manager),
+            Arc::clone(state_manager),
+            archival_manager,
         );
 
         // 2 Construct the session pool.
@@ -120,6 +129,7 @@ impl SessionPool {
             graveyard: Arc::clone(graveyard),
             coin_manager: Arc::clone(coin_manager),
             flame_manager: Arc::clone(flame_manager),
+            state_manager: Arc::clone(state_manager),
             exec_container,
             added_entries: Vec::new(),
             added_tx_inputs: Vec::new(),

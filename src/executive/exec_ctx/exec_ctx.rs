@@ -7,10 +7,12 @@ use crate::constructive::txn::ext::OutpointExt;
 use crate::constructive::txout_types::payload::payload::Payload;
 use crate::constructive::txout_types::projector::projector::Projector;
 use crate::executive::exec_ctx::errors::batch_execution_error::BatchExecutionError;
+use crate::inscriptive::archival_manager::archival_manager::ARCHIVAL_MANAGER;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
 use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::state_manager::state_manager::STATE_MANAGER;
 use crate::inscriptive::sync_manager::sync_manager::SYNC_MANAGER;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
 use crate::transmutative::bls::verify::bls_verify_aggregate;
@@ -47,6 +49,12 @@ pub struct ExecCtx {
 
     // The local flame manager database of the Engine.
     pub flame_manager: FLAME_MANAGER,
+
+    // The local state manager (contract state) of the Engine.
+    pub state_manager: STATE_MANAGER,
+
+    /// Optional append-only archival store for full batch history (`ResourceMode::Archival`).
+    pub archival_manager: Option<ARCHIVAL_MANAGER>,
 }
 
 /// Guarded `ExecCtx`.
@@ -63,6 +71,8 @@ impl ExecCtx {
         graveyard: GRAVEYARD,
         coin_manager: COIN_MANAGER,
         flame_manager: FLAME_MANAGER,
+        state_manager: STATE_MANAGER,
+        archival_manager: Option<ARCHIVAL_MANAGER>,
     ) -> EXEC_CTX {
         // 1 Initialize the `ExecCtx`.
         let exec_ctx = ExecCtx {
@@ -73,6 +83,8 @@ impl ExecCtx {
             graveyard,
             coin_manager,
             flame_manager,
+            state_manager,
+            archival_manager,
         };
 
         // 2 Return the guarded `ExecCtx`.
@@ -81,77 +93,92 @@ impl ExecCtx {
 
     /// Prepares the `ExecCtx` prior to each execution.
     pub async fn pre_execution(&mut self) {
-        // 1 Pre-execution coin manager.
+        // 1 Pre-execution flame manager.
+        {
+            self.flame_manager.lock().await.pre_execution();
+        }
+
+        // 2 Pre-execution coin manager.
         {
             self.coin_manager.lock().await.pre_execution();
         }
-        // 2 Pre-execution graveyard.
+
+        // 3 Pre-execution graveyard.
         {
             self.graveyard.lock().await.pre_execution();
         }
 
-        // 3 Pre-execution registery.
+        // 4 Pre-execution registery.
         {
             self.registery.lock().await.pre_execution();
         }
 
-        // 4 Pre-execution flame manager.
+        // 5 Pre-execution state manager.
         {
-            self.flame_manager.lock().await.pre_execution();
+            self.state_manager.lock().await.pre_execution();
         }
     }
 
     /// Rolls back the last execution of the `ExecCtx` due to a failed individual Entry execution.
     pub async fn rollback_last(&mut self) {
-        // 1 Rollback last coin manager.
+        // 1 Rollback last flame manager.
+        {
+            self.flame_manager.lock().await.rollback_last();
+        }
+
+        // 2 Rollback last coin manager.
         {
             self.coin_manager.lock().await.rollback_last();
         }
 
-        // 2 Rollback last graveyard.
+        // 3 Rollback last graveyard.
         {
             self.graveyard.lock().await.rollback_last();
         }
 
-        // 3 Rollback last registery.
+        // 4 Rollback last registery.
         {
             self.registery.lock().await.rollback_last();
         }
 
-        // 4 Rollback last flame manager.
+        // 5 Rollback last state manager.
         {
-            self.flame_manager.lock().await.rollback_last();
+            self.state_manager.lock().await.rollback_last();
         }
     }
 
     /// Flushes all the changes in the `ExecCtx`.
     pub async fn flush(&mut self) {
-        // 1 Rollback all coin manager.
+        // 1 Flush flame manager ephemerals.
+        {
+            self.flame_manager.lock().await.flush_delta();
+        }
+
+        // 2 Flush coin manager ephemerals.
         {
             self.coin_manager.lock().await.flush_delta();
         }
 
-        // 2 Rollback all graveyard.
+        // 3 Flush graveyard ephemerals.
         {
             self.graveyard.lock().await.flush_deltas();
         }
 
-        // 3 Rollback all registery.
+        // 4 Flush registery ephemerals.
         {
             self.registery.lock().await.flush_delta();
         }
 
-        // 4 Rollback all flame manager.
+        // 5 Flush state manager ephemerals.
         {
-            self.flame_manager.lock().await.flush_delta();
+            self.state_manager.lock().await.flush_delta();
         }
     }
 
-    /// Applies the changes to the `ExecCtx` collectively for all Entries in the container.
-    pub async fn apply_changes(
-        &mut self,
-        batch_record: &BatchRecord,
-    ) -> Result<(), ApplyChangesError> {
+    /// Applies the changes to the `ExecCtx` collectively for all entries in the batch record.
+    ///
+    /// Called at the end of `execute_batch` only.
+    async fn apply_changes(&mut self, batch_record: &BatchRecord) -> Result<(), ApplyChangesError> {
         // 1 Get the new batch height.
         let new_batch_height = batch_record.batch_container.batch_height();
 
@@ -167,45 +194,12 @@ impl ExecCtx {
         // 5 Calculate the projector expiry height.
         let projector_expiry_height = new_batch_height + projector_expiry_gap;
 
-        // 6 Apply changes to the coin manager.
+        // 6 Apply changes to the flame manager.
         {
-            // 6.1 Lock the coin manager.
-            let mut _coin_manager = self.coin_manager.lock().await;
-
-            // 6.2 Apply changes to the coin manager.
-            if let Err(error) = _coin_manager.apply_changes() {
-                return Err(ApplyChangesError::CoinManagerApplyChangesError(error));
-            }
-        }
-
-        // 7 Apply changes to the graveyard.
-        {
-            // 7.1 Lock the graveyard.
-            let mut _graveyard = self.graveyard.lock().await;
-
-            // 7.2 Apply changes to the graveyard.
-            if let Err(error) = _graveyard.apply_changes() {
-                return Err(ApplyChangesError::GraveyardApplyChangesError(error));
-            }
-        }
-
-        // 8 Apply changes to the registery.
-        {
-            // 8.1 Lock the registery.
-            let mut _registery = self.registery.lock().await;
-
-            // 8.2 Apply changes to the registery.
-            if let Err(error) = _registery.apply_changes() {
-                return Err(ApplyChangesError::RegisteryApplyChangesError(error));
-            }
-        }
-
-        // 9 Apply changes to the flame manager.
-        {
-            // 9.1 Lock the flame manager.
+            // 6.1 Lock the flame manager.
             let mut _flame_manager = self.flame_manager.lock().await;
 
-            // 9.2 Apply changes to the flame manager.
+            // 6.2 Apply changes to the flame manager.
             if let Err(error) = _flame_manager
                 .apply_changes(
                     &self.coin_manager,
@@ -219,31 +213,86 @@ impl ExecCtx {
             }
         }
 
-        // 10 Update tips in the sync manager.
+        // 7 Apply changes to the coin manager.
         {
-            // 10.1 Lock the sync manager.
+            // 7.1 Lock the coin manager.
+            let mut _coin_manager = self.coin_manager.lock().await;
+
+            // 7.2 Apply changes to the coin manager.
+            if let Err(error) = _coin_manager.apply_changes() {
+                return Err(ApplyChangesError::CoinManagerApplyChangesError(error));
+            }
+        }
+
+        // 8 Apply changes to the graveyard.
+        {
+            // 8.1 Lock the graveyard.
+            let mut _graveyard = self.graveyard.lock().await;
+
+            // 8.2 Apply changes to the graveyard.
+            if let Err(error) = _graveyard.apply_changes() {
+                return Err(ApplyChangesError::GraveyardApplyChangesError(error));
+            }
+        }
+
+        // 9 Apply changes to the registery.
+        {
+            // 9.1 Lock the registery.
+            let mut _registery = self.registery.lock().await;
+
+            // 9.2 Apply changes to the registery.
+            if let Err(error) = _registery.apply_changes() {
+                return Err(ApplyChangesError::RegisteryApplyChangesError(error));
+            }
+        }
+
+        // 10 Apply changes to the state manager.
+        {
+            // 10.1 Lock the state manager.
+            let mut _state_manager = self.state_manager.lock().await;
+
+            // 10.2 Apply changes to the state manager.
+            if let Err(error) = _state_manager.apply_changes() {
+                return Err(ApplyChangesError::StateManagerApplyChangesError(error));
+            }
+        }
+
+        // 11 Update tips in the sync manager.
+        {
+            // 11.1 Lock the sync manager.
             let mut _sync_manager = self.sync_manager.lock().await;
 
-            // 10.2 Update the cube batch sync height tip.
+            // 11.2 Update the cube batch sync height tip.
             _sync_manager.set_cube_batch_sync_height_tip(new_batch_height);
 
-            // 10.3 Update the payload tip.
+            // 11.3 Update the payload tip.
             _sync_manager.set_payload_tip(new_payload);
         }
 
-        // 11 Safe-remove spent lift tx inputs from the utxo set (as this may be in-flight execution).
+        // 12 Safe-remove spent lift tx inputs from the utxo set (as this may be in-flight execution).
         {
-            // 11.1 Lock the utxo set.
+            // 12.1 Lock the utxo set.
             let mut _utxo_set = self.utxo_set.lock().await;
 
-            // 11.2 Safe-remove spent lift tx inputs from the utxo set.
+            // 12.2 Safe-remove spent lift tx inputs from the utxo set.
             _utxo_set.safe_remove_utxos(spent_bitcoin_tx_inputs);
         }
 
-        // 12 Flush the changes.
-        self.flush().await;
+        // 13 Insert the batch record into the archival manager.
+        if let Some(archival_manager) = self.archival_manager.as_ref() {
+            archival_manager
+                .lock()
+                .await
+                .insert_batch_record(batch_record.clone())
+                .map_err(|error| ApplyChangesError::ArchivalManagerInsertBatchRecordError(error))?;
+        }
 
-        // 13 Return Ok.
+        // 14 Flush the changes.
+        {
+            self.flush().await;
+        }
+
+        // 15 Return Ok.
         Ok(())
     }
 
@@ -525,13 +574,19 @@ impl ExecCtx {
             batch_timestamp,
             payload_version,
             aggregate_bls_signature,
-            executed_entries.clone(),
+            executed_entries,
             expired_projector_outpoints.clone(),
             new_payload.clone(),
             new_projector.clone(),
-        );
+        )
+        .ok_or(BatchExecutionError::ExecutedEntryIdError)?;
 
-        // 29 Return the batch record.
+        // 29 Apply the batch record to local managers, sync tips, utxo, and archival store.
+        self.apply_changes(&batch_record)
+            .await
+            .map_err(BatchExecutionError::ApplyChangesError)?;
+
+        // 30 Return the batch record.
         Ok(batch_record)
     }
 

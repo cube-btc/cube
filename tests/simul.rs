@@ -22,6 +22,9 @@ mod simul_tests {
     use cube::inscriptive::registery::registery::erase_registery;
     use cube::inscriptive::registery::registery::Registery;
     use cube::inscriptive::registery::registery::REGISTERY;
+    use cube::inscriptive::state_manager::state_manager::erase_state_manager;
+    use cube::inscriptive::state_manager::state_manager::StateManager;
+    use cube::inscriptive::state_manager::state_manager::STATE_MANAGER;
     use cube::inscriptive::sync_manager::sync_manager::erase_sync_manager;
     use cube::inscriptive::sync_manager::sync_manager::SyncManager;
     use cube::inscriptive::sync_manager::sync_manager::SYNC_MANAGER;
@@ -101,6 +104,11 @@ mod simul_tests {
         erase_flame_manager(chain);
         let flame_manager: FLAME_MANAGER =
             FlameManager::new(chain).expect("Failed to create flame manager.");
+
+        // 13.b Erase and construct the state manager.
+        erase_state_manager(chain);
+        let state_manager: STATE_MANAGER =
+            StateManager::new(chain).expect("Failed to create state manager.");
 
         // 14 Deposit some BTC: 10_000 satoshis.
         let lift: Lift = {
@@ -188,6 +196,8 @@ mod simul_tests {
             &Arc::clone(&graveyard),
             &Arc::clone(&coin_manager),
             &Arc::clone(&flame_manager),
+            &Arc::clone(&state_manager),
+            None,
         );
 
         // 18 Begin the session.
@@ -257,6 +267,8 @@ mod simul_tests {
             Arc::clone(&graveyard),
             Arc::clone(&coin_manager),
             Arc::clone(&flame_manager),
+            Arc::clone(&state_manager),
+            None,
         );
 
         // 25 Execute the batch.
@@ -275,21 +287,7 @@ mod simul_tests {
             );
         }
 
-        // 27 Apply changes.
-        {
-            // 27.1 Lock the exec ctx.
-            let mut _exec_ctx = exec_ctx.lock().await;
-
-            // 27.2 Apply the changes to the exec ctx.
-            _exec_ctx
-                .apply_changes(&batch_record)
-                .await
-                .map_err(|error| {
-                    format!("Failed to apply the changes to the exec ctx: {:?}", error)
-                })?;
-        }
-
-        // 28 Print managers.
+        // 27 Print managers.
         {
             println!("Post-execution Manager Prints:");
             println!(
@@ -304,7 +302,7 @@ mod simul_tests {
             );
         }
 
-        // 29 Return OK.
+        // 28 Return OK.
         Ok(())
     }
 }

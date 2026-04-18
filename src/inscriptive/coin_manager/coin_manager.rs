@@ -1985,7 +1985,9 @@ impl CoinManager {
 
     /// Returns the account's overall flame sum value (owned and owed value sum) in satoshis.
     ///
-    /// NOTE: This is a post-apply-changes function, called by the FlameManager.
+    /// NOTE: Called from `FlameManager::apply_changes` while the coin manager may still hold
+    /// this batch's ephemeral delta; balance and base shadow sum reads consult the delta first,
+    /// then permanent in-memory state.
     pub fn get_account_target_flame_value_in_satoshis(
         &self,
         account_key: AccountKey,
@@ -1993,8 +1995,7 @@ impl CoinManager {
         // 1 Get the account's balance in satoshis.
         let account_balance_in_satoshis: u64 = self.get_account_balance(account_key)?;
 
-        // 2 Get the account's global shadow allocs sum in satoshis.
-        // NOTE: get_account_target_flame_value_in_satoshis is called post-apply-changes, so we can safely use the base value here.
+        // 2 Get the account's global shadow allocs sum in satoshis (base sum; delta merged in getters).
         let account_global_shadow_allocs_sum_in_satoshis: u64 =
             self.get_account_global_shadow_allocs_sum_in_satoshis_base(account_key)?;
 

@@ -16,6 +16,10 @@ use crate::inscriptive::graveyard::graveyard::Graveyard;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 use crate::inscriptive::registery::registery::Registery;
 use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::state_manager::state_manager::StateManager;
+use crate::inscriptive::state_manager::state_manager::STATE_MANAGER;
+use crate::inscriptive::archival_manager::archival_manager::ArchivalManager;
+use crate::inscriptive::archival_manager::archival_manager::ARCHIVAL_MANAGER;
 use crate::inscriptive::sync_manager::sync_manager::SyncManager;
 use crate::inscriptive::sync_manager::sync_manager::SYNC_MANAGER;
 use crate::inscriptive::utxo_set::utxo_set::UTXOSet;
@@ -36,7 +40,7 @@ const V2_LIFT_ENABLED: bool = false;
 
 #[tokio::main]
 pub async fn run(
-    _resource_mode: ResourceMode,
+    resource_mode: ResourceMode,
     chain: Chain,
     operating_kind: OperatingKind,
     rpc_holder: BitcoinRPCHolder,
@@ -83,6 +87,22 @@ pub async fn run(
         }
     };
 
+    // 6.b Initialize archival manager when running in archival resource mode.
+    let archival_manager: Option<ARCHIVAL_MANAGER> = match resource_mode {
+        ResourceMode::Archival => match ArchivalManager::new(chain) {
+            Ok(m) => Some(m),
+            Err(err) => {
+                println!(
+                    "{} {:?}",
+                    "Error initializing archival manager: ".red(),
+                    err
+                );
+                return;
+            }
+        },
+        ResourceMode::Pruned => None,
+    };
+
     // 7 Initialize utxo set.
     let utxo_set: UTXO_SET = match UTXOSet::new(chain) {
         Some(utxo_set) => utxo_set,
@@ -115,6 +135,15 @@ pub async fn run(
         Ok(flame_manager) => flame_manager,
         Err(err) => {
             println!("{} {:?}", "Error initializing flame manager: ".red(), err);
+            return;
+        }
+    };
+
+    // 10.b Initialize state manager.
+    let state_manager: STATE_MANAGER = match StateManager::new(chain) {
+        Ok(state_manager) => state_manager,
+        Err(err) => {
+            println!("{} {:?}", "Error initializing state manager: ".red(), err);
             return;
         }
     };
@@ -216,6 +245,8 @@ pub async fn run(
                 &graveyard,
                 &coin_manager,
                 &flame_manager,
+                &state_manager,
+                archival_manager.clone(),
             )
             .await;
         }

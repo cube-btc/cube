@@ -3,10 +3,12 @@ use crate::constructive::{
     entity::account::root_account::root_account::RootAccount,
     entry::entry_kinds::liftup::liftup::Liftup, txo::lift::lift::Lift,
 };
+use crate::inscriptive::archival_manager::archival_manager::ARCHIVAL_MANAGER;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
 use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::state_manager::state_manager::STATE_MANAGER;
 use crate::inscriptive::sync_manager::sync_manager::SYNC_MANAGER;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
 use crate::operative::tasks::engine_session::session_pool::session_pool::SessionPool;
@@ -25,6 +27,8 @@ pub async fn lift_command(
     graveyard: &GRAVEYARD,
     coin_manager: &COIN_MANAGER,
     flame_manager: &FLAME_MANAGER,
+    state_manager: &STATE_MANAGER,
+    archival_manager: Option<ARCHIVAL_MANAGER>,
 ) {
     // 1 Scan the UTXO set and collect the self owned lifts.
     let self_owned_lifts: Vec<Lift> = {
@@ -68,6 +72,8 @@ pub async fn lift_command(
         graveyard,
         coin_manager,
         flame_manager,
+        state_manager,
+        archival_manager,
     );
 
     // 9 Begin the session of the session pool.

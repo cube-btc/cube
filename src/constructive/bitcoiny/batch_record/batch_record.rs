@@ -1,6 +1,6 @@
 use crate::constructive::bitcoiny::batch_container::batch_container::BatchContainer;
-use crate::constructive::txn::ext::OutpointExt;
 use crate::constructive::entry::entry::entry::Entry;
+use crate::constructive::txn::ext::OutpointExt;
 use crate::constructive::txout_types::payload::payload::Payload;
 use crate::constructive::txout_types::projector::projector::Projector;
 use crate::transmutative::bls::bls_ser::{deserialize_bls_signature, serialize_bls_signature};
@@ -8,10 +8,14 @@ use bitcoin::OutPoint;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
+/// Represents an entry ID.
+type EntryID = [u8; 32];
+
 /// Represents a batch record.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct BatchRecord {
-    pub batch_container: BatchContainer,
+    pub batch_height: u64,
+    pub batch_txid: [u8; 32],
     pub batch_timestamp: u64,
     pub payload_version: u32,
     #[serde(
@@ -19,10 +23,11 @@ pub struct BatchRecord {
         deserialize_with = "deserialize_bls_signature"
     )]
     pub aggregate_bls_signature: [u8; 96],
-    pub executed_entries: Vec<Entry>,
+    pub entries: Vec<(EntryID, Entry)>,
     pub expired_projector_outpoints: Vec<OutPoint>,
     pub new_payload: Payload,
     pub new_projector: Option<Projector>,
+    pub batch_container: BatchContainer,
 }
 
 impl BatchRecord {
@@ -36,17 +41,35 @@ impl BatchRecord {
         expired_projector_outpoints: Vec<OutPoint>,
         new_payload: Payload,
         new_projector: Option<Projector>,
-    ) -> Self {
-        Self {
+    ) -> Option<Self> {
+        // 1 Get the batch height.
+        let batch_height = batch_container.batch_height();
+
+        // 2 Construct the entries.
+        let mut entries = Vec::with_capacity(executed_entries.len());
+
+        // 3 Push the entries to the vector.
+        for entry in executed_entries {
+            let entry_id = entry.entry_id(batch_height)?;
+            entries.push((entry_id, entry));
+        }
+
+        // 4 Return the batch record.
+        let batch_record = BatchRecord {
+            batch_height,
+            batch_txid: batch_container.batch_txid(),
             batch_container,
             batch_timestamp,
             payload_version,
             aggregate_bls_signature,
-            executed_entries,
+            entries,
             expired_projector_outpoints,
             new_payload,
             new_projector,
-        }
+        };
+
+        // 5 Return the batch record.
+        Some(batch_record)
     }
 
     /// Serializes this value with bincode.
@@ -67,7 +90,7 @@ impl BatchRecord {
 
         obj.insert(
             "batch_height".to_string(),
-            Value::Number(self.batch_container.batch_height.into()),
+            Value::Number(self.batch_height.into()),
         );
 
         obj.insert(
@@ -91,11 +114,16 @@ impl BatchRecord {
         );
 
         obj.insert(
-            "executed_entries".to_string(),
+            "entries".to_string(),
             Value::Array(
-                self.executed_entries
+                self.entries
                     .iter()
-                    .map(Entry::json)
+                    .map(|(entry_id, entry)| {
+                        let mut e = Map::new();
+                        e.insert("entry_id".to_string(), Value::String(hex::encode(entry_id)));
+                        e.insert("entry".to_string(), entry.json());
+                        Value::Object(e)
+                    })
                     .collect(),
             ),
         );
