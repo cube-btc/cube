@@ -5,7 +5,7 @@ use crate::transmutative::key::KeyHolder;
 
 impl Liftup {
     /// Signs the `Liftup` signature message (sighash) with BLS secret key.
-    pub fn bls_sign(&self, keyholder: KeyHolder) -> Result<[u8; 96], LiftupBLSSignError> {
+    pub fn bls_sign(&self, keyholder: &KeyHolder) -> Result<[u8; 96], LiftupBLSSignError> {
         // 1 Get the liftup sighash.
         let sighash = self.sighash().map_err(LiftupBLSSignError::SighashError)?;
 

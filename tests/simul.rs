@@ -171,11 +171,8 @@ mod simul_tests {
 
         // 16 BLS sign the Liftup.
         let liftup_bls_signature = liftup
-            .bls_sign(key_holder)
+            .bls_sign(&key_holder)
             .expect("Failed to BLS sign the Liftup.");
-
-        // `bls_sign` consumes the key holder; recreate it for `into_batch_container` / Schnorr signing.
-        let key_holder = KeyHolder::new(secret_key).expect("Failed to create key holder.");
 
         // Prints
         {
@@ -229,7 +226,7 @@ mod simul_tests {
         let _liftup_entry = session_pool
             .lock()
             .await
-            .exec_liftup_in_pool(this_execution_timestamp, &liftup, liftup_bls_signature)
+            .exec_liftup_in_pool(&liftup, liftup_bls_signature)
             .await
             .map_err(|error| {
                 format!(

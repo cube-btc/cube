@@ -1,26 +1,19 @@
-use std::sync::Arc;
-
+use crate::communicative::peer::peer::PEER;
+use crate::communicative::tcp::client::{LiftupV1ResponseBody, TCPClient};
 use crate::constructive::core_types::target::target::Target;
 use crate::constructive::{
     entity::account::root_account::root_account::RootAccount,
     entry::entry_kinds::liftup::liftup::Liftup, txo::lift::lift::Lift,
 };
-use crate::executive::exec_ctx::exec_ctx::{ExecCtx, EXEC_CTX};
-use crate::inscriptive::archival_manager::archival_manager::ARCHIVAL_MANAGER;
-use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
-use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
-use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 use crate::inscriptive::registery::registery::REGISTERY;
-use crate::inscriptive::state_manager::state_manager::STATE_MANAGER;
 use crate::inscriptive::sync_manager::sync_manager::SYNC_MANAGER;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
 use crate::transmutative::key::KeyHolder;
-use chrono::Utc;
 use colored::Colorize;
 use serde_json::to_string_pretty;
 
-// lift
-pub async fn lift_command(
+// liftup
+pub async fn liftup_command(
     engine_key: [u8; 32],
     self_account_key: [u8; 32],
     v2_lift_enabled: bool,
@@ -28,11 +21,7 @@ pub async fn lift_command(
     sync_manager: &SYNC_MANAGER,
     utxo_set: &UTXO_SET,
     registery: &REGISTERY,
-    graveyard: &GRAVEYARD,
-    coin_manager: &COIN_MANAGER,
-    flame_manager: &FLAME_MANAGER,
-    state_manager: &STATE_MANAGER,
-    archival_manager: Option<ARCHIVAL_MANAGER>,
+    engine_peer: &PEER,
 ) {
     // 1 Scan the UTXO set and collect the self owned lifts.
     let self_owned_lifts: Vec<Lift> = {
@@ -64,55 +53,55 @@ pub async fn lift_command(
     // 6 Construct the target.
     let target = Target::new(current_execution_batch_height);
 
-    // 7 Construct the execution timestamp.
-    let execution_timestamp = Utc::now().timestamp() as u64;
-
-    // 8 Construct the Liftup.
+    // 7 Construct the Liftup.
     let liftup = Liftup::new(root_account, target, self_owned_lifts);
 
-    // 9 Construct exec ctx.
-    let exec_ctx: EXEC_CTX = ExecCtx::construct(
-        engine_key,
-        Arc::clone(sync_manager),
-        Arc::clone(utxo_set),
-        Arc::clone(registery),
-        Arc::clone(graveyard),
-        Arc::clone(coin_manager),
-        Arc::clone(flame_manager),
-        Arc::clone(state_manager),
-        archival_manager,
-    );
-
-    // 10 Execute the liftup in the exec ctx.
-    let execute_liftup_result = {
-        let mut _exec_ctx = exec_ctx.lock().await;
-        _exec_ctx.execute_liftup(&liftup, execution_timestamp).await
+    // 8 Get the BLS signature of the Liftup.
+    let liftup_bls_signature: [u8; 96] = {
+        match liftup.bls_sign(key_holder) {
+            Ok(signature) => signature,
+            Err(error) => {
+                println!("{}", format!("Error BLS signing liftup: {:?}", error).red());
+                return;
+            }
+        }
     };
 
-    // 11 Flush the exec ctx.
+    // 9 Request the liftup to the peer.
+    let (liftup_v1_response_body, duration) = match engine_peer
+        .request_liftup_v1(&liftup, liftup_bls_signature)
+        .await
     {
-        let mut _exec_ctx = exec_ctx.lock().await;
-        _exec_ctx.flush().await;
-    }
+        Ok((liftup_v1_response_body, duration)) => (liftup_v1_response_body, duration),
+        Err(error) => {
+            println!("{}", format!("Error requesting liftup: {:?}", error).red());
+            return;
+        }
+    };
 
-    // 12 Drop the exec ctx.
-    drop(exec_ctx);
-
-    // 13 Match the execute liftup result.
-    match execute_liftup_result {
-        Ok(liftup_entry) => {
+    // 10 Match the execute liftup result (wire enum, not `Result`).
+    match liftup_v1_response_body {
+        LiftupV1ResponseBody::Ok(success_body) => {
             println!(
                 "{}",
                 format!(
-                    "Liftup entry successfully executed: {}",
-                    to_string_pretty(&liftup_entry.json())
+                    "Liftup entry successfully executed ({} ms): {}",
+                    duration.as_millis(),
+                    to_string_pretty(&success_body.json())
                         .expect("serde_json::Value should serialize")
                 )
                 .green()
             );
         }
-        Err(error) => {
-            println!("{}", format!("Error executing liftup: {:?}", error).red());
+        LiftupV1ResponseBody::Err(error) => {
+            println!(
+                "{}",
+                format!(
+                    "Error executing liftup: {}",
+                    to_string_pretty(&error.json()).expect("serde_json::Value should serialize")
+                )
+                .red()
+            );
         }
     }
 }

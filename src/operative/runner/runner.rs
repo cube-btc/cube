@@ -6,6 +6,7 @@ use crate::communicative::peer::peer::PeerKind;
 use crate::communicative::peer::peer::PEER;
 use crate::communicative::rpc::bitcoin_rpc::bitcoin_rpc::validate_rpc;
 use crate::communicative::rpc::bitcoin_rpc::bitcoin_rpc_holder::BitcoinRPCHolder;
+use crate::communicative::tcp::server as tcp_server;
 use crate::communicative::tcp::tcp::open_port;
 use crate::communicative::tcp::tcp::port_number;
 use crate::inscriptive::archival_manager::archival_manager::ArchivalManager;
@@ -230,7 +231,8 @@ pub async fn run(
                 let flame_manager = Arc::clone(&flame_manager);
                 let state_manager = Arc::clone(&state_manager);
                 let archival_manager = archival_manager.clone();
-                
+                let key_holder = Arc::clone(&key_holder);
+
                 let _ = tokio::spawn(async move {
                     let _ = engine_batch_builder_background_task(
                         &session_pool,
@@ -249,11 +251,19 @@ pub async fn run(
                 });
             }
 
-            // 11.a.4 Run the TCP server in the background: TODO
+            // 11.a.6 Run the TCP server in the background.
+            {
+                let keys = Arc::clone(&key_holder);
+                let chain = chain.clone();
+                let session_pool = Arc::clone(&session_pool);
+                let _ = tokio::spawn(async move {
+                    tcp_server::run(operating_kind, chain, keys, &session_pool).await;
+                });
+            }
 
-            // 11.a.5 Run the session in the background: TODO
+            // 11.a.7 Run the session in the background: TODO
 
-            // 11.a.6 Run the Engine CLI.
+            // 11.a.8 Run the Engine CLI.
             run_engine_cli(&session_pool).await;
         }
         // 11.b Node-specific initializations.

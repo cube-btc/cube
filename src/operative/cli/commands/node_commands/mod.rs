@@ -1,7 +1,8 @@
 pub mod conn;
 pub mod decompile;
-pub mod lift;
+pub mod liftup;
 pub mod liftaddr;
+pub mod liftuplocal;
 pub mod lifts;
 pub mod r#move;
 pub mod npub;

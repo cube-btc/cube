@@ -62,4 +62,16 @@ impl Entry {
             },
         }
     }
+
+    /// Serializes this entry with bincode (same config as wire payloads elsewhere).
+    pub fn serialize(&self) -> Option<Vec<u8>> {
+        bincode::serde::encode_to_vec(self, bincode::config::standard()).ok()
+    }
+
+    /// Deserializes an entry from bincode bytes.
+    pub fn deserialize(bytes: &[u8]) -> Option<Self> {
+        bincode::serde::decode_from_slice::<Self, _>(bytes, bincode::config::standard())
+            .ok()
+            .map(|(entry, _)| entry)
+    }
 }

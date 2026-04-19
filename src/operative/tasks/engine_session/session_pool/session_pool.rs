@@ -27,10 +27,13 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 /// A type alias for the batch height.
-type BatchHeight = u64;
+pub type BatchHeight = u64;
 
 /// A type alias for the batch timestamp.
-type BatchTimestamp = u64;
+pub type BatchTimestamp = u64;
+
+/// A type alias for a pooled entry identifier (32-byte hash).
+pub type EntryId = [u8; 32];
 
 /// A type alias for the Bitcoin transaction fee.
 type BitcoinTransactionFee = u64;
@@ -69,6 +72,7 @@ pub struct SessionPool {
     // The engine key.
     pub engine_key: [u8; 32],
 
+    // The sync manager.
     pub sync_manager: SYNC_MANAGER,
 
     // The utxo set.
@@ -358,10 +362,9 @@ impl SessionPool {
     /// Executes a `Liftup` entry in the `SessionPool`.
     pub async fn exec_liftup_in_pool(
         &mut self,
-        execution_timestamp: u64,
         liftup: &Liftup,
         liftup_bls_signature: [u8; 96],
-    ) -> Result<Entry, ExecLiftupInPoolError> {
+    ) -> Result<(EntryId, Entry,  BatchHeight, BatchTimestamp), ExecLiftupInPoolError> {
         // 1 Check the pool session status.
         match self.state {
             // 1.a The session is inactive.
@@ -385,11 +388,10 @@ impl SessionPool {
             }
         };
 
-        // 2 Get the batch height.
-        let batch_height = self
+        // 2 Get the batch height and batch timestamp.
+        let (batch_height, batch_timestamp, _) = self
             .batch_info
-            .ok_or(ExecLiftupInPoolError::BatchInfoNotFoundError)?
-            .0;
+            .ok_or(ExecLiftupInPoolError::BatchInfoNotFoundError)?;
 
         // 3 Run pre-validations.
         {
@@ -403,7 +405,9 @@ impl SessionPool {
                     liftup_bls_signature,
                 )
                 .await
-                .map_err(|err| ExecLiftupInPoolError::LiftupValidateOverallError(err))?;
+                .map_err(|err| {
+                    ExecLiftupInPoolError::LiftupValidateOverallError(format!("{err:?}"))
+                })?;
         }
 
         // 4 Prepare for the execution by backing up the execution context.
@@ -417,20 +421,25 @@ impl SessionPool {
             .exec_ctx
             .lock()
             .await
-            .execute_liftup(liftup, execution_timestamp)
+            .execute_liftup(liftup, batch_timestamp)
             .await
         {
             // 5.a Success.
             Ok(liftup_entry) => {
-                // 5.a.1 Add the liftup entry to the added entries.
+                // 5.a.1 Derive the entry id.
+                let entry_id = liftup_entry
+                    .entry_id(batch_height)
+                    .ok_or(ExecLiftupInPoolError::EntryIdDerivationError)?;
+
+                // 5.a.2 Add the liftup entry to the added entries.
                 self.added_entries.push(liftup_entry.clone());
 
-                // 5.a.2 Add the liftup BLS signature to the added individual entry BLS signatures.
+                // 5.a.3 Add the liftup BLS signature to the added individual entry BLS signatures.
                 self.added_individual_entry_bls_signatures
                     .push(liftup_bls_signature);
 
-                // 5.a.3 Return the liftup entry.
-                Ok(liftup_entry)
+                // 5.a.4 Return the liftup entry and pool metadata.
+                Ok((entry_id, liftup_entry, batch_height, batch_timestamp))
             }
 
             // 5.b Error.
@@ -441,7 +450,9 @@ impl SessionPool {
                 }
 
                 // 5.b.2 Return the error.
-                Err(ExecLiftupInPoolError::LiftupExecutionError(error))
+                Err(ExecLiftupInPoolError::LiftupExecutionError(format!(
+                    "{error:?}"
+                )))
             }
         }
     }

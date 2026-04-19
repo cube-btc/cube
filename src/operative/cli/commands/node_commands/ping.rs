@@ -1,4 +1,5 @@
-use crate::{communicative::peer::peer::PEER, communicative::tcp::client::TCPClient};
+use crate::communicative::peer::peer::PEER;
+use crate::communicative::tcp::client::TCPClient;
 
 /// Pings the Engine.
 pub async fn ping_command(engine: &PEER) {

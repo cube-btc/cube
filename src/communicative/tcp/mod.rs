@@ -1,4 +1,12 @@
 pub mod client;
 pub mod package;
+pub mod protocol;
+pub mod request_error;
 pub mod server;
 pub mod tcp;
+
+pub use protocol::liftup_v1::{
+    ExecLiftupInPoolError, LiftupV1RequestBody, LiftupV1ResponseBody, LiftupV1ResponseError,
+    LiftupV1SuccessBody,
+};
+pub use request_error::RequestError;

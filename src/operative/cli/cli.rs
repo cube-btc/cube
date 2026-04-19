@@ -49,7 +49,7 @@ pub async fn run_node_cli(
     engine_key: [u8; 32],
     self_account_key: [u8; 32],
     v2_lift_enabled: bool,
-    _engine_conn: &PEER,
+    engine_conn: &PEER,
     key_holder: &KeyHolder,
     utxo_set: &UTXO_SET,
     sync_manager: &SYNC_MANAGER,
@@ -93,8 +93,21 @@ pub async fn run_node_cli(
                 )
                 .await
             }
-            "lift" => {
-                node_commands::lift::lift_command(
+            "liftup" => {
+                node_commands::liftup::liftup_command(
+                    engine_key,
+                    self_account_key,
+                    v2_lift_enabled,
+                    key_holder,
+                    sync_manager,
+                    utxo_set,
+                    registery,
+                    engine_conn,
+                )
+                .await
+            }
+            "liftuplocal" => {
+                node_commands::liftuplocal::liftup_local_command(
                     engine_key,
                     self_account_key,
                     v2_lift_enabled,
