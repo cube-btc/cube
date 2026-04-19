@@ -10,13 +10,14 @@ use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
 use crate::operative::cli::commands::common_commands;
 use crate::operative::cli::commands::node_commands;
 use crate::operative::run_args::chain::Chain;
+use crate::operative::tasks::engine_session::session_pool::session_pool::SESSION_POOL;
 use crate::transmutative::key::KeyHolder;
 use colored::Colorize;
 use std::io;
 use std::io::BufRead;
 
 /// Runs the Engine CLI.
-pub async fn run_engine_cli() {
+pub async fn run_engine_cli(_session_pool: &SESSION_POOL) {
     // 1 Print the CLI prompt.
     print_cli_prompt();
 

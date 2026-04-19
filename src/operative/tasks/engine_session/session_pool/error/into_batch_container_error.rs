@@ -4,6 +4,7 @@ use crate::constructive::entry::entry::ext::codec::ape::encode::error::encode_er
 /// Errors associated with converting the `ExecCtx` into a `BatchContainer`.
 #[derive(Debug, Clone)]
 pub enum IntoBatchContainerError {
+    BatchInfoNotFoundError,
     EntryAPEEncodeError(EntryAPEEncodeError),
     AggregateBLSSignatureError,
     SignedBatchTxnConstructError(SignedBatchTxnConstructError),

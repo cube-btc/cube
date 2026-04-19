@@ -8,6 +8,8 @@ use crate::communicative::rpc::bitcoin_rpc::bitcoin_rpc::validate_rpc;
 use crate::communicative::rpc::bitcoin_rpc::bitcoin_rpc_holder::BitcoinRPCHolder;
 use crate::communicative::tcp::tcp::open_port;
 use crate::communicative::tcp::tcp::port_number;
+use crate::inscriptive::archival_manager::archival_manager::ArchivalManager;
+use crate::inscriptive::archival_manager::archival_manager::ARCHIVAL_MANAGER;
 use crate::inscriptive::coin_manager::coin_manager::CoinManager;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
 use crate::inscriptive::flame_manager::flame_manager::FlameManager;
@@ -18,8 +20,6 @@ use crate::inscriptive::registery::registery::Registery;
 use crate::inscriptive::registery::registery::REGISTERY;
 use crate::inscriptive::state_manager::state_manager::StateManager;
 use crate::inscriptive::state_manager::state_manager::STATE_MANAGER;
-use crate::inscriptive::archival_manager::archival_manager::ArchivalManager;
-use crate::inscriptive::archival_manager::archival_manager::ARCHIVAL_MANAGER;
 use crate::inscriptive::sync_manager::sync_manager::SyncManager;
 use crate::inscriptive::sync_manager::sync_manager::SYNC_MANAGER;
 use crate::inscriptive::utxo_set::utxo_set::UTXOSet;
@@ -30,6 +30,9 @@ use crate::operative::run_args::{
     chain::Chain, operating_kind::OperatingKind, resource_mode::ResourceMode, sync_mode::SyncMode,
 };
 use crate::operative::tasks::chain_sync::chain_sync::ChainSync;
+use crate::operative::tasks::engine_session::engine_session::engine_batch_builder_background_task;
+use crate::operative::tasks::engine_session::session_pool::session_pool::SessionPool;
+use crate::operative::tasks::engine_session::session_pool::session_pool::SESSION_POOL;
 use crate::transmutative::key::KeyHolder;
 use colored::Colorize;
 use std::sync::Arc;
@@ -202,12 +205,56 @@ pub async fn run(
                 });
             }
 
+            // 11.a.4 Construct session pool.
+            let session_pool: SESSION_POOL = SessionPool::construct(
+                engine_key,
+                &sync_manager,
+                &utxo_set,
+                &registery,
+                &graveyard,
+                &coin_manager,
+                &flame_manager,
+                &state_manager,
+                archival_manager.clone(),
+            );
+
+            // 11.a.5 Spawn engine batch builder background task.
+            {
+                let session_pool = Arc::clone(&session_pool);
+                let sync_manager = Arc::clone(&sync_manager);
+                let engine_key = engine_key.clone();
+                let utxo_set = Arc::clone(&utxo_set);
+                let registery = Arc::clone(&registery);
+                let graveyard = Arc::clone(&graveyard);
+                let coin_manager = Arc::clone(&coin_manager);
+                let flame_manager = Arc::clone(&flame_manager);
+                let state_manager = Arc::clone(&state_manager);
+                let archival_manager = archival_manager.clone();
+                
+                let _ = tokio::spawn(async move {
+                    let _ = engine_batch_builder_background_task(
+                        &session_pool,
+                        &sync_manager,
+                        &key_holder,
+                        engine_key,
+                        &utxo_set,
+                        &registery,
+                        &graveyard,
+                        &coin_manager,
+                        &flame_manager,
+                        &state_manager,
+                        &archival_manager,
+                    )
+                    .await;
+                });
+            }
+
             // 11.a.4 Run the TCP server in the background: TODO
 
             // 11.a.5 Run the session in the background: TODO
 
             // 11.a.6 Run the Engine CLI.
-            run_engine_cli().await;
+            run_engine_cli(&session_pool).await;
         }
         // 11.b Node-specific initializations.
         OperatingKind::Node => {

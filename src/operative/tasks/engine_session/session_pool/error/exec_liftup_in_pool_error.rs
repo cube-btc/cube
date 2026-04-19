@@ -7,7 +7,9 @@ pub enum ExecLiftupInPoolError {
     /// The session is inactive.
     SessionInactiveError,
     SessionSuspendedError,
+    SessionBreakError,
     PoolOverloadedError,
+    BatchInfoNotFoundError,
     LiftupValidateOverallError(LiftupValidateOverallError),
     LiftupExecutionError(LiftupExecutionError),
 }

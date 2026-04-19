@@ -1,8 +1,11 @@
+use std::sync::Arc;
+
 use crate::constructive::core_types::target::target::Target;
 use crate::constructive::{
     entity::account::root_account::root_account::RootAccount,
     entry::entry_kinds::liftup::liftup::Liftup, txo::lift::lift::Lift,
 };
+use crate::executive::exec_ctx::exec_ctx::{ExecCtx, EXEC_CTX};
 use crate::inscriptive::archival_manager::archival_manager::ARCHIVAL_MANAGER;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
 use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
@@ -11,9 +14,10 @@ use crate::inscriptive::registery::registery::REGISTERY;
 use crate::inscriptive::state_manager::state_manager::STATE_MANAGER;
 use crate::inscriptive::sync_manager::sync_manager::SYNC_MANAGER;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
-use crate::operative::tasks::engine_session::session_pool::session_pool::SessionPool;
 use crate::transmutative::key::KeyHolder;
+use chrono::Utc;
 use colored::Colorize;
+use serde_json::to_string_pretty;
 
 // lift
 pub async fn lift_command(
@@ -46,7 +50,7 @@ pub async fn lift_command(
     let root_account = RootAccount::self_root_account(key_holder, registery).await;
 
     // 4 Get the current cube batch height tip from the sync manager.
-    let current_batch_height_tip: u64 = {
+    let batch_height_tip: u64 = {
         // 4.1 Lock the sync manager.
         let _sync_manager = sync_manager.lock().await;
 
@@ -54,41 +58,58 @@ pub async fn lift_command(
         _sync_manager.cube_batch_sync_height_tip()
     };
 
-    // 5 Construct the target.
-    let target = Target::new(current_batch_height_tip);
+    // 5 The current execution batch height is the batch height tip plus one.
+    let current_execution_batch_height = batch_height_tip + 1;
 
-    // 6 Construct the execution timestamp.
-    let execution_timestamp = 0;
+    // 6 Construct the target.
+    let target = Target::new(current_execution_batch_height);
 
-    // 7 Construct the Liftup.
+    // 7 Construct the execution timestamp.
+    let execution_timestamp = Utc::now().timestamp() as u64;
+
+    // 8 Construct the Liftup.
     let liftup = Liftup::new(root_account, target, self_owned_lifts);
 
-    // 8 Construct session pool.
-    let session_pool = SessionPool::construct(
+    // 9 Construct exec ctx.
+    let exec_ctx: EXEC_CTX = ExecCtx::construct(
         engine_key,
-        sync_manager,
-        utxo_set,
-        registery,
-        graveyard,
-        coin_manager,
-        flame_manager,
-        state_manager,
+        Arc::clone(sync_manager),
+        Arc::clone(utxo_set),
+        Arc::clone(registery),
+        Arc::clone(graveyard),
+        Arc::clone(coin_manager),
+        Arc::clone(flame_manager),
+        Arc::clone(state_manager),
         archival_manager,
     );
 
-    // 9 Begin the session of the session pool.
-    session_pool.lock().await.begin_session();
+    // 10 Execute the liftup in the exec ctx.
+    let execute_liftup_result = {
+        let mut _exec_ctx = exec_ctx.lock().await;
+        _exec_ctx.execute_liftup(&liftup, execution_timestamp).await
+    };
 
-    // 10 Execute the liftup in the session pool.
-    let result = session_pool
-        .lock()
-        .await
-        .exec_liftup_in_pool(execution_timestamp, &liftup, [0; 96])
-        .await;
+    // 11 Flush the exec ctx.
+    {
+        let mut _exec_ctx = exec_ctx.lock().await;
+        _exec_ctx.flush().await;
+    }
 
-    match result {
-        Ok(_) => {
-            println!("{}", format!("Liftup entry successfully executed.").green());
+    // 12 Drop the exec ctx.
+    drop(exec_ctx);
+
+    // 13 Match the execute liftup result.
+    match execute_liftup_result {
+        Ok(liftup_entry) => {
+            println!(
+                "{}",
+                format!(
+                    "Liftup entry successfully executed: {}",
+                    to_string_pretty(&liftup_entry.json())
+                        .expect("serde_json::Value should serialize")
+                )
+                .green()
+            );
         }
         Err(error) => {
             println!("{}", format!("Error executing liftup: {:?}", error).red());

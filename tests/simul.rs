@@ -10,6 +10,9 @@ mod simul_tests {
     use cube::constructive::txo::lift::lift_versions::liftv1::liftv1::return_liftv1_scriptpubkey;
     use cube::executive::exec_ctx::exec_ctx::ExecCtx;
     use cube::executive::exec_ctx::exec_ctx::EXEC_CTX;
+    use cube::inscriptive::archival_manager::archival_manager::{
+        erase_archival_manager, ArchivalManager, ARCHIVAL_MANAGER,
+    };
     use cube::inscriptive::coin_manager::coin_manager::erase_coin_manager;
     use cube::inscriptive::coin_manager::coin_manager::CoinManager;
     use cube::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
@@ -49,7 +52,11 @@ mod simul_tests {
         ];
 
         // 2 Construct batch timestamp and payload version.
-        let (batch_timestamp, payload_version) = (1776015147, 1);
+        let (
+            this_execution_batch_height,
+            this_execution_timestamp,
+            this_execution_bitcoin_transaction_fee,
+        ) = (1, 1776015147, 500);
 
         // 3 Construct self secret key.
         let secret_key: [u8; 32] =
@@ -109,6 +116,11 @@ mod simul_tests {
         erase_state_manager(chain);
         let state_manager: STATE_MANAGER =
             StateManager::new(chain).expect("Failed to create state manager.");
+
+        // Erase and construct the archival manager.
+        erase_archival_manager(chain);
+        let archival_manager: ARCHIVAL_MANAGER =
+            ArchivalManager::new(chain).expect("Failed to create archival manager.");
 
         // 14 Deposit some BTC: 10_000 satoshis.
         let lift: Lift = {
@@ -197,7 +209,7 @@ mod simul_tests {
             &Arc::clone(&coin_manager),
             &Arc::clone(&flame_manager),
             &Arc::clone(&state_manager),
-            None,
+            Some(Arc::clone(&archival_manager)),
         );
 
         // 18 Begin the session.
@@ -206,14 +218,18 @@ mod simul_tests {
             let mut _session_pool = session_pool.lock().await;
 
             // 18.2 Begin the session of the session pool.
-            _session_pool.begin_session();
+            _session_pool.begin_session(
+                this_execution_batch_height,
+                this_execution_timestamp,
+                this_execution_bitcoin_transaction_fee,
+            );
         }
 
         // 19 Execute the liftup in the session pool.
         let _liftup_entry = session_pool
             .lock()
             .await
-            .exec_liftup_in_pool(batch_timestamp, &liftup, liftup_bls_signature)
+            .exec_liftup_in_pool(this_execution_timestamp, &liftup, liftup_bls_signature)
             .await
             .map_err(|error| {
                 format!(
@@ -222,19 +238,11 @@ mod simul_tests {
                 )
             })?;
 
-        // 20 Construct the bitcoin transaction fee.
-        let bitcoin_transaction_fee = 500;
-
-        // 21 Convert the session pool to a batch container.
+        // 20 Convert the session pool to a batch container.
         let batch_container: BatchContainer = session_pool
             .lock()
             .await
-            .into_batch_container(
-                batch_timestamp,
-                payload_version,
-                bitcoin_transaction_fee,
-                &key_holder,
-            )
+            .into_batch_container(&key_holder)
             .await
             .map_err(|error| {
                 format!(
@@ -243,22 +251,25 @@ mod simul_tests {
                 )
             })?;
 
-        // 22 Flush the session pool.
+        // print the batch container json non pretty.
+        println!("Batch Container: {}", batch_container.json());
+
+        // 21 Flush the session pool.
         {
-            // 22.1 Lock the session pool.
+            // 21.1 Lock the session pool.
             let mut _session_pool = session_pool.lock().await;
 
-            // 22.2 Flush the session pool.
+            // 21.2 Flush the session pool.
             _session_pool.end_session().await;
         }
 
-        // 23 Drop the session pool.
+        // 22 Drop the session pool.
         drop(session_pool);
 
         // Now that we have the batch container, we consider this delivered to the Node from the Engine for execution.
         // So we better drop the session pool now and construct an ExecCtx to execute the batch.
 
-        // 24 Construct an ExecCtx.
+        // 23 Construct an ExecCtx.
         let exec_ctx: EXEC_CTX = ExecCtx::construct(
             engine_key,
             Arc::clone(&sync_manager),
@@ -271,7 +282,7 @@ mod simul_tests {
             None,
         );
 
-        // 25 Execute the batch.
+        // 24 Execute the batch.
         let batch_record = exec_ctx
             .lock()
             .await
@@ -279,7 +290,7 @@ mod simul_tests {
             .await
             .map_err(|error| format!("Failed to execute the batch: {:?}", error))?;
 
-        // 26 Post-execution Prints
+        // 25 Post-execution Prints
         {
             println!(
                 "Batch Record: {}",
@@ -287,7 +298,7 @@ mod simul_tests {
             );
         }
 
-        // 27 Print managers.
+        // 26 Print managers.
         {
             println!("Post-execution Manager Prints:");
             println!(
@@ -302,7 +313,7 @@ mod simul_tests {
             );
         }
 
-        // 28 Return OK.
+        // 27 Return OK.
         Ok(())
     }
 }
