@@ -1475,6 +1475,8 @@ impl CoinManager {
 
             // 1.2 On-disk insertion.
             {
+                println!("CoinManager apply_changes: on-disk insertion account key: {} with balance: {}", hex::encode(account_key), initial_account_balance);
+
                 // 1.2.1 Open on-disk accounts tree.
                 let tree = self.on_disk_accounts.open_tree(account_key).map_err(|e| {
                     CMApplyChangesError::AccountApplyChangesError(

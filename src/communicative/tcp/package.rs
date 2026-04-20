@@ -8,6 +8,8 @@ pub enum PackageKind {
     LiftupV1Protocol,
     BatchRecordProtocol,
     InFlightSyncProtocol,
+    BatchContainerProtocol,
+    BatchContainerByPrevOutpointProtocol,
 }
 
 impl PackageKind {
@@ -17,6 +19,8 @@ impl PackageKind {
             PackageKind::LiftupV1Protocol => 0x01,
             PackageKind::BatchRecordProtocol => 0x02,
             PackageKind::InFlightSyncProtocol => 0x03,
+            PackageKind::BatchContainerProtocol => 0x04,
+            PackageKind::BatchContainerByPrevOutpointProtocol => 0x05,
         }
     }
     pub fn from_bytecode(bytecode: u8) -> Option<Self> {
@@ -25,6 +29,8 @@ impl PackageKind {
             0x01 => Some(PackageKind::LiftupV1Protocol),
             0x02 => Some(PackageKind::BatchRecordProtocol),
             0x03 => Some(PackageKind::InFlightSyncProtocol),
+            0x04 => Some(PackageKind::BatchContainerProtocol),
+            0x05 => Some(PackageKind::BatchContainerByPrevOutpointProtocol),
             _ => None,
         }
     }

@@ -1,6 +1,6 @@
 use colored::Colorize;
-use cube::constructive::txout_types::payload::payload::Payload;
 use cube::constructive::taproot::P2TR;
+use cube::constructive::txout_types::payload::payload::Payload;
 use cube::inscriptive::baked;
 use cube::transmutative::codec::address::encode_p2tr;
 use cube::{
@@ -310,8 +310,8 @@ fn run(args: &Vec<String>) {
 
     // 5 Parse sync mode.
     let sync_mode = match args[7].to_lowercase().as_str() {
-        "true" | "yes" | "1" => SyncMode::ConfirmedOnly,
-        "false" | "no" | "0" => SyncMode::InFlight,
+        "true" | "yes" | "1" => SyncMode::InFlight,
+        "false" | "no" | "0" => SyncMode::ConfirmedOnly,
         _ => {
             println!("{}", "Invalid <syncinflight?>.".red());
             return;

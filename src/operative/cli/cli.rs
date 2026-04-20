@@ -17,7 +17,15 @@ use std::io;
 use std::io::BufRead;
 
 /// Runs the Engine CLI.
-pub async fn run_engine_cli(_session_pool: &SESSION_POOL) {
+pub async fn run_engine_cli(
+    _session_pool: &SESSION_POOL,
+    sync_manager: &SYNC_MANAGER,
+    registery: &REGISTERY,
+    graveyard: &GRAVEYARD,
+    coin_manager: &COIN_MANAGER,
+    flame_manager: &FLAME_MANAGER,
+    key_holder: &KeyHolder,
+) {
     // 1 Print the CLI prompt.
     print_cli_prompt();
 
@@ -38,6 +46,106 @@ pub async fn run_engine_cli(_session_pool: &SESSION_POOL) {
             // Main commands:
             "exit" => break,
             "clear" => common_commands::clear::clear_command(),
+            "batchtip" => common_commands::batchtip::batchtip_command(sync_manager).await,
+            "rootaccount" => common_commands::rootaccount::rootaccount_command(key_holder, registery).await,
+            "print" => match parts.get(1).map(String::as_str) {
+                Some("registery") => common_commands::registery::registery_command(registery).await,
+                Some("coinmanager") => {
+                    common_commands::coinmanager::coinmanager_command(coin_manager).await
+                }
+                Some("graveyard") => common_commands::graveyard::graveyard_command(graveyard).await,
+                Some("flamemanager") => {
+                    common_commands::flamemanager::flamemanager_command(flame_manager).await
+                }
+                _ => eprintln!(
+                    "{}",
+                    "Usage: print <registery|coinmanager|graveyard|flamemanager>.".yellow()
+                ),
+            },
+            "registery" => {
+                match (
+                    parts.get(1).map(String::as_str),
+                    parts.get(2).map(String::as_str),
+                ) {
+                    (Some("isaccountregistered"), Some(account_key_str)) => {
+                        let account_key = match parse_account_key(account_key_str) {
+                            Some(key) => key,
+                            None => {
+                                eprintln!("{}", "Invalid account key: expected 32-byte hex.".yellow());
+                                continue;
+                            }
+                        };
+
+                        let is_registered = {
+                            let _registery = registery.lock().await;
+                            _registery.is_account_registered(account_key)
+                        };
+                        println!("{}", is_registered);
+                    }
+                    _ => {
+                        eprintln!(
+                            "{}",
+                            "Usage: registery isaccountregistered <account_key_hex>.".yellow()
+                        );
+                    }
+                }
+            }
+            "coinmanager" => {
+                match (
+                    parts.get(1).map(String::as_str),
+                    parts.get(2).map(String::as_str),
+                ) {
+                    (Some("isaccountregistered"), Some(account_key_str)) => {
+                        let account_key = match parse_account_key(account_key_str) {
+                            Some(key) => key,
+                            None => {
+                                eprintln!("{}", "Invalid account key: expected 32-byte hex.".yellow());
+                                continue;
+                            }
+                        };
+
+                        let is_registered = {
+                            let _coin_manager = coin_manager.lock().await;
+                            _coin_manager.is_account_registered(account_key)
+                        };
+                        println!("{}", is_registered);
+                    }
+                    _ => {
+                        eprintln!(
+                            "{}",
+                            "Usage: coinmanager isaccountregistered <account_key_hex>.".yellow()
+                        );
+                    }
+                }
+            }
+            "flamemanager" => {
+                match (
+                    parts.get(1).map(String::as_str),
+                    parts.get(2).map(String::as_str),
+                ) {
+                    (Some("isaccountregistered"), Some(account_key_str)) => {
+                        let account_key = match parse_account_key(account_key_str) {
+                            Some(key) => key,
+                            None => {
+                                eprintln!("{}", "Invalid account key: expected 32-byte hex.".yellow());
+                                continue;
+                            }
+                        };
+
+                        let is_registered = {
+                            let _flame_manager = flame_manager.lock().await;
+                            _flame_manager.is_account_registered(account_key)
+                        };
+                        println!("{}", is_registered);
+                    }
+                    _ => {
+                        eprintln!(
+                            "{}",
+                            "Usage: flamemanager isaccountregistered <account_key_hex>.".yellow()
+                        );
+                    }
+                }
+            }
             _ => eprintln!("{}", format!("Unknown commmand.").yellow()),
         }
     }
@@ -80,6 +188,108 @@ pub async fn run_node_cli(
             // Main commands:
             "exit" => break,
             "clear" => common_commands::clear::clear_command(),
+            "batchtip" => common_commands::batchtip::batchtip_command(sync_manager).await,
+            "rootaccount" => {
+                common_commands::rootaccount::rootaccount_command(key_holder, registery).await
+            }
+            "print" => match parts.get(1).map(String::as_str) {
+                Some("registery") => common_commands::registery::registery_command(registery).await,
+                Some("coinmanager") => {
+                    common_commands::coinmanager::coinmanager_command(coin_manager).await
+                }
+                Some("graveyard") => common_commands::graveyard::graveyard_command(graveyard).await,
+                Some("flamemanager") => {
+                    common_commands::flamemanager::flamemanager_command(flame_manager).await
+                }
+                _ => eprintln!(
+                    "{}",
+                    "Usage: print <registery|coinmanager|graveyard|flamemanager>.".yellow()
+                ),
+            },
+            "registery" => {
+                match (
+                    parts.get(1).map(String::as_str),
+                    parts.get(2).map(String::as_str),
+                ) {
+                    (Some("isaccountregistered"), Some(account_key_str)) => {
+                        let account_key = match parse_account_key(account_key_str) {
+                            Some(key) => key,
+                            None => {
+                                eprintln!("{}", "Invalid account key: expected 32-byte hex.".yellow());
+                                continue;
+                            }
+                        };
+
+                        let is_registered = {
+                            let _registery = registery.lock().await;
+                            _registery.is_account_registered(account_key)
+                        };
+                        println!("{}", is_registered);
+                    }
+                    _ => {
+                        eprintln!(
+                            "{}",
+                            "Usage: registery isaccountregistered <account_key_hex>.".yellow()
+                        );
+                    }
+                }
+            }
+            "coinmanager" => {
+                match (
+                    parts.get(1).map(String::as_str),
+                    parts.get(2).map(String::as_str),
+                ) {
+                    (Some("isaccountregistered"), Some(account_key_str)) => {
+                        let account_key = match parse_account_key(account_key_str) {
+                            Some(key) => key,
+                            None => {
+                                eprintln!("{}", "Invalid account key: expected 32-byte hex.".yellow());
+                                continue;
+                            }
+                        };
+
+                        let is_registered = {
+                            let _coin_manager = coin_manager.lock().await;
+                            _coin_manager.is_account_registered(account_key)
+                        };
+                        println!("{}", is_registered);
+                    }
+                    _ => {
+                        eprintln!(
+                            "{}",
+                            "Usage: coinmanager isaccountregistered <account_key_hex>.".yellow()
+                        );
+                    }
+                }
+            }
+            "flamemanager" => {
+                match (
+                    parts.get(1).map(String::as_str),
+                    parts.get(2).map(String::as_str),
+                ) {
+                    (Some("isaccountregistered"), Some(account_key_str)) => {
+                        let account_key = match parse_account_key(account_key_str) {
+                            Some(key) => key,
+                            None => {
+                                eprintln!("{}", "Invalid account key: expected 32-byte hex.".yellow());
+                                continue;
+                            }
+                        };
+
+                        let is_registered = {
+                            let _flame_manager = flame_manager.lock().await;
+                            _flame_manager.is_account_registered(account_key)
+                        };
+                        println!("{}", is_registered);
+                    }
+                    _ => {
+                        eprintln!(
+                            "{}",
+                            "Usage: flamemanager isaccountregistered <account_key_hex>.".yellow()
+                        );
+                    }
+                }
+            }
             // Lift-Liftup related commands:
             "liftaddr" => {
                 node_commands::liftaddr::liftaddr_command(chain, engine_key, self_account_key)
@@ -176,4 +386,10 @@ fn parse_cli_parts(line: Result<String, io::Error>) -> Option<Vec<String>> {
     }
 
     Some(parts)
+}
+
+fn parse_account_key(account_key_str: &str) -> Option<[u8; 32]> {
+    let account_key_str = account_key_str.trim_start_matches("0x");
+    let account_key_bytes = hex::decode(account_key_str).ok()?;
+    account_key_bytes.try_into().ok()
 }

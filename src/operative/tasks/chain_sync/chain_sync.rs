@@ -1,10 +1,17 @@
 use crate::{
+    communicative::peer::peer::PEER,
     communicative::rpc::bitcoin_rpc::{
         bitcoin_rpc::{get_chain_tip, retrieve_block},
         bitcoin_rpc_holder::BitcoinRPCHolder,
     },
+    communicative::tcp::client::TCPClient,
+    communicative::tcp::protocol::batchcontainer_by_prevoutpoint::BatchContainerByPrevOutpointResponseBody,
+    executive::exec_ctx::exec_ctx::ExecCtx,
     inscriptive::{
-        baked, registery::registery::REGISTERY, sync_manager::sync_manager::SYNC_MANAGER,
+        archival_manager::archival_manager::ARCHIVAL_MANAGER, baked,
+        coin_manager::coin_manager::COIN_MANAGER, flame_manager::flame_manager::FLAME_MANAGER,
+        graveyard::graveyard::GRAVEYARD, registery::registery::REGISTERY,
+        state_manager::state_manager::STATE_MANAGER, sync_manager::sync_manager::SYNC_MANAGER,
         utxo_set::utxo_set::UTXO_SET,
     },
     operative::run_args::chain::Chain,
@@ -12,6 +19,7 @@ use crate::{
 use async_trait::async_trait;
 use bitcoin::OutPoint;
 use colored::Colorize;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
 
@@ -26,7 +34,14 @@ pub trait ChainSync {
         &self,
         chain: Chain,
         rpc_holder: &BitcoinRPCHolder,
-        _registery: &REGISTERY,
+        engine_conn: &Option<PEER>,
+        engine_key: [u8; 32],
+        registery: &REGISTERY,
+        graveyard: &GRAVEYARD,
+        coin_manager: &COIN_MANAGER,
+        flame_manager: &FLAME_MANAGER,
+        state_manager: &STATE_MANAGER,
+        archival_manager: &Option<ARCHIVAL_MANAGER>,
         utxo_set: &UTXO_SET,
     );
 
@@ -54,7 +69,14 @@ impl ChainSync for SYNC_MANAGER {
         &self,
         chain: Chain,
         rpc_holder: &BitcoinRPCHolder,
-        _registery: &REGISTERY,
+        engine_conn: &Option<PEER>,
+        engine_key: [u8; 32],
+        registery: &REGISTERY,
+        graveyard: &GRAVEYARD,
+        coin_manager: &COIN_MANAGER,
+        flame_manager: &FLAME_MANAGER,
+        state_manager: &STATE_MANAGER,
+        archival_manager: &Option<ARCHIVAL_MANAGER>,
         utxo_set: &UTXO_SET,
     ) {
         let mut synced: bool = false;
@@ -211,7 +233,90 @@ impl ChainSync for SYNC_MANAGER {
                         let outputs = transaction.output.clone();
                         let txid = transaction.compute_txid();
 
-                        // Iterate over inputs.
+                        let first_tx_input = inputs.first().unwrap();
+                        let first_tx_input_outpoint = first_tx_input.previous_output;
+
+                        let prev_payload_tip_outpoint = {
+                            let _sync_manager = sync_manager.lock().await;
+                            _sync_manager.payload_tip().outpoint().expect("This should never happen.")
+                        };
+
+                        // If this is true, this is a CUBE Batch transaction.
+                        if prev_payload_tip_outpoint == first_tx_input_outpoint {
+                            let engine_conn = match engine_conn {
+                                Some(engine_conn) => Arc::clone(engine_conn),
+                                None => continue,
+                            };
+
+                            let (response_body, _) = match engine_conn
+                                .request_batchcontainer_by_prevoutpoint(prev_payload_tip_outpoint)
+                                .await
+                            {
+                                Ok(response) => response,
+                                Err(err) => {
+                                    eprintln!(
+                                        "{}",
+                                        format!(
+                                            "Error requesting batch container by prev outpoint: {:?}",
+                                            err
+                                        )
+                                        .yellow()
+                                    );
+                                    continue;
+                                }
+                            };
+
+                            let batch_container = match response_body {
+                                BatchContainerByPrevOutpointResponseBody::Ok(success_body) => {
+                                    match success_body.batch_container {
+                                        Some(batch_container) => batch_container,
+                                        None => continue,
+                                    }
+                                }
+                                BatchContainerByPrevOutpointResponseBody::Err(err) => {
+                                    eprintln!(
+                                        "{}",
+                                        format!(
+                                            "Batch container by prev outpoint response error: {:?}",
+                                            err
+                                        )
+                                        .yellow()
+                                    );
+                                    continue;
+                                }
+                            };
+
+                            let exec_ctx = ExecCtx::construct(
+                                engine_key,
+                                Arc::clone(sync_manager),
+                                Arc::clone(utxo_set),
+                                Arc::clone(registery),
+                                Arc::clone(graveyard),
+                                Arc::clone(coin_manager),
+                                Arc::clone(flame_manager),
+                                Arc::clone(state_manager),
+                                archival_manager.clone(),
+                            );
+
+                            let execute_batch_result = {
+                                let mut _exec_ctx = exec_ctx.lock().await;
+                                _exec_ctx.execute_batch(&batch_container).await
+                            };
+
+                            match execute_batch_result {
+                                Ok(batch_record) => {
+                                    println!("Executed batch during on-chain sync. Batch height: #{}.", batch_record.batch_height);
+                                }
+                                Err(err) => {
+                                    eprintln!(
+                                        "{}",
+                                        format!("Error executing batch during on-chain sync: {:?}", err).yellow()
+                                    );
+                                    continue;
+                                }
+                            }
+                        } else {
+                        // Iterate over inputs only in CUBE transaction case.
                         for txn_input in inputs.iter() {
                             let txn_input_outpoint = txn_input.previous_output;
 
@@ -221,8 +326,9 @@ impl ChainSync for SYNC_MANAGER {
                                 _utxo_set.remove_utxo(&txn_input_outpoint);
                             }
                         }
-
-                        // Iterate over outputs.
+                        }
+     
+                        // Iterate over outputs in any case.
                         for (txn_output_index, txn_output) in outputs.iter().enumerate() {
                             let txn_output_outpoint = OutPoint::new(txid, txn_output_index as u32);
 

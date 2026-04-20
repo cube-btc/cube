@@ -5,6 +5,14 @@ pub use crate::communicative::tcp::protocol::batchrecord::{
     BatchRecordRequestBody, BatchRecordResponseBody, BatchRecordResponseError,
     BatchRecordSuccessBody,
 };
+pub use crate::communicative::tcp::protocol::batchcontainer::{
+    BatchContainerRequestBody, BatchContainerResponseBody, BatchContainerResponseError,
+    BatchContainerSuccessBody,
+};
+pub use crate::communicative::tcp::protocol::batchcontainer_by_prevoutpoint::{
+    BatchContainerByPrevOutpointRequestBody, BatchContainerByPrevOutpointResponseBody,
+    BatchContainerByPrevOutpointResponseError, BatchContainerByPrevOutpointSuccessBody,
+};
 pub use crate::communicative::tcp::protocol::in_flight_sync::{
     InFlightSyncRequestBody, InFlightSyncResponseBody, InFlightSyncResponseError,
 };

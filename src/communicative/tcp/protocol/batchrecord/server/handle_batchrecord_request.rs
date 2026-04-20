@@ -2,12 +2,12 @@ use crate::communicative::tcp::package::{PackageKind, TCPPackage};
 use crate::communicative::tcp::protocol::batchrecord::{
     BatchRecordRequestBody, BatchRecordResponseBody, BatchRecordResponseError,
 };
-use crate::operative::tasks::engine_session::session_pool::session_pool::SESSION_POOL;
+use crate::inscriptive::archival_manager::archival_manager::ARCHIVAL_MANAGER;
 
 pub async fn handle_batchrecord_request(
     timestamp: i64,
     payload: &[u8],
-    session_pool: &SESSION_POOL,
+    archival_manager: &Option<ARCHIVAL_MANAGER>,
 ) -> Option<TCPPackage> {
     // 1 Deserialize the request body.
     let BatchRecordRequestBody { batch_height } = match BatchRecordRequestBody::deserialize(
@@ -27,20 +27,13 @@ pub async fn handle_batchrecord_request(
         }
     };
 
-    // 2 Resolve the batch record from the engine archival manager (if configured).
-    let response_body = {
-        let mut _session_pool = session_pool.lock().await;
-        let _exec_ctx = _session_pool.exec_ctx.lock().await;
-
-        match &_exec_ctx.archival_manager {
-            None => BatchRecordResponseBody::err(
-                BatchRecordResponseError::ArchivalManagerUnavailableError,
-            ),
-            Some(archival_manager) => {
-                let _archival_manager = archival_manager.lock().await;
-                let batch_record = _archival_manager.batch_record_by_height(batch_height);
-                BatchRecordResponseBody::ok(batch_record)
-            }
+    // 2 Resolve the batch record from the archival manager (if configured).
+    let response_body = match archival_manager {
+        None => BatchRecordResponseBody::err(BatchRecordResponseError::ArchivalManagerUnavailableError),
+        Some(archival_manager) => {
+            let _archival_manager = archival_manager.lock().await;
+            let batch_record = _archival_manager.batch_record_by_height(batch_height);
+            BatchRecordResponseBody::ok(batch_record)
         }
     };
 

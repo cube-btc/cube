@@ -1,9 +1,11 @@
+use crate::constructive::bitcoiny::batch_container::batch_container::BatchContainer;
 use crate::constructive::bitcoiny::batch_record::batch_record::BatchRecord;
 use crate::constructive::entry::entry::entry::Entry;
 use crate::inscriptive::archival_manager::errors::construction_error::ArchivalConstructionError;
 use crate::inscriptive::archival_manager::errors::insert_error::ArchivalManagerInsertBatchRecordError;
 use crate::operative::run_args::chain::Chain;
 use bitcoin::hashes::Hash;
+use bitcoin::OutPoint;
 use bitcoin::Txid;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
@@ -167,6 +169,29 @@ impl ArchivalManager {
             .values()
             .find(|r| r.batch_txid == *batch_txid)
             .cloned()
+    }
+
+    /// Returns the `BatchContainer` whose signed batch txn first input prevout txid matches the request outpoint txid.
+    pub fn batch_container_by_prev_payload_outpoint(
+        &self,
+        prev_payload_outpoint: &OutPoint,
+    ) -> Option<BatchContainer> {
+        self.in_memory_records
+            .values()
+            .find_map(|record| {
+                record
+                    .batch_container
+                    .signed_batch_txn
+                    .tx_inputs
+                    .first()
+                    .and_then(|(outpoint, _, _)| {
+                        if outpoint.txid == prev_payload_outpoint.txid {
+                            Some(record.batch_container.clone())
+                        } else {
+                            None
+                        }
+                    })
+            })
     }
 
     /// JSON for a full batch record (`BatchRecord::json`), resolved by batch txid.

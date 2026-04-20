@@ -153,16 +153,53 @@ pub async fn run(
         }
     };
 
+    // 10.c Initialize NNS client.
+    let nns_client = NNSClient::new(&key_holder).await;
+
+    // 10.d For node mode, pre-connect to engine so chain sync can pull batch containers.
+    let pre_sync_engine_conn: Option<PEER> = match operating_kind {
+        OperatingKind::Node => Some(loop {
+            match Peer::connect(chain, PeerKind::Engine, engine_key, &nns_client).await {
+                Ok(connection) => break connection,
+                Err(_) => {
+                    println!("{}", "Failed to connect. Re-trying in 5..".red());
+                    tokio::time::sleep(Duration::from_secs(5)).await;
+                    continue;
+                }
+            };
+        }),
+        OperatingKind::Engine => None,
+    };
+
     // 8 Spawn chain syncer to sync Bitcoin blocks.
     {
         let chain = chain.clone();
         let rpc_holder = rpc_holder.clone();
+        let engine_conn = pre_sync_engine_conn.clone();
+        let engine_key = engine_key;
         let registery = Arc::clone(&registery);
+        let graveyard = Arc::clone(&graveyard);
+        let coin_manager = Arc::clone(&coin_manager);
+        let flame_manager = Arc::clone(&flame_manager);
+        let state_manager = Arc::clone(&state_manager);
+        let archival_manager = archival_manager.clone();
         let sync_manager = Arc::clone(&sync_manager);
         let utxo_set = Arc::clone(&utxo_set);
         tokio::spawn(async move {
             let _ = sync_manager
-                .spawn_background_chain_syncer(chain, &rpc_holder, &registery, &utxo_set)
+                .spawn_background_chain_syncer(
+                    chain,
+                    &rpc_holder,
+                    &engine_conn,
+                    engine_key,
+                    &registery,
+                    &graveyard,
+                    &coin_manager,
+                    &flame_manager,
+                    &state_manager,
+                    &archival_manager,
+                    &utxo_set,
+                )
                 .await;
         });
     }
@@ -176,9 +213,6 @@ pub async fn run(
 
         println!("{}", "Syncing complete.");
     }
-
-    // 10 Initialize NNS client.
-    let nns_client = NNSClient::new(&key_holder).await;
 
     // 11 Operating-kind-specific initializations.
     match operating_kind {
@@ -267,7 +301,16 @@ pub async fn run(
             // 11.a.7 Run the session in the background: TODO
 
             // 11.a.8 Run the Engine CLI.
-            run_engine_cli(&session_pool).await;
+            run_engine_cli(
+                &session_pool,
+                &sync_manager,
+                &registery,
+                &graveyard,
+                &coin_manager,
+                &flame_manager,
+                &key_holder,
+            )
+            .await;
         }
         // 11.b Node-specific initializations.
         OperatingKind::Node => {
@@ -278,18 +321,8 @@ pub async fn run(
             }
 
             // 11.b.2 Connect to the engine.
-            let engine_conn: PEER = {
-                loop {
-                    match Peer::connect(chain, PeerKind::Engine, engine_key, &nns_client).await {
-                        Ok(connection) => break connection,
-                        Err(_) => {
-                            println!("{}", "Failed to connect. Re-trying in 5..".red());
-                            tokio::time::sleep(Duration::from_secs(5)).await;
-                            continue;
-                        }
-                    };
-                }
-            };
+            let engine_conn: PEER =
+                pre_sync_engine_conn.expect("Node mode must pre-connect to engine");
 
             // 11.b.3 Run the in-flight batch syncer in the background.
             if sync_mode == SyncMode::InFlight {

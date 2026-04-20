@@ -1032,6 +1032,8 @@ impl Registery {
 
             // 1.4 On-disk insertion.
             {
+                println!("Registery apply_changes: on-disk insertion account key: {} with registery index: {}", hex::encode(account_key), registery_index);
+
                 // 1.4.1 Open the tree for the account.
                 let tree = self
                     .on_disk_accounts

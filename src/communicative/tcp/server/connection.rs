@@ -2,6 +2,7 @@ use super::server::{IDLE_CLIENT_TIMEOUT, PAYLOAD_READ_TIMEOUT, PAYLOAD_WRITE_TIM
 use crate::communicative::peer::peer::SOCKET;
 use crate::communicative::tcp::package::{PackageKind, TCPPackage};
 use crate::communicative::tcp::tcp;
+use crate::inscriptive::archival_manager::archival_manager::ARCHIVAL_MANAGER;
 use crate::operative::run_args::operating_kind::OperatingKind;
 use crate::operative::tasks::engine_session::session_pool::session_pool::SESSION_POOL;
 use crate::transmutative::key::KeyHolder;
@@ -15,6 +16,7 @@ pub async fn handle_socket(
     operating_kind: OperatingKind,
     _keys: &KeyHolder,
     session_pool: &SESSION_POOL,
+    archival_manager: &Option<ARCHIVAL_MANAGER>,
 ) {
     loop {
         let package = {
@@ -86,7 +88,16 @@ pub async fn handle_socket(
         };
 
         let session_pool = Arc::clone(session_pool);
-        handle_package(package, socket, operating_kind, _keys, &session_pool).await;
+        let archival_manager = archival_manager.clone();
+        handle_package(
+            package,
+            socket,
+            operating_kind,
+            _keys,
+            &session_pool,
+            &archival_manager,
+        )
+        .await;
     }
 
     if let Some(alive) = alive {
@@ -101,6 +112,7 @@ pub async fn handle_package(
     operating_kind: OperatingKind,
     _keys: &KeyHolder,
     session_pool: &SESSION_POOL,
+    archival_manager: &Option<ARCHIVAL_MANAGER>,
 ) {
     let response_package_ = {
         match operating_kind {
@@ -122,11 +134,11 @@ pub async fn handle_package(
                     .await
                 }
                 PackageKind::BatchRecordProtocol => {
-                    let session_pool = Arc::clone(session_pool);
+                    let archival_manager = archival_manager.clone();
                     crate::communicative::tcp::protocol::batchrecord::server::handle_batchrecord_request(
                         package.timestamp(),
                         &package.payload(),
-                        &session_pool,
+                        &archival_manager,
                     )
                     .await
                 }
@@ -136,6 +148,24 @@ pub async fn handle_package(
                         package.timestamp(),
                         &package.payload(),
                         &session_pool,
+                    )
+                    .await
+                }
+                PackageKind::BatchContainerProtocol => {
+                    let archival_manager = archival_manager.clone();
+                    crate::communicative::tcp::protocol::batchcontainer::server::handle_batchcontainer_request(
+                        package.timestamp(),
+                        &package.payload(),
+                        &archival_manager,
+                    )
+                    .await
+                }
+                PackageKind::BatchContainerByPrevOutpointProtocol => {
+                    let archival_manager = archival_manager.clone();
+                    crate::communicative::tcp::protocol::batchcontainer_by_prevoutpoint::server::handle_batchcontainer_by_prevoutpoint_request(
+                        package.timestamp(),
+                        &package.payload(),
+                        &archival_manager,
                     )
                     .await
                 }

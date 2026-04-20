@@ -8,6 +8,7 @@ use crate::inscriptive::flame_manager::errors::register_account_error::FMRegiste
 use crate::inscriptive::flame_manager::flame::flame::Flame;
 use crate::inscriptive::registery::registery::REGISTERY;
 use crate::operative::run_args::chain::Chain;
+use serde_json::{Map, Value};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -222,6 +223,8 @@ impl FlameManager {
         for account_key in self.delta.new_accounts_to_register.iter() {
             // 1.1 On-disk insertion.
             {
+                println!("FlameManager apply_changes: on-disk insertion account key: {}", hex::encode(account_key));
+                
                 // 1.1.1 Open the tree for the account.
                 let tree = self.on_disk_accounts.open_tree(account_key).map_err(|e| {
                     FMApplyChangesError::AccountTreeOpenError(account_key.to_owned(), e)
@@ -475,6 +478,45 @@ impl FlameManager {
 
         // Clear the epheremal changes from the backup.
         self.backup_of_delta.flush();
+    }
+
+    /// Returns the flame manager as a JSON object.
+    pub fn json(&self) -> Value {
+        let mut obj = Map::new();
+        obj.insert(
+            "flame_set".to_string(),
+            Value::Object(
+                self.in_memory_flame_set
+                    .iter()
+                    .map(|(account_key, flames_by_height)| {
+                        let account_obj = flames_by_height
+                            .iter()
+                            .map(|(height, flames)| {
+                                let flames_json: Vec<Value> = flames
+                                    .iter()
+                                    .map(|(flame_index, flame)| {
+                                        let mut flame_obj = Map::new();
+                                        flame_obj.insert(
+                                            "flame_index".to_string(),
+                                            Value::Number((*flame_index as u64).into()),
+                                        );
+                                        flame_obj.insert(
+                                            "flame".to_string(),
+                                            serde_json::to_value(flame)
+                                                .expect("Flame must serialize to JSON"),
+                                        );
+                                        Value::Object(flame_obj)
+                                    })
+                                    .collect();
+                                (height.to_string(), Value::Array(flames_json))
+                            })
+                            .collect();
+                        (hex::encode(account_key), Value::Object(account_obj))
+                    })
+                    .collect(),
+            ),
+        );
+        Value::Object(obj)
     }
 }
 

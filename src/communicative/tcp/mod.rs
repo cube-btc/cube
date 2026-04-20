@@ -9,6 +9,14 @@ pub use protocol::batchrecord::{
     BatchRecordRequestBody, BatchRecordResponseBody, BatchRecordResponseError,
     BatchRecordSuccessBody,
 };
+pub use protocol::batchcontainer::{
+    BatchContainerRequestBody, BatchContainerResponseBody, BatchContainerResponseError,
+    BatchContainerSuccessBody,
+};
+pub use protocol::batchcontainer_by_prevoutpoint::{
+    BatchContainerByPrevOutpointRequestBody, BatchContainerByPrevOutpointResponseBody,
+    BatchContainerByPrevOutpointResponseError, BatchContainerByPrevOutpointSuccessBody,
+};
 pub use protocol::in_flight_sync::{
     InFlightSyncRequestBody, InFlightSyncResponseBody, InFlightSyncResponseError,
 };

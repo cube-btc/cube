@@ -1,5 +1,6 @@
 use super::connection::handle_socket;
 use super::super::tcp::port_number;
+use crate::inscriptive::archival_manager::archival_manager::ARCHIVAL_MANAGER;
 use crate::operative::run_args::{chain::Chain, operating_kind::OperatingKind};
 use crate::operative::tasks::engine_session::session_pool::session_pool::SESSION_POOL;
 use crate::transmutative::key::KeyHolder;
@@ -37,6 +38,12 @@ pub async fn run(
         }
     };
 
+    let archival_manager: Option<ARCHIVAL_MANAGER> = {
+        let _session_pool = session_pool.lock().await;
+        let _exec_ctx = _session_pool.exec_ctx.lock().await;
+        _exec_ctx.archival_manager.clone()
+    };
+
     match operating_kind {
         OperatingKind::Engine => loop {
             let (socket_, _) = match listener.accept().await {
@@ -47,9 +54,18 @@ pub async fn run(
             let socket = Arc::new(tokio::sync::Mutex::new(socket_));
             let keys = Arc::clone(&keys);
             let session_pool = Arc::clone(session_pool);
+            let archival_manager = archival_manager.clone();
 
             tokio::spawn(async move {
-                handle_socket(&socket, None, operating_kind, &keys, &session_pool).await;
+                handle_socket(
+                    &socket,
+                    None,
+                    operating_kind,
+                    &keys,
+                    &session_pool,
+                    &archival_manager,
+                )
+                .await;
             });
         },
         OperatingKind::Node => return,
