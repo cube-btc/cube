@@ -238,10 +238,14 @@ impl ChainSync for SYNC_MANAGER {
 
                         let prev_payload_tip_outpoint = {
                             let _sync_manager = sync_manager.lock().await;
-                            _sync_manager.payload_tip().outpoint().expect("This should never happen.")
+                            _sync_manager
+                                .payload_tip()
+                                .outpoint()
+                                .expect("This should never happen.")
                         };
 
                         // If this is true, this is a CUBE Batch transaction.
+                        // Kind of like placeholder for the time being.
                         if prev_payload_tip_outpoint == first_tx_input_outpoint {
                             let engine_conn = match engine_conn {
                                 Some(engine_conn) => Arc::clone(engine_conn),
@@ -270,19 +274,18 @@ impl ChainSync for SYNC_MANAGER {
                                 BatchContainerByPrevOutpointResponseBody::Ok(success_body) => {
                                     match success_body.batch_container {
                                         Some(batch_container) => batch_container,
-                                        None => continue,
+                                        None => panic!("PH BatchContainerByPrevOutpointResponseBody during on-chain-sync CANNOT be None!"),
                                     }
                                 }
                                 BatchContainerByPrevOutpointResponseBody::Err(err) => {
-                                    eprintln!(
+                                    panic!(
                                         "{}",
                                         format!(
-                                            "Batch container by prev outpoint response error: {:?}",
+                                            "PH BatchContainerByPrevOutpointResponseBody during on-chain-sync CANNOT be Err!: {:?}",
                                             err
                                         )
                                         .yellow()
                                     );
-                                    continue;
                                 }
                             };
 
@@ -305,29 +308,36 @@ impl ChainSync for SYNC_MANAGER {
 
                             match execute_batch_result {
                                 Ok(batch_record) => {
-                                    println!("Executed batch during on-chain sync. Batch height: #{}.", batch_record.batch_height);
+                                    println!(
+                                        "Executed batch during on-chain sync. Batch height: #{}.",
+                                        batch_record.batch_height
+                                    );
                                 }
                                 Err(err) => {
                                     eprintln!(
                                         "{}",
-                                        format!("Error executing batch during on-chain sync: {:?}", err).yellow()
+                                        format!(
+                                            "Error executing batch during on-chain sync: {:?}",
+                                            err
+                                        )
+                                        .yellow()
                                     );
                                     continue;
                                 }
                             }
                         } else {
-                        // Iterate over inputs only in CUBE transaction case.
-                        for txn_input in inputs.iter() {
-                            let txn_input_outpoint = txn_input.previous_output;
+                            // Iterate over inputs only in CUBE transaction case.
+                            for txn_input in inputs.iter() {
+                                let txn_input_outpoint = txn_input.previous_output;
 
-                            // Remove spent utxos from utxoset.
-                            {
-                                let mut _utxo_set = utxo_set.lock().await;
-                                _utxo_set.remove_utxo(&txn_input_outpoint);
+                                // Remove spent utxos from utxoset.
+                                {
+                                    let mut _utxo_set = utxo_set.lock().await;
+                                    _utxo_set.remove_utxo(&txn_input_outpoint);
+                                }
                             }
                         }
-                        }
-     
+
                         // Iterate over outputs in any case.
                         for (txn_output_index, txn_output) in outputs.iter().enumerate() {
                             let txn_output_outpoint = OutPoint::new(txid, txn_output_index as u32);
