@@ -17,6 +17,7 @@ use chrono::{DateTime, Utc};
 use colored::Colorize;
 use serde::Deserialize;
 use serde_json::Value;
+use std::io::ErrorKind;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -70,7 +71,20 @@ pub async fn runexplorer_command(
     let listener = match tokio::net::TcpListener::bind(addr).await {
         Ok(l) => l,
         Err(e) => {
-            eprintln!("{} {}", format!("runexplorer: failed to bind {}:", addr).yellow(), e);
+            if e.kind() == ErrorKind::AddrInUse {
+                eprintln!(
+                    "{}",
+                    format!(
+                        "runexplorer: port {} is already in use ({}).\n\
+                         If CUBE_EXPLORER_PORT={0} is set, the explorer already started automatically — skip `runexplorer {0}`.\n\
+                         Otherwise stop whatever owns the port, unset CUBE_EXPLORER_PORT, or use e.g. `runexplorer 8081`.",
+                        port, e
+                    )
+                    .yellow()
+                );
+            } else {
+                eprintln!("{} {}", format!("runexplorer: failed to bind {}:", addr).yellow(), e);
+            }
             return;
         }
     };
