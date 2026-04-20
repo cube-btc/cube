@@ -1,9 +1,10 @@
 use crate::communicative::rpc::bitcoin_rpc::bitcoin_rpc_error::{
-    BitcoinRPCGetChainTipError, BitcoinRPCRetrieveBlockError, BitcoinRPCValidateRPCError,
+    BitcoinRPCBroadcastRawTransactionError, BitcoinRPCGetChainTipError, BitcoinRPCRetrieveBlockError,
+    BitcoinRPCValidateRPCError,
 };
 use crate::communicative::rpc::bitcoin_rpc::bitcoin_rpc_holder::BitcoinRPCHolder;
 use crate::operative::run_args::chain::Chain;
-use bitcoin::{Block, BlockHash};
+use bitcoin::{Block, BlockHash, Transaction, Txid};
 use bitcoincore_rpc::{json::GetBlockchainInfoResult, Auth, Client, RpcApi};
 
 /// Validates the Bitcoin RPC.
@@ -110,4 +111,36 @@ pub fn retrieve_block(
 
     // Return block.
     Ok(block)
+}
+
+/// Broadcasts a raw transaction hex and returns its txid.
+pub fn broadcast_raw_transaction(
+    rpc_holder: &BitcoinRPCHolder,
+    raw_transaction_hex: &str,
+) -> Result<Txid, BitcoinRPCBroadcastRawTransactionError> {
+    let rpc_url = rpc_holder.url();
+    let rpc_user = rpc_holder.user();
+    let rpc_password = rpc_holder.password();
+
+    // Create RPC client.
+    let rpc_client = match Client::new(&rpc_url, Auth::UserPass(rpc_user, rpc_password)) {
+        Ok(client) => client,
+        Err(err) => return Err(BitcoinRPCBroadcastRawTransactionError::RPCErr(err)),
+    };
+
+    // Decode raw transaction hex into a bitcoin::Transaction.
+    let raw_bytes = match hex::decode(raw_transaction_hex) {
+        Ok(raw_bytes) => raw_bytes,
+        Err(err) => return Err(BitcoinRPCBroadcastRawTransactionError::HexErr(err)),
+    };
+    let transaction: Transaction = match bitcoin::consensus::encode::deserialize(&raw_bytes) {
+        Ok(transaction) => transaction,
+        Err(err) => return Err(BitcoinRPCBroadcastRawTransactionError::DecodeErr(err)),
+    };
+
+    // Broadcast the transaction.
+    match rpc_client.send_raw_transaction(&transaction) {
+        Ok(txid) => Ok(txid),
+        Err(err) => Err(BitcoinRPCBroadcastRawTransactionError::RPCErr(err)),
+    }
 }

@@ -94,12 +94,12 @@ impl BatchRecord {
         );
 
         obj.insert(
-            "batch_timestamp".to_string(),
+            "timestamp".to_string(),
             Value::Number(self.batch_timestamp.into()),
         );
 
         obj.insert(
-            "batch_txid".to_string(),
+            "txid".to_string(),
             Value::String(self.batch_container.signed_batch_txn.txid().to_string()),
         );
 

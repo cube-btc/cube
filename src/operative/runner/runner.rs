@@ -223,6 +223,7 @@ pub async fn run(
             {
                 let session_pool = Arc::clone(&session_pool);
                 let sync_manager = Arc::clone(&sync_manager);
+                let rpc_holder = rpc_holder.clone();
                 let engine_key = engine_key.clone();
                 let utxo_set = Arc::clone(&utxo_set);
                 let registery = Arc::clone(&registery);
@@ -237,6 +238,7 @@ pub async fn run(
                     let _ = engine_batch_builder_background_task(
                         &session_pool,
                         &sync_manager,
+                        &rpc_holder,
                         &key_holder,
                         engine_key,
                         &utxo_set,
@@ -257,7 +259,7 @@ pub async fn run(
                 let chain = chain.clone();
                 let session_pool = Arc::clone(&session_pool);
                 let _ = tokio::spawn(async move {
-                    tcp_server::run(operating_kind, chain, keys, &session_pool).await;
+                    tcp_server::server::run(operating_kind, chain, keys, &session_pool).await;
                 });
             }
 

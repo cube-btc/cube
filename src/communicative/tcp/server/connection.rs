@@ -1,4 +1,4 @@
-use super::{IDLE_CLIENT_TIMEOUT, PAYLOAD_READ_TIMEOUT};
+use super::server::{IDLE_CLIENT_TIMEOUT, PAYLOAD_READ_TIMEOUT, PAYLOAD_WRITE_TIMEOUT};
 use crate::communicative::peer::peer::SOCKET;
 use crate::communicative::tcp::package::{PackageKind, TCPPackage};
 use crate::communicative::tcp::tcp;
@@ -102,8 +102,6 @@ pub async fn handle_package(
     _keys: &KeyHolder,
     session_pool: &SESSION_POOL,
 ) {
-    use super::PAYLOAD_WRITE_TIMEOUT;
-
     let response_package_ = {
         match operating_kind {
             OperatingKind::Engine => match package.kind() {

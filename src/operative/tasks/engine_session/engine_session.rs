@@ -1,3 +1,5 @@
+use crate::communicative::rpc::bitcoin_rpc::bitcoin_rpc::broadcast_raw_transaction;
+use crate::communicative::rpc::bitcoin_rpc::bitcoin_rpc_holder::BitcoinRPCHolder;
 use crate::executive::exec_ctx::exec_ctx::ExecCtx;
 use crate::inscriptive::archival_manager::archival_manager::ARCHIVAL_MANAGER;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
@@ -19,6 +21,7 @@ const WAITING_WINDOW_PERIOD_SECONDS: u64 = 60;
 pub async fn engine_batch_builder_background_task(
     session_pool: &SESSION_POOL,
     sync_manager: &SYNC_MANAGER,
+    rpc_holder: &BitcoinRPCHolder,
     engine_keyholder: &KeyHolder,
     // Exec ctx params
     engine_key: [u8; 32],
@@ -113,6 +116,13 @@ pub async fn engine_batch_builder_background_task(
                 Ok(batch_container) => batch_container,
                 Err(error) => {
                     eprintln!("Failed to get the batch container during batch builder background task: {:?} at batch height: #{}, timestamp: {}, and bitcoin transaction fee: {}.", error, current_execution_batch_height, current_execution_timestamp, bitcoin_transaction_fee);
+
+                    // End the session.
+                    {
+                        let mut _session_pool = session_pool.lock().await;
+                        _session_pool.end_session().await;
+                    }
+
                     continue;
                 }
             }
@@ -129,7 +139,27 @@ pub async fn engine_batch_builder_background_task(
             _session_pool.end_session().await;
         }
 
-        // 11 Construct ExecCtx.
+        // 11 Broadcast raw transaction.
+        {
+            // 11.1 Encode the signed batch transaction bytes as a hex string.
+            let raw_transaction_hex =
+                hex::encode(batch_container.signed_batch_txn.serialize_bytes());
+
+            // 11.2 Broadcast the raw transaction.
+            match broadcast_raw_transaction(rpc_holder, &raw_transaction_hex) {
+                Ok(txid) => println!(
+                    "Batch transaction broadcasted successfully: txid: {}, expected txid: {}",
+                    txid,
+                    batch_container.signed_batch_txn.txid().to_string()
+                ),
+                Err(error) => {
+                    eprintln!("Failed to broadcast batch transaction: {:?}", error);
+                    continue;
+                }
+            }
+        }
+
+        // 12 Construct ExecCtx.
         let exec_ctx = ExecCtx::construct(
             engine_key,
             Arc::clone(sync_manager),
@@ -142,18 +172,21 @@ pub async fn engine_batch_builder_background_task(
             archival_manager.clone(),
         );
 
-        // 12 Try to execute the batch container.
+        // 13 Try to execute the batch container.
         let execute_batch_result = {
             let mut _exec_ctx = exec_ctx.lock().await;
             _exec_ctx.execute_batch(&batch_container).await
         };
 
-        // 13 Match the execute batch result.
+        // 14 Match the execute batch result.
         match execute_batch_result {
-            Ok(batch_record) => println!(
-                "New batch record: {}",
-                to_string_pretty(&batch_record.json()).expect("serde_json::Value should serialize")
-            ),
+            Ok(batch_record) => {
+                println!(
+                    "New batch record: {}",
+                    to_string_pretty(&batch_record.json())
+                        .expect("serde_json::Value should serialize")
+                );
+            }
             Err(error) => {
                 eprintln!("Failed to execute the batch container during batch builder background task: {:?} at batch height: #{}, timestamp: {}, and bitcoin transaction fee: {}.", error, current_execution_batch_height, current_execution_timestamp, bitcoin_transaction_fee);
                 continue;

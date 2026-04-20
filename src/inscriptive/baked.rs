@@ -9,7 +9,7 @@ pub const GENESIS_INSCRIPTION: &[u8] = b"O Moses! Do not be afraid. Indeed, you 
 // Port number
 pub const SIGNET_PORT: u16 = 6272;
 // Bitcoin block height at which the syncing begins.
-pub const SIGNET_SYNC_START_HEIGHT: u64 = 300_520;
+pub const SIGNET_SYNC_START_HEIGHT: u64 = 300_899;
 // Well-known Engine public key
 pub const SIGNET_ENGINE_PUBLIC_KEY: [u8; 32] = [
     0xc6, 0xd3, 0x4c, 0xd1, 0x51, 0x3e, 0x9b, 0xd8, 0x99, 0x0d, 0x0d, 0x9b, 0xdc, 0xa3, 0x67, 0xe2,

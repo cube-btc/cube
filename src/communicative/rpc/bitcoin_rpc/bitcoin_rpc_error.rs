@@ -17,6 +17,13 @@ pub enum BitcoinRPCRetrieveBlockError {
     RPCErr(bitcoincore_rpc::Error),
 }
 
+#[derive(Debug)]
+pub enum BitcoinRPCBroadcastRawTransactionError {
+    HexErr(hex::FromHexError),
+    DecodeErr(bitcoin::consensus::encode::Error),
+    RPCErr(bitcoincore_rpc::Error),
+}
+
 impl fmt::Display for BitcoinRPCValidateRPCError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -39,6 +46,20 @@ impl fmt::Display for BitcoinRPCRetrieveBlockError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             BitcoinRPCRetrieveBlockError::RPCErr(err) => write!(f, "RPC error: {}", err),
+        }
+    }
+}
+
+impl fmt::Display for BitcoinRPCBroadcastRawTransactionError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            BitcoinRPCBroadcastRawTransactionError::HexErr(err) => {
+                write!(f, "Invalid raw transaction hex: {}", err)
+            }
+            BitcoinRPCBroadcastRawTransactionError::DecodeErr(err) => {
+                write!(f, "Invalid raw transaction bytes: {}", err)
+            }
+            BitcoinRPCBroadcastRawTransactionError::RPCErr(err) => write!(f, "RPC error: {}", err),
         }
     }
 }
