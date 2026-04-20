@@ -137,8 +137,8 @@ pub async fn run_node_cli(
                 )
                 .await
             }
-            //"conn" => ncli::conn::conn_command(engine_conn).await,
-            //"ping" => ncli::ping::ping_command(engine_conn).await,
+            "conn" => node_commands::conn::conn_command(engine_conn).await,
+            "ping" => node_commands::ping::ping_command(engine_conn).await,
             "npub" => node_commands::npub::npub_command(key_holder).await,
             "decompile" => {
                 let parts_ref: Vec<&str> = parts.iter().map(String::as_str).collect();

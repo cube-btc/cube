@@ -9,6 +9,9 @@ pub use protocol::batchrecord::{
     BatchRecordRequestBody, BatchRecordResponseBody, BatchRecordResponseError,
     BatchRecordSuccessBody,
 };
+pub use protocol::in_flight_sync::{
+    InFlightSyncRequestBody, InFlightSyncResponseBody, InFlightSyncResponseError,
+};
 pub use protocol::liftup_v1::{
     ExecLiftupInPoolError, LiftupV1RequestBody, LiftupV1ResponseBody, LiftupV1ResponseError,
     LiftupV1SuccessBody,

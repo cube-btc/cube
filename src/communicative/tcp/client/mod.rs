@@ -5,6 +5,9 @@ pub use crate::communicative::tcp::protocol::batchrecord::{
     BatchRecordRequestBody, BatchRecordResponseBody, BatchRecordResponseError,
     BatchRecordSuccessBody,
 };
+pub use crate::communicative::tcp::protocol::in_flight_sync::{
+    InFlightSyncRequestBody, InFlightSyncResponseBody, InFlightSyncResponseError,
+};
 pub use crate::communicative::tcp::protocol::liftup_v1::{
     ExecLiftupInPoolError, LiftupV1RequestBody, LiftupV1ResponseBody, LiftupV1ResponseError,
     LiftupV1SuccessBody,

@@ -34,6 +34,7 @@ use crate::operative::tasks::chain_sync::chain_sync::ChainSync;
 use crate::operative::tasks::engine_session::engine_session::engine_batch_builder_background_task;
 use crate::operative::tasks::engine_session::session_pool::session_pool::SessionPool;
 use crate::operative::tasks::engine_session::session_pool::session_pool::SESSION_POOL;
+use crate::operative::tasks::in_flight_batch_sync::in_flight_batch_sync::in_flight_batch_sync_background_task;
 use crate::transmutative::key::KeyHolder;
 use colored::Colorize;
 use std::sync::Arc;
@@ -48,7 +49,7 @@ pub async fn run(
     chain: Chain,
     operating_kind: OperatingKind,
     rpc_holder: BitcoinRPCHolder,
-    _sync_mode: SyncMode,
+    sync_mode: SyncMode,
     key_holder: KeyHolder,
 ) {
     // 1 Wrap KeyHolder
@@ -290,7 +291,36 @@ pub async fn run(
                 }
             };
 
-            // 11.b.3 Run the node CLI.
+            // 11.b.3 Run the in-flight batch syncer in the background.
+            if sync_mode == SyncMode::InFlight {
+                let engine_conn = Arc::clone(&engine_conn);
+                let sync_manager = Arc::clone(&sync_manager);
+                let utxo_set = Arc::clone(&utxo_set);
+                let registery = Arc::clone(&registery);
+                let graveyard = Arc::clone(&graveyard);
+                let coin_manager = Arc::clone(&coin_manager);
+                let flame_manager = Arc::clone(&flame_manager);
+                let state_manager = Arc::clone(&state_manager);
+                let archival_manager = archival_manager.clone();
+
+                tokio::spawn(async move {
+                    in_flight_batch_sync_background_task(
+                        &engine_conn,
+                        &sync_manager,
+                        engine_key,
+                        &utxo_set,
+                        &registery,
+                        &graveyard,
+                        &coin_manager,
+                        &flame_manager,
+                        &state_manager,
+                        &archival_manager,
+                    )
+                    .await;
+                });
+            }
+
+            // 11.b.4 Run the node CLI.
             run_node_cli(
                 chain,
                 engine_key,

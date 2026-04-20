@@ -130,6 +130,15 @@ pub async fn handle_package(
                     )
                     .await
                 }
+                PackageKind::InFlightSyncProtocol => {
+                    let session_pool = Arc::clone(session_pool);
+                    crate::communicative::tcp::protocol::in_flight_sync::server::handle_in_flight_sync_request::handle_in_flight_sync_request(
+                        package.timestamp(),
+                        &package.payload(),
+                        &session_pool,
+                    )
+                    .await
+                }
             },
             OperatingKind::Node => return,
         }

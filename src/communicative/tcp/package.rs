@@ -7,6 +7,7 @@ pub enum PackageKind {
     Ping,
     LiftupV1Protocol,
     BatchRecordProtocol,
+    InFlightSyncProtocol,
 }
 
 impl PackageKind {
@@ -15,6 +16,7 @@ impl PackageKind {
             PackageKind::Ping => 0x00,
             PackageKind::LiftupV1Protocol => 0x01,
             PackageKind::BatchRecordProtocol => 0x02,
+            PackageKind::InFlightSyncProtocol => 0x03,
         }
     }
     pub fn from_bytecode(bytecode: u8) -> Option<Self> {
@@ -22,6 +24,7 @@ impl PackageKind {
             0x00 => Some(PackageKind::Ping),
             0x01 => Some(PackageKind::LiftupV1Protocol),
             0x02 => Some(PackageKind::BatchRecordProtocol),
+            0x03 => Some(PackageKind::InFlightSyncProtocol),
             _ => None,
         }
     }
