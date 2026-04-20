@@ -6,6 +6,7 @@ use std::time::Duration;
 pub enum PackageKind {
     Ping,
     LiftupV1Protocol,
+    BatchRecordProtocol,
 }
 
 impl PackageKind {
@@ -13,12 +14,14 @@ impl PackageKind {
         match self {
             PackageKind::Ping => 0x00,
             PackageKind::LiftupV1Protocol => 0x01,
+            PackageKind::BatchRecordProtocol => 0x02,
         }
     }
     pub fn from_bytecode(bytecode: u8) -> Option<Self> {
         match bytecode {
             0x00 => Some(PackageKind::Ping),
             0x01 => Some(PackageKind::LiftupV1Protocol),
+            0x02 => Some(PackageKind::BatchRecordProtocol),
             _ => None,
         }
     }

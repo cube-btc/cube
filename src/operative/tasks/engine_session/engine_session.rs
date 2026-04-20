@@ -47,6 +47,11 @@ pub async fn engine_batch_builder_background_task(
         // 3 Get current timestamp.
         let current_execution_timestamp = Utc::now().timestamp() as u64;
 
+        println!(
+            "BATCH BUILDER SESSION BEGINNING: height: #{}, timestamp: {}",
+            current_execution_batch_height, current_execution_timestamp
+        );
+
         // 4 TODO: Construct the bitcoin transaction fee.
         // Currently hardcoded to 500 satoshis as a placeholder.
         let bitcoin_transaction_fee = 500;
@@ -84,6 +89,7 @@ pub async fn engine_batch_builder_background_task(
 
         // 8 If the number of entries is zero, end the session and go to the next iteration.
         if number_of_entries == 0 {
+            println!("No entries in the session pool, ending the session and going to the next iteration.");
             // 8.1 End the session.
             {
                 let mut _session_pool = session_pool.lock().await;
@@ -111,6 +117,11 @@ pub async fn engine_batch_builder_background_task(
                 }
             }
         };
+
+        println!(
+            "Batch Container: {}",
+            to_string_pretty(&batch_container.json()).expect("serde_json::Value should serialize")
+        );
 
         // 10 End the session pool.
         {

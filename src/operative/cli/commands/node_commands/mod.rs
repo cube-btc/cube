@@ -1,9 +1,10 @@
+pub mod batchrecord;
 pub mod conn;
 pub mod decompile;
-pub mod liftup;
 pub mod liftaddr;
-pub mod liftuplocal;
 pub mod lifts;
+pub mod liftup;
+pub mod liftuplocal;
 pub mod r#move;
 pub mod npub;
 pub mod ping;

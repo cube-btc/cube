@@ -106,6 +106,20 @@ pub async fn run_node_cli(
                 )
                 .await
             }
+            "batchrecord" => {
+                let batch_height: u64 = match parts.get(1).and_then(|s| s.parse().ok()) {
+                    Some(h) => h,
+                    None => {
+                        eprintln!(
+                            "{}",
+                            "Usage: batchrecord <batch_height> (non-negative integer)."
+                                .yellow()
+                        );
+                        continue;
+                    }
+                };
+                node_commands::batchrecord::batchrecord_command(batch_height, engine_conn).await;
+            }
             "liftuplocal" => {
                 node_commands::liftuplocal::liftup_local_command(
                     engine_key,

@@ -123,6 +123,15 @@ pub async fn handle_package(
                     )
                     .await
                 }
+                PackageKind::BatchRecordProtocol => {
+                    let session_pool = Arc::clone(session_pool);
+                    crate::communicative::tcp::protocol::batchrecord::server::handle_batchrecord_request(
+                        package.timestamp(),
+                        &package.payload(),
+                        &session_pool,
+                    )
+                    .await
+                }
             },
             OperatingKind::Node => return,
         }
