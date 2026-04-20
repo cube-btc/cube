@@ -5,6 +5,7 @@ authors = ["Brock Aegean <brock@bits.app>"]
 edition = "2021"
 
 [dependencies]
+axum = "0.7.9"
 async-trait = "0.1.83"
 bech32 = "0.11.0"
 bit-vec = "0.8.0"

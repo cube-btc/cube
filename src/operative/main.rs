@@ -32,10 +32,10 @@ fn main() {
         // 2.b Print genesis parameters.
         3 => genesis(&args),
 
-        // 2.c Run the appropriate mode based on the arguments.
+        // 2.d Run the appropriate mode based on the arguments.
         8 => run(&args),
 
-        // 2.d Invalid arguments.
+        // 2.e Invalid arguments.
         _ => print_correct_usage(),
     }
 }
@@ -413,7 +413,7 @@ fn print_correct_usage() {
     eprintln!(
         "{}",
         format!(
-            "Usage:\n  gensec\n  genesis <mainnet|signet|testbed>\n  <mode> <chain> <kind> <bitcoin-rpc-url> <bitcoin-rpc-user> <bitcoin-rpc-password> <syncinflight?>"
+            "Usage:\n  gensec\n  genesis <mainnet|signet|testbed>\n  <mode> <chain> <kind> <bitcoin-rpc-url> <bitcoin-rpc-user> <bitcoin-rpc-password> <syncinflight?>\n\nIn engine/node CLI (archival mode): runexplorer <port>"
         )
         .red()
     );

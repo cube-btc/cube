@@ -27,6 +27,7 @@ use crate::inscriptive::utxo_set::utxo_set::UTXOSet;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
 use crate::operative::cli::cli::run_engine_cli;
 use crate::operative::cli::cli::run_node_cli;
+use crate::operative::cli::commands::common_commands::runexplorer;
 use crate::operative::run_args::{
     chain::Chain, operating_kind::OperatingKind, resource_mode::ResourceMode, sync_mode::SyncMode,
 };
@@ -300,15 +301,28 @@ pub async fn run(
 
             // 11.a.7 Run the session in the background: TODO
 
-            // 11.a.8 Run the Engine CLI.
+            // 11.a.8 Optional HTTP explorer: CUBE_EXPLORER_PORT (non-interactive / Docker).
+            maybe_start_explorer_from_env(
+                chain,
+                resource_mode,
+                &archival_manager,
+                &registery,
+                &coin_manager,
+                &flame_manager,
+            )
+            .await;
+
+            // 11.a.9 Run the Engine CLI.
             run_engine_cli(
                 &session_pool,
+                chain,
                 &sync_manager,
                 &registery,
                 &graveyard,
                 &coin_manager,
                 &flame_manager,
                 &key_holder,
+                archival_manager.clone(),
             )
             .await;
         }
@@ -353,7 +367,18 @@ pub async fn run(
                 });
             }
 
-            // 11.b.4 Run the node CLI.
+            // 11.b.4 Optional HTTP explorer: CUBE_EXPLORER_PORT (non-interactive / Docker).
+            maybe_start_explorer_from_env(
+                chain,
+                resource_mode,
+                &archival_manager,
+                &registery,
+                &coin_manager,
+                &flame_manager,
+            )
+            .await;
+
+            // 11.b.5 Run the node CLI.
             run_node_cli(
                 chain,
                 engine_key,
@@ -373,4 +398,52 @@ pub async fn run(
             .await;
         }
     }
+}
+
+/// If `CUBE_EXPLORER_PORT` is set, starts the block explorer (archival mode only).
+async fn maybe_start_explorer_from_env(
+    chain: Chain,
+    resource_mode: ResourceMode,
+    archival_manager: &Option<ARCHIVAL_MANAGER>,
+    registery: &REGISTERY,
+    coin_manager: &COIN_MANAGER,
+    flame_manager: &FLAME_MANAGER,
+) {
+    let Ok(port_str) = std::env::var("CUBE_EXPLORER_PORT") else {
+        return;
+    };
+    let trimmed = port_str.trim();
+    if trimmed.is_empty() {
+        return;
+    }
+    let port: u16 = match trimmed.parse() {
+        Ok(p) => p,
+        Err(_) => {
+            eprintln!(
+                "{} Ignoring CUBE_EXPLORER_PORT={:?} (expected port 1–65535).",
+                "Warning:".yellow(),
+                port_str
+            );
+            return;
+        }
+    };
+    if resource_mode != ResourceMode::Archival {
+        eprintln!(
+            "{} CUBE_EXPLORER_PORT is set but resource mode is not archival; explorer not started.",
+            "Warning:".yellow()
+        );
+        return;
+    }
+    let Some(am) = archival_manager.as_ref() else {
+        return;
+    };
+    runexplorer::runexplorer_command(
+        chain,
+        port,
+        Some(am),
+        registery,
+        coin_manager,
+        flame_manager,
+    )
+    .await;
 }

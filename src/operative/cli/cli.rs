@@ -19,12 +19,14 @@ use std::io::BufRead;
 /// Runs the Engine CLI.
 pub async fn run_engine_cli(
     _session_pool: &SESSION_POOL,
+    chain: Chain,
     sync_manager: &SYNC_MANAGER,
     registery: &REGISTERY,
     graveyard: &GRAVEYARD,
     coin_manager: &COIN_MANAGER,
     flame_manager: &FLAME_MANAGER,
     key_holder: &KeyHolder,
+    archival_manager: Option<ARCHIVAL_MANAGER>,
 ) {
     // 1 Print the CLI prompt.
     print_cli_prompt();
@@ -47,6 +49,24 @@ pub async fn run_engine_cli(
             "exit" => break,
             "clear" => common_commands::clear::clear_command(),
             "batchtip" => common_commands::batchtip::batchtip_command(sync_manager).await,
+            "runexplorer" => {
+                let port: u16 = match parts.get(1).and_then(|s| s.parse().ok()) {
+                    Some(p) => p,
+                    None => {
+                        eprintln!("{}", "Usage: runexplorer <port> (e.g. 8080).".yellow());
+                        continue;
+                    }
+                };
+                common_commands::runexplorer::runexplorer_command(
+                    chain,
+                    port,
+                    archival_manager.as_ref(),
+                    registery,
+                    coin_manager,
+                    flame_manager,
+                )
+                .await;
+            }
             "rootaccount" => common_commands::rootaccount::rootaccount_command(key_holder, registery).await,
             "print" => match parts.get(1).map(String::as_str) {
                 Some("registery") => common_commands::registery::registery_command(registery).await,
@@ -189,6 +209,24 @@ pub async fn run_node_cli(
             "exit" => break,
             "clear" => common_commands::clear::clear_command(),
             "batchtip" => common_commands::batchtip::batchtip_command(sync_manager).await,
+            "runexplorer" => {
+                let port: u16 = match parts.get(1).and_then(|s| s.parse().ok()) {
+                    Some(p) => p,
+                    None => {
+                        eprintln!("{}", "Usage: runexplorer <port> (e.g. 8080).".yellow());
+                        continue;
+                    }
+                };
+                common_commands::runexplorer::runexplorer_command(
+                    chain,
+                    port,
+                    archival_manager.as_ref(),
+                    registery,
+                    coin_manager,
+                    flame_manager,
+                )
+                .await;
+            }
             "rootaccount" => {
                 common_commands::rootaccount::rootaccount_command(key_holder, registery).await
             }
