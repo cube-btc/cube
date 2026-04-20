@@ -223,8 +223,6 @@ impl FlameManager {
         for account_key in self.delta.new_accounts_to_register.iter() {
             // 1.1 On-disk insertion.
             {
-                println!("FlameManager apply_changes: on-disk insertion account key: {}", hex::encode(account_key));
-                
                 // 1.1.1 Open the tree for the account.
                 let tree = self.on_disk_accounts.open_tree(account_key).map_err(|e| {
                     FMApplyChangesError::AccountTreeOpenError(account_key.to_owned(), e)
