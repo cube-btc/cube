@@ -73,7 +73,7 @@ mod batchtxn_test {
         );
 
         // 9 Construct chain.
-        let chain = Chain::Signet;
+        let chain = Chain::Testbed;
 
         // 10 Erase and construct the registery.
         erase_registery(chain);
@@ -105,7 +105,7 @@ mod batchtxn_test {
 
         // 13 Encode the tweaked key for the payload to fund into an address.
         let payload_to_fund_taproot_address =
-            encode_p2tr(Chain::Signet, payload_to_fund_taproot_key)
+            encode_p2tr(chain, payload_to_fund_taproot_key)
                 .expect("Failed to encode taproot address.");
 
         println!(
@@ -141,7 +141,7 @@ mod batchtxn_test {
         );
 
         let liftv1_address =
-            return_liftv1_address(Chain::Signet, user_public_key, engine_public_key)
+            return_liftv1_address(chain, user_public_key, engine_public_key)
                 .expect("Failed to get liftv1 address.");
 
         println!("Liftv1 address: {}", liftv1_address);
