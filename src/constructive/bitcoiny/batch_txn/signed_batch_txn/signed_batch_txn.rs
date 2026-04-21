@@ -193,6 +193,7 @@ impl SignedBatchTxn {
                                 ];
 
                                 tx_input_witnesses.push(prev_liftv1_witness);
+                                tx_input_index_iterator += 1;
                             }
                             Lift::LiftV2(liftv2) => {
                                 return Err(SignedBatchTxnConstructError::LiftV2NotSupportedError(
