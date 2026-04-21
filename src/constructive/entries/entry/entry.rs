@@ -48,7 +48,9 @@ impl Entry {
     }
 
     /// Returns the entry ID.
-    pub fn entry_id(&self, batch_height: u64) -> Option<[u8; 32]> {
+    ///
+    /// `entry_index_in_batch` is the zero-based position of this entry among entries executed in the batch.
+    pub fn entry_id(&self, batch_height: u64, entry_index_in_batch: u32) -> Option<[u8; 32]> {
         match self {
             Entry::Move(move_entry) => {
                 // 1 Initialize the preimage.
@@ -57,13 +59,16 @@ impl Entry {
                 // 2 Push batch height to the preimage.
                 preimage.extend(batch_height.to_le_bytes());
 
-                // 3 Push move sighash to the preimage.
+                // 3 Push entry index in batch to the preimage.
+                preimage.extend(entry_index_in_batch.to_le_bytes());
+
+                // 4 Push move sighash to the preimage.
                 preimage.extend(move_entry.sighash().ok()?);
 
-                // 4 Hash the preimage.
+                // 5 Hash the preimage.
                 let hash = preimage.hash(Some(HashTag::MoveEntryID));
 
-                // 5 Return the hash.
+                // 6 Return the hash.
                 Some(hash)
             }
             Entry::Call(_) => panic!("Not implemented yet."),
@@ -74,13 +79,16 @@ impl Entry {
                 // 2 Push batch height to the preimage.
                 preimage.extend(batch_height.to_le_bytes());
 
-                // 3 Push liftup sighash to the preimage.
+                // 3 Push entry index in batch to the preimage.
+                preimage.extend(entry_index_in_batch.to_le_bytes());
+
+                // 4 Push liftup sighash to the preimage.
                 preimage.extend(liftup.sighash().ok()?);
 
-                // 4 Hash the preimage.
+                // 5 Hash the preimage.
                 let hash = preimage.hash(Some(HashTag::LiftupEntryID));
 
-                // 5 Return the hash.
+                // 6 Return the hash.
                 Some(hash)
             },
         }

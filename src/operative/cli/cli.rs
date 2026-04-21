@@ -48,7 +48,7 @@ pub async fn run_engine_cli(
             // Main commands:
             "exit" => break,
             "clear" => common_commands::clear::clear_command(),
-            "batchtip" => common_commands::batchtip::batchtip_command(sync_manager).await,
+            "tip" => common_commands::tip::tip_command(sync_manager).await,
             "runexplorer" => {
                 let port: u16 = match parts.get(1).and_then(|s| s.parse().ok()) {
                     Some(p) => p,
@@ -68,6 +68,7 @@ pub async fn run_engine_cli(
                 .await;
             }
             "rootaccount" => common_commands::rootaccount::rootaccount_command(key_holder, registery).await,
+            "engine" => common_commands::engine::engine_command(chain),
             "print" => match parts.get(1).map(String::as_str) {
                 Some("registery") => common_commands::registery::registery_command(registery).await,
                 Some("coinmanager") => {
@@ -208,7 +209,7 @@ pub async fn run_node_cli(
             // Main commands:
             "exit" => break,
             "clear" => common_commands::clear::clear_command(),
-            "batchtip" => common_commands::batchtip::batchtip_command(sync_manager).await,
+            "tip" => common_commands::tip::tip_command(sync_manager).await,
             "runexplorer" => {
                 let port: u16 = match parts.get(1).and_then(|s| s.parse().ok()) {
                     Some(p) => p,
@@ -230,6 +231,7 @@ pub async fn run_node_cli(
             "rootaccount" => {
                 common_commands::rootaccount::rootaccount_command(key_holder, registery).await
             }
+            "engine" => common_commands::engine::engine_command(chain),
             "print" => match parts.get(1).map(String::as_str) {
                 Some("registery") => common_commands::registery::registery_command(registery).await,
                 Some("coinmanager") => {
@@ -388,6 +390,19 @@ pub async fn run_node_cli(
             "conn" => node_commands::conn::conn_command(engine_conn).await,
             "ping" => node_commands::ping::ping_command(engine_conn).await,
             "npub" => node_commands::npub::npub_command(key_holder).await,
+            "coins" => {
+                let account_key = match parts.get(1).map(String::as_str) {
+                    None => self_account_key,
+                    Some(account_key_str) => match parse_account_key(account_key_str) {
+                        Some(key) => key,
+                        None => {
+                            eprintln!("{}", "Invalid account key: expected 32-byte hex.".yellow());
+                            continue;
+                        }
+                    },
+                };
+                node_commands::coins::coins_command(coin_manager, account_key).await;
+            }
             "decompile" => {
                 let parts_ref: Vec<&str> = parts.iter().map(String::as_str).collect();
                 node_commands::decompile::decompile_command(parts_ref);

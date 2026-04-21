@@ -49,8 +49,8 @@ impl BatchRecord {
         let mut entries = Vec::with_capacity(executed_entries.len());
 
         // 3 Push the entries to the vector.
-        for entry in executed_entries {
-            let entry_id = entry.entry_id(batch_height)?;
+        for (entry_index_in_batch, entry) in executed_entries.into_iter().enumerate() {
+            let entry_id = entry.entry_id(batch_height, entry_index_in_batch as u32)?;
             entries.push((entry_id, entry));
         }
 

@@ -429,8 +429,9 @@ impl SessionPool {
             // 5.a Success.
             Ok(liftup_entry) => {
                 // 5.a.1 Derive the entry id.
+                let entry_index_in_batch = self.added_entries.len() as u32;
                 let entry_id = liftup_entry
-                    .entry_id(batch_height)
+                    .entry_id(batch_height, entry_index_in_batch)
                     .ok_or(ExecLiftupInPoolError::EntryIdDerivationError)?;
 
                 // 5.a.2 Add the liftup entry to the added entries.
@@ -522,8 +523,9 @@ impl SessionPool {
             // 5.a Success.
             Ok(move_entry_wrapped) => {
                 // 5.a.1 Derive the entry id.
+                let entry_index_in_batch = self.added_entries.len() as u32;
                 let entry_id = move_entry_wrapped
-                    .entry_id(batch_height)
+                    .entry_id(batch_height, entry_index_in_batch)
                     .ok_or(ExecMoveInPoolError::EntryIdDerivationError)?;
 
                 // 5.a.2 Add the move entry to the added entries.
