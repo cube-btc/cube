@@ -47,7 +47,7 @@ pub async fn liftup_local_command(
     }
 
     // 3 Construct the Root Account.
-    let root_account = RootAccount::self_root_account(key_holder, registery).await;
+    let root_account = RootAccount::self_root_account_from_registery(key_holder, registery).await;
 
     // 4 Get the current cube batch height tip from the sync manager.
     let batch_height_tip: u64 = {

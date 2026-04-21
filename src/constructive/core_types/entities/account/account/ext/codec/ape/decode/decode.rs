@@ -5,7 +5,6 @@ use crate::constructive::core_types::valtypes::val::long_val::long_val::LongVal;
 use crate::constructive::core_types::valtypes::val::short_val::short_val::ShortVal;
 use crate::inscriptive::registery::registery::REGISTERY;
 use bit_vec::BitVec;
-use secp::Point;
 
 impl Account {
     /// Decodes an `Account` as an Airly Payload Encoding (APE) bit vector.  
@@ -40,35 +39,19 @@ impl Account {
                     return Err(AccountAPEDecodeError::PublicKeyBitsLengthError);
                 }
 
-                // 2.a.3 Convert the `Account`'s public key bits to an even public key bytes.
-                let mut public_key_bytes = vec![0x02];
-                public_key_bytes.extend(public_key_bits.to_bytes());
+                // 2.a.3 Convert the `Account`'s public key bits to an even schnorr account key bytes.
+                let public_key: [u8; 32] = public_key_bits
+                    .to_bytes()
+                    .try_into()
+                    .map_err(|_| AccountAPEDecodeError::PublicKeyBytesConversionError)?;
 
-                // 2.a.4 Check if the `Account`'s public key is a valid secp256k1 point.
-                let public_key_point = Point::from_slice(&public_key_bytes)
-                    .map_err(|_| AccountAPEDecodeError::PublicKeyPointFromSliceError)?;
-
-                // 2.a.5 Serialize the `Account`'s public key point to x-only bytes.
-                let public_key = public_key_point.serialize_xonly();
-
-                // 2.a.6 Check if the `Account`'s key is already registered.
-                let is_registered = {
-                    let _registery = registery.lock().await;
-                    _registery.is_account_registered(public_key)
-                };
-
-                // 2.a.7 If the `Account`'s key is already registered, return an error.
-                if is_registered {
-                    return Err(AccountAPEDecodeError::KeyAlreadyRegisteredError);
-                }
-
-                // 2.a.8 Construct the unregistered `Account`.
+                // 2.a.4 Construct the unregistered `Account`.
                 let unregistered_account = UnregisteredAccount::new(public_key);
 
-                // 2.a.9 Return the unregistered `Account`.
+                // 2.a.5 Return the unregistered `Account`.
                 let account = Account::UnregisteredAccount(unregistered_account);
 
-                // 2.a.10 Return the unregistered `Account`.
+                // 2.a.6 Return the unregistered `Account`.
                 return Ok(account);
             }
 

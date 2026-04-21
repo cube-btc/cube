@@ -2,6 +2,7 @@ use crate::constructive::core_types::entities::account::account::{
     registered_account::registered_account::RegisteredAccount,
     unregistered_account::unregistered_account::UnregisteredAccount,
 };
+use crate::inscriptive::registery::registery::REGISTERY;
 use serde::{Deserialize, Serialize};
 
 /// Represents an account; a user of the system.
@@ -15,6 +16,42 @@ pub enum Account {
 }
 
 impl Account {
+    /// Returns the `Account` for the given account key from the `Registery`.
+    pub async fn account_from_registery(
+        account_key: [u8; 32],
+        registery: &REGISTERY,
+    ) -> Account {
+        // 1 Retrieve the account info if it is registered.
+        let account_info = {
+            // 1.1 Lock the registery.
+            let _registery = registery.lock().await;
+
+            // 1.2 Get account info by account key.
+            _registery.get_account_info_by_account_key(account_key)
+        };
+
+        // 2 Match on whether the account is registered or not.
+        match account_info {
+            // 2.a The account is registered.
+            Some((_, _, registery_index, _)) => {
+                // 2.a.1 Construct the `RegisteredAccount`.
+                let registered_account = RegisteredAccount::new(account_key, registery_index);
+
+                // 2.a.2 Construct and return the `Account`.
+                Self::RegisteredAccount(registered_account)
+            }
+
+            // 2.b The account is not registered.
+            None => {
+                // 2.b.1 Construct the `UnregisteredAccount`.
+                let unregistered_account = UnregisteredAccount::new(account_key);
+
+                // 2.b.2 Construct and return the `Account`.
+                Self::UnregisteredAccount(unregistered_account)
+            }
+        }
+    }
+
     /// Creates a new registered account.
     pub fn new_registered_account(account_key: [u8; 32], registery_index: u64) -> Self {
         // 1 Construct the registered account.

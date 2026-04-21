@@ -25,7 +25,10 @@ pub enum RootAccount {
 
 impl RootAccount {
     /// Returns the `RootAccount` for the given `KeyHolder`.
-    pub async fn self_root_account(keyholder: &KeyHolder, registery: &REGISTERY) -> RootAccount {
+    pub async fn self_root_account_from_registery(
+        keyholder: &KeyHolder,
+        registery: &REGISTERY,
+    ) -> RootAccount {
         // 1 Get the self account key.
         let self_account_key: [u8; 32] = keyholder.secp_public_key_bytes();
 

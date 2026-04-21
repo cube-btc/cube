@@ -10,7 +10,6 @@ pub enum AccountAPEDecodeError {
     FailedToDecodeRankValueAsShortVal(ShortValAPEDecodeError),
     FailedToDecodeRankValueAsLongVal(LongValAPEDecodeError),
     PublicKeyBitsLengthError,
-    PublicKeyPointFromSliceError,
-    KeyAlreadyRegisteredError,
+    PublicKeyBytesConversionError,
     FailedToLocateAccountGivenRank(Rank),
 }

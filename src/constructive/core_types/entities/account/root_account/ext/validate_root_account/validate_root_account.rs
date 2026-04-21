@@ -4,9 +4,7 @@ use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 use crate::inscriptive::registery::registery::REGISTERY;
 
 impl RootAccount {
-    /// Validates that this `RootAccount` matches the `Registery` (and `Graveyard` when unregistered):
-    /// cryptographically (keys / authorization) and by registration state (reverse of
-    /// [`RootAccount::self_root_account`]).
+    /// Validates a `RootAccount`.
     pub async fn validate_root_account(
         &self,
         registery: &REGISTERY,
