@@ -507,8 +507,8 @@ impl ExecCtx {
         // 26 Initialize the executed entry account BLS keys list.
         let mut executed_entry_account_bls_keys: Vec<[u8; 48]> = Vec::new();
 
-        // 27 Decode entries from the patload one by one and execute them.
-        loop {
+        // 27 Decode entries from the payload one by one and execute them.
+        while ape_bitstream.len() > 0 {
             // 27.1 Decode Entry from the APE bitstream.
             let entry = Entry::decode_ape(
                 self.engine_key,
@@ -583,10 +583,6 @@ impl ExecCtx {
                 _ => panic!("Not implemented yet."),
             }
 
-            // 28.1 Break out of the loop if the APE bitstream is empty.
-            if ape_bitstream.next().is_none() {
-                break;
-            }
         }
 
         // 29 Verify the aggregate BLS signature.

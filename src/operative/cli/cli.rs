@@ -392,6 +392,58 @@ pub async fn run_node_cli(
                 let parts_ref: Vec<&str> = parts.iter().map(String::as_str).collect();
                 node_commands::decompile::decompile_command(parts_ref);
             }
+            "account" => {
+                match (
+                    parts.get(1).map(String::as_str),
+                    parts.get(2).map(String::as_str),
+                ) {
+                    (Some("rank"), Some(account_key_str)) => {
+                        let account_key = match parse_account_key(account_key_str) {
+                            Some(key) => key,
+                            None => {
+                                eprintln!(
+                                    "{}",
+                                    "Invalid account key: expected 32-byte hex.".yellow()
+                                );
+                                continue;
+                            }
+                        };
+                        node_commands::rank::account_rank_command(registery, account_key).await;
+                    }
+                    _ => {
+                        eprintln!(
+                            "{}",
+                            "Usage: account rank <account_key_hex>.".yellow()
+                        );
+                    }
+                }
+            }
+            "contract" => {
+                match (
+                    parts.get(1).map(String::as_str),
+                    parts.get(2).map(String::as_str),
+                ) {
+                    (Some("rank"), Some(contract_id_str)) => {
+                        let contract_id = match parse_contract_id(contract_id_str) {
+                            Some(id) => id,
+                            None => {
+                                eprintln!(
+                                    "{}",
+                                    "Invalid contract id: expected 32-byte hex.".yellow()
+                                );
+                                continue;
+                            }
+                        };
+                        node_commands::rank::contract_rank_command(registery, contract_id).await;
+                    }
+                    _ => {
+                        eprintln!(
+                            "{}",
+                            "Usage: contract rank <contract_id_hex>.".yellow()
+                        );
+                    }
+                }
+            }
             "move" => {
                 let satoshi_amount: u32 = match parts.get(1).and_then(|s| s.parse().ok()) {
                     Some(amount) => amount,
@@ -468,7 +520,15 @@ fn parse_cli_parts(line: Result<String, io::Error>) -> Option<Vec<String>> {
 }
 
 fn parse_account_key(account_key_str: &str) -> Option<[u8; 32]> {
-    let account_key_str = account_key_str.trim_start_matches("0x");
-    let account_key_bytes = hex::decode(account_key_str).ok()?;
-    account_key_bytes.try_into().ok()
+    parse_32_byte_hex(account_key_str)
+}
+
+fn parse_contract_id(contract_id_str: &str) -> Option<[u8; 32]> {
+    parse_32_byte_hex(contract_id_str)
+}
+
+fn parse_32_byte_hex(s: &str) -> Option<[u8; 32]> {
+    let s = s.trim_start_matches("0x");
+    let bytes = hex::decode(s).ok()?;
+    bytes.try_into().ok()
 }

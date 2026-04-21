@@ -1,6 +1,7 @@
 pub mod batchrecord;
 pub mod conn;
 pub mod decompile;
+pub mod rank;
 pub mod liftaddr;
 pub mod lifts;
 pub mod liftup;
