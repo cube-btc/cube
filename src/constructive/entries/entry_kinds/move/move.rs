@@ -43,13 +43,13 @@ impl Move {
         obj.insert("from".to_string(), self.from.json());
 
         // 4 Insert the receiver account.
-        obj.insert(
-            "to".to_string(),
-            serde_json::to_value(&self.to).expect("Account must serialize to JSON"),
-        );
+        obj.insert("to".to_string(), self.to.json());
 
         // 5 Insert the amount.
-        obj.insert("amount".to_string(), Value::Number((self.amount as u64).into()));
+        obj.insert(
+            "amount".to_string(),
+            Value::Number((self.amount as u64).into()),
+        );
 
         // 6 Insert the target.
         obj.insert(

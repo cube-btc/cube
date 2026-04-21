@@ -4,6 +4,7 @@ use crate::constructive::core_types::entities::account::account::{
 };
 use crate::inscriptive::registery::registery::REGISTERY;
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 
 /// Represents an account; a user of the system.
 #[derive(Clone, Serialize, Deserialize)]
@@ -79,6 +80,40 @@ impl Account {
             // The account is not registered.
             Self::UnregisteredAccount(_) => false,
         }
+    }
+
+    /// Returns the account as a JSON object.
+    pub fn json(&self) -> Value {
+        // 1 Construct the JSON object.
+        let mut obj = Map::new();
+
+        // 2 Match on account variant.
+        match self {
+            // 2.a The `Account` is registered.
+            Self::RegisteredAccount(registered_account) => {
+                obj.insert("kind".to_string(), Value::String("registered".to_string()));
+                obj.insert(
+                    "account_key".to_string(),
+                    Value::String(hex::encode(registered_account.account_key)),
+                );
+                obj.insert(
+                    "registery_index".to_string(),
+                    Value::Number(registered_account.registery_index.into()),
+                );
+            }
+
+            // 2.b The `Account` is unregistered.
+            Self::UnregisteredAccount(unregistered_account) => {
+                obj.insert("kind".to_string(), Value::String("unregistered".to_string()));
+                obj.insert(
+                    "account_key_to_be_registered".to_string(),
+                    Value::String(hex::encode(unregistered_account.account_key_to_be_registered)),
+                );
+            }
+        }
+
+        // 3 Return the JSON object.
+        Value::Object(obj)
     }
 
     /// Returns the account's secp256k1 public key.

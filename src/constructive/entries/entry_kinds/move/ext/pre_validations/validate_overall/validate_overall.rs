@@ -19,19 +19,28 @@ impl Move {
             return Err(MoveValidateOverallError::UnregisteredRootAccountNotAllowedError);
         }
 
-        // 2 Validate the sender root account.
+        // 2 Reject self-transfer (`from` and `to` keys must be different).
+        let from_account_key = self.from.account_key();
+        let to_account_key = self.to.account_key();
+        if from_account_key == to_account_key {
+            return Err(MoveValidateOverallError::FromAndToAccountKeysAreSameError(
+                from_account_key,
+            ));
+        }
+
+        // 3 Validate the sender root account.
         self.from
             .validate_root_account(registery, graveyard)
             .await
             .map_err(MoveValidateOverallError::ValidateRootAccountError)?;
 
-        // 3 Validate the receiver account.
+        // 4 Validate the receiver account.
         self.to
             .validate_account(registery, graveyard)
             .await
             .map_err(MoveValidateOverallError::ValidateAccountError)?;
 
-        // 4 Validate the target against the execution batch height.
+        // 5 Validate the target against the execution batch height.
         if let Err((targeted_at_batch_height, execution_batch_height_err)) =
             self.target.validate(execution_batch_height)
         {
@@ -41,22 +50,21 @@ impl Move {
             });
         }
 
-        // 5 Validate sender has enough balance to fund the move amount.
+        // 6 Validate sender has enough balance to fund the move amount.
         {
-            let from_account_key = self.from.account_key();
             let required = self.amount as u64;
 
-            // 5.1 Lock coin manager.
+            // 6.1 Lock coin manager.
             let _coin_manager = coin_manager.lock().await;
 
-            // 5.2 Resolve sender balance.
+            // 6.2 Resolve sender balance.
             let available = _coin_manager
                 .get_account_balance(from_account_key)
                 .ok_or(MoveValidateOverallError::FromAccountNotFoundInCoinManagerError(
                     from_account_key,
                 ))?;
 
-            // 5.3 Reject if sender balance is insufficient.
+            // 6.3 Reject if sender balance is insufficient.
             if available < required {
                 return Err(MoveValidateOverallError::InsufficientBalanceForMoveError {
                     account_key: from_account_key,
@@ -66,7 +74,7 @@ impl Move {
             }
         }
 
-        // 6 Ok.
+        // 7 Ok.
         Ok(())
     }
 }

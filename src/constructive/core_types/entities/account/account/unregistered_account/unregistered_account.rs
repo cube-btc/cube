@@ -19,7 +19,7 @@ impl UnregisteredAccount {
     /// Validates the account key is indeed a valid Schnorr public key.
     pub fn validate_schnorr_key(&self) -> bool {
         // 1 Verify that the account key is indeed a valid Schnorr public key.
-        if !self.account_key_to_be_registered.to_even_point().is_none() {
+        if self.account_key_to_be_registered.to_even_point().is_none() {
             return false;
         }
 

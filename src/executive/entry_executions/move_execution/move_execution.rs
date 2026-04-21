@@ -33,6 +33,13 @@ impl ExecCtx {
         let from_account_key = move_entry.from.account_key();
         let to_account_key = move_entry.to.account_key();
 
+        // 4.1 Reject self-transfer (`from` and `to` keys must be different).
+        if from_account_key == to_account_key {
+            return Err(MoveExecutionError::FromAndToAccountKeysAreSameError(
+                from_account_key,
+            ));
+        }
+
         // 5 Sync/register sender root account with DB.
         match &move_entry.from {
             RootAccount::UnregisteredRootAccount(_) => {

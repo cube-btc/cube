@@ -5,6 +5,7 @@ use crate::constructive::entity::account::root_account::ext::validate_root_accou
 #[derive(Debug, Clone)]
 pub enum MoveValidateOverallError {
     UnregisteredRootAccountNotAllowedError,
+    FromAndToAccountKeysAreSameError([u8; 32]),
     ValidateRootAccountError(RootAccountValidateRootAccountError),
     ValidateAccountError(AccountValidateAccountError),
     ValidateTargetError {

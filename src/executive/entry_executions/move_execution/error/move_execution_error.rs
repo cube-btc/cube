@@ -10,6 +10,7 @@ use crate::inscriptive::coin_manager::errors::balance_update_errors::{
 #[derive(Debug, Clone)]
 pub enum MoveExecutionError {
     AmountUnderflowAfterFeesError,
+    FromAndToAccountKeysAreSameError([u8; 32]),
     UnexpectedUnregisteredFromRootAccountError,
     UnregisteredRootAccountValidateSchnorrAndBLSKeyError,
     UnregisteredRootAccountInvalidAuthorizationSignatureError,

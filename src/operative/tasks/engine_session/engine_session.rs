@@ -33,6 +33,10 @@ pub async fn engine_batch_builder_background_task(
     state_manager: &STATE_MANAGER,
     archival_manager: &Option<ARCHIVAL_MANAGER>,
 ) {
+    if archival_manager.is_none() {
+        panic!("Archival manager is required for engine batch builder background task.");
+    }
+
     loop {
         //
         // BEGINNING OF THE SESSION.

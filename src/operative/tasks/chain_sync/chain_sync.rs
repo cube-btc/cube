@@ -25,7 +25,7 @@ use tokio::time::sleep;
 
 /// Number of blocks a block needs to be buried to be considered final.
 /// This will require 2 on-chain confirmations for a transaction to be considered final.
-const BLOCK_DEPTH_FOR_FINALITY: u64 = 2;
+const BLOCK_DEPTH_FOR_FINALITY: u64 = 1;
 
 #[async_trait]
 pub trait ChainSync {

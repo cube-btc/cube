@@ -94,7 +94,7 @@ impl Call {
         obj.insert("entry_kind".to_string(), Value::String("call".to_string()));
 
         // 3 Insert the account.
-        obj.insert("account".to_string(), self.account.json());
+        obj.insert("root_account".to_string(), self.account.json());
 
         // 4 Insert the contract.
         obj.insert("contract".to_string(), self.contract.json());

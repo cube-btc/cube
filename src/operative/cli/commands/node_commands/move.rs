@@ -22,23 +22,32 @@ pub async fn move_command(
     // 1 Construct sender root account.
     let from = RootAccount::self_root_account_from_registery(key_holder, registery).await;
 
-    // 2 Construct receiver account from registery state.
+    // 2 Reject self-transfer in CLI (`from` and `to` keys must be different).
+    if from.account_key() == to_account_key {
+        println!(
+            "{}",
+            "Error: <from> and <to> account keys cannot be the same.".red()
+        );
+        return;
+    }
+
+    // 3 Construct receiver account from registery state.
     let to = Account::account_from_registery(to_account_key, registery).await;
 
-    // 3 Get the current cube batch height tip from sync manager.
+    // 4 Get the current cube batch height tip from sync manager.
     let batch_height_tip: u64 = {
         let _sync_manager = sync_manager.lock().await;
         _sync_manager.cube_batch_sync_height_tip()
     };
 
-    // 4 Current execution batch height is tip plus one.
+    // 5 Current execution batch height is tip plus one.
     let current_execution_batch_height = batch_height_tip + 1;
 
-    // 5 Construct target and move entry.
+    // 6 Construct target and move entry.
     let target = Target::new(current_execution_batch_height);
     let move_entry = Move::new(from, to, satoshi_amount, target);
 
-    // 6 Sign move.
+    // 7 Sign move.
     let move_bls_signature: [u8; 96] = match move_entry.bls_sign(key_holder) {
         Ok(signature) => signature,
         Err(error) => {
@@ -47,7 +56,7 @@ pub async fn move_command(
         }
     };
 
-    // 7 Submit move request.
+    // 8 Submit move request.
     let (move_response_body, duration) = match engine_peer
         .request_move(&move_entry, move_bls_signature)
         .await
@@ -59,7 +68,7 @@ pub async fn move_command(
         }
     };
 
-    // 8 Print response.
+    // 9 Print response.
     match move_response_body {
         MoveResponseBody::Ok(success_body) => {
             println!(
