@@ -150,7 +150,8 @@ mod simul_tests {
         // 15 Construct Liftup.
         let liftup: Liftup = {
             // 15.1 Construct the Root Account.
-            let root_account = RootAccount::self_root_account(&key_holder, &registery).await;
+            let root_account =
+                RootAccount::self_root_account_from_registery(&key_holder, &registery).await;
 
             // 15.2 Get the current batch sync height tip.
             // If not in-flight, retrieve this from Engine instead of sync manager as that will be more accurate.

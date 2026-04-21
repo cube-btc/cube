@@ -2,6 +2,7 @@ use crate::constructive::bitcoiny::batch_container::batch_container::BatchContai
 use crate::constructive::bitcoiny::batch_txn::signed_batch_txn::signed_batch_txn::SignedBatchTxn;
 use crate::constructive::entry::entry::entry::Entry;
 use crate::constructive::entry::entry_kinds::liftup::liftup::Liftup;
+use crate::constructive::entry::entry_kinds::r#move::r#move::Move;
 use crate::constructive::txout_types::payload::payload::Payload;
 use crate::constructive::txout_types::projector::projector::Projector;
 use crate::constructive::valtype::val::long_val::long_val::LongVal;
@@ -17,6 +18,7 @@ use crate::inscriptive::state_manager::state_manager::STATE_MANAGER;
 use crate::inscriptive::sync_manager::sync_manager::SYNC_MANAGER;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
 use crate::operative::tasks::engine_session::session_pool::error::exec_liftup_in_pool_error::ExecLiftupInPoolError;
+use crate::operative::tasks::engine_session::session_pool::error::exec_move_in_pool_error::ExecMoveInPoolError;
 use crate::operative::tasks::engine_session::session_pool::error::into_batch_container_error::IntoBatchContainerError;
 use crate::transmutative::bls::agg::bls_aggregate;
 use crate::transmutative::codec::bitvec_ext::BitVecExt;
@@ -453,6 +455,97 @@ impl SessionPool {
                 Err(ExecLiftupInPoolError::LiftupExecutionError(format!(
                     "{error:?}"
                 )))
+            }
+        }
+    }
+
+    /// Executes a `Move` entry in the `SessionPool`.
+    pub async fn exec_move_in_pool(
+        &mut self,
+        move_entry: &Move,
+        move_bls_signature: [u8; 96],
+    ) -> Result<(EntryId, Entry, BatchHeight, BatchTimestamp), ExecMoveInPoolError> {
+        // 1 Check the pool session status.
+        match self.state {
+            SessionPoolState::Inactive => {
+                return Err(ExecMoveInPoolError::SessionInactiveError);
+            }
+            SessionPoolState::Suspended => {
+                return Err(ExecMoveInPoolError::SessionSuspendedError);
+            }
+            SessionPoolState::Break => {
+                return Err(ExecMoveInPoolError::SessionBreakError);
+            }
+            _ => {
+                if self.added_entries.len() >= MAX_IN_POOL_ENTRIES {
+                    return Err(ExecMoveInPoolError::PoolOverloadedError);
+                }
+            }
+        };
+
+        // 2 Get the batch height and batch timestamp.
+        let (batch_height, batch_timestamp, _) = self
+            .batch_info
+            .ok_or(ExecMoveInPoolError::BatchInfoNotFoundError)?;
+
+        // 3 Verify entry signature and run pre-validations.
+        {
+            move_entry
+                .bls_verify(move_bls_signature)
+                .map_err(|err| ExecMoveInPoolError::MoveBLSVerifyError(format!("{err:?}")))?;
+
+            move_entry
+                .validate_overall(
+                    batch_height,
+                    &self.registery,
+                    &self.graveyard,
+                    &self.coin_manager,
+                )
+                .await
+                .map_err(|err| ExecMoveInPoolError::MoveValidateOverallError(format!("{err:?}")))?;
+        }
+
+        // 4 Prepare for execution by backing up the execution context.
+        {
+            let mut _exec_ctx = self.exec_ctx.lock().await;
+            _exec_ctx.pre_execution().await;
+        }
+
+        // 5 Execute the move in the execution context.
+        match self
+            .exec_ctx
+            .lock()
+            .await
+            .execute_move(move_entry, batch_timestamp)
+            .await
+        {
+            // 5.a Success.
+            Ok(move_entry_wrapped) => {
+                // 5.a.1 Derive the entry id.
+                let entry_id = move_entry_wrapped
+                    .entry_id(batch_height)
+                    .ok_or(ExecMoveInPoolError::EntryIdDerivationError)?;
+
+                // 5.a.2 Add the move entry to the added entries.
+                self.added_entries.push(move_entry_wrapped.clone());
+
+                // 5.a.3 Add move BLS signature to pooled individual entry signatures.
+                self.added_individual_entry_bls_signatures
+                    .push(move_bls_signature);
+
+                // 5.a.4 Return entry and pool metadata.
+                Ok((entry_id, move_entry_wrapped, batch_height, batch_timestamp))
+            }
+
+            // 5.b Error.
+            Err(error) => {
+                // 5.b.1 Rollback the execution.
+                {
+                    self.exec_ctx.lock().await.rollback_last().await;
+                }
+
+                // 5.b.2 Return the error.
+                Err(ExecMoveInPoolError::MoveExecutionError(format!("{error:?}")))
             }
         }
     }

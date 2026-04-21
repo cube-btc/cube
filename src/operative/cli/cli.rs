@@ -392,7 +392,48 @@ pub async fn run_node_cli(
                 let parts_ref: Vec<&str> = parts.iter().map(String::as_str).collect();
                 node_commands::decompile::decompile_command(parts_ref);
             }
-            //"move" => ncli::r#move::move_command(engine_conn, key_holder).await,
+            "move" => {
+                let satoshi_amount: u32 = match parts.get(1).and_then(|s| s.parse().ok()) {
+                    Some(amount) => amount,
+                    None => {
+                        eprintln!(
+                            "{}",
+                            "Usage: move <satoshi_amount> <to_account_key_hex>.".yellow()
+                        );
+                        continue;
+                    }
+                };
+
+                let to_account_key: [u8; 32] = match parts.get(2) {
+                    Some(account_key_str) => match parse_account_key(account_key_str) {
+                        Some(account_key) => account_key,
+                        None => {
+                            eprintln!(
+                                "{}",
+                                "Invalid to account key: expected 32-byte hex.".yellow()
+                            );
+                            continue;
+                        }
+                    },
+                    None => {
+                        eprintln!(
+                            "{}",
+                            "Usage: move <satoshi_amount> <to_account_key_hex>.".yellow()
+                        );
+                        continue;
+                    }
+                };
+
+                node_commands::r#move::move_command(
+                    satoshi_amount,
+                    to_account_key,
+                    key_holder,
+                    sync_manager,
+                    registery,
+                    engine_conn,
+                )
+                .await;
+            }
             _ => eprintln!("{}", format!("Unknown commmand.").yellow()),
         }
     }

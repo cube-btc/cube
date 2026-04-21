@@ -133,6 +133,15 @@ pub async fn handle_package(
                     )
                     .await
                 }
+                PackageKind::MoveProtocol => {
+                    let session_pool = Arc::clone(session_pool);
+                    crate::communicative::tcp::protocol::r#move::server::handle_move_request(
+                        package.timestamp(),
+                        &package.payload(),
+                        &session_pool,
+                    )
+                    .await
+                }
                 PackageKind::BatchRecordProtocol => {
                     let archival_manager = archival_manager.clone();
                     crate::communicative::tcp::protocol::batchrecord::server::handle_batchrecord_request(

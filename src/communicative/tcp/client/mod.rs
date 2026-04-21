@@ -20,4 +20,7 @@ pub use crate::communicative::tcp::protocol::liftup_v1::{
     ExecLiftupInPoolError, LiftupV1RequestBody, LiftupV1ResponseBody, LiftupV1ResponseError,
     LiftupV1SuccessBody,
 };
+pub use crate::communicative::tcp::protocol::r#move::{
+    ExecMoveInPoolError, MoveRequestBody, MoveResponseBody, MoveResponseError, MoveSuccessBody,
+};
 pub use tcp_client::TCPClient;

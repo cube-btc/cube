@@ -179,7 +179,8 @@ mod batchtxn_test {
 
         let liftup: Liftup = {
             // 15.1 Construct the Root Account.
-            let root_account = RootAccount::self_root_account(&user_key_holder, &registery).await;
+            let root_account =
+                RootAccount::self_root_account_from_registery(&user_key_holder, &registery).await;
 
             // 15.2 Construct the Target aimed at the Engine's batch height.
             let target = Target::new(0);

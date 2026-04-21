@@ -2,7 +2,9 @@ use crate::constructive::core_types::valtypes::val::long_val::ape::decode::error
 use crate::constructive::core_types::valtypes::val::short_val::ape::decode::error::decode_error::ShortValAPEDecodeError;
 use crate::constructive::entry::entry::ext::codec::ape::decode::error::decode_error::EntryAPEDecodeError;
 use crate::constructive::entries::entry_kinds::liftup::ext::signature::sighash::error::sighash_error::LiftupSighashError;
+use crate::constructive::entries::entry_kinds::r#move::ext::signature::sighash::error::sighash_error::MoveSighashError;
 use crate::executive::entry_executions::liftup_execution::error::liftup_execution_error::LiftupExecutionError;
+use crate::executive::entry_executions::move_execution::error::move_execution_error::MoveExecutionError;
 use crate::executive::exec_ctx::errors::apply_changes_error::ApplyChangesError;
 use bitcoin::OutPoint;
 
@@ -37,6 +39,8 @@ pub enum BatchExecutionError {
     FailedToIterAndGetProjectorTxOutputError,
     //
     DecodeEntryError(EntryAPEDecodeError),
+    MoveExecutionError(MoveExecutionError),
+    MoveSighashError(MoveSighashError),
     LiftupExecutionError(LiftupExecutionError),
     LiftupSighashError(LiftupSighashError),
     AggregateBLSSignatureVerificationError,

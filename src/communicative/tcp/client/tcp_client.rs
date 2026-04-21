@@ -3,8 +3,10 @@ use crate::communicative::tcp::protocol::batchcontainer::BatchContainerResponseB
 use crate::communicative::tcp::protocol::batchcontainer_by_prevoutpoint::BatchContainerByPrevOutpointResponseBody;
 use crate::communicative::tcp::protocol::in_flight_sync::InFlightSyncResponseBody;
 use crate::communicative::tcp::protocol::liftup_v1::LiftupV1ResponseBody;
+use crate::communicative::tcp::protocol::r#move::MoveResponseBody;
 use crate::communicative::tcp::request_error::RequestError;
 use crate::constructive::entry::entry_kinds::liftup::liftup::Liftup;
+use crate::constructive::entry::entry_kinds::r#move::r#move::Move;
 use async_trait::async_trait;
 use bitcoin::OutPoint;
 use std::time::Duration;
@@ -17,6 +19,11 @@ pub trait TCPClient {
         liftup: &Liftup,
         liftup_bls_signature: [u8; 96],
     ) -> Result<(LiftupV1ResponseBody, Duration), RequestError>;
+    async fn request_move(
+        &self,
+        move_entry: &Move,
+        move_bls_signature: [u8; 96],
+    ) -> Result<(MoveResponseBody, Duration), RequestError>;
     async fn request_batchrecord(
         &self,
         batch_height: u64,

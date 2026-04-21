@@ -19,6 +19,26 @@ impl Entry {
 
         // 2 Match on the `Entry` type.
         match self {
+            // 2.0 The `Entry` is a `Move`.
+            Entry::Move(move_entry) => {
+                // 2.0.1 Push 00 for the `Move` entry type.
+                bits.push(false);
+                bits.push(false);
+
+                // 2.0.2 Encode the `Move`.
+                let move_bits = move_entry
+                    .encode_ape(
+                        execution_batch_height,
+                        registery,
+                        encode_account_rank_as_longval,
+                    )
+                    .await
+                    .map_err(EntryAPEEncodeError::MoveAPEEncodeError)?;
+
+                // 2.0.3 Extend the `Entry` APE bit vector with the `Move` APE bit vector.
+                bits.extend(move_bits);
+            }
+
             // 2.a The `Entry` is a `Call`.
             Entry::Call(call) => {
                 // 2.a.1 Push 01 for the `Call` entry type.

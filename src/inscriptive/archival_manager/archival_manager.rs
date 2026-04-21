@@ -40,6 +40,9 @@ pub type ARCHIVAL_MANAGER = Arc<Mutex<ArchivalManager>>;
 /// Returns whether `entry` is attributed to `account_key` (secp x-only account id).
 fn entry_involves_account(entry: &Entry, account_key: [u8; 32]) -> bool {
     match entry {
+        Entry::Move(move_entry) => {
+            move_entry.from.account_key() == account_key || move_entry.to.account_key() == account_key
+        }
         Entry::Call(call) => call.account.account_key() == account_key,
         Entry::Liftup(liftup) => liftup.root_account.account_key() == account_key,
     }

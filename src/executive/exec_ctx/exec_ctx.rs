@@ -19,7 +19,9 @@ use crate::transmutative::bls::verify::bls_verify_aggregate;
 use crate::transmutative::codec::bitvec_ext::BitVecExt;
 use crate::{
     constructive::entry::entry_kinds::liftup::liftup::Liftup,
+    constructive::entry::entry_kinds::r#move::r#move::Move,
     executive::entry_executions::liftup_execution::error::liftup_execution_error::LiftupExecutionError,
+    executive::entry_executions::move_execution::error::move_execution_error::MoveExecutionError,
     executive::exec_ctx::errors::apply_changes_error::ApplyChangesError,
 };
 use bit_vec::BitVec;
@@ -551,6 +553,33 @@ impl ExecCtx {
                         Err(error) => return Err(BatchExecutionError::LiftupExecutionError(error)),
                     }
                 }
+                // 27.2.b The `Entry` is a `Move`.
+                Entry::Move(move_entry) => {
+                    // 27.2.b.1 Execute the `Move` `Entry`.
+                    match self.execute_move(&move_entry, batch_timestamp).await {
+                        // 27.2.b.1.a Success.
+                        Ok(entry) => {
+                            // 27.2.b.1.a.1 Add the move entry to the executed entries.
+                            executed_entries.push(entry);
+
+                            // 27.2.b.1.a.2 Add the sighash of the `Move`.
+                            {
+                                let sighash = move_entry
+                                    .sighash()
+                                    .map_err(BatchExecutionError::MoveSighashError)?;
+                                executed_entry_sighashes.push(sighash);
+                            }
+
+                            // 27.2.b.1.a.3 Add the BLS key of the sender `RootAccount` of the `Move`.
+                            {
+                                let account_bls_key = move_entry.from.bls_key();
+                                executed_entry_account_bls_keys.push(account_bls_key);
+                            }
+                        }
+                        // 27.2.b.1.b Error.
+                        Err(error) => return Err(BatchExecutionError::MoveExecutionError(error)),
+                    }
+                }
                 _ => panic!("Not implemented yet."),
             }
 
@@ -609,6 +638,29 @@ impl ExecCtx {
 
                 // 1.a.2 Return the liftup entry.
                 Ok(liftup_entry)
+            }
+            // 1.b Error.
+            Err(error) => Err(error),
+        }
+    }
+
+    /// Executes a `Move` Entry.
+    pub async fn execute_move(
+        &mut self,
+        move_entry: &Move,
+        execution_timestamp: u64,
+    ) -> Result<Entry, MoveExecutionError> {
+        match self
+            .execute_move_internal(move_entry, execution_timestamp)
+            .await
+        {
+            // 1.a Success.
+            Ok(_) => {
+                // 1.a.1 Construct the Move entry.
+                let move_entry = Entry::new_move(move_entry.clone());
+
+                // 1.a.2 Return the move entry.
+                Ok(move_entry)
             }
             // 1.b Error.
             Err(error) => Err(error),

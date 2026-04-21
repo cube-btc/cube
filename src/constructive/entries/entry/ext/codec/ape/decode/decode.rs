@@ -2,6 +2,7 @@ use crate::constructive::entry::entry::entry::Entry;
 use crate::constructive::entry::entry::ext::codec::ape::decode::error::decode_error::EntryAPEDecodeError;
 use crate::constructive::entry::entry_kinds::call::call::Call;
 use crate::constructive::entry::entry_kinds::liftup::liftup::Liftup;
+use crate::constructive::entry::entry_kinds::r#move::r#move::Move;
 use crate::inscriptive::registery::registery::REGISTERY;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
 use bitcoin::OutPoint;
@@ -38,10 +39,23 @@ impl Entry {
                 // 2.a.2 Match on whether the `Entry` is a `Move` or a `Call`.
                 match move_or_call_bit {
                     // 2.a.2.a The `Entry` is a `Move`.
-                    true => panic!("Move is not implemented yet."),
+                    false => {
+                        // 2.a.2.a.1 Decode the `Move` entry.
+                        let move_entry: Move = Move::decode_ape(
+                            execution_batch_height,
+                            bit_stream,
+                            decode_account_rank_as_longval,
+                            registery,
+                        )
+                        .await
+                        .map_err(EntryAPEDecodeError::MoveEntryAPEDecodeError)?;
+
+                        // 2.a.2.a.2 Return the `Move` `Entry`.
+                        Entry::Move(move_entry)
+                    }
 
                     // 2.a.2.b The `Entry` is a `Call`.
-                    false => {
+                    true => {
                         // 2.a.2.b.1 Decode the `Call` entry.
                         let call_entry: Call = Call::decode_ape(
                             bit_stream,

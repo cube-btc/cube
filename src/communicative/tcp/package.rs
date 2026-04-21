@@ -6,6 +6,7 @@ use std::time::Duration;
 pub enum PackageKind {
     Ping,
     LiftupV1Protocol,
+    MoveProtocol,
     BatchRecordProtocol,
     InFlightSyncProtocol,
     BatchContainerProtocol,
@@ -17,20 +18,22 @@ impl PackageKind {
         match self {
             PackageKind::Ping => 0x00,
             PackageKind::LiftupV1Protocol => 0x01,
-            PackageKind::BatchRecordProtocol => 0x02,
-            PackageKind::InFlightSyncProtocol => 0x03,
-            PackageKind::BatchContainerProtocol => 0x04,
-            PackageKind::BatchContainerByPrevOutpointProtocol => 0x05,
+            PackageKind::MoveProtocol => 0x02,
+            PackageKind::BatchRecordProtocol => 0x03,
+            PackageKind::InFlightSyncProtocol => 0x04,
+            PackageKind::BatchContainerProtocol => 0x05,
+            PackageKind::BatchContainerByPrevOutpointProtocol => 0x06,
         }
     }
     pub fn from_bytecode(bytecode: u8) -> Option<Self> {
         match bytecode {
             0x00 => Some(PackageKind::Ping),
             0x01 => Some(PackageKind::LiftupV1Protocol),
-            0x02 => Some(PackageKind::BatchRecordProtocol),
-            0x03 => Some(PackageKind::InFlightSyncProtocol),
-            0x04 => Some(PackageKind::BatchContainerProtocol),
-            0x05 => Some(PackageKind::BatchContainerByPrevOutpointProtocol),
+            0x02 => Some(PackageKind::MoveProtocol),
+            0x03 => Some(PackageKind::BatchRecordProtocol),
+            0x04 => Some(PackageKind::InFlightSyncProtocol),
+            0x05 => Some(PackageKind::BatchContainerProtocol),
+            0x06 => Some(PackageKind::BatchContainerByPrevOutpointProtocol),
             _ => None,
         }
     }

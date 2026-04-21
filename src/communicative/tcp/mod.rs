@@ -24,4 +24,7 @@ pub use protocol::liftup_v1::{
     ExecLiftupInPoolError, LiftupV1RequestBody, LiftupV1ResponseBody, LiftupV1ResponseError,
     LiftupV1SuccessBody,
 };
+pub use protocol::r#move::{
+    ExecMoveInPoolError, MoveRequestBody, MoveResponseBody, MoveResponseError, MoveSuccessBody,
+};
 pub use request_error::RequestError;

@@ -10,6 +10,11 @@ impl Entry {
     pub fn encode_sbe(&self) -> Result<Bytes, EntrySBEEncodeError> {
         // 1 Match on the `Entry` variant.
         match self {
+            // 1.0 The `Entry` is a `Move`.
+            Entry::Move(move_entry) => move_entry
+                .encode_sbe()
+                .map_err(EntrySBEEncodeError::MoveSBEEncodeError),
+
             // 1.a The `Entry` is a `Call` — SBE not implemented.
             Entry::Call(_) => panic!(
                 "Entry::encode_sbe: Call SBE is not implemented (discriminant 0x01 reserved)"
