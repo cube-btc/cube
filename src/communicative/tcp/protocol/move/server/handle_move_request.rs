@@ -28,7 +28,11 @@ pub async fn handle_move_request(
         None => {
             let body = MoveResponseBody::err(MoveResponseError::DeserializeMoveRequestError);
             let bytes = body.serialize().unwrap_or_default();
-            return Some(TCPPackage::new(PackageKind::MoveProtocol, timestamp, &bytes));
+            return Some(TCPPackage::new(
+                PackageKind::MoveProtocol,
+                timestamp,
+                &bytes,
+            ));
         }
     };
 
@@ -64,9 +68,9 @@ pub async fn handle_move_request(
                     continue;
                 }
 
-                response = Some(MoveResponseBody::err(MoveResponseError::ExecMoveInPoolError(
-                    err,
-                )));
+                response = Some(MoveResponseBody::err(
+                    MoveResponseError::ExecMoveInPoolError(err),
+                ));
                 break;
             }
         }

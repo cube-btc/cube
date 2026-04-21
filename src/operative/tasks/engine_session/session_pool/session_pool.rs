@@ -181,6 +181,9 @@ impl SessionPool {
     }
 
     /// Starts the session of the `SessionPool`.
+    ///
+    /// The new-account registration tracker is cleared when the pool flushes the execution context
+    /// (`end_session` → `flush` → `ExecCtx::flush`).
     pub fn begin_session(
         &mut self,
         batch_height: u64,
@@ -419,13 +422,14 @@ impl SessionPool {
         }
 
         // 5 Execute the liftup in the execution context.
-        match self
-            .exec_ctx
-            .lock()
-            .await
-            .execute_liftup(liftup, batch_timestamp)
-            .await
-        {
+        // Drop the mutex guard before `match` arms run — otherwise `rollback_last` would re-lock
+        // the same mutex and deadlock (scrutinee temporaries live until the whole `match` ends).
+        let liftup_result = {
+            let mut exec_ctx = self.exec_ctx.lock().await;
+            exec_ctx.execute_liftup(liftup, batch_timestamp).await
+        };
+
+        match liftup_result {
             // 5.a Success.
             Ok(liftup_entry) => {
                 // 5.a.1 Derive the entry id.
@@ -488,7 +492,6 @@ impl SessionPool {
         let (batch_height, batch_timestamp, _) = self
             .batch_info
             .ok_or(ExecMoveInPoolError::BatchInfoNotFoundError)?;
-
         // 3 Verify entry signature and run pre-validations.
         {
             move_entry
@@ -505,21 +508,19 @@ impl SessionPool {
                 .await
                 .map_err(|err| ExecMoveInPoolError::MoveValidateOverallError(format!("{err:?}")))?;
         }
-
         // 4 Prepare for execution by backing up the execution context.
         {
             let mut _exec_ctx = self.exec_ctx.lock().await;
             _exec_ctx.pre_execution().await;
         }
-
         // 5 Execute the move in the execution context.
-        match self
-            .exec_ctx
-            .lock()
-            .await
-            .execute_move(move_entry, batch_timestamp)
-            .await
-        {
+        // Drop the mutex guard before `match` arms — see `exec_liftup_in_pool` for deadlock note.
+        let move_result = {
+            let mut exec_ctx = self.exec_ctx.lock().await;
+            exec_ctx.execute_move(move_entry, batch_timestamp).await
+        };
+
+        match move_result {
             // 5.a Success.
             Ok(move_entry_wrapped) => {
                 // 5.a.1 Derive the entry id.
@@ -545,7 +546,6 @@ impl SessionPool {
                 {
                     self.exec_ctx.lock().await.rollback_last().await;
                 }
-
                 // 5.b.2 Return the error.
                 Err(ExecMoveInPoolError::MoveExecutionError(format!("{error:?}")))
             }

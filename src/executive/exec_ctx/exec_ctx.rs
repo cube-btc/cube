@@ -582,7 +582,6 @@ impl ExecCtx {
                 }
                 _ => panic!("Not implemented yet."),
             }
-
         }
 
         // 29 Verify the aggregate BLS signature.
