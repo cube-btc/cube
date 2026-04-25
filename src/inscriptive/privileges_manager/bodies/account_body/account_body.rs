@@ -20,9 +20,6 @@ pub struct PrivilegesManagerAccountBody {
 
     // Whether the account can deploy a contract (developer).
     pub can_deploy_contract: TimedSwitchBool,
-
-    // The last activity timestamp of the account.
-    pub last_activity_timestamp: u64,
 }
 
 impl PrivilegesManagerAccountBody {
@@ -33,7 +30,6 @@ impl PrivilegesManagerAccountBody {
         txfee_exemptions: Exemption,
         can_deploy_liquidity: TimedSwitchBool,
         can_deploy_contract: TimedSwitchBool,
-        last_activity_timestamp: u64,
     ) -> PrivilegesManagerAccountBody {
         PrivilegesManagerAccountBody {
             liveness_flag,
@@ -41,7 +37,6 @@ impl PrivilegesManagerAccountBody {
             txfee_exemptions,
             can_deploy_liquidity,
             can_deploy_contract,
-            last_activity_timestamp,
         }
     }
 }

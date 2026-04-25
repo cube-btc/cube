@@ -21,7 +21,6 @@ pub enum PrivilegesManagerConstructionError {
     UnableToDeserializeAccountTxFeeExemptionsFromBytes(AccountKey, Vec<u8>),
     UnableToDeserializeAccountCanDeployLiquidityFromBytes(AccountKey, Vec<u8>),
     UnableToDeserializeAccountCanDeployContractFromBytes(AccountKey, Vec<u8>),    
-    UnableToDeserializeAccountLastActivityTimestampFromBytes(AccountKey, Vec<u8>),
     AccountLivenessFlagNotPresent(AccountKey),
     AccountHierarchyNotPresent(AccountKey),
     AccountTxFeeExemptionsNotPresent(AccountKey),
@@ -42,6 +41,4 @@ pub enum PrivilegesManagerConstructionError {
     ContractLivenessFlagNotPresent(ContractId),
     ContractImmutabilityNotPresent(ContractId),
     ContractTaxExemptionsNotPresent(ContractId),
-    ContractStorageLimitNotPresent(ContractId),
-    ContractLastActivityTimestampNotPresent(ContractId),
 }

@@ -5,7 +5,6 @@ use crate::inscriptive::privileges_manager::elements::account_hierarchy::account
 use crate::inscriptive::privileges_manager::elements::exemption::exemption::Exemption;
 use crate::inscriptive::privileges_manager::elements::liveness_flag::liveness_flag::LivenessFlag;
 use crate::inscriptive::privileges_manager::elements::timed_switch::timed_switch_bool::timed_switch_bool::TimedSwitchBool;
-use crate::inscriptive::privileges_manager::elements::timed_switch::timed_switch_long_val::timed_switch_long_val::TimedSwitchLongVal;
 use crate::inscriptive::privileges_manager::errors::construction_error::PrivilegesManagerConstructionError;
 use crate::operative::run_args::chain::Chain;
 use std::collections::HashMap;
@@ -22,12 +21,9 @@ const ACCOUNT_HIERARCHY_SPECIAL_DB_KEY: [u8; 1] = [0x01; 1];
 const ACCOUNT_TXFEE_EXEMPTIONS_SPECIAL_DB_KEY: [u8; 1] = [0x02; 1];
 const ACCOUNT_CAN_DEPLOY_LIQUIDITY_SPECIAL_DB_KEY: [u8; 1] = [0x03; 1];
 const ACCOUNT_CAN_DEPLOY_CONTRACT_SPECIAL_DB_KEY: [u8; 1] = [0x04; 1];
-const ACCOUNT_LAST_ACTIVITY_TIMESTAMP_SPECIAL_DB_KEY: [u8; 1] = [0x05; 1];
 const CONTRACT_LIVENESS_FLAG_SPECIAL_DB_KEY: [u8; 1] = [0x00; 1];
 const CONTRACT_IMMUTABILITY_SPECIAL_DB_KEY: [u8; 1] = [0x01; 1];
 const CONTRACT_TAX_EXEMPTIONS_SPECIAL_DB_KEY: [u8; 1] = [0x02; 1];
-const CONTRACT_STORAGE_LIMIT_SPECIAL_DB_KEY: [u8; 1] = [0x03; 1];
-const CONTRACT_LAST_ACTIVITY_TIMESTAMP_SPECIAL_DB_KEY: [u8; 1] = [0x04; 1];
 
 /// A struct for managing the privileges and fee management resources of accounts and contracts.
 #[allow(dead_code)]
@@ -75,11 +71,13 @@ impl PrivilegesManager {
         // 4 Collect account bodies from the account database.
         for tree_name in accounts_db.tree_names() {
             // 4.1 Convert the tree name to a account key.
-            let account_key: [u8; 32] = tree_name.as_ref().try_into().map_err(|_| {
-                PrivilegesManagerConstructionError::UnableToDeserializeAccountKeyBytesFromTreeName(
-                    tree_name.to_vec(),
-                )
-            })?;
+            let account_key: [u8; 32] = match tree_name.as_ref().try_into() {
+                Ok(account_key) => account_key,
+                Err(_) => {
+                    // Tree name is probably '__sled__default'. Skip it.
+                    continue;
+                }
+            };
 
             // 4.2 Initialize the account elements.
             let mut account_liveness_flag: Option<LivenessFlag> = None;
@@ -87,7 +85,6 @@ impl PrivilegesManager {
             let mut account_txfee_exemptions: Option<Exemption> = None;
             let mut account_can_deploy_liquidity: Option<TimedSwitchBool> = None;
             let mut account_can_deploy_contract: Option<TimedSwitchBool> = None;
-            let mut account_last_activity_timestamp: Option<u64> = None;
 
             // 4.3 Open the tree associated with the account.
             let tree = accounts_db.open_tree(&tree_name).map_err(|e| {
@@ -165,14 +162,6 @@ impl PrivilegesManager {
                             Some(account_can_deploy_contract_deserialized);
                     }
 
-                    ACCOUNT_LAST_ACTIVITY_TIMESTAMP_SPECIAL_DB_KEY => {
-                        let account_last_activity_timestamp_deserialized = u64::from_le_bytes(value.as_ref().try_into().map_err(|_| {
-                                            PrivilegesManagerConstructionError::UnableToDeserializeAccountLastActivityTimestampFromBytes(account_key, value.to_vec())
-                                        })?);
-
-                        account_last_activity_timestamp =
-                            Some(account_last_activity_timestamp_deserialized);
-                    }
                     _ => {
                         return Err(PrivilegesManagerConstructionError::InvalidAccountDbKeyByte(
                             account_key,
@@ -205,11 +194,6 @@ impl PrivilegesManager {
                         account_key,
                     ),
                 )?,
-                account_last_activity_timestamp.ok_or(
-                    PrivilegesManagerConstructionError::AccountLastActivityTimestampNotPresent(
-                        account_key,
-                    ),
-                )?,
             );
 
             // 4.6 Insert the account body into the in-memory list of accounts.
@@ -219,18 +203,18 @@ impl PrivilegesManager {
         // 5 Collect contract bodies from the contract database.
         for tree_name in contracts_db.tree_names() {
             // 5.1 Convert the tree name to a contract id.
-            let contract_id: [u8; 32] = tree_name.as_ref().try_into().map_err(|_| {
-                PrivilegesManagerConstructionError::UnableToDeserializeContractKeyBytesFromTreeName(
-                    tree_name.to_vec(),
-                )
-            })?;
+            let contract_id: [u8; 32] = match tree_name.as_ref().try_into() {
+                Ok(contract_id) => contract_id,
+                Err(_) => {
+                    // Tree name is probably '__sled__default'. Skip it.
+                    continue;
+                }
+            };
 
             // 5.2 Initialize the contract elements.
             let mut contract_liveness_flag: Option<LivenessFlag> = None;
             let mut contract_immutability: Option<bool> = None;
             let mut contract_tax_exemptions: Option<Exemption> = None;
-            let mut contract_storage_limit: Option<TimedSwitchLongVal> = None;
-            let mut contract_last_activity_timestamp: Option<u64> = None;
 
             // 5.3 Open the tree associated with the contract.
             let tree = contracts_db.open_tree(&tree_name).map_err(|e| {
@@ -305,27 +289,6 @@ impl PrivilegesManager {
                         )?;
                         contract_tax_exemptions = Some(contract_tax_exemptions_deserialized);
                     }
-                    CONTRACT_STORAGE_LIMIT_SPECIAL_DB_KEY => {
-                        let contract_storage_limit_deserialized = TimedSwitchLongVal::from_bytes(value.as_ref()).ok_or(
-                            PrivilegesManagerConstructionError::UnableToDeserializeContractStorageLimitFromBytes(
-                                contract_id,
-                                value.to_vec(),
-                            ),
-                        )?;
-                        contract_storage_limit = Some(contract_storage_limit_deserialized);
-                    }
-                    CONTRACT_LAST_ACTIVITY_TIMESTAMP_SPECIAL_DB_KEY => {
-                        let contract_last_activity_timestamp_deserialized = u64::from_le_bytes(
-                            value.as_ref().try_into().map_err(|_| {
-                                PrivilegesManagerConstructionError::UnableToDeserializeContractLastActivityTimestampFromBytes(
-                                    contract_id,
-                                    value.to_vec(),
-                                )
-                            })?,
-                        );
-                        contract_last_activity_timestamp =
-                            Some(contract_last_activity_timestamp_deserialized);
-                    }
                     _ => {
                         return Err(
                             PrivilegesManagerConstructionError::InvalidContractDbKeyByte(
@@ -347,14 +310,6 @@ impl PrivilegesManager {
                 )?,
                 contract_tax_exemptions.ok_or(
                     PrivilegesManagerConstructionError::ContractTaxExemptionsNotPresent(
-                        contract_id,
-                    ),
-                )?,
-                contract_storage_limit.ok_or(
-                    PrivilegesManagerConstructionError::ContractStorageLimitNotPresent(contract_id),
-                )?,
-                contract_last_activity_timestamp.ok_or(
-                    PrivilegesManagerConstructionError::ContractLastActivityTimestampNotPresent(
                         contract_id,
                     ),
                 )?,
@@ -380,4 +335,409 @@ impl PrivilegesManager {
         // 8 Return the guarded privileges manager.
         Ok(guarded_privileges_manager)
     }
+
+    /// Clones the delta into the backup.
+    fn backup_delta(&mut self) {
+        self.backup_of_delta = self.delta.clone();
+    }
+
+    /// Restores the delta from the backup.
+    fn restore_delta(&mut self) {
+        self.delta = self.backup_of_delta.clone();
+    }
+
+    /// Prepares privileges manager prior to each execution.
+    pub fn pre_execution(&mut self) {
+        self.backup_delta();
+    }
+
+    /// Returns the account body by account key.
+    pub fn get_account_body_by_account_key(
+        &self,
+        account_key: AccountKey,
+    ) -> Option<PrivilegesManagerAccountBody> {
+        self.in_memory_accounts.get(&account_key).cloned()
+    }
+
+    /// Returns the contract body by contract id.
+    pub fn get_contract_body_by_contract_id(
+        &self,
+        contract_id: ContractId,
+    ) -> Option<PrivilegesManagerContractBody> {
+        self.in_memory_contracts.get(&contract_id).cloned()
+    }
+
+    /// Returns whether account is registered.
+    pub fn is_account_registered(&self, account_key: AccountKey) -> bool {
+        self.in_memory_accounts.contains_key(&account_key)
+    }
+
+    /// Returns whether contract is registered.
+    pub fn is_contract_registered(&self, contract_id: ContractId) -> bool {
+        self.in_memory_contracts.contains_key(&contract_id)
+    }
+
+    /// Returns account liveness flag.
+    pub fn get_account_liveness_flag(&self, account_key: AccountKey) -> Option<LivenessFlag> {
+        if let Some(value) = self.delta.updated_account_liveness_flags.get(&account_key) {
+            return Some(value.clone());
+        }
+
+        self.in_memory_accounts
+            .get(&account_key)
+            .map(|body| body.liveness_flag.clone())
+    }
+
+    /// Returns account hierarchy.
+    pub fn get_account_hierarchy(&self, account_key: AccountKey) -> Option<AccountHierarchy> {
+        if let Some(value) = self.delta.updated_account_hierarchies.get(&account_key) {
+            return Some(value.clone());
+        }
+
+        self.in_memory_accounts
+            .get(&account_key)
+            .map(|body| body.hierarchy.clone())
+    }
+
+    /// Returns account txfee exemptions.
+    pub fn get_account_txfee_exemptions(&self, account_key: AccountKey) -> Option<Exemption> {
+        if let Some(value) = self.delta.updated_account_txfee_exemptions.get(&account_key) {
+            return Some(value.clone());
+        }
+
+        self.in_memory_accounts
+            .get(&account_key)
+            .map(|body| body.txfee_exemptions.clone())
+    }
+
+    /// Returns account can-deploy-liquidity switch.
+    pub fn get_account_can_deploy_liquidity(
+        &self,
+        account_key: AccountKey,
+    ) -> Option<TimedSwitchBool> {
+        if let Some(value) = self
+            .delta
+            .updated_account_can_deploy_liquidity
+            .get(&account_key)
+        {
+            return Some(value.clone());
+        }
+
+        self.in_memory_accounts
+            .get(&account_key)
+            .map(|body| body.can_deploy_liquidity.clone())
+    }
+
+    /// Returns account can-deploy-contract switch.
+    pub fn get_account_can_deploy_contract(
+        &self,
+        account_key: AccountKey,
+    ) -> Option<TimedSwitchBool> {
+        if let Some(value) = self
+            .delta
+            .updated_account_can_deploy_contract
+            .get(&account_key)
+        {
+            return Some(value.clone());
+        }
+
+        self.in_memory_accounts
+            .get(&account_key)
+            .map(|body| body.can_deploy_contract.clone())
+    }
+
+    /// Returns contract liveness flag.
+    pub fn get_contract_liveness_flag(&self, contract_id: ContractId) -> Option<LivenessFlag> {
+        if let Some(value) = self.delta.updated_contract_liveness_flags.get(&contract_id) {
+            return Some(value.clone());
+        }
+
+        self.in_memory_contracts
+            .get(&contract_id)
+            .map(|body| body.liveness_flag.clone())
+    }
+
+    /// Returns contract immutability flag.
+    pub fn get_contract_immutability(&self, contract_id: ContractId) -> Option<bool> {
+        if let Some(value) = self
+            .delta
+            .updated_contract_immutability_flags
+            .get(&contract_id)
+        {
+            return Some(*value);
+        }
+
+        self.in_memory_contracts
+            .get(&contract_id)
+            .map(|body| body.immutability)
+    }
+
+    /// Returns contract tax exemptions.
+    pub fn get_contract_tax_exemptions(&self, contract_id: ContractId) -> Option<Exemption> {
+        if let Some(value) = self.delta.updated_contract_tax_exemptions.get(&contract_id) {
+            return Some(value.clone());
+        }
+
+        self.in_memory_contracts
+            .get(&contract_id)
+            .map(|body| body.tax_exemptions.clone())
+    }
+
+    /// Epheremally updates account liveness flag.
+    pub fn set_account_liveness_flag(
+        &mut self,
+        account_key: AccountKey,
+        liveness_flag: LivenessFlag,
+    ) -> bool {
+        if !self.is_account_registered(account_key) {
+            return false;
+        }
+
+        self.delta
+            .updated_account_liveness_flags
+            .insert(account_key, liveness_flag);
+        true
+    }
+
+    /// Epheremally updates account hierarchy.
+    pub fn set_account_hierarchy(
+        &mut self,
+        account_key: AccountKey,
+        hierarchy: AccountHierarchy,
+    ) -> bool {
+        if !self.is_account_registered(account_key) {
+            return false;
+        }
+
+        self.delta
+            .updated_account_hierarchies
+            .insert(account_key, hierarchy);
+        true
+    }
+
+    /// Epheremally updates account txfee exemptions.
+    pub fn set_account_txfee_exemptions(
+        &mut self,
+        account_key: AccountKey,
+        txfee_exemptions: Exemption,
+    ) -> bool {
+        if !self.is_account_registered(account_key) {
+            return false;
+        }
+
+        self.delta
+            .updated_account_txfee_exemptions
+            .insert(account_key, txfee_exemptions);
+        true
+    }
+
+    /// Epheremally updates account can-deploy-liquidity switch.
+    pub fn set_account_can_deploy_liquidity(
+        &mut self,
+        account_key: AccountKey,
+        can_deploy_liquidity: TimedSwitchBool,
+    ) -> bool {
+        if !self.is_account_registered(account_key) {
+            return false;
+        }
+
+        self.delta
+            .updated_account_can_deploy_liquidity
+            .insert(account_key, can_deploy_liquidity);
+        true
+    }
+
+    /// Epheremally updates account can-deploy-contract switch.
+    pub fn set_account_can_deploy_contract(
+        &mut self,
+        account_key: AccountKey,
+        can_deploy_contract: TimedSwitchBool,
+    ) -> bool {
+        if !self.is_account_registered(account_key) {
+            return false;
+        }
+
+        self.delta
+            .updated_account_can_deploy_contract
+            .insert(account_key, can_deploy_contract);
+        true
+    }
+
+    /// Epheremally updates contract liveness flag.
+    pub fn set_contract_liveness_flag(
+        &mut self,
+        contract_id: ContractId,
+        liveness_flag: LivenessFlag,
+    ) -> bool {
+        if !self.is_contract_registered(contract_id) {
+            return false;
+        }
+
+        self.delta
+            .updated_contract_liveness_flags
+            .insert(contract_id, liveness_flag);
+        true
+    }
+
+    /// Epheremally updates contract immutability.
+    pub fn set_contract_immutability(&mut self, contract_id: ContractId, immutability: bool) -> bool {
+        if !self.is_contract_registered(contract_id) {
+            return false;
+        }
+
+        self.delta
+            .updated_contract_immutability_flags
+            .insert(contract_id, immutability);
+        true
+    }
+
+    /// Epheremally updates contract tax exemptions.
+    pub fn set_contract_tax_exemptions(
+        &mut self,
+        contract_id: ContractId,
+        tax_exemptions: Exemption,
+    ) -> bool {
+        if !self.is_contract_registered(contract_id) {
+            return false;
+        }
+
+        self.delta
+            .updated_contract_tax_exemptions
+            .insert(contract_id, tax_exemptions);
+        true
+    }
+
+    /// Reverts the epheremal changes associated with the last execution.
+    pub fn rollback_last(&mut self) {
+        self.restore_delta();
+    }
+
+    /// Applies all epheremal changes from delta into permanent in-memory and on-disk state.
+    pub fn apply_changes(&mut self) -> Result<(), sled::Error> {
+        // 1 Save updated account liveness flags.
+        for (account_key, liveness_flag) in self.delta.updated_account_liveness_flags.iter() {
+            {
+                let tree = self.on_disk_accounts.open_tree(account_key)?;
+                tree.insert(ACCOUNT_LIVENESS_FLAG_SPECIAL_DB_KEY, liveness_flag.to_bytes())?;
+            }
+
+            if let Some(account_body) = self.in_memory_accounts.get_mut(account_key) {
+                account_body.liveness_flag = liveness_flag.clone();
+            }
+        }
+
+        // 2 Save updated account hierarchies.
+        for (account_key, hierarchy) in self.delta.updated_account_hierarchies.iter() {
+            {
+                let tree = self.on_disk_accounts.open_tree(account_key)?;
+                tree.insert(ACCOUNT_HIERARCHY_SPECIAL_DB_KEY, [hierarchy.to_bytecode()].as_slice())?;
+            }
+
+            if let Some(account_body) = self.in_memory_accounts.get_mut(account_key) {
+                account_body.hierarchy = hierarchy.clone();
+            }
+        }
+
+        // 3 Save updated account txfee exemptions.
+        for (account_key, txfee_exemptions) in self.delta.updated_account_txfee_exemptions.iter() {
+            {
+                let tree = self.on_disk_accounts.open_tree(account_key)?;
+                tree.insert(
+                    ACCOUNT_TXFEE_EXEMPTIONS_SPECIAL_DB_KEY,
+                    txfee_exemptions.to_bytes(),
+                )?;
+            }
+
+            if let Some(account_body) = self.in_memory_accounts.get_mut(account_key) {
+                account_body.txfee_exemptions = txfee_exemptions.clone();
+            }
+        }
+
+        // 4 Save updated account can-deploy-liquidity switches.
+        for (account_key, can_deploy_liquidity) in
+            self.delta.updated_account_can_deploy_liquidity.iter()
+        {
+            {
+                let tree = self.on_disk_accounts.open_tree(account_key)?;
+                tree.insert(
+                    ACCOUNT_CAN_DEPLOY_LIQUIDITY_SPECIAL_DB_KEY,
+                    can_deploy_liquidity.to_bytes(),
+                )?;
+            }
+
+            if let Some(account_body) = self.in_memory_accounts.get_mut(account_key) {
+                account_body.can_deploy_liquidity = can_deploy_liquidity.clone();
+            }
+        }
+
+        // 5 Save updated account can-deploy-contract switches.
+        for (account_key, can_deploy_contract) in self.delta.updated_account_can_deploy_contract.iter()
+        {
+            {
+                let tree = self.on_disk_accounts.open_tree(account_key)?;
+                tree.insert(
+                    ACCOUNT_CAN_DEPLOY_CONTRACT_SPECIAL_DB_KEY,
+                    can_deploy_contract.to_bytes(),
+                )?;
+            }
+
+            if let Some(account_body) = self.in_memory_accounts.get_mut(account_key) {
+                account_body.can_deploy_contract = can_deploy_contract.clone();
+            }
+        }
+
+        // 6 Save updated contract liveness flags.
+        for (contract_id, liveness_flag) in self.delta.updated_contract_liveness_flags.iter() {
+            {
+                let tree = self.on_disk_contracts.open_tree(contract_id)?;
+                tree.insert(CONTRACT_LIVENESS_FLAG_SPECIAL_DB_KEY, liveness_flag.to_bytes())?;
+            }
+
+            if let Some(contract_body) = self.in_memory_contracts.get_mut(contract_id) {
+                contract_body.liveness_flag = liveness_flag.clone();
+            }
+        }
+
+        // 7 Save updated contract immutability flags.
+        for (contract_id, immutability) in self.delta.updated_contract_immutability_flags.iter() {
+            {
+                let tree = self.on_disk_contracts.open_tree(contract_id)?;
+                let immutability_byte = if *immutability { 1u8 } else { 0u8 };
+                tree.insert(CONTRACT_IMMUTABILITY_SPECIAL_DB_KEY, [immutability_byte].as_slice())?;
+            }
+
+            if let Some(contract_body) = self.in_memory_contracts.get_mut(contract_id) {
+                contract_body.immutability = *immutability;
+            }
+        }
+
+        // 8 Save updated contract tax exemptions.
+        for (contract_id, tax_exemptions) in self.delta.updated_contract_tax_exemptions.iter() {
+            {
+                let tree = self.on_disk_contracts.open_tree(contract_id)?;
+                tree.insert(CONTRACT_TAX_EXEMPTIONS_SPECIAL_DB_KEY, tax_exemptions.to_bytes())?;
+            }
+
+            if let Some(contract_body) = self.in_memory_contracts.get_mut(contract_id) {
+                contract_body.tax_exemptions = tax_exemptions.clone();
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Clears all epheremal changes from delta and backup.
+    pub fn flush_delta(&mut self) {
+        self.delta.flush();
+        self.backup_of_delta.flush();
+    }
+}
+
+/// Erases the privileges manager by db paths.
+pub fn erase_privileges_manager(chain: Chain) {
+    let accounts_db_path = format!("storage/{}/privileges/accounts", chain.to_string());
+    let _ = std::fs::remove_dir_all(accounts_db_path);
+
+    let contracts_db_path = format!("storage/{}/privileges/contracts", chain.to_string());
+    let _ = std::fs::remove_dir_all(contracts_db_path);
 }

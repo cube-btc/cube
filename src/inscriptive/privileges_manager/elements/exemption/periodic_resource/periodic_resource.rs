@@ -12,9 +12,6 @@ pub struct PeriodicResource {
     // The variable part of the resource.
     // This is the left amount of the resource from the latest consumption.
     pub latest_left: u64,
-
-    // The timestamp of the latest consumption.
-    pub latest_consumption_timestamp: u64,
 }
 
 impl PeriodicResource {
@@ -23,13 +20,11 @@ impl PeriodicResource {
         period: u64,
         limit: u64,
         latest_left: u64,
-        latest_consumption_timestamp: u64,
     ) -> Self {
         Self {
             period,
             limit,
             latest_left,
-            latest_consumption_timestamp,
         }
     }
 
@@ -44,14 +39,14 @@ impl PeriodicResource {
     }
 
     /// Returns the current left by taking the refill into account since the latest consumption timestamp.
-    pub fn current_left(&self, current_timestamp: u64) -> Option<u64> {
+    pub fn current_left(&self, current_timestamp: u64, latest_consumption_timestamp: u64) -> Option<u64> {
         // 1 Check if the current timestamp is before the latest consumption timestamp.
-        if self.latest_consumption_timestamp > current_timestamp {
+        if latest_consumption_timestamp > current_timestamp {
             return None;
         }
 
         // 2 Calculate the time passed since the latest consumption.
-        let time_passed = current_timestamp - self.latest_consumption_timestamp;
+        let time_passed = current_timestamp - latest_consumption_timestamp;
 
         // 3 Check if the time passed is greater than or equal to the period.
         match time_passed >= self.period {
@@ -86,10 +81,11 @@ impl PeriodicResource {
     pub fn refill_and_consume(
         &mut self,
         current_timestamp: u64,
+        latest_consumption_timestamp: u64,
         consume_amount: u64,
     ) -> Option<u64> {
         // 1 Return the current left.
-        let current_left = self.current_left(current_timestamp)?;
+        let current_left = self.current_left(current_timestamp, latest_consumption_timestamp)?;
 
         // 2 Check if there is enough resource to consume.
         if current_left < consume_amount {
@@ -102,10 +98,7 @@ impl PeriodicResource {
         // 4 Update the latest left.
         self.latest_left = new_amount;
 
-        // 5 Update the latest consumption timestamp.
-        self.latest_consumption_timestamp = current_timestamp;
-
-        // 6 Return the new amount.
+        // 5 Return the new amount.
         Some(new_amount)
     }
 
@@ -123,10 +116,7 @@ impl PeriodicResource {
         // 4 Serialize the latest left.
         bytes.extend(self.latest_left.to_le_bytes());
 
-        // 5 Serialize the latest consumption timestamp.
-        bytes.extend(self.latest_consumption_timestamp.to_le_bytes());
-
-        // 6 Return the bytes.
+        // 5 Return the bytes.
         bytes
     }
 
@@ -146,15 +136,11 @@ impl PeriodicResource {
         // 4 Deserialize the latest left.
         let latest_left = u64::from_le_bytes(bytes[16..24].try_into().ok()?);
 
-        // 5 Deserialize the latest consumption timestamp.
-        let latest_consumption_timestamp = u64::from_le_bytes(bytes[24..32].try_into().ok()?);
-
-        // 6 Construct the periodic resource.
+        // 5 Construct the periodic resource.
         let periodic_resource = PeriodicResource {
             period,
             limit,
             latest_left,
-            latest_consumption_timestamp,
         };
 
         // 6 Return the periodically refilled resource.

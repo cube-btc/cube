@@ -61,7 +61,7 @@ pub async fn engine_batch_builder_background_task(
 
         // 4 TODO: Construct the bitcoin transaction fee.
         // Currently hardcoded to 500 satoshis as a placeholder.
-        let bitcoin_transaction_fee = 500;
+        let bitcoin_transaction_fee = 1_000;
 
         // 5 Begin the session.
         {
