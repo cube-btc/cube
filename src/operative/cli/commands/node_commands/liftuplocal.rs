@@ -10,6 +10,7 @@ use crate::inscriptive::archival_manager::archival_manager::ARCHIVAL_MANAGER;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
 use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
+use crate::inscriptive::privileges_manager::privileges_manager::PRIVILEGES_MANAGER;
 use crate::inscriptive::registery::registery::REGISTERY;
 use crate::inscriptive::state_manager::state_manager::STATE_MANAGER;
 use crate::inscriptive::sync_manager::sync_manager::SYNC_MANAGER;
@@ -32,6 +33,7 @@ pub async fn liftup_local_command(
     coin_manager: &COIN_MANAGER,
     flame_manager: &FLAME_MANAGER,
     state_manager: &STATE_MANAGER,
+    privileges_manager: &PRIVILEGES_MANAGER,
     archival_manager: Option<ARCHIVAL_MANAGER>,
 ) {
     // 1 Scan the UTXO set and collect the self owned lifts.
@@ -80,6 +82,7 @@ pub async fn liftup_local_command(
         Arc::clone(coin_manager),
         Arc::clone(flame_manager),
         Arc::clone(state_manager),
+        Arc::clone(privileges_manager),
         archival_manager,
     );
 

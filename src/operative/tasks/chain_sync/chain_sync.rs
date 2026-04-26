@@ -10,7 +10,9 @@ use crate::{
     inscriptive::{
         archival_manager::archival_manager::ARCHIVAL_MANAGER, baked,
         coin_manager::coin_manager::COIN_MANAGER, flame_manager::flame_manager::FLAME_MANAGER,
-        graveyard::graveyard::GRAVEYARD, registery::registery::REGISTERY,
+        graveyard::graveyard::GRAVEYARD,
+        privileges_manager::privileges_manager::PRIVILEGES_MANAGER,
+        registery::registery::REGISTERY,
         state_manager::state_manager::STATE_MANAGER, sync_manager::sync_manager::SYNC_MANAGER,
         utxo_set::utxo_set::UTXO_SET,
     },
@@ -41,6 +43,7 @@ pub trait ChainSync {
         coin_manager: &COIN_MANAGER,
         flame_manager: &FLAME_MANAGER,
         state_manager: &STATE_MANAGER,
+        privileges_manager: &PRIVILEGES_MANAGER,
         archival_manager: &Option<ARCHIVAL_MANAGER>,
         utxo_set: &UTXO_SET,
     );
@@ -76,6 +79,7 @@ impl ChainSync for SYNC_MANAGER {
         coin_manager: &COIN_MANAGER,
         flame_manager: &FLAME_MANAGER,
         state_manager: &STATE_MANAGER,
+        privileges_manager: &PRIVILEGES_MANAGER,
         archival_manager: &Option<ARCHIVAL_MANAGER>,
         utxo_set: &UTXO_SET,
     ) {
@@ -298,6 +302,7 @@ impl ChainSync for SYNC_MANAGER {
                                 Arc::clone(coin_manager),
                                 Arc::clone(flame_manager),
                                 Arc::clone(state_manager),
+                                Arc::clone(privileges_manager),
                                 archival_manager.clone(),
                             );
 

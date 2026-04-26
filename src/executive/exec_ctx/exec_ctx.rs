@@ -11,6 +11,7 @@ use crate::inscriptive::archival_manager::archival_manager::ARCHIVAL_MANAGER;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
 use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
+use crate::inscriptive::privileges_manager::privileges_manager::PRIVILEGES_MANAGER;
 use crate::inscriptive::registery::registery::REGISTERY;
 use crate::inscriptive::state_manager::state_manager::STATE_MANAGER;
 use crate::inscriptive::sync_manager::sync_manager::SYNC_MANAGER;
@@ -55,6 +56,9 @@ pub struct ExecCtx {
     // The local state manager (contract state) of the Engine.
     pub state_manager: STATE_MANAGER,
 
+    // The local privileges manager of the Engine.
+    pub privileges_manager: PRIVILEGES_MANAGER,
+
     /// Optional append-only archival store for full batch history (`ResourceMode::Archival`).
     pub archival_manager: Option<ARCHIVAL_MANAGER>,
 }
@@ -74,6 +78,7 @@ impl ExecCtx {
         coin_manager: COIN_MANAGER,
         flame_manager: FLAME_MANAGER,
         state_manager: STATE_MANAGER,
+        privileges_manager: PRIVILEGES_MANAGER,
         archival_manager: Option<ARCHIVAL_MANAGER>,
     ) -> EXEC_CTX {
         // 1 Initialize the `ExecCtx`.
@@ -86,6 +91,7 @@ impl ExecCtx {
             coin_manager,
             flame_manager,
             state_manager,
+            privileges_manager,
             archival_manager,
         };
 
@@ -119,6 +125,11 @@ impl ExecCtx {
         {
             self.state_manager.lock().await.pre_execution();
         }
+
+        // 6 Pre-execution privileges manager.
+        {
+            self.privileges_manager.lock().unwrap().pre_execution();
+        }
     }
 
     /// Rolls back the last execution of the `ExecCtx` due to a failed individual Entry execution.
@@ -147,6 +158,11 @@ impl ExecCtx {
         {
             self.state_manager.lock().await.rollback_last();
         }
+
+        // 6 Rollback last privileges manager.
+        {
+            self.privileges_manager.lock().unwrap().rollback_last();
+        }
     }
 
     /// Flushes all the changes in the `ExecCtx`.
@@ -174,6 +190,11 @@ impl ExecCtx {
         // 5 Flush state manager ephemerals.
         {
             self.state_manager.lock().await.flush_delta();
+        }
+
+        // 6 Flush privileges manager ephemerals.
+        {
+            self.privileges_manager.lock().unwrap().flush_delta();
         }
     }
 
@@ -259,28 +280,36 @@ impl ExecCtx {
             }
         }
 
-        // 11 Update tips in the sync manager.
+        // 11 Apply changes to the privileges manager.
         {
-            // 11.1 Lock the sync manager.
+            let mut _privileges_manager = self.privileges_manager.lock().unwrap();
+            if let Err(error) = _privileges_manager.apply_changes() {
+                return Err(ApplyChangesError::PrivilegesManagerApplyChangesError(error));
+            }
+        }
+
+        // 12 Update tips in the sync manager.
+        {
+            // 12.1 Lock the sync manager.
             let mut _sync_manager = self.sync_manager.lock().await;
 
-            // 11.2 Update the cube batch sync height tip.
+            // 12.2 Update the cube batch sync height tip.
             _sync_manager.set_cube_batch_sync_height_tip(new_batch_height);
 
-            // 11.3 Update the payload tip.
+            // 12.3 Update the payload tip.
             _sync_manager.set_payload_tip(new_payload);
         }
 
-        // 12 Safe-remove spent lift tx inputs from the utxo set (as this may be in-flight execution).
+        // 13 Safe-remove spent lift tx inputs from the utxo set (as this may be in-flight execution).
         {
-            // 12.1 Lock the utxo set.
+            // 13.1 Lock the utxo set.
             let mut _utxo_set = self.utxo_set.lock().await;
 
-            // 12.2 Safe-remove spent lift tx inputs from the utxo set.
+            // 13.2 Safe-remove spent lift tx inputs from the utxo set.
             _utxo_set.safe_remove_utxos(spent_bitcoin_tx_inputs);
         }
 
-        // 13 Insert the batch record into the archival manager.
+        // 14 Insert the batch record into the archival manager.
         if let Some(archival_manager) = self.archival_manager.as_ref() {
             archival_manager
                 .lock()
@@ -289,12 +318,12 @@ impl ExecCtx {
                 .map_err(|error| ApplyChangesError::ArchivalManagerInsertBatchRecordError(error))?;
         }
 
-        // 14 Flush the changes.
+        // 15 Flush the changes.
         {
             self.flush().await;
         }
 
-        // 15 Return Ok.
+        // 16 Return Ok.
         Ok(())
     }
 

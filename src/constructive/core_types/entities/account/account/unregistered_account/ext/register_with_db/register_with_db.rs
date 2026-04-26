@@ -1,4 +1,11 @@
 use crate::constructive::entity::account::account::unregistered_account::unregistered_account::UnregisteredAccount;
+use crate::inscriptive::privileges_manager::bodies::account_body::account_body::PrivilegesManagerAccountBody;
+use crate::inscriptive::privileges_manager::elements::account_hierarchy::account_hierarchy::AccountHierarchy;
+use crate::inscriptive::privileges_manager::elements::exemption::exemption::Exemption;
+use crate::inscriptive::privileges_manager::elements::exemption::periodic_resource::periodic_resource::PeriodicResource;
+use crate::inscriptive::privileges_manager::elements::liveness_flag::liveness_flag::LivenessFlag;
+use crate::inscriptive::privileges_manager::elements::timed_switch::timed_switch_bool::timed_switch_bool::TimedSwitchBool;
+use crate::inscriptive::privileges_manager::privileges_manager::PRIVILEGES_MANAGER;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
 use crate::inscriptive::registery::registery::REGISTERY;
 use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
@@ -13,6 +20,7 @@ impl UnregisteredAccount {
         registery: &REGISTERY,
         coin_manager: &COIN_MANAGER,
         flame_manager: &FLAME_MANAGER,
+        privileges_manager: &PRIVILEGES_MANAGER,
         graveyard: &GRAVEYARD,
         initial_account_balance_in_satoshis: u64,
     ) -> Result<(), UnregisteredAccountRegisterWithDBError> {
@@ -75,7 +83,26 @@ impl UnregisteredAccount {
                 })?;
         }
 
-        // 5 Return the result.
+        // 5 Register the account with the `PrivilegesManager`.
+        {
+            let mut _privileges_manager = privileges_manager.lock().unwrap();
+            _privileges_manager
+                .register_account(
+                    self.account_key_to_be_registered,
+                    PrivilegesManagerAccountBody::new(
+                        LivenessFlag::new_operational(),
+                        AccountHierarchy::new_pleb(),
+                        Exemption::new(PeriodicResource::new(1, 0, 0), 0, 0),
+                        TimedSwitchBool::new(false, None),
+                        TimedSwitchBool::new(false, None),
+                    ),
+                )
+                .map_err(
+                    UnregisteredAccountRegisterWithDBError::PrivilegesManagerRegisterAccountError,
+                )?;
+        }
+
+        // 6 Return the result.
         Ok(())
     }
 }

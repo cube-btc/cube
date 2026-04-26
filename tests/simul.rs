@@ -22,6 +22,9 @@ mod simul_tests {
     use cube::inscriptive::graveyard::graveyard::erase_graveyard;
     use cube::inscriptive::graveyard::graveyard::Graveyard;
     use cube::inscriptive::graveyard::graveyard::GRAVEYARD;
+    use cube::inscriptive::privileges_manager::privileges_manager::erase_privileges_manager;
+    use cube::inscriptive::privileges_manager::privileges_manager::PrivilegesManager;
+    use cube::inscriptive::privileges_manager::privileges_manager::PRIVILEGES_MANAGER;
     use cube::inscriptive::registery::registery::erase_registery;
     use cube::inscriptive::registery::registery::Registery;
     use cube::inscriptive::registery::registery::REGISTERY;
@@ -117,6 +120,11 @@ mod simul_tests {
         let state_manager: STATE_MANAGER =
             StateManager::new(chain).expect("Failed to create state manager.");
 
+        // 13.c Erase and construct the privileges manager.
+        erase_privileges_manager(chain);
+        let privileges_manager: PRIVILEGES_MANAGER =
+            PrivilegesManager::new(chain).expect("Failed to create privileges manager.");
+
         // Erase and construct the archival manager.
         erase_archival_manager(chain);
         let archival_manager: ARCHIVAL_MANAGER =
@@ -207,6 +215,7 @@ mod simul_tests {
             &Arc::clone(&coin_manager),
             &Arc::clone(&flame_manager),
             &Arc::clone(&state_manager),
+            &Arc::clone(&privileges_manager),
             Some(Arc::clone(&archival_manager)),
         );
 
@@ -277,6 +286,7 @@ mod simul_tests {
             Arc::clone(&coin_manager),
             Arc::clone(&flame_manager),
             Arc::clone(&state_manager),
+            Arc::clone(&privileges_manager),
             None,
         );
 

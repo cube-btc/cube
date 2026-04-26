@@ -12,6 +12,7 @@ pub enum ApplyChangesError {
     GraveyardApplyChangesError(GraveyardApplyChangesError),
     RegisteryApplyChangesError(RMApplyChangesError),
     StateManagerApplyChangesError(SMApplyChangesError),
+    PrivilegesManagerApplyChangesError(sled::Error),
     FlameManagerApplyChangesError(FMApplyChangesError),
     ArchivalManagerInsertBatchRecordError(ArchivalManagerInsertBatchRecordError),
 }

@@ -89,6 +89,7 @@ impl ExecCtx {
                         &self.registery,
                         &self.coin_manager,
                         &self.flame_manager,
+                        &self.privileges_manager,
                         &self.graveyard,
                         liftup_value_after_fees_in_satoshis,
                     )

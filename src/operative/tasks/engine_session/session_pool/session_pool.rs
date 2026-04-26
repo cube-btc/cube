@@ -13,6 +13,7 @@ use crate::inscriptive::archival_manager::archival_manager::ARCHIVAL_MANAGER;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
 use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
+use crate::inscriptive::privileges_manager::privileges_manager::PRIVILEGES_MANAGER;
 use crate::inscriptive::registery::registery::REGISTERY;
 use crate::inscriptive::state_manager::state_manager::STATE_MANAGER;
 use crate::inscriptive::sync_manager::sync_manager::SYNC_MANAGER;
@@ -95,6 +96,9 @@ pub struct SessionPool {
     // The state manager.
     pub state_manager: STATE_MANAGER,
 
+    // The privileges manager.
+    pub privileges_manager: PRIVILEGES_MANAGER,
+
     // The exec context.
     pub exec_ctx: EXEC_CTX,
 
@@ -120,6 +124,7 @@ impl SessionPool {
         coin_manager: &COIN_MANAGER,
         flame_manager: &FLAME_MANAGER,
         state_manager: &STATE_MANAGER,
+        privileges_manager: &PRIVILEGES_MANAGER,
         archival_manager: Option<ARCHIVAL_MANAGER>,
     ) -> SESSION_POOL {
         // 1 Construct the exec context.
@@ -132,6 +137,7 @@ impl SessionPool {
             Arc::clone(coin_manager),
             Arc::clone(flame_manager),
             Arc::clone(state_manager),
+            Arc::clone(privileges_manager),
             archival_manager,
         );
 
@@ -147,6 +153,7 @@ impl SessionPool {
             coin_manager: Arc::clone(coin_manager),
             flame_manager: Arc::clone(flame_manager),
             state_manager: Arc::clone(state_manager),
+            privileges_manager: Arc::clone(privileges_manager),
             exec_ctx,
             added_entries: Vec::new(),
             added_individual_entry_bls_signatures: Vec::new(),
