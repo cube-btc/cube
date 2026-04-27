@@ -5,7 +5,8 @@ use crate::{
         stack::stack_item::StackItem,
     },
     inscriptive::{
-        coin_manager::coin_manager::COIN_MANAGER, registery::registery::REGISTERY,
+        coin_manager::coin_manager::COIN_MANAGER, params_manager::params_manager::PARAMS_MANAGER,
+        registery::registery::REGISTERY,
         state_manager::state_manager::STATE_MANAGER,
     },
 };
@@ -25,6 +26,8 @@ pub struct ProgramExecCtx {
     coin_manager: COIN_MANAGER,
     // The programs repo.
     registery: REGISTERY,
+    // The params manager.
+    _params_manager: PARAMS_MANAGER,
     // External ops counter.
     external_ops_counter: u32,
     // The base ops price.
@@ -40,6 +43,7 @@ impl ProgramExecCtx {
     pub fn new(
         state_manager: &STATE_MANAGER,
         coin_manager: &COIN_MANAGER,
+        params_manager: &PARAMS_MANAGER,
         registery: &REGISTERY,
         base_ops_price: u32,
         timestamp: u64,
@@ -47,6 +51,7 @@ impl ProgramExecCtx {
         Self {
             state_manager: Arc::clone(state_manager),
             coin_manager: Arc::clone(coin_manager),
+            _params_manager: Arc::clone(params_manager),
             registery: Arc::clone(registery),
             external_ops_counter: 0,
             base_ops_price,

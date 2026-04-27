@@ -11,6 +11,7 @@ use crate::inscriptive::archival_manager::archival_manager::ARCHIVAL_MANAGER;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
 use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
+use crate::inscriptive::params_manager::params_manager::PARAMS_MANAGER;
 use crate::inscriptive::privileges_manager::privileges_manager::PRIVILEGES_MANAGER;
 use crate::inscriptive::registery::registery::REGISTERY;
 use crate::inscriptive::state_manager::state_manager::STATE_MANAGER;
@@ -59,6 +60,9 @@ pub struct ExecCtx {
     // The local privileges manager of the Engine.
     pub privileges_manager: PRIVILEGES_MANAGER,
 
+    // The local params manager of the Engine.
+    pub _params_manager: PARAMS_MANAGER,
+
     /// Optional append-only archival store for full batch history (`ResourceMode::Archival`).
     pub archival_manager: Option<ARCHIVAL_MANAGER>,
 }
@@ -79,6 +83,7 @@ impl ExecCtx {
         flame_manager: FLAME_MANAGER,
         state_manager: STATE_MANAGER,
         privileges_manager: PRIVILEGES_MANAGER,
+        params_manager: PARAMS_MANAGER,
         archival_manager: Option<ARCHIVAL_MANAGER>,
     ) -> EXEC_CTX {
         // 1 Initialize the `ExecCtx`.
@@ -92,6 +97,7 @@ impl ExecCtx {
             flame_manager,
             state_manager,
             privileges_manager,
+            _params_manager: params_manager,
             archival_manager,
         };
 

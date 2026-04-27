@@ -71,10 +71,10 @@ impl UnregisteredRootAccount {
 
         // 4 Register the account with the `FlameManager`.
         {
-            // 3.1 Lock the flame manager.
+            // 4.1 Lock the flame manager.
             let mut _flame_manager = flame_manager.lock().await;
 
-            // 3.2 Register the `RootAccount` with the `FlameManager`.
+            // 4.2 Register the `RootAccount` with the `FlameManager`.
             _flame_manager
                 .register_account(self.account_key_to_be_registered)
                 .map_err(|e| {
@@ -82,26 +82,30 @@ impl UnregisteredRootAccount {
                 })?;
         }
 
-        // 5 Register the account with the `PrivilegesManager`.
+        // 6 Register the account with the `PrivilegesManager`.
         {
+            // 6.1 Construct privileges manager account body.
+            let privileges_manager_account_body = PrivilegesManagerAccountBody::new(
+                LivenessFlag::new_operational(),
+                AccountHierarchy::new_pleb(),
+                Exemption::new(PeriodicResource::new(100, 0, 0), 0, 0),
+                TimedSwitchBool::new(true, None),
+                TimedSwitchBool::new(true, None),
+            );
+
+            // 6.2 Register the account with the `PrivilegesManager`.
             let mut _privileges_manager = privileges_manager.lock().unwrap();
             _privileges_manager
                 .register_account(
                     self.account_key_to_be_registered,
-                    PrivilegesManagerAccountBody::new(
-                        LivenessFlag::new_operational(),
-                        AccountHierarchy::new_pleb(),
-                        Exemption::new(PeriodicResource::new(100, 0, 0), 0, 0),
-                        TimedSwitchBool::new(true, None),
-                        TimedSwitchBool::new(true, None),
-                    ),
+                    privileges_manager_account_body,
                 )
                 .map_err(
                     UnregisteredRootAccountRegisterWithDBError::PrivilegesManagerRegisterAccountError,
                 )?;
         }
 
-        // 6 Return the result.
+        // 7 Return the result.
         Ok(())
     }
 }

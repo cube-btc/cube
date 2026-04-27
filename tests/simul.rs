@@ -22,6 +22,9 @@ mod simul_tests {
     use cube::inscriptive::graveyard::graveyard::erase_graveyard;
     use cube::inscriptive::graveyard::graveyard::Graveyard;
     use cube::inscriptive::graveyard::graveyard::GRAVEYARD;
+    use cube::inscriptive::params_manager::params_manager::erase_params_manager;
+    use cube::inscriptive::params_manager::params_manager::ParamsManager;
+    use cube::inscriptive::params_manager::params_manager::PARAMS_MANAGER;
     use cube::inscriptive::privileges_manager::privileges_manager::erase_privileges_manager;
     use cube::inscriptive::privileges_manager::privileges_manager::PrivilegesManager;
     use cube::inscriptive::privileges_manager::privileges_manager::PRIVILEGES_MANAGER;
@@ -125,6 +128,11 @@ mod simul_tests {
         let privileges_manager: PRIVILEGES_MANAGER =
             PrivilegesManager::new(chain).expect("Failed to create privileges manager.");
 
+        // 13.d Erase and construct the params manager.
+        erase_params_manager(chain);
+        let params_manager: PARAMS_MANAGER =
+            ParamsManager::new(chain).expect("Failed to create params manager.");
+
         // Erase and construct the archival manager.
         erase_archival_manager(chain);
         let archival_manager: ARCHIVAL_MANAGER =
@@ -216,6 +224,7 @@ mod simul_tests {
             &Arc::clone(&flame_manager),
             &Arc::clone(&state_manager),
             &Arc::clone(&privileges_manager),
+            &Arc::clone(&params_manager),
             Some(Arc::clone(&archival_manager)),
         );
 
@@ -287,6 +296,7 @@ mod simul_tests {
             Arc::clone(&flame_manager),
             Arc::clone(&state_manager),
             Arc::clone(&privileges_manager),
+            Arc::clone(&params_manager),
             None,
         );
 

@@ -17,6 +17,8 @@ use crate::inscriptive::flame_manager::flame_manager::FlameManager;
 use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
 use crate::inscriptive::graveyard::graveyard::Graveyard;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
+use crate::inscriptive::params_manager::params_manager::PARAMS_MANAGER;
+use crate::inscriptive::params_manager::params_manager::ParamsManager;
 use crate::inscriptive::privileges_manager::privileges_manager::PrivilegesManager;
 use crate::inscriptive::privileges_manager::privileges_manager::PRIVILEGES_MANAGER;
 use crate::inscriptive::registery::registery::Registery;
@@ -169,7 +171,16 @@ pub async fn run(
         }
     };
 
-    // 10.d Initialize NNS client.
+    // 10.d Initialize params manager.
+    let params_manager: PARAMS_MANAGER = match ParamsManager::new(chain) {
+        Ok(params_manager) => params_manager,
+        Err(err) => {
+            println!("{} {:?}", "Error initializing params manager: ".red(), err);
+            return;
+        }
+    };
+
+    // 10.e Initialize NNS client.
     let nns_client = NNSClient::new(&key_holder).await;
 
     // 10.d For node mode, pre-connect to engine so chain sync can pull batch containers.
@@ -199,6 +210,7 @@ pub async fn run(
         let flame_manager = Arc::clone(&flame_manager);
         let state_manager = Arc::clone(&state_manager);
         let privileges_manager = Arc::clone(&privileges_manager);
+        let params_manager = Arc::clone(&params_manager);
         let archival_manager = archival_manager.clone();
         let sync_manager = Arc::clone(&sync_manager);
         let utxo_set = Arc::clone(&utxo_set);
@@ -215,6 +227,7 @@ pub async fn run(
                     &flame_manager,
                     &state_manager,
                     &privileges_manager,
+                    &params_manager,
                     &archival_manager,
                     &utxo_set,
                 )
@@ -270,6 +283,7 @@ pub async fn run(
                 &flame_manager,
                 &state_manager,
                 &privileges_manager,
+                &params_manager,
                 archival_manager.clone(),
             );
 
@@ -286,6 +300,7 @@ pub async fn run(
                 let flame_manager = Arc::clone(&flame_manager);
                 let state_manager = Arc::clone(&state_manager);
                 let privileges_manager = Arc::clone(&privileges_manager);
+                let params_manager = Arc::clone(&params_manager);
                 let archival_manager = archival_manager.clone();
                 let key_holder = Arc::clone(&key_holder);
 
@@ -303,6 +318,7 @@ pub async fn run(
                         &flame_manager,
                         &state_manager,
                         &privileges_manager,
+                        &params_manager,
                         &archival_manager,
                     )
                     .await;
@@ -369,6 +385,7 @@ pub async fn run(
                 let flame_manager = Arc::clone(&flame_manager);
                 let state_manager = Arc::clone(&state_manager);
                 let privileges_manager = Arc::clone(&privileges_manager);
+                let params_manager = Arc::clone(&params_manager);
                 let archival_manager = archival_manager.clone();
 
                 tokio::spawn(async move {
@@ -383,6 +400,7 @@ pub async fn run(
                         &flame_manager,
                         &state_manager,
                         &privileges_manager,
+                        &params_manager,
                         &archival_manager,
                     )
                     .await;
@@ -416,6 +434,7 @@ pub async fn run(
                 &flame_manager,
                 &state_manager,
                 &privileges_manager,
+                &params_manager,
                 archival_manager.clone(),
             )
             .await;

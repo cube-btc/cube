@@ -20,7 +20,9 @@ impl ExecCtx {
 
         // 2 Calculate fees.
         let fees: u64 = {
-            // TODO
+            let _params_manager = self._params_manager.lock().unwrap();
+            let _params_holder = _params_manager.get_params_holder();
+            // TODO: fee calculation will use params holder.
             0
         };
 
