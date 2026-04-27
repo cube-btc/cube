@@ -1,4 +1,6 @@
 use crate::constructive::entity::account::root_account::unregistered_root_account::unregistered_root_account::UnregisteredRootAccount;
+use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
+use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
 use crate::inscriptive::privileges_manager::bodies::account_body::account_body::PrivilegesManagerAccountBody;
 use crate::inscriptive::privileges_manager::elements::account_hierarchy::account_hierarchy::AccountHierarchy;
 use crate::inscriptive::privileges_manager::elements::exemption::exemption::Exemption;
@@ -6,9 +8,8 @@ use crate::inscriptive::privileges_manager::elements::exemption::periodic_resour
 use crate::inscriptive::privileges_manager::elements::liveness_flag::liveness_flag::LivenessFlag;
 use crate::inscriptive::privileges_manager::elements::timed_switch::timed_switch_bool::timed_switch_bool::TimedSwitchBool;
 use crate::inscriptive::privileges_manager::privileges_manager::PRIVILEGES_MANAGER;
-use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
+use crate::inscriptive::params_manager::params_holder::params_holder::ParamsHolder;
 use crate::inscriptive::registery::registery::REGISTERY;
-use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
 use crate::constructive::entity::account::root_account::unregistered_root_account::ext::register_with_db::register_with_db_error::UnregisteredRootAccountRegisterWithDBError;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 
@@ -20,6 +21,7 @@ impl UnregisteredRootAccount {
         coin_manager: &COIN_MANAGER,
         flame_manager: &FLAME_MANAGER,
         privileges_manager: &PRIVILEGES_MANAGER,
+        params_holder: &ParamsHolder,
         graveyard: &GRAVEYARD,
         initial_account_balance_in_satoshis: u64,
     ) -> Result<(), UnregisteredRootAccountRegisterWithDBError> {
@@ -82,18 +84,18 @@ impl UnregisteredRootAccount {
                 })?;
         }
 
-        // 6 Register the account with the `PrivilegesManager`.
+        // 5 Register the account with the `PrivilegesManager`.
         {
-            // 6.1 Construct privileges manager account body.
+            // 5.1 Construct privileges manager account body.
             let privileges_manager_account_body = PrivilegesManagerAccountBody::new(
                 LivenessFlag::new_operational(),
                 AccountHierarchy::new_pleb(),
-                Exemption::new(PeriodicResource::new(100, 0, 0), 0, 0),
-                TimedSwitchBool::new(true, None),
-                TimedSwitchBool::new(true, None),
+                Exemption::new(PeriodicResource::new(0, 0, 0), 0, 0),
+                TimedSwitchBool::new(params_holder.account_can_initially_deploy_liquidity, None),
+                TimedSwitchBool::new(params_holder.account_can_initially_deploy_contract, None),
             );
 
-            // 6.2 Register the account with the `PrivilegesManager`.
+            // 5.2 Register the account with the `PrivilegesManager`.
             let mut _privileges_manager = privileges_manager.lock().unwrap();
             _privileges_manager
                 .register_account(
@@ -105,7 +107,7 @@ impl UnregisteredRootAccount {
                 )?;
         }
 
-        // 7 Return the result.
+        // 6 Return the result.
         Ok(())
     }
 }

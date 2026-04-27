@@ -18,15 +18,28 @@ impl ExecCtx {
         // 1 Get move amount in satoshis.
         let move_amount_in_satoshis = move_entry.amount as u64;
 
-        // 2 Calculate fees.
-        let fees: u64 = {
+        // 2 Get params holder from the params manager.
+        let params_holder = {
             let _params_manager = self._params_manager.lock().unwrap();
-            let _params_holder = _params_manager.get_params_holder();
-            // TODO: fee calculation will use params holder.
-            0
+            _params_manager.get_params_holder()
         };
 
-        // 3 Move value after fees.
+        // 3 Calculate fees.
+        let fees: u64 = {
+            // 3.1 Get the base fee.
+            let base_fee = params_holder.move_entry_base_fee;
+
+            // 3.2 Calculate the proportional liquidity fee.
+            let liquidity_fee =
+                (move_amount_in_satoshis * params_holder.move_ppm_liquidity_fee) / 1_000_000;
+
+            // 3.3 Calculate the total fee.
+            let total_fee = base_fee + liquidity_fee;
+
+            total_fee
+        };
+
+        // 4 Move value after fees.
         let move_value_after_fees_in_satoshis = move_amount_in_satoshis
             .checked_sub(fees)
             .ok_or(MoveExecutionError::AmountUnderflowAfterFeesError)?;
@@ -72,7 +85,9 @@ impl ExecCtx {
                         MoveExecutionError::RegisteredButUnconfiguredRootAccountSyncWithRegisteryError,
                     )?;
             }
-            RootAccount::RegisteredAndConfiguredRootAccount(registered_and_configured_root_account) => {
+            RootAccount::RegisteredAndConfiguredRootAccount(
+                registered_and_configured_root_account,
+            ) => {
                 // 5.c.1 Sync with registery.
                 registered_and_configured_root_account
                     .sync_with_registery(execution_timestamp, &self.registery)
@@ -108,6 +123,7 @@ impl ExecCtx {
                         &self.coin_manager,
                         &self.flame_manager,
                         &self.privileges_manager,
+                        &params_holder,
                         &self.graveyard,
                         move_value_after_fees_in_satoshis,
                     )

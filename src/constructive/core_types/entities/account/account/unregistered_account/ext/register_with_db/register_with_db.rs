@@ -11,6 +11,7 @@ use crate::inscriptive::registery::registery::REGISTERY;
 use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
 use crate::constructive::entity::account::account::unregistered_account::ext::register_with_db::register_with_db_error::UnregisteredAccountRegisterWithDBError;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
+use crate::inscriptive::params_manager::params_holder::params_holder::ParamsHolder;
 
 impl UnregisteredAccount {
     /// Registers the `UnregisteredAccount` with the various database managers.
@@ -21,6 +22,7 @@ impl UnregisteredAccount {
         coin_manager: &COIN_MANAGER,
         flame_manager: &FLAME_MANAGER,
         privileges_manager: &PRIVILEGES_MANAGER,
+        params_holder: &ParamsHolder,
         graveyard: &GRAVEYARD,
         initial_account_balance_in_satoshis: u64,
     ) -> Result<(), UnregisteredAccountRegisterWithDBError> {
@@ -85,17 +87,20 @@ impl UnregisteredAccount {
 
         // 5 Register the account with the `PrivilegesManager`.
         {
+            // 5.1 Construct privileges manager account body.
+            let privileges_manager_account_body = PrivilegesManagerAccountBody::new(
+                LivenessFlag::new_operational(),
+                AccountHierarchy::new_pleb(),
+                Exemption::new(PeriodicResource::new(0, 0, 0), 0, 0),
+                TimedSwitchBool::new(params_holder.account_can_initially_deploy_liquidity, None),
+                TimedSwitchBool::new(params_holder.account_can_initially_deploy_contract, None),
+            );
+            // 5.2 Register the account with the `PrivilegesManager`.
             let mut _privileges_manager = privileges_manager.lock().unwrap();
             _privileges_manager
                 .register_account(
                     self.account_key_to_be_registered,
-                    PrivilegesManagerAccountBody::new(
-                        LivenessFlag::new_operational(),
-                        AccountHierarchy::new_pleb(),
-                        Exemption::new(PeriodicResource::new(1, 0, 0), 0, 0),
-                        TimedSwitchBool::new(false, None),
-                        TimedSwitchBool::new(false, None),
-                    ),
+                    privileges_manager_account_body,
                 )
                 .map_err(
                     UnregisteredAccountRegisterWithDBError::PrivilegesManagerRegisterAccountError,

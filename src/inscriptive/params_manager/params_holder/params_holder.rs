@@ -14,7 +14,7 @@ pub struct ParamsHolder {
 
 impl ParamsHolder {
     /// Constructs a fresh new params holder with default protocol values.
-    pub fn fresh_new() -> Self {
+    pub fn origin_params_holder() -> Self {
         Self {
             account_can_initially_deploy_liquidity: true,
             account_can_initially_deploy_contract: true,

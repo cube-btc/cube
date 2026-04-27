@@ -51,7 +51,7 @@ impl ParamsManager {
         let params_db = sled::open(params_db_path)?;
 
         // 2 Start with the default params holder.
-        let mut params_holder = ParamsHolder::fresh_new();
+        let mut params_holder = ParamsHolder::origin_params_holder();
 
         // 3 Open the params holder tree.
         let tree = params_db.open_tree(PARAMS_HOLDER_TREE_NAME)?;
@@ -142,10 +142,6 @@ impl ParamsManager {
 
     /// Returns the current params holder.
     pub fn get_params_holder(&self) -> ParamsHolder {
-        if let Some(holder) = self.delta.updated_params_holder.as_ref() {
-            return holder.clone();
-        }
-
         self.in_memory_params_holder.clone()
     }
 
@@ -190,11 +186,13 @@ impl ParamsManager {
     }
 
     pub fn set_move_ppm_liquidity_fee(&mut self, value: u64) {
-        self.get_mut_ephemeral_params_holder().move_ppm_liquidity_fee = value;
+        self.get_mut_ephemeral_params_holder()
+            .move_ppm_liquidity_fee = value;
     }
 
     pub fn set_in_call_ppm_liquidity_fee(&mut self, value: u64) {
-        self.get_mut_ephemeral_params_holder().in_call_ppm_liquidity_fee = value;
+        self.get_mut_ephemeral_params_holder()
+            .in_call_ppm_liquidity_fee = value;
     }
 
     /// Reverts the epheremal changes associated with the last execution.
@@ -209,20 +207,24 @@ impl ParamsManager {
 
             tree.insert(
                 ACCOUNT_CAN_INITIALLY_DEPLOY_LIQUIDITY_SPECIAL_DB_KEY,
-                [if ephemeral_params_holder.account_can_initially_deploy_liquidity {
-                    1u8
-                } else {
-                    0u8
-                }]
+                [
+                    if ephemeral_params_holder.account_can_initially_deploy_liquidity {
+                        1u8
+                    } else {
+                        0u8
+                    },
+                ]
                 .as_slice(),
             )?;
             tree.insert(
                 ACCOUNT_CAN_INITIALLY_DEPLOY_CONTRACT_SPECIAL_DB_KEY,
-                [if ephemeral_params_holder.account_can_initially_deploy_contract {
-                    1u8
-                } else {
-                    0u8
-                }]
+                [
+                    if ephemeral_params_holder.account_can_initially_deploy_contract {
+                        1u8
+                    } else {
+                        0u8
+                    },
+                ]
                 .as_slice(),
             )?;
             tree.insert(

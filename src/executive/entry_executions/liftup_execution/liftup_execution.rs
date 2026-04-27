@@ -16,21 +16,36 @@ impl ExecCtx {
         // 2 Get the liftup sum value in satoshis.
         let liftup_sum_value_in_satoshis = liftup.liftup_sum_value_in_satoshis();
 
-        // 3 Calculate fees.
-        let fees: u64 = {
+        // 3 Get params holder from the params manager.
+        let params_holder = {
             let _params_manager = self._params_manager.lock().unwrap();
-            let _params_holder = _params_manager.get_params_holder();
-            // TODO: fee calculation will use params holder.
-            0
+            _params_manager.get_params_holder()
         };
 
-        // 4 Liftup value after fees.
+        // 4 Calculate fees.
+        let fees: u64 = {
+            // 4.1 Get the base fee.
+            let base_fee = params_holder.liftup_entry_base_fee;
+
+            // 4.2 Get the number of lifts.
+            let number_of_lifts = liftup.lift_tx_inputs.len() as u64;
+
+            // 4.3 Calculate the per-lift fee.
+            let per_lift_fee = number_of_lifts * params_holder.liftup_entry_per_lift_base_fee;
+
+            // 4.4 Calculate the total fee.
+            let total_fee = base_fee + per_lift_fee;
+
+            total_fee
+        };
+
+        // 5 Liftup value after fees.
         let liftup_value_after_fees_in_satoshis = liftup_sum_value_in_satoshis - fees;
 
-        // 5 Get the `RootAccount`.
+        // 6 Get the `RootAccount`.
         let root_account = &liftup.root_account;
 
-        // 6 Validate scriptpubkeys of the lifts.
+        // 7 Validate scriptpubkeys of the lifts.
         for lift in &liftup.lift_tx_inputs { 
             // 6.1 Match on the lift type.
             match lift {
@@ -59,14 +74,14 @@ impl ExecCtx {
             }
         }
 
-        // 7 Get the Account's Schnorr key and BLS key.
+        // 8 Get the Account's Schnorr key and BLS key.
         let (_account_key, _bls_key, _is_registered) = (
             root_account.account_key(),
             root_account.bls_key(),
             root_account.is_registered(),
         );
 
-        // 8 Match on the `RootAccount` type.
+        // 9 Match on the `RootAccount` type.
         match root_account {
             // 8.a The `RootAccount` is an `UnregisteredRootAccount`.
             RootAccount::UnregisteredRootAccount(unregistered_root_account) => {
@@ -84,7 +99,7 @@ impl ExecCtx {
                     );
                 }
 
-                // 8.a.3 Register the `UnregisteredRootAccount` with the `DB`.
+                // 9.a.3 Register the `UnregisteredRootAccount` with the `DB`.
                 unregistered_root_account
                     .register_with_db(
                         execution_timestamp,
@@ -92,6 +107,7 @@ impl ExecCtx {
                         &self.coin_manager,
                         &self.flame_manager,
                         &self.privileges_manager,
+                        &params_holder,
                         &self.graveyard,
                         liftup_value_after_fees_in_satoshis,
                     )
@@ -158,7 +174,7 @@ impl ExecCtx {
             }
         }
 
-        // 9 Return Ok.
+        // 10 Return Ok.
         Ok(())
     }
 }
