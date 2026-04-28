@@ -3,6 +3,7 @@ use crate::constructive::bitcoiny::batch_record::batch_record::BatchRecord;
 use crate::constructive::core_types::valtypes::val::long_val::long_val::LongVal;
 use crate::constructive::core_types::valtypes::val::short_val::short_val::ShortVal;
 use crate::constructive::entry::entry::entry::Entry;
+use crate::constructive::entry::entry_fees::entry_fees::EntryFees;
 use crate::constructive::txn::ext::OutpointExt;
 use crate::constructive::txout_types::payload::payload::Payload;
 use crate::constructive::txout_types::projector::projector::Projector;
@@ -538,9 +539,12 @@ impl ExecCtx {
 
         // 25 Initialize the executed entry sighashes list.
         let mut executed_entry_sighashes: Vec<[u8; 32]> = Vec::new();
+        let mut executed_entry_fees: Vec<EntryFees> = Vec::new();
 
         // 26 Initialize the executed entry account BLS keys list.
         let mut executed_entry_account_bls_keys: Vec<[u8; 48]> = Vec::new();
+        let collect_entry_ape_bits = self.archival_manager.is_some();
+        let mut collected_entry_ape_bits: Option<Vec<String>> = collect_entry_ape_bits.then(Vec::new);
 
         // 27 Decode entries from the payload one by one and execute them.
         while ape_bitstream.len() > 0 {
@@ -550,6 +554,7 @@ impl ExecCtx {
                 new_batch_height,
                 &mut ape_bitstream,
                 &mut bitcoin_tx_inputs_iter,
+                collect_entry_ape_bits,
                 encode_account_rank_as_longval,
                 encode_contract_rank_as_longval,
                 base_ops_price,
@@ -558,17 +563,30 @@ impl ExecCtx {
             )
             .await
             .map_err(BatchExecutionError::DecodeEntryError)?;
+            let (entry, collected_bits) = entry;
+            let collected_bits_text = collected_bits
+                .as_ref()
+                .map(|bits| {
+                    bits.iter()
+                        .map(|bit| if bit { '1' } else { '0' })
+                        .collect::<String>()
+                })
+                .unwrap_or_default();
 
             // 27.2 Execute the decoded `Entry`.
             match entry {
                 // 27.2.a The `Entry` is a `Liftup`.
                 Entry::Liftup(liftup) => {
                     // 27.2.a.1 Execute the `Liftup` `Entry`.
-                    match self.execute_liftup(&liftup, batch_timestamp).await {
+                    match self.execute_liftup_internal(&liftup, batch_timestamp).await {
                         // 27.2.a.1.a Success.
-                        Ok(entry) => {
+                        Ok(fees) => {
                             // 27.2.a.1.a.1 Add the liftup entry to the executed entries.
-                            executed_entries.push(entry);
+                            executed_entries.push(Entry::new_liftup(liftup.clone()));
+                            executed_entry_fees.push(fees);
+                            if let Some(all_collected_bits) = collected_entry_ape_bits.as_mut() {
+                                all_collected_bits.push(collected_bits_text.clone());
+                            }
 
                             // 27.2.a.1.a.2 Add the sighash of the `Liftup`.
                             {
@@ -591,11 +609,15 @@ impl ExecCtx {
                 // 27.2.b The `Entry` is a `Move`.
                 Entry::Move(move_entry) => {
                     // 27.2.b.1 Execute the `Move` `Entry`.
-                    match self.execute_move(&move_entry, batch_timestamp).await {
+                    match self.execute_move_internal(&move_entry, batch_timestamp).await {
                         // 27.2.b.1.a Success.
-                        Ok(entry) => {
+                        Ok(fees) => {
                             // 27.2.b.1.a.1 Add the move entry to the executed entries.
-                            executed_entries.push(entry);
+                            executed_entries.push(Entry::new_move(move_entry.clone()));
+                            executed_entry_fees.push(fees);
+                            if let Some(all_collected_bits) = collected_entry_ape_bits.as_mut() {
+                                all_collected_bits.push(collected_bits_text.clone());
+                            }
 
                             // 27.2.b.1.a.2 Add the sighash of the `Move`.
                             {
@@ -635,6 +657,8 @@ impl ExecCtx {
             payload_version,
             aggregate_bls_signature,
             executed_entries,
+            executed_entry_fees,
+            collected_entry_ape_bits,
             expired_projector_outpoints.clone(),
             new_payload.clone(),
             new_projector.clone(),

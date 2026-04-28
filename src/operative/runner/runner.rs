@@ -343,6 +343,7 @@ pub async fn run(
                 resource_mode,
                 &archival_manager,
                 &registery,
+                &privileges_manager,
                 &coin_manager,
                 &flame_manager,
             )
@@ -413,6 +414,7 @@ pub async fn run(
                 resource_mode,
                 &archival_manager,
                 &registery,
+                &privileges_manager,
                 &coin_manager,
                 &flame_manager,
             )
@@ -448,6 +450,7 @@ async fn maybe_start_explorer_from_env(
     resource_mode: ResourceMode,
     archival_manager: &Option<ARCHIVAL_MANAGER>,
     registery: &REGISTERY,
+    privileges_manager: &PRIVILEGES_MANAGER,
     coin_manager: &COIN_MANAGER,
     flame_manager: &FLAME_MANAGER,
 ) {
@@ -484,6 +487,7 @@ async fn maybe_start_explorer_from_env(
         port,
         Some(am),
         registery,
+        Some(privileges_manager),
         coin_manager,
         flame_manager,
     )

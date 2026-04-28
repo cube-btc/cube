@@ -1,4 +1,5 @@
 use crate::constructive::entity::account::root_account::root_account::RootAccount;
+use crate::constructive::entry::entry_fees::entry_fees::EntryFees;
 use crate::constructive::entry::entry_kinds::liftup::liftup::Liftup;
 use crate::constructive::txo::lift::lift::Lift;
 use crate::executive::entry_executions::liftup_execution::error::liftup_execution_error::LiftupExecutionError;
@@ -12,7 +13,7 @@ impl ExecCtx {
         &mut self,
         liftup: &Liftup,
         execution_timestamp: u64,
-    ) -> Result<(), LiftupExecutionError> {
+    ) -> Result<EntryFees, LiftupExecutionError> {
         // 2 Get the liftup sum value in satoshis.
         let liftup_sum_value_in_satoshis = liftup.liftup_sum_value_in_satoshis();
 
@@ -23,21 +24,14 @@ impl ExecCtx {
         };
 
         // 4 Calculate fees.
-        let fees: u64 = {
-            // 4.1 Get the base fee.
-            let base_fee = params_holder.liftup_entry_base_fee;
-
-            // 4.2 Get the number of lifts.
-            let number_of_lifts = liftup.lift_tx_inputs.len() as u64;
-
-            // 4.3 Calculate the per-lift fee.
-            let per_lift_fee = number_of_lifts * params_holder.liftup_entry_per_lift_base_fee;
-
-            // 4.4 Calculate the total fee.
-            let total_fee = base_fee + per_lift_fee;
-
-            total_fee
-        };
+        // 4.1 Get the base fee.
+        let base_fee = params_holder.liftup_entry_base_fee;
+        // 4.2 Get the number of lifts.
+        let number_of_lifts = liftup.lift_tx_inputs.len() as u64;
+        // 4.3 Calculate the per-lift fee.
+        let per_lift_fee = number_of_lifts * params_holder.liftup_entry_per_lift_base_fee;
+        // 4.4 Calculate the total fee.
+        let fees: u64 = base_fee + per_lift_fee;
 
         // 5 Liftup value after fees.
         let liftup_value_after_fees_in_satoshis = liftup_sum_value_in_satoshis - fees;
@@ -175,7 +169,11 @@ impl ExecCtx {
         }
 
         // 10 Return Ok.
-        Ok(())
+        Ok(EntryFees::Liftup {
+            base_fee,
+            per_lift_fee,
+            total: fees,
+        })
     }
 }
 

@@ -1,5 +1,6 @@
 use crate::constructive::bitcoiny::batch_container::batch_container::BatchContainer;
 use crate::constructive::entry::entry::entry::Entry;
+use crate::constructive::entry::entry_fees::entry_fees::EntryFees;
 use crate::constructive::txn::ext::OutpointExt;
 use crate::constructive::txout_types::payload::payload::Payload;
 use crate::constructive::txout_types::projector::projector::Projector;
@@ -24,6 +25,8 @@ pub struct BatchRecord {
     )]
     pub aggregate_bls_signature: [u8; 96],
     pub entries: Vec<(EntryID, Entry)>,
+    pub entry_fees: Vec<EntryFees>,
+    pub collected_entry_ape_bits: Option<Vec<String>>,
     pub expired_projector_outpoints: Vec<OutPoint>,
     pub new_payload: Payload,
     pub new_projector: Option<Projector>,
@@ -38,6 +41,8 @@ impl BatchRecord {
         payload_version: u32,
         aggregate_bls_signature: [u8; 96],
         executed_entries: Vec<Entry>,
+        entry_fees: Vec<EntryFees>,
+        collected_entry_ape_bits: Option<Vec<String>>,
         expired_projector_outpoints: Vec<OutPoint>,
         new_payload: Payload,
         new_projector: Option<Projector>,
@@ -63,6 +68,8 @@ impl BatchRecord {
             payload_version,
             aggregate_bls_signature,
             entries,
+            entry_fees,
+            collected_entry_ape_bits,
             expired_projector_outpoints,
             new_payload,
             new_projector,
@@ -118,10 +125,26 @@ impl BatchRecord {
             Value::Array(
                 self.entries
                     .iter()
-                    .map(|(entry_id, entry)| {
+                    .enumerate()
+                    .map(|(idx, (entry_id, entry))| {
                         let mut e = Map::new();
                         e.insert("entry_id".to_string(), Value::String(hex::encode(entry_id)));
                         e.insert("entry".to_string(), entry.json());
+                        e.insert(
+                            "fees".to_string(),
+                            self.entry_fees
+                                .get(idx)
+                                .map(|fees| fees.json())
+                                .unwrap_or(Value::Null),
+                        );
+                        e.insert(
+                            "collected_ape_bits".to_string(),
+                            self.collected_entry_ape_bits
+                                .as_ref()
+                                .and_then(|all_bits| all_bits.get(idx))
+                                .map(|bits| Value::String(bits.clone()))
+                                .unwrap_or(Value::Null),
+                        );
                         Value::Object(e)
                     })
                     .collect(),

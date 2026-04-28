@@ -64,6 +64,7 @@ pub async fn run_engine_cli(
                     port,
                     archival_manager.as_ref(),
                     registery,
+                    None,
                     coin_manager,
                     flame_manager,
                 )
@@ -227,6 +228,7 @@ pub async fn run_node_cli(
                     port,
                     archival_manager.as_ref(),
                     registery,
+                    Some(privileges_manager),
                     coin_manager,
                     flame_manager,
                 )

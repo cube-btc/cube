@@ -1,6 +1,7 @@
 use crate::constructive::bitcoiny::batch_container::batch_container::BatchContainer;
 use crate::constructive::bitcoiny::batch_record::batch_record::BatchRecord;
 use crate::constructive::entry::entry::entry::Entry;
+use crate::constructive::entry::entry_fees::entry_fees::EntryFees;
 use crate::inscriptive::archival_manager::errors::construction_error::ArchivalConstructionError;
 use crate::inscriptive::archival_manager::errors::insert_error::ArchivalManagerInsertBatchRecordError;
 use crate::operative::run_args::chain::Chain;
@@ -210,20 +211,36 @@ impl ArchivalManager {
     pub fn entry_record_by_entry_id(
         &self,
         entry_id: &[u8; 32],
-    ) -> Option<(BatchHeight, BatchTxid, BatchTimestamp, EntryId, Entry)> {
+    ) -> Option<(
+        BatchHeight,
+        BatchTxid,
+        BatchTimestamp,
+        EntryId,
+        Entry,
+        Option<String>,
+        Option<EntryFees>,
+    )> {
         // 1 Walk batches in ascending batch height order.
         for h in sorted_batch_heights(&self.in_memory_records) {
             let record = &self.in_memory_records[&h];
             // 1.1 Walk executed entries within the batch.
-            for (stored_id, entry) in &record.entries {
+            for (entry_idx, (stored_id, entry)) in record.entries.iter().enumerate() {
                 // 1.1.1 Return on first entry id match.
                 if stored_id == entry_id {
+                    let collected_bits = record
+                        .collected_entry_ape_bits
+                        .as_ref()
+                        .and_then(|all_bits| all_bits.get(entry_idx))
+                        .cloned();
+                    let fees = record.entry_fees.get(entry_idx).cloned();
                     return Some((
                         record.batch_height,
                         record.batch_txid,
                         record.batch_timestamp,
                         *stored_id,
                         entry.clone(),
+                        collected_bits,
+                        fees,
                     ));
                 }
             }
@@ -236,7 +253,15 @@ impl ArchivalManager {
     /// Returns a JSON object for an Entry record by entry id.
     pub fn entry_record_json_by_entry_id(&self, entry_id: &[u8; 32]) -> Option<Value> {
         // 1 Resolve the Entry record by entry id.
-        let (batch_height, batch_txid, batch_timestamp, resolved_entry_id, entry) =
+        let (
+            batch_height,
+            batch_txid,
+            batch_timestamp,
+            resolved_entry_id,
+            entry,
+            collected_bits,
+            fees,
+        ) =
             self.entry_record_by_entry_id(entry_id)?;
 
         // 2 Build the JSON object for the Entry record.
@@ -259,6 +284,17 @@ impl ArchivalManager {
         );
 
         obj.insert("entry".to_string(), entry.json());
+        obj.insert(
+            "fees".to_string(),
+            fees.map(|v| v.json()).unwrap_or(Value::Null),
+        );
+        obj.insert(
+            "collected_entry_ape_bits".to_string(),
+            match collected_bits {
+                Some(bits) => Value::String(bits),
+                None => Value::Null,
+            },
+        );
 
         // 3 Return the object.
         Some(Value::Object(obj))

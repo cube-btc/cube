@@ -1,9 +1,13 @@
 use crate::constructive::bitcoiny::batch_record::batch_record::BatchRecord;
+use crate::constructive::entry::entry::entry::Entry;
 use crate::inscriptive::archival_manager::archival_manager::ARCHIVAL_MANAGER;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
 use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
+use crate::inscriptive::privileges_manager::elements::account_hierarchy::account_hierarchy::AccountHierarchy;
+use crate::inscriptive::privileges_manager::privileges_manager::PRIVILEGES_MANAGER;
 use crate::inscriptive::registery::registery::REGISTERY;
 use crate::operative::run_args::chain::Chain;
+use crate::transmutative::key::{FromNostrKeyStr, ToNostrKeyStr};
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
@@ -27,7 +31,7 @@ struct ExplorerState {
     chain: Chain,
     archival: ARCHIVAL_MANAGER,
     registery: REGISTERY,
-    coin_manager: COIN_MANAGER,
+    privileges_manager: Option<PRIVILEGES_MANAGER>,
     flame_manager: FLAME_MANAGER,
 }
 
@@ -37,7 +41,8 @@ pub async fn runexplorer_command(
     port: u16,
     archival: Option<&ARCHIVAL_MANAGER>,
     registery: &REGISTERY,
-    coin_manager: &COIN_MANAGER,
+    privileges_manager: Option<&PRIVILEGES_MANAGER>,
+    _coin_manager: &COIN_MANAGER,
     flame_manager: &FLAME_MANAGER,
 ) {
     let Some(archival) = archival else {
@@ -52,7 +57,7 @@ pub async fn runexplorer_command(
         chain,
         archival: Arc::clone(archival),
         registery: Arc::clone(registery),
-        coin_manager: Arc::clone(coin_manager),
+        privileges_manager: privileges_manager.map(Arc::clone),
         flame_manager: Arc::clone(flame_manager),
     };
 
@@ -65,6 +70,7 @@ pub async fn runexplorer_command(
         .route("/batch/height/:height", get(page_batch_by_height))
         .route("/batch/tx/:txid", get(page_batch_by_txid))
         .route("/entry/:entry_id", get(page_entry_by_id))
+        .route("/account/:account_id", get(page_account_by_id))
         .with_state(state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
@@ -110,6 +116,43 @@ fn parse_entry_id_hex(hex_str: &str) -> Option<[u8; 32]> {
     }
     let bytes = hex::decode(s).ok()?;
     bytes.try_into().ok()
+}
+
+fn parse_account_key(input: &str) -> Option<[u8; 32]> {
+    let trimmed = input.trim();
+    if let Some(key) = trimmed.from_npub() {
+        return Some(key);
+    }
+    parse_entry_id_hex(trimmed)
+}
+
+fn account_url(account_key: [u8; 32]) -> String {
+    format!("/account/{}", hex::encode(account_key))
+}
+
+fn account_link(account_key: [u8; 32]) -> String {
+    let key_hex = hex::encode(account_key);
+    format!(
+        r#"<a class="row-link" href="{}"><code class="mono">{}</code></a>"#,
+        html_escape(&account_url(account_key)),
+        html_escape(&key_hex)
+    )
+}
+
+fn entry_involved_account_keys(entry: &Entry) -> Vec<[u8; 32]> {
+    match entry {
+        Entry::Move(move_entry) => {
+            let from_key = move_entry.from.account_key();
+            let to_key = move_entry.to.account_key();
+            if from_key == to_key {
+                vec![from_key]
+            } else {
+                vec![from_key, to_key]
+            }
+        }
+        Entry::Liftup(liftup) => vec![liftup.root_account.account_key()],
+        Entry::Call(call) => vec![call.account.account_key()],
+    }
 }
 
 fn mempool_tx_url(chain: Chain, txid: &str) -> Option<String> {
@@ -286,6 +329,12 @@ pre.reg-json { font-size: 0.8rem; background: #fffefb; border: 1px solid #e8e2d4
 .explorer-subsec:first-of-type { margin-top: 1rem; }
 .explorer-subsec h2 { font-size: 1.1rem; font-weight: 600; color: #1f2328; margin: 0 0 0.5rem; padding-bottom: 0.35rem; border-bottom: 1px solid #e8e2d4; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.action-btn { display: inline-block; text-decoration: none; background: #f0ebe0; border: 1px solid #d8d0c0; color: #1f2328; border-radius: 7px; padding: 0.45rem 0.75rem; font-size: 0.86rem; }
+.action-btn:hover { background: #e8e2d4; color: #0550ae; }
+.account-hero { display: flex; align-items: flex-start; gap: 1rem; margin-bottom: 1rem; }
+.account-avatar { width: 64px; height: 64px; border-radius: 999px; border: 1px solid #d8d0c0; background: radial-gradient(circle at 30% 30%, #fffefb 0%, #f0ebe0 70%, #e3dbca 100%); display: inline-flex; align-items: center; justify-content: center; color: #8b949e; font-size: 1.5rem; flex-shrink: 0; }
+.account-hero-main { min-width: 0; }
+.account-hero-main h1 { margin: 0 0 0.4rem; }
 </style>"#
 }
 
@@ -340,65 +389,272 @@ struct SearchParams {
     q: Option<String>,
 }
 
-async fn search_batch(Query(params): Query<SearchParams>) -> impl IntoResponse {
+async fn search_batch(
+    State(st): State<ExplorerState>,
+    Query(params): Query<SearchParams>,
+) -> impl IntoResponse {
     let q_trim = params.q.unwrap_or_default().trim().to_string();
     if q_trim.is_empty() {
         return Redirect::to("/batches").into_response();
     }
-    match q_trim.parse::<u64>() {
-        Ok(h) => Redirect::to(&format!("/batch/height/{}", h)).into_response(),
-        Err(_) => (
-            StatusCode::BAD_REQUEST,
-            Html(layout(
-                "Search — Cube explorer",
-                r#"<h1>Invalid search</h1><p>Enter a batch height (non-negative integer).</p>"#,
-                &q_trim,
-            )),
-        )
-            .into_response(),
+    if let Ok(h) = q_trim.parse::<u64>() {
+        return Redirect::to(&format!("/batch/height/{}", h)).into_response();
     }
+
+    if let Ok(txid) = Txid::from_str(&q_trim) {
+        return Redirect::to(&format!("/batch/tx/{}", txid)).into_response();
+    }
+
+    if let Some(key32) = parse_entry_id_hex(&q_trim) {
+        let is_entry = {
+            let m = st.archival.lock().await;
+            m.entry_record_by_entry_id(&key32).is_some()
+        };
+        if is_entry {
+            return Redirect::to(&format!("/entry/{}", hex::encode(key32))).into_response();
+        }
+        let is_account = {
+            let r = st.registery.lock().await;
+            r.get_account_body_by_account_key(key32).is_some()
+        };
+        if is_account {
+            return Redirect::to(&account_url(key32)).into_response();
+        }
+    }
+
+    if let Some(account_key) = q_trim.as_str().from_npub() {
+        let is_account = {
+            let r = st.registery.lock().await;
+            r.get_account_body_by_account_key(account_key).is_some()
+        };
+        if is_account {
+            return Redirect::to(&account_url(account_key)).into_response();
+        }
+    }
+
+    (
+        StatusCode::BAD_REQUEST,
+        Html(layout(
+            "Search — Cube explorer",
+            r#"<h1>Invalid search</h1><p>Search by batch height, batch txid, entry id (32-byte hex), account key (32-byte hex), or npub.</p>"#,
+            &q_trim,
+        )),
+    )
+        .into_response()
 }
 
 async fn page_accounts(State(st): State<ExplorerState>) -> Html<String> {
-    let reg_pretty = {
+    let mut rows: Vec<(u64, [u8; 32], u64, u64)> = {
         let g = st.registery.lock().await;
         let full = g.json();
-        let accounts_json = full
-            .get("accounts")
-            .cloned()
-            .unwrap_or(Value::Null);
-        serde_json::to_string_pretty(&accounts_json).unwrap_or_else(|_| "{}".to_string())
+        let mut parsed = Vec::new();
+        if let Some(accounts_obj) = full.get("accounts").and_then(|v| v.as_object()) {
+            for (account_key_hex, body) in accounts_obj {
+                let Some(bytes_vec) = hex::decode(account_key_hex).ok() else {
+                    continue;
+                };
+                let Ok(account_key): Result<[u8; 32], _> = bytes_vec.try_into() else {
+                    continue;
+                };
+                let registery_index = body
+                    .get("registery_index")
+                    .and_then(|v| v.as_str())
+                    .and_then(|v| v.parse::<u64>().ok())
+                    .unwrap_or(0);
+                let call_counter = body
+                    .get("call_counter")
+                    .and_then(|v| v.as_str())
+                    .and_then(|v| v.parse::<u64>().ok())
+                    .unwrap_or(0);
+                let last_activity_timestamp = body
+                    .get("last_activity_timestamp")
+                    .and_then(|v| v.as_str())
+                    .and_then(|v| v.parse::<u64>().ok())
+                    .unwrap_or(0);
+                parsed.push((registery_index, account_key, call_counter, last_activity_timestamp));
+            }
+        }
+        parsed
     };
-    let coins_pretty = {
-        let g = st.coin_manager.lock().await;
-        serde_json::to_string_pretty(&g.json()).unwrap_or_else(|_| "{}".to_string())
-    };
-    let vtxo_pretty = {
-        let g = st.flame_manager.lock().await;
-        serde_json::to_string_pretty(&g.json()).unwrap_or_else(|_| "{}".to_string())
-    };
+    rows.sort_by_key(|(registery_index, _, _, _)| *registery_index);
+
+    let mut table_rows = String::new();
+    for (registery_index, account_key, call_counter, last_activity_timestamp) in rows {
+        let npub = account_key.to_npub().unwrap_or_else(|| "n/a".to_string());
+        table_rows.push_str(&format!(
+            r#"<tr><td class="num">{}</td><td>{}</td><td class="mono"><code>{}</code></td><td class="num">{}</td><td>{}</td></tr>"#,
+            registery_index,
+            account_link(account_key),
+            html_escape(&npub),
+            call_counter,
+            explorer_timestamp_html(last_activity_timestamp),
+        ));
+    }
+    if table_rows.is_empty() {
+        table_rows = r#"<tr><td colspan="5">No accounts in registery.</td></tr>"#.to_string();
+    }
+
     let body = format!(
         r#"<h1>Accounts</h1>
-<section class="explorer-subsec">
-<h2>Registery</h2>
-<p class="muted" style="font-size:0.9rem"><code>Registery::json()</code> — <code>accounts</code> map.</p>
-<pre class="reg-json">{}</pre>
-</section>
-<section class="explorer-subsec">
-<h2>Coins</h2>
-<p class="muted" style="font-size:0.9rem"><code>CoinManager::json()</code>.</p>
-<pre class="reg-json">{}</pre>
-</section>
-<section class="explorer-subsec">
-<h2>VTXO set</h2>
-<p class="muted" style="font-size:0.9rem"><code>FlameManager::json()</code>.</p>
-<pre class="reg-json">{}</pre>
-</section>"#,
-        html_escape(&reg_pretty),
-        html_escape(&coins_pretty),
-        html_escape(&vtxo_pretty),
+<p class="muted">Search by account key hex or npub to open details.</p>
+<table><thead><tr><th class="num">Index</th><th>Account key</th><th>npub</th><th class="num">Call counter</th><th>Last activity</th></tr></thead><tbody>{}</tbody></table>"#,
+        table_rows
     );
     Html(layout("Accounts — Cube explorer", &body, ""))
+}
+
+async fn page_account_by_id(
+    State(st): State<ExplorerState>,
+    Path(account_id): Path<String>,
+) -> impl IntoResponse {
+    let Some(account_key) = parse_account_key(&account_id) else {
+        return (
+            StatusCode::BAD_REQUEST,
+            Html(layout(
+                "Account — Cube explorer",
+                &format!(
+                    r#"<h1>Invalid account id</h1><p>Expected 32-byte hex or npub; got <code class="mono">{}</code>.</p><p><a class="row-link" href="/accounts">← Accounts</a></p>"#,
+                    html_escape(account_id.trim()),
+                ),
+                "",
+            )),
+        )
+            .into_response();
+    };
+
+    let account_body = {
+        let r = st.registery.lock().await;
+        r.get_account_body_by_account_key(account_key)
+    };
+    let Some(account_body) = account_body else {
+        return (
+            StatusCode::NOT_FOUND,
+            Html(layout(
+                "Account — Cube explorer",
+                &format!(
+                    r#"<h1>Account not found</h1><p>No account found for <code class="mono">{}</code>.</p><p><a class="row-link" href="/accounts">← Accounts</a></p>"#,
+                    html_escape(&account_id),
+                ),
+                "",
+            )),
+        )
+            .into_response();
+    };
+
+    let privilege_body = match st.privileges_manager.as_ref() {
+        Some(pm) => {
+            let p = pm.lock().unwrap();
+            p.get_account_body_by_account_key(account_key)
+        }
+        None => None,
+    };
+    let hierarchy = privilege_body
+        .as_ref()
+        .map(|b| b.hierarchy.clone())
+        .unwrap_or(AccountHierarchy::Pleb);
+
+    let history = {
+        let a = st.archival.lock().await;
+        a.retrieve_account_history(account_key)
+    };
+    let mut history_rows = String::new();
+    for (batch_height, _batch_txid, batch_ts, entry_id, entry) in history.iter().rev() {
+        let entry_id_hex = hex::encode(entry_id);
+        let entry_kind = match entry {
+            Entry::Move(_) => "Move",
+            Entry::Call(_) => "Call",
+            Entry::Liftup(_) => "Liftup",
+        };
+        history_rows.push_str(&format!(
+            r#"<tr><td><a class="row-link" href="/entry/{0}"><code class="mono">{0}</code></a></td><td>{1}</td><td><a class="row-link" href="/batch/height/{2}">{2}</a></td><td>{3}</td></tr>"#,
+            html_escape(&entry_id_hex),
+            entry_kind,
+            batch_height,
+            explorer_timestamp_html(*batch_ts),
+        ));
+    }
+    if history_rows.is_empty() {
+        history_rows = r#"<tr><td colspan="4">No transaction history in archival records.</td></tr>"#.to_string();
+    }
+
+    let privileges_json = if let Some(pb) = privilege_body {
+        serde_json::json!({
+            "liveness_flag": pb.liveness_flag,
+            "hierarchy": pb.hierarchy.to_string(),
+            "txfee_exemptions": pb.txfee_exemptions,
+            "can_deploy_liquidity": pb.can_deploy_liquidity,
+            "can_deploy_contract": pb.can_deploy_contract,
+        })
+    } else {
+        Value::Null
+    };
+    let privileges_pretty =
+        serde_json::to_string_pretty(&privileges_json).unwrap_or_else(|_| "null".to_string());
+
+    let vtxo_json = {
+        let fm = st.flame_manager.lock().await;
+        fm.get_account_flame_set(account_key)
+            .and_then(|v| serde_json::to_value(v).ok())
+            .unwrap_or(Value::Null)
+    };
+    let vtxo_pretty = serde_json::to_string_pretty(&vtxo_json).unwrap_or_else(|_| "null".to_string());
+
+    let npub = account_key.to_npub().unwrap_or_else(|| "n/a".to_string());
+    let nostr_profile_url = if npub == "n/a" {
+        "https://iris.to/".to_string()
+    } else {
+        format!("https://iris.to/{}", npub)
+    };
+    let account_hex = hex::encode(account_key);
+    let account_body_json_pretty =
+        serde_json::to_string_pretty(&account_body.json()).unwrap_or_else(|_| "{}".to_string());
+
+    let body = format!(
+        r#"<section class="account-hero">
+<div class="account-avatar" aria-label="Profile placeholder">👻</div>
+<div class="account-hero-main">
+<h1>Account</h1>
+<p style="margin:0 0 0.5rem"><a class="action-btn" href="{}" target="_blank" rel="noopener">View Nostr Profile ↗</a></p>
+<p style="margin:0"><span class="badge">{}</span></p>
+</div>
+</section>
+<dl class="summary">
+<dt>Account key (hex)</dt><dd><code class="mono">{}</code></dd>
+<dt>Account npub</dt><dd><code class="mono">{}</code></dd>
+<dt>Registery index</dt><dd>{}</dd>
+<dt>Last active</dt><dd>{}</dd>
+<dt>Call counter</dt><dd>{}</dd>
+</dl>
+<section class="explorer-subsec">
+<h2>Transaction History</h2>
+<table><thead><tr><th>Entry ID</th><th>Kind</th><th>Batch</th><th>Timestamp</th></tr></thead><tbody>{}</tbody></table>
+</section>
+<section class="explorer-subsec">
+<h2>Privileges</h2>
+<pre class="reg-json">{}</pre>
+</section>
+<section class="explorer-subsec">
+<h2>VTXO Set</h2>
+<pre class="reg-json">{}</pre>
+</section>
+<section class="explorer-subsec">
+<h2>Registery Account Body</h2>
+<pre class="reg-json">{}</pre>
+</section>
+<p style="margin-top:1.25rem"><a class="row-link" href="/accounts">← Accounts</a></p>"#,
+        html_escape(&nostr_profile_url),
+        hierarchy.to_string(),
+        html_escape(&account_hex),
+        html_escape(&npub),
+        account_body.registery_index,
+        explorer_timestamp_html(account_body.last_activity_timestamp),
+        account_body.call_counter,
+        history_rows,
+        html_escape(&privileges_pretty),
+        html_escape(&vtxo_pretty),
+        html_escape(&account_body_json_pretty),
+    );
+    Html(layout("Account — Cube explorer", &body, &account_id)).into_response()
 }
 
 async fn page_contracts(State(st): State<ExplorerState>) -> Html<String> {
@@ -556,7 +812,7 @@ async fn page_entry_by_id(
         m.entry_record_by_entry_id(&entry_id)
     };
 
-    let Some((batch_height, batch_txid_bytes, batch_ts, _eid, entry)) = resolved else {
+    let Some((batch_height, batch_txid_bytes, batch_ts, _eid, entry, collected_bits, fees)) = resolved else {
         return (
             StatusCode::NOT_FOUND,
             Html(layout(
@@ -580,6 +836,18 @@ async fn page_entry_by_id(
         html_escape(&batch_txid),
     );
     let entry_json = serde_json::to_string_pretty(&entry.json()).unwrap_or_else(|_| "{}".to_string());
+    let entry_fees_json =
+        serde_json::to_string_pretty(&fees.map(|v| v.json()).unwrap_or(serde_json::Value::Null))
+            .unwrap_or_else(|_| "null".to_string());
+    let involved_accounts = entry_involved_account_keys(&entry)
+        .into_iter()
+        .map(account_link)
+        .collect::<Vec<_>>()
+        .join("<br/>");
+    let collected_bits_html = match collected_bits {
+        Some(bits) => format!(r#"<code class="mono">{}</code>"#, html_escape(&bits)),
+        None => "N/A (non-archival record)".to_string(),
+    };
 
     let body = format!(
         r#"<h1>Entry</h1>
@@ -588,14 +856,21 @@ async fn page_entry_by_id(
 <dt>Batch height</dt><dd><a class="row-link" href="/batch/height/{1}">{1}</a></dd>
 <dt>Batch txid</dt><dd>{2}</dd>
 <dt>Batch timestamp</dt><dd>{3}</dd>
+<dt>Collected APE bits</dt><dd>{4}</dd>
+<dt>Involved account(s)</dt><dd>{5}</dd>
 </dl>
+<h2 style="font-size:1.1rem;margin:1.25rem 0 0.65rem">Entry fees</h2>
+<pre class="reg-json">{6}</pre>
 <h2 style="font-size:1.1rem;margin:1.25rem 0 0.65rem">Entry data</h2>
-<pre class="reg-json">{4}</pre>
+<pre class="reg-json">{7}</pre>
 <p style="margin-top:1.25rem"><a class="row-link" href="/batch/height/{1}">← Batch #{1}</a> · <a class="row-link" href="/batches">All batches</a></p>"#,
         html_escape(&eid_hex),
         batch_height,
         batch_txid_dd,
         ts_html,
+        collected_bits_html,
+        involved_accounts,
+        html_escape(&entry_fees_json),
         html_escape(&entry_json),
     );
 
@@ -621,13 +896,37 @@ fn render_batch_page(chain: Chain, record: &BatchRecord) -> String {
 
     let mut entries_html = String::new();
     for (i, (entry_id, entry)) in record.entries.iter().enumerate() {
+        let account_links = entry_involved_account_keys(entry)
+            .into_iter()
+            .map(account_link)
+            .collect::<Vec<_>>()
+            .join(", ");
         let eid = hex::encode(entry_id);
+        let eid_short = format!("{}…", &eid[..24]);
         let json_pretty = serde_json::to_string_pretty(&entry.json()).unwrap_or_else(|_| "{}".into());
+        let fees_pretty = serde_json::to_string_pretty(
+            &record
+                .entry_fees
+                .get(i)
+                .map(|f| f.json())
+                .unwrap_or(serde_json::Value::Null),
+        )
+        .unwrap_or_else(|_| "null".to_string());
+        let bits_html = record
+            .collected_entry_ape_bits
+            .as_ref()
+            .and_then(|all_bits| all_bits.get(i))
+            .map(|bits| format!(r#"<p class="muted" style="margin-bottom:0.65rem"><strong>Collected APE bits:</strong> <code class="mono">{}</code></p>"#, html_escape(bits)))
+            .unwrap_or_default();
         entries_html.push_str(&format!(
-            r#"<div class="entry-card" id="entry-{1}"><h3>Entry {0} — <a class="row-link" href="/entry/{1}"><code class="mono">{2}</code></a></h3><pre>{3}</pre></div>"#,
+            r#"<div class="entry-card" id="entry-{1}"><h3>Entry {0} — <a class="row-link" href="/entry/{1}" title="{2}"><code class="mono">{3}</code></a></h3>{4}<p class="muted" style="margin-bottom:0.65rem"><strong>Accounts:</strong> {5}</p><p class="muted" style="margin-bottom:0.35rem"><strong>Fees</strong></p><pre>{6}</pre><p class="muted" style="margin-top:0.75rem;margin-bottom:0.35rem"><strong>Entry data</strong></p><pre>{7}</pre></div>"#,
             i + 1,
             eid,
             html_escape(&eid),
+            html_escape(&eid_short),
+            bits_html,
+            account_links,
+            html_escape(&fees_pretty),
             html_escape(&json_pretty)
         ));
     }

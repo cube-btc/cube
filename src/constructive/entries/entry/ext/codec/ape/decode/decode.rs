@@ -16,25 +16,37 @@ impl Entry {
         execution_batch_height: u64,
         bit_stream: &mut bit_vec::Iter<'_>,
         tx_inputs_iter: &mut impl Iterator<Item = OutPoint>,
+        collect_bits: bool,
         decode_account_rank_as_longval: bool,
         decode_contract_rank_as_longval: bool,
         base_ops_price: u32,
         utxo_set: &UTXO_SET,
         registery: &REGISTERY,
-    ) -> Result<Entry, EntryAPEDecodeError> {
+    ) -> Result<(Entry, Option<bit_vec::BitVec>), EntryAPEDecodeError> {
+        let mut collected_bits = if collect_bits {
+            Some(bit_vec::BitVec::new())
+        } else {
+            None
+        };
+        let mut collect_next_bit = |error: EntryAPEDecodeError| -> Result<bool, EntryAPEDecodeError> {
+            let bit = bit_stream.next().ok_or(error)?;
+            if let Some(bits) = collected_bits.as_mut() {
+                bits.push(bit);
+            }
+            Ok(bit)
+        };
+
         // 1 Collect one bit to determine if the `Entry` is from the `Common Branch` or the `Uncommon Branch`.
-        let common_or_uncommon_branch_bit = bit_stream
-            .next()
-            .ok_or(EntryAPEDecodeError::CommonUncommonBranchBitCollectError)?;
+        let common_or_uncommon_branch_bit =
+            collect_next_bit(EntryAPEDecodeError::CommonUncommonBranchBitCollectError)?;
 
         // 2 Match on whether the `Entry` is from the `Common Branch` or the `Uncommon Branch`.
         let entry: Entry = match common_or_uncommon_branch_bit {
             // 2.a The `Entry` is from the `Common Branch`.
             false => {
                 // 2.a.1 Collect one bit to determine if the `Entry` is a `Move` or a `Call`.
-                let move_or_call_bit = bit_stream
-                    .next()
-                    .ok_or(EntryAPEDecodeError::MoveOrCallBitCollectError)?;
+                let move_or_call_bit =
+                    collect_next_bit(EntryAPEDecodeError::MoveOrCallBitCollectError)?;
 
                 // 2.a.2 Match on whether the `Entry` is a `Move` or a `Call`.
                 match move_or_call_bit {
@@ -76,18 +88,16 @@ impl Entry {
             // 2.b The `Entry` is from the `Uncommon Branch`.
             true => {
                 // 2.b.1 Collect one bit to determine if the `Entry` is in the Liquidity Branch or the Outer Branch.
-                let liquidity_or_outer_branch_bit = bit_stream
-                    .next()
-                    .ok_or(EntryAPEDecodeError::LiquidityOrOuterBranchBitCollectError)?;
+                let liquidity_or_outer_branch_bit =
+                    collect_next_bit(EntryAPEDecodeError::LiquidityOrOuterBranchBitCollectError)?;
 
                 // 2.b.2 Match on whether the `Entry` is in the Liquidity Branch or the Outer Branch.
                 match liquidity_or_outer_branch_bit {
                     // 2.b.2.a The `Entry` is in the Liquidity Branch.
                     false => {
                         // 2.b.2.a.1 Collect one bit to determine if the `Entry` is `Add` or `Sub`.
-                        let add_or_sub_bit = bit_stream
-                            .next()
-                            .ok_or(EntryAPEDecodeError::AddOrSubBitCollectError)?;
+                        let add_or_sub_bit =
+                            collect_next_bit(EntryAPEDecodeError::AddOrSubBitCollectError)?;
 
                         // 2.b.2.a.2 Match on whether the `Entry` is a `Add` or a `Sub`.
                         match add_or_sub_bit {
@@ -102,18 +112,17 @@ impl Entry {
                     // 2.b.2.b The `Entry` is in the Outer Branch.
                     true => {
                         // 2.b.2.b.1 Collect one bit to determine if the `Entry` is in the `Gateway Branch` or the `Outer Right Branch`.
-                        let gateway_or_outer_right_branch_bit = bit_stream
-                            .next()
-                            .ok_or(EntryAPEDecodeError::GatewayOrOuterRightBranchBitCollectError)?;
+                        let gateway_or_outer_right_branch_bit = collect_next_bit(
+                            EntryAPEDecodeError::GatewayOrOuterRightBranchBitCollectError,
+                        )?;
 
                         // 2.b.2.b.1 Match on whether the `Entry` is in the Gateway Branch or the Outer Right Branch.
                         match gateway_or_outer_right_branch_bit {
                             // 2.b.2.b.1.a The `Entry` is in the Gateway Branch.
                             false => {
                                 // 2.b.2.b.1.a.1 Collect one bit to determine if the `Entry` is a `Liftup` or a `Swapout`.
-                                let liftup_or_swapout_bit = bit_stream
-                                    .next()
-                                    .ok_or(EntryAPEDecodeError::LiftupOrSwapoutBitCollectError)?;
+                                let liftup_or_swapout_bit =
+                                    collect_next_bit(EntryAPEDecodeError::LiftupOrSwapoutBitCollectError)?;
 
                                 // 2.b.2.b.1.a.1 Match on whether the `Entry` is a `Liftup` or a `Swapout`.
                                 match liftup_or_swapout_bit {
@@ -144,17 +153,16 @@ impl Entry {
                             // 2.b.2.b.1.b The `Entry` is in the Outer Right Branch.
                             true => {
                                 // Collect one bit to determine if the `Entry` is in the `Outer Lowermost Branch` or the `Reserved Branch`.
-                                let outer_lowermost_or_reserved_branch_bit =
-                                    bit_stream.next().ok_or(
-                                        EntryAPEDecodeError::OuterLowermostOrReservedBranchBitCollectError,
-                                    )?;
+                                let outer_lowermost_or_reserved_branch_bit = collect_next_bit(
+                                    EntryAPEDecodeError::OuterLowermostOrReservedBranchBitCollectError,
+                                )?;
 
                                 // 2.b.2.b.1.b.1 Match on whether the `Entry` is in the `Outer Lowermost Branch` or the `Reserved Branch`.
                                 match outer_lowermost_or_reserved_branch_bit {
                                     // 2.b.2.b.1.b.1.a The `Entry` is in the `Outer Lowermost Branch`.
                                     false => {
                                         // 2.b.2.b.1.b.1.a.1 Collect one bit to determine if the `Entry` is a `Deploy` or a `Config`.
-                                        let deploy_or_config_bit = bit_stream.next().ok_or(
+                                        let deploy_or_config_bit = collect_next_bit(
                                             EntryAPEDecodeError::DeployOrConfigBitCollectError,
                                         )?;
 
@@ -183,6 +191,6 @@ impl Entry {
         };
 
         // 3 Return the decoded `Entry`.
-        Ok(entry)
+        Ok((entry, collected_bits))
     }
 }

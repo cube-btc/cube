@@ -1,5 +1,6 @@
 use crate::constructive::entity::account::account::account::Account;
 use crate::constructive::entity::account::root_account::root_account::RootAccount;
+use crate::constructive::entry::entry_fees::entry_fees::EntryFees;
 use crate::constructive::entry::entry_kinds::r#move::r#move::Move;
 use crate::executive::entry_executions::move_execution::error::move_execution_error::MoveExecutionError;
 use crate::executive::exec_ctx::exec_ctx::ExecCtx;
@@ -14,7 +15,7 @@ impl ExecCtx {
         &mut self,
         move_entry: &Move,
         execution_timestamp: u64,
-    ) -> Result<(), MoveExecutionError> {
+    ) -> Result<EntryFees, MoveExecutionError> {
         // 1 Get move amount in satoshis.
         let move_amount_in_satoshis = move_entry.amount as u64;
 
@@ -25,19 +26,13 @@ impl ExecCtx {
         };
 
         // 3 Calculate fees.
-        let fees: u64 = {
-            // 3.1 Get the base fee.
-            let base_fee = params_holder.move_entry_base_fee;
-
-            // 3.2 Calculate the proportional liquidity fee.
-            let liquidity_fee =
-                (move_amount_in_satoshis * params_holder.move_ppm_liquidity_fee) / 1_000_000;
-
-            // 3.3 Calculate the total fee.
-            let total_fee = base_fee + liquidity_fee;
-
-            total_fee
-        };
+        // 3.1 Get the base fee.
+        let base_fee = params_holder.move_entry_base_fee;
+        // 3.2 Calculate the proportional liquidity fee.
+        let liquidity_fee =
+            (move_amount_in_satoshis * params_holder.move_ppm_liquidity_fee) / 1_000_000;
+        // 3.3 Calculate the total fee.
+        let fees: u64 = base_fee + liquidity_fee;
 
         // 4 Move value after fees.
         let move_value_after_fees_in_satoshis = move_amount_in_satoshis
@@ -143,7 +138,11 @@ impl ExecCtx {
         }
 
         // 8 Return Ok.
-        Ok(())
+        Ok(EntryFees::Move {
+            base_fee,
+            liquidity_fee,
+            total: fees,
+        })
     }
 }
 
