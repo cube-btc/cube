@@ -131,11 +131,11 @@ fn account_url(account_key: [u8; 32]) -> String {
 }
 
 fn account_link(account_key: [u8; 32]) -> String {
-    let key_hex = hex::encode(account_key);
+    let npub = account_key.to_npub().unwrap_or_else(|| "n/a".to_string());
     format!(
         r#"<a class="row-link" href="{}"><code class="mono">{}</code></a>"#,
         html_escape(&account_url(account_key)),
-        html_escape(&key_hex)
+        html_escape(&npub)
     )
 }
 
@@ -307,7 +307,7 @@ body { font-family: ui-sans-serif, system-ui, sans-serif; background: #faf7ef; c
 main { flex: 1; padding: 1.5rem; max-width: 1100px; margin: 0 auto; width: 100%; box-sizing: border-box; }
 .site-footer { background: #fffdf8; border-top: 1px solid #e8e2d4; padding: 1rem 1.5rem; text-align: center; }
 .site-footer .footer-tagline { margin: 0 auto; color: #5c6670; font-size: 0.88rem; line-height: 1.55; max-width: 48rem; text-align: center; }
-h1 { font-size: 1.35rem; font-weight: 600; margin: 0 0 1rem; color: #1f2328; }
+h1 { font-size: 1.52rem; font-weight: 650; margin: 0 0 1rem; color: #1f2328; }
 table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 th, td { text-align: left; padding: 0.55rem 0.65rem; border-bottom: 1px solid #e8e2d4; }
 th { color: #5c6670; font-weight: 600; }
@@ -318,6 +318,10 @@ a.row-link:hover { text-decoration: underline; }
 .summary { display: grid; grid-template-columns: 9.5rem 1fr; gap: 0.35rem 1rem; margin-bottom: 1.5rem; font-size: 0.92rem; }
 .summary dt { color: #5c6670; }
 .summary dd { margin: 0; font-family: ui-monospace, monospace; word-break: break-all; }
+.mono-wrap { display: inline-block; max-width: 100%; overflow-wrap: anywhere; word-break: break-all; white-space: normal; }
+.collapsible { margin: 0; }
+.collapsible > summary { cursor: pointer; color: #0550ae; user-select: none; }
+.collapsible > summary:hover { text-decoration: underline; }
 section.entries { margin-top: 2rem; }
 .entry-card { background: #fffefb; border: 1px solid #e8e2d4; border-radius: 6px; padding: 1rem; margin-bottom: 1rem; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
 .entry-card h3 { margin: 0 0 0.5rem; font-size: 0.95rem; color: #5c6670; }
@@ -327,7 +331,7 @@ pre.reg-json { font-size: 0.8rem; background: #fffefb; border: 1px solid #e8e2d4
 .muted { color: #5c6670; }
 .explorer-subsec { margin-top: 1.85rem; }
 .explorer-subsec:first-of-type { margin-top: 1rem; }
-.explorer-subsec h2 { font-size: 1.1rem; font-weight: 600; color: #1f2328; margin: 0 0 0.5rem; padding-bottom: 0.35rem; border-bottom: 1px solid #e8e2d4; }
+.explorer-subsec h2 { font-size: 1.18rem; font-weight: 620; color: #1f2328; margin: 0 0 0.5rem; padding-bottom: 0.35rem; border-bottom: 1px solid #e8e2d4; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 .action-btn { display: inline-block; text-decoration: none; background: #f0ebe0; border: 1px solid #d8d0c0; color: #1f2328; border-radius: 7px; padding: 0.45rem 0.75rem; font-size: 0.86rem; }
 .action-btn:hover { background: #e8e2d4; color: #0550ae; }
@@ -335,6 +339,8 @@ pre.reg-json { font-size: 0.8rem; background: #fffefb; border: 1px solid #e8e2d4
 .account-avatar { width: 64px; height: 64px; border-radius: 999px; border: 1px solid #d8d0c0; background: radial-gradient(circle at 30% 30%, #fffefb 0%, #f0ebe0 70%, #e3dbca 100%); display: inline-flex; align-items: center; justify-content: center; color: #8b949e; font-size: 1.5rem; flex-shrink: 0; }
 .account-hero-main { min-width: 0; }
 .account-hero-main h1 { margin: 0 0 0.4rem; }
+.account-head-row { display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap; margin: 0 0 0.5rem; }
+.account-npub-title { font-size: 1.06rem; font-weight: 700; letter-spacing: 0.01em; font-family: ui-monospace, monospace; overflow-wrap: anywhere; }
 </style>"#
 }
 
@@ -382,6 +388,13 @@ fn layout(title: &str, body: &str, search_value: &str) -> String {
         body,
         site_footer()
     )
+}
+
+fn truncated_head_tail(value: &str, head: usize, tail: usize) -> String {
+    if value.len() <= head + tail + 3 {
+        return value.to_string();
+    }
+    format!("{}...{}", &value[..head], &value[value.len() - tail..])
 }
 
 #[derive(Deserialize)]
@@ -480,12 +493,10 @@ async fn page_accounts(State(st): State<ExplorerState>) -> Html<String> {
 
     let mut table_rows = String::new();
     for (registery_index, account_key, call_counter, last_activity_timestamp) in rows {
-        let npub = account_key.to_npub().unwrap_or_else(|| "n/a".to_string());
         table_rows.push_str(&format!(
-            r#"<tr><td class="num">{}</td><td>{}</td><td class="mono"><code>{}</code></td><td class="num">{}</td><td>{}</td></tr>"#,
+            r#"<tr><td class="num">{}</td><td>{}</td><td class="num">{}</td><td>{}</td></tr>"#,
             registery_index,
             account_link(account_key),
-            html_escape(&npub),
             call_counter,
             explorer_timestamp_html(last_activity_timestamp),
         ));
@@ -497,7 +508,7 @@ async fn page_accounts(State(st): State<ExplorerState>) -> Html<String> {
     let body = format!(
         r#"<h1>Accounts</h1>
 <p class="muted">Search by account key hex or npub to open details.</p>
-<table><thead><tr><th class="num">Index</th><th>Account key</th><th>npub</th><th class="num">Call counter</th><th>Last activity</th></tr></thead><tbody>{}</tbody></table>"#,
+<table><thead><tr><th class="num">Index</th><th>Account</th><th class="num">Call counter</th><th>Last activity</th></tr></thead><tbody>{}</tbody></table>"#,
         table_rows
     );
     Html(layout("Accounts — Cube explorer", &body, ""))
@@ -600,6 +611,11 @@ async fn page_account_by_id(
     let vtxo_pretty = serde_json::to_string_pretty(&vtxo_json).unwrap_or_else(|_| "null".to_string());
 
     let npub = account_key.to_npub().unwrap_or_else(|| "n/a".to_string());
+    let npub_short = if npub.len() > 16 {
+        format!("{}...{}", &npub[..8], &npub[npub.len() - 5..])
+    } else {
+        npub.clone()
+    };
     let nostr_profile_url = if npub == "n/a" {
         "https://iris.to/".to_string()
     } else {
@@ -614,8 +630,8 @@ async fn page_account_by_id(
 <div class="account-avatar" aria-label="Profile placeholder">👻</div>
 <div class="account-hero-main">
 <h1>Account</h1>
+<div class="account-head-row"><span class="account-npub-title">{}</span><span class="badge">{}</span></div>
 <p style="margin:0 0 0.5rem"><a class="action-btn" href="{}" target="_blank" rel="noopener">View Nostr Profile ↗</a></p>
-<p style="margin:0"><span class="badge">{}</span></p>
 </div>
 </section>
 <dl class="summary">
@@ -642,8 +658,9 @@ async fn page_account_by_id(
 <pre class="reg-json">{}</pre>
 </section>
 <p style="margin-top:1.25rem"><a class="row-link" href="/accounts">← Accounts</a></p>"#,
-        html_escape(&nostr_profile_url),
+        html_escape(&npub_short),
         hierarchy.to_string(),
+        html_escape(&nostr_profile_url),
         html_escape(&account_hex),
         html_escape(&npub),
         account_body.registery_index,
@@ -839,32 +856,53 @@ async fn page_entry_by_id(
     let entry_fees_json =
         serde_json::to_string_pretty(&fees.map(|v| v.json()).unwrap_or(serde_json::Value::Null))
             .unwrap_or_else(|_| "null".to_string());
+    let entry_kind_title = match &entry {
+        Entry::Liftup(_) => "🛗 Liftup",
+        Entry::Move(_) => "💰 Move",
+        Entry::Call(_) => "📞 Call",
+    };
     let involved_accounts = entry_involved_account_keys(&entry)
         .into_iter()
-        .map(account_link)
+        .map(|account_key| {
+            let npub = account_key.to_npub().unwrap_or_else(|| "n/a".to_string());
+            format!(
+                r#"<a class="row-link" href="{}"><code class="mono">{}</code></a>"#,
+                html_escape(&account_url(account_key)),
+                html_escape(&npub)
+            )
+        })
         .collect::<Vec<_>>()
         .join("<br/>");
     let collected_bits_html = match collected_bits {
-        Some(bits) => format!(r#"<code class="mono">{}</code>"#, html_escape(&bits)),
+        Some(bits) => {
+            let bits_preview = truncated_head_tail(&bits, 28, 16);
+            format!(
+                r#"<details class="collapsible"><summary><code class="mono mono-wrap">{}</code></summary><code class="mono mono-wrap">{}</code></details>"#,
+                html_escape(&bits_preview),
+                html_escape(&bits)
+            )
+        }
         None => "N/A (non-archival record)".to_string(),
     };
 
     let body = format!(
-        r#"<h1>Entry</h1>
+        r#"<h1>{}</h1>
 <dl class="summary">
 <dt>Entry id</dt><dd><code class="mono">{}</code></dd>
-<dt>Batch height</dt><dd><a class="row-link" href="/batch/height/{1}">{1}</a></dd>
-<dt>Batch txid</dt><dd>{2}</dd>
-<dt>Batch timestamp</dt><dd>{3}</dd>
-<dt>Collected APE bits</dt><dd>{4}</dd>
-<dt>Involved account(s)</dt><dd>{5}</dd>
+<dt>Batch height</dt><dd><a class="row-link" href="/batch/height/{}">{}</a></dd>
+<dt>Batch txid</dt><dd>{}</dd>
+<dt>Batch timestamp</dt><dd>{}</dd>
+<dt>APE bitstream</dt><dd>{}</dd>
+<dt>Involved account(s)</dt><dd>{}</dd>
 </dl>
 <h2 style="font-size:1.1rem;margin:1.25rem 0 0.65rem">Entry fees</h2>
-<pre class="reg-json">{6}</pre>
+<pre class="reg-json">{}</pre>
 <h2 style="font-size:1.1rem;margin:1.25rem 0 0.65rem">Entry data</h2>
-<pre class="reg-json">{7}</pre>
-<p style="margin-top:1.25rem"><a class="row-link" href="/batch/height/{1}">← Batch #{1}</a> · <a class="row-link" href="/batches">All batches</a></p>"#,
+<pre class="reg-json">{}</pre>
+<p style="margin-top:1.25rem"><a class="row-link" href="/batch/height/{}">← Batch #{}</a> · <a class="row-link" href="/batches">All batches</a></p>"#,
+        entry_kind_title,
         html_escape(&eid_hex),
+        batch_height,
         batch_height,
         batch_txid_dd,
         ts_html,
@@ -872,10 +910,12 @@ async fn page_entry_by_id(
         involved_accounts,
         html_escape(&entry_fees_json),
         html_escape(&entry_json),
+        batch_height,
+        batch_height,
     );
 
     Html(layout(
-        &format!("Entry — {}", &eid_hex),
+        &format!("{} — {}", entry_kind_title, &eid_hex),
         &body,
         "",
     ))
@@ -896,11 +936,6 @@ fn render_batch_page(chain: Chain, record: &BatchRecord) -> String {
 
     let mut entries_html = String::new();
     for (i, (entry_id, entry)) in record.entries.iter().enumerate() {
-        let account_links = entry_involved_account_keys(entry)
-            .into_iter()
-            .map(account_link)
-            .collect::<Vec<_>>()
-            .join(", ");
         let eid = hex::encode(entry_id);
         let eid_short = format!("{}…", &eid[..24]);
         let json_pretty = serde_json::to_string_pretty(&entry.json()).unwrap_or_else(|_| "{}".into());
@@ -912,20 +947,12 @@ fn render_batch_page(chain: Chain, record: &BatchRecord) -> String {
                 .unwrap_or(serde_json::Value::Null),
         )
         .unwrap_or_else(|_| "null".to_string());
-        let bits_html = record
-            .collected_entry_ape_bits
-            .as_ref()
-            .and_then(|all_bits| all_bits.get(i))
-            .map(|bits| format!(r#"<p class="muted" style="margin-bottom:0.65rem"><strong>Collected APE bits:</strong> <code class="mono">{}</code></p>"#, html_escape(bits)))
-            .unwrap_or_default();
         entries_html.push_str(&format!(
-            r#"<div class="entry-card" id="entry-{1}"><h3>Entry {0} — <a class="row-link" href="/entry/{1}" title="{2}"><code class="mono">{3}</code></a></h3>{4}<p class="muted" style="margin-bottom:0.65rem"><strong>Accounts:</strong> {5}</p><p class="muted" style="margin-bottom:0.35rem"><strong>Fees</strong></p><pre>{6}</pre><p class="muted" style="margin-top:0.75rem;margin-bottom:0.35rem"><strong>Entry data</strong></p><pre>{7}</pre></div>"#,
+            r#"<div class="entry-card" id="entry-{1}"><h3>Entry {0} — <a class="row-link" href="/entry/{1}" title="{2}"><code class="mono">{3}</code></a></h3><p class="muted" style="margin-bottom:0.35rem"><strong>Fees</strong></p><pre>{4}</pre><p class="muted" style="margin-top:0.75rem;margin-bottom:0.35rem"><strong>Entry data</strong></p><pre>{5}</pre></div>"#,
             i + 1,
             eid,
             html_escape(&eid),
             html_escape(&eid_short),
-            bits_html,
-            account_links,
             html_escape(&fees_pretty),
             html_escape(&json_pretty)
         ));
@@ -936,25 +963,32 @@ fn render_batch_page(chain: Chain, record: &BatchRecord) -> String {
     }
 
     let body = format!(
-        r#"<h1><span class="badge">{}</span> Batch #{}</h1>
+        r#"<h1>📦 Batch #{}</h1>
 <dl class="summary">
 <dt>Height</dt><dd>{}</dd>
 <dt>Timestamp</dt><dd>{}</dd>
 <dt>Txid</dt><dd>{}</dd>
 <dt>Payload version</dt><dd>{}</dd>
 <dt>Entries</dt><dd>{}</dd>
-<dt>BLS agg sig</dt><dd><code class="mono">{}…</code></dd>
+<dt>BLS agg sig</dt><dd>{}</dd>
 </dl>
 <section class="entries"><h2 style="font-size:1.1rem;margin-bottom:0.75rem">Entries</h2>{}</section>
 <p><a class="row-link" href="/batches">← All batches</a></p>"#,
-        chain.to_string(),
         record.batch_height,
         record.batch_height,
         ts_html,
         txid_cell,
         record.payload_version,
         record.entries.len(),
-        html_escape(&hex::encode(&record.aggregate_bls_signature[..24])),
+        {
+            let bls_full = hex::encode(&record.aggregate_bls_signature);
+            let bls_preview = truncated_head_tail(&bls_full, 28, 16);
+            format!(
+                r#"<details class="collapsible"><summary><code class="mono mono-wrap">{}</code></summary><code class="mono mono-wrap">{}</code></details>"#,
+                html_escape(&bls_preview),
+                html_escape(&bls_full)
+            )
+        },
         entries_html
     );
 

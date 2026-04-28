@@ -105,7 +105,7 @@ impl PeriodicResource {
     /// Serializes the periodic resource to bytes.
     pub fn to_bytes(&self) -> Vec<u8> {
         // 1 Create an empty byte vector.
-        let mut bytes = Vec::<u8>::with_capacity(32);
+        let mut bytes = Vec::<u8>::with_capacity(24);
 
         // 2 Serialize the period.
         bytes.extend(self.period.to_le_bytes());
@@ -123,7 +123,7 @@ impl PeriodicResource {
     /// Deserializes the periodic resource from bytes.
     pub fn from_bytes(bytes: &[u8]) -> Option<PeriodicResource> {
         // 1 Check if the byte vector has the correct length.
-        if bytes.len() != 32 {
+        if bytes.len() != 24 {
             return None;
         }
 
