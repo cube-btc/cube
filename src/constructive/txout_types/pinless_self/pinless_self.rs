@@ -1,8 +1,8 @@
 use super::default::PinlessSelfDefault;
-use crate::constructive::txn::ext::OutpointExt;
+use super::unknown::PinlessSelfUnknown;
 use bitcoin::{OutPoint, TxOut};
 use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
+use serde_json::Value;
 
 type Bytes = Vec<u8>;
 
@@ -13,7 +13,7 @@ pub enum PinlessSelf {
     Default(PinlessSelfDefault),
 
     // Unknown PinlessSelf: scriptpubkey content is unknown, but trusted to not attempt a pinning attack.
-    Unknown { location: Option<(OutPoint, TxOut)> },
+    Unknown(PinlessSelfUnknown),
 }
 
 impl PinlessSelf {
@@ -21,21 +21,24 @@ impl PinlessSelf {
         PinlessSelf::Default(PinlessSelfDefault::new(account_key, location))
     }
 
-    pub fn new_unknown(location: Option<(OutPoint, TxOut)>) -> PinlessSelf {
-        PinlessSelf::Unknown { location }
+    pub fn new_unknown(
+        custom_scriptpubkey: Vec<u8>,
+        location: Option<(OutPoint, TxOut)>,
+    ) -> PinlessSelf {
+        PinlessSelf::Unknown(PinlessSelfUnknown::new(custom_scriptpubkey, location))
     }
 
     pub fn account_key(&self) -> Option<[u8; 32]> {
         match self {
             PinlessSelf::Default(pinless_self_default) => Some(pinless_self_default.account_key),
-            PinlessSelf::Unknown { .. } => None,
+            PinlessSelf::Unknown(_) => None,
         }
     }
 
     pub fn location(&self) -> Option<(OutPoint, TxOut)> {
         match self {
             PinlessSelf::Default(pinless_self_default) => pinless_self_default.location(),
-            PinlessSelf::Unknown { location } => location.clone(),
+            PinlessSelf::Unknown(pinless_self_unknown) => pinless_self_unknown.location(),
         }
     }
 
@@ -52,64 +55,16 @@ impl PinlessSelf {
             PinlessSelf::Default(pinless_self_default) => {
                 pinless_self_default.calculated_scriptpubkey()
             }
-            PinlessSelf::Unknown { .. } => None,
-        }
-    }
-
-    pub fn validate_scriptpubkey(&self) -> Option<bool> {
-        match self {
-            PinlessSelf::Default(pinless_self_default) => {
-                Some(pinless_self_default.validate_scriptpubkey())
-            }
-            PinlessSelf::Unknown { .. } => None,
+            PinlessSelf::Unknown(_) => None,
         }
     }
 
     pub fn json(&self) -> Value {
         match self {
             PinlessSelf::Default(pinless_self_default) => pinless_self_default.json(),
-            PinlessSelf::Unknown { location } => {
-                let mut obj = Map::new();
-                obj.insert("version".to_string(), Value::String("unknown".to_string()));
-                obj.insert(
-                    "location".to_string(),
-                    match location.as_ref() {
-                        Some(loc) => pinless_self_location_json(loc),
-                        None => Value::Null,
-                    },
-                );
-                Value::Object(obj)
-            }
+            PinlessSelf::Unknown(pinless_self_unknown) => pinless_self_unknown.json(),
         }
     }
+
 }
 
-fn json_outpoint(outpoint: &OutPoint) -> Value {
-    let mut o = Map::new();
-    o.insert(
-        "txid".to_string(),
-        Value::String(hex::encode(outpoint.txhash())),
-    );
-    o.insert("vout".to_string(), Value::Number(outpoint.vout.into()));
-    Value::Object(o)
-}
-
-fn json_txout(txout: &TxOut) -> Value {
-    let mut o = Map::new();
-    o.insert(
-        "satoshis".to_string(),
-        Value::Number(txout.value.to_sat().into()),
-    );
-    o.insert(
-        "scriptpubkey".to_string(),
-        Value::String(hex::encode(txout.script_pubkey.as_bytes())),
-    );
-    Value::Object(o)
-}
-
-fn pinless_self_location_json((outpoint, txout): &(OutPoint, TxOut)) -> Value {
-    let mut o = Map::new();
-    o.insert("outpoint".to_string(), json_outpoint(outpoint));
-    o.insert("txout".to_string(), json_txout(txout));
-    Value::Object(o)
-}

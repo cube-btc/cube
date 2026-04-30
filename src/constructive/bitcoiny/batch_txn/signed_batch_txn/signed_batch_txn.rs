@@ -88,6 +88,25 @@ impl SignedBatchTxn {
             }
             lift_tx_inputs
         };
+        let swapout_tx_outputs: Vec<TxOut> = {
+            let mut swapout_tx_outputs = Vec::new();
+            for entry in &entries {
+                if let Entry::Swapout(swapout) = entry {
+                    let scriptpubkey = swapout
+                        .pinless_self
+                        .calculated_scriptpubkey()
+                        .ok_or(
+                            SignedBatchTxnConstructError::SwapoutPinlessSelfCalculatedScriptpubkeyError,
+                        )?;
+                    let txout = TxOut {
+                        value: Amount::from_sat(u64::from(swapout.amount)),
+                        script_pubkey: ScriptBuf::from(scriptpubkey),
+                    };
+                    swapout_tx_outputs.push(txout);
+                }
+            }
+            swapout_tx_outputs
+        };
 
         let new_payload_scriptpubkey = new_payload.calculated_scriptpubkey().ok_or(
             SignedBatchTxnConstructError::UnsignedBatchTxnConstructError(
@@ -111,6 +130,7 @@ impl SignedBatchTxn {
             lift_tx_inputs,
             new_payload_txout,
             new_projector_txout,
+            swapout_tx_outputs,
             bitcoin_transaction_fee,
         )
         .map_err(SignedBatchTxnConstructError::UnsignedBatchTxnConstructError)?;

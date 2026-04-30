@@ -1,6 +1,7 @@
 use crate::{constructive::entry::entry_kinds::call::call::Call, transmutative::hash::Hash};
 use crate::constructive::entry::entry_kinds::liftup::liftup::Liftup;
 use crate::constructive::entry::entry_kinds::r#move::r#move::Move;
+use crate::constructive::entry::entry_kinds::swapout::swapout::Swapout;
 use crate::transmutative::hash::HashTag;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -15,7 +16,7 @@ pub enum Entry {
     //Add(AddEntry),
     //Sub(SubEntry),
     Liftup(Liftup),
-    //Swapout(SwapoutEntry),
+    Swapout(Swapout),
     //Deploy(DeployEntry),
     //Config(ConfigEntry),
     //Nop(NopEntry),
@@ -38,12 +39,17 @@ impl Entry {
         Self::Liftup(liftup)
     }
 
+    pub fn new_swapout(swapout: Swapout) -> Self {
+        Self::Swapout(swapout)
+    }
+
     /// Returns this entry as a JSON object.
     pub fn json(&self) -> Value {
         match self {
             Entry::Move(move_entry) => move_entry.json(),
             Entry::Call(call) => call.json(),
             Entry::Liftup(liftup) => liftup.json(),
+            Entry::Swapout(swapout) => swapout.json(),
         }
     }
 
@@ -91,6 +97,14 @@ impl Entry {
                 // 6 Return the hash.
                 Some(hash)
             },
+            Entry::Swapout(swapout) => {
+                let mut preimage = Vec::<u8>::new();
+                preimage.extend(batch_height.to_le_bytes());
+                preimage.extend(entry_index_in_batch.to_le_bytes());
+                preimage.extend(swapout.sighash().ok()?);
+                let hash = preimage.hash(Some(HashTag::SwapoutEntryID));
+                Some(hash)
+            }
         }
     }
 

@@ -80,6 +80,23 @@ impl Entry {
                 // 2.b.3 Extend the `Entry` APE bit vector with the `Liftup` APE bit vector.
                 bits.extend(liftup_bits);
             }
+            Entry::Swapout(swapout) => {
+                // 2.c.1 Push 1101 for the `Swapout` entry type.
+                bits.push(true);
+                bits.push(true);
+                bits.push(false);
+                bits.push(true);
+
+                let swapout_bits = swapout
+                    .encode_ape(
+                        execution_batch_height,
+                        registery,
+                        encode_account_rank_as_longval,
+                    )
+                    .await
+                    .map_err(EntryAPEEncodeError::SwapoutAPEEncodeError)?;
+                bits.extend(swapout_bits);
+            }
         }
 
         // 3 Return the `Entry` APE bit vector.

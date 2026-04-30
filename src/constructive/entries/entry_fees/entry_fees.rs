@@ -17,6 +17,10 @@ pub enum EntryFees {
         base_fee: u64,
         total: u64,
     },
+    Swapout {
+        base_fee: u64,
+        total: u64,
+    },
 }
 
 impl EntryFees {
@@ -48,6 +52,11 @@ impl EntryFees {
             }
             EntryFees::Call { base_fee, total } => {
                 obj.insert("entry_kind".to_string(), Value::String("call".to_string()));
+                obj.insert("base_fee".to_string(), Value::Number((*base_fee).into()));
+                obj.insert("total".to_string(), Value::Number((*total).into()));
+            }
+            EntryFees::Swapout { base_fee, total } => {
+                obj.insert("entry_kind".to_string(), Value::String("swapout".to_string()));
                 obj.insert("base_fee".to_string(), Value::Number((*base_fee).into()));
                 obj.insert("total".to_string(), Value::Number((*total).into()));
             }

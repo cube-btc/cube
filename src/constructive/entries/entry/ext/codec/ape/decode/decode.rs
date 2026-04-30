@@ -3,6 +3,7 @@ use crate::constructive::entry::entry::ext::codec::ape::decode::error::decode_er
 use crate::constructive::entry::entry_kinds::call::call::Call;
 use crate::constructive::entry::entry_kinds::liftup::liftup::Liftup;
 use crate::constructive::entry::entry_kinds::r#move::r#move::Move;
+use crate::constructive::entry::entry_kinds::swapout::swapout::Swapout;
 use crate::inscriptive::registery::registery::REGISTERY;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
 use bitcoin::OutPoint;
@@ -16,6 +17,7 @@ impl Entry {
         execution_batch_height: u64,
         bit_stream: &mut bit_vec::Iter<'_>,
         tx_inputs_iter: &mut impl Iterator<Item = OutPoint>,
+        tx_outputs_iter: &mut impl Iterator<Item = (OutPoint, bitcoin::TxOut)>,
         collect_bits: bool,
         decode_account_rank_as_longval: bool,
         decode_contract_rank_as_longval: bool,
@@ -149,7 +151,18 @@ impl Entry {
                                     }
 
                                     // 2.b.2.b.1.a.1.b The `Entry` is a `Swapout`.
-                                    true => panic!("Swapout is not implemented yet."),
+                                    true => {
+                                        let swapout_entry: Swapout = Swapout::decode_ape(
+                                            execution_batch_height,
+                                            bit_stream,
+                                            tx_outputs_iter,
+                                            decode_account_rank_as_longval,
+                                            registery,
+                                        )
+                                        .await
+                                        .map_err(EntryAPEDecodeError::SwapoutEntryAPEDecodeError)?;
+                                        Entry::Swapout(swapout_entry)
+                                    },
                                 }
                             }
 

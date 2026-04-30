@@ -23,8 +23,10 @@ use crate::transmutative::codec::bitvec_ext::BitVecExt;
 use crate::{
     constructive::entry::entry_kinds::liftup::liftup::Liftup,
     constructive::entry::entry_kinds::r#move::r#move::Move,
+    constructive::entry::entry_kinds::swapout::swapout::Swapout,
     executive::entry_executions::liftup_execution::error::liftup_execution_error::LiftupExecutionError,
     executive::entry_executions::move_execution::error::move_execution_error::MoveExecutionError,
+    executive::entry_executions::swapout_execution::error::swapout_execution_error::SwapoutExecutionError,
     executive::exec_ctx::errors::apply_changes_error::ApplyChangesError,
 };
 use bit_vec::BitVec;
@@ -470,6 +472,7 @@ impl ExecCtx {
 
             bitcoin_tx_output.clone()
         };
+        let mut tx_output_index_cursor: u32 = 1;
 
         // 20 Construct the new payload.
         let new_payload: Payload = {
@@ -516,7 +519,7 @@ impl ExecCtx {
 
                     // 23.a.2 Get the new projector outpoint.
                     let new_projector_outpoint =
-                        OutPoint::from_txid_and_vout(batch_container.signed_batch_txn.txid(), 1);
+                        OutPoint::from_txid_and_vout(batch_container.signed_batch_txn.txid(), tx_output_index_cursor);
 
                     // 23.a.3 Construct the projector.
                     let projector = Some(Projector {
@@ -526,6 +529,7 @@ impl ExecCtx {
                     });
 
                     // 23.a.4 Return the projector.
+                    tx_output_index_cursor += 1;
                     projector
                 }
 
@@ -546,6 +550,19 @@ impl ExecCtx {
         let collect_entry_ape_bits = self.archival_manager.is_some();
         let mut collected_entry_ape_bits: Option<Vec<String>> = collect_entry_ape_bits.then(Vec::new);
 
+        let batch_txid = batch_container.signed_batch_txn.txid();
+        let remaining_tx_outputs_for_entries: Vec<(OutPoint, bitcoin::TxOut)> = bitcoin_tx_outputs_iter
+            .cloned()
+            .enumerate()
+            .map(|(i, txout)| {
+                (
+                    OutPoint::from_txid_and_vout(batch_txid, tx_output_index_cursor + i as u32),
+                    txout,
+                )
+            })
+            .collect();
+        let mut remaining_tx_outputs_for_entries_iter = remaining_tx_outputs_for_entries.into_iter();
+
         // 27 Decode entries from the payload one by one and execute them.
         while ape_bitstream.len() > 0 {
             // 27.1 Decode Entry from the APE bitstream.
@@ -554,6 +571,7 @@ impl ExecCtx {
                 new_batch_height,
                 &mut ape_bitstream,
                 &mut bitcoin_tx_inputs_iter,
+                &mut remaining_tx_outputs_for_entries_iter,
                 collect_entry_ape_bits,
                 encode_account_rank_as_longval,
                 encode_contract_rank_as_longval,
@@ -637,6 +655,23 @@ impl ExecCtx {
                         Err(error) => return Err(BatchExecutionError::MoveExecutionError(error)),
                     }
                 }
+                Entry::Swapout(swapout) => {
+                    match self.execute_swapout_internal(&swapout, batch_timestamp).await {
+                        Ok(fees) => {
+                            executed_entries.push(Entry::new_swapout(swapout.clone()));
+                            executed_entry_fees.push(fees);
+                            if let Some(all_collected_bits) = collected_entry_ape_bits.as_mut() {
+                                all_collected_bits.push(collected_bits_text.clone());
+                            }
+                            let sighash = swapout
+                                .sighash()
+                                .map_err(|_| BatchExecutionError::SwapoutSighashError)?;
+                            executed_entry_sighashes.push(sighash);
+                            executed_entry_account_bls_keys.push(swapout.root_account.bls_key());
+                        }
+                        Err(error) => return Err(BatchExecutionError::SwapoutExecutionError(error)),
+                    }
+                }
                 _ => panic!("Not implemented yet."),
             }
         }
@@ -717,6 +752,20 @@ impl ExecCtx {
                 Ok(move_entry)
             }
             // 1.b Error.
+            Err(error) => Err(error),
+        }
+    }
+
+    pub async fn execute_swapout(
+        &mut self,
+        swapout: &Swapout,
+        execution_timestamp: u64,
+    ) -> Result<Entry, SwapoutExecutionError> {
+        match self
+            .execute_swapout_internal(swapout, execution_timestamp)
+            .await
+        {
+            Ok(_) => Ok(Entry::new_swapout(swapout.clone())),
             Err(error) => Err(error),
         }
     }

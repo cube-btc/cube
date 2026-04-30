@@ -15,4 +15,5 @@ pub enum SignedBatchTxnConstructError {
     PrevLiftV1TaprootSignError(LiftV1),
     LiftV2NotSupportedError(LiftV2),
     UnknownLiftNotSupportedError,
+    SwapoutPinlessSelfCalculatedScriptpubkeyError,
 }

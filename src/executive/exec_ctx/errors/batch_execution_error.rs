@@ -5,6 +5,7 @@ use crate::constructive::entries::entry_kinds::liftup::ext::signature::sighash::
 use crate::constructive::entries::entry_kinds::r#move::ext::signature::sighash::error::sighash_error::MoveSighashError;
 use crate::executive::entry_executions::liftup_execution::error::liftup_execution_error::LiftupExecutionError;
 use crate::executive::entry_executions::move_execution::error::move_execution_error::MoveExecutionError;
+use crate::executive::entry_executions::swapout_execution::error::swapout_execution_error::SwapoutExecutionError;
 use crate::executive::exec_ctx::errors::apply_changes_error::ApplyChangesError;
 use bitcoin::OutPoint;
 
@@ -43,6 +44,8 @@ pub enum BatchExecutionError {
     MoveSighashError(MoveSighashError),
     LiftupExecutionError(LiftupExecutionError),
     LiftupSighashError(LiftupSighashError),
+    SwapoutExecutionError(SwapoutExecutionError),
+    SwapoutSighashError,
     AggregateBLSSignatureVerificationError,
     ExecutedEntryIdError,
     ApplyChangesError(ApplyChangesError),

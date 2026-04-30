@@ -44,6 +44,8 @@ impl UnsignedBatchTxn {
         new_payload_txout: TxOut,
         // Projector output
         new_projector_txout: Option<TxOut>,
+        // Swapout outputs
+        swapout_tx_outputs: Vec<TxOut>,
         // Bitcoin transaction fee
         bitcoin_transaction_fee: u64,
     ) -> Result<UnsignedBatchTxn, UnsignedBatchTxnConstructError> {
@@ -84,7 +86,7 @@ impl UnsignedBatchTxn {
         }
 
         // Initialize the swapout tx outputs.
-        let mut _swapout_tx_outputs = Vec::<TxOut>::new();
+        let _swapout_tx_outputs = swapout_tx_outputs;
 
         // Calculate the change value.
         let change_value = {

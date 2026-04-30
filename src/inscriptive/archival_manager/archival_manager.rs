@@ -46,6 +46,7 @@ fn entry_involves_account(entry: &Entry, account_key: [u8; 32]) -> bool {
         }
         Entry::Call(call) => call.account.account_key() == account_key,
         Entry::Liftup(liftup) => liftup.root_account.account_key() == account_key,
+        Entry::Swapout(swapout) => swapout.root_account.account_key() == account_key,
     }
 }
 

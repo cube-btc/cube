@@ -152,6 +152,7 @@ fn entry_involved_account_keys(entry: &Entry) -> Vec<[u8; 32]> {
         }
         Entry::Liftup(liftup) => vec![liftup.root_account.account_key()],
         Entry::Call(call) => vec![call.account.account_key()],
+        Entry::Swapout(swapout) => vec![swapout.root_account.account_key()],
     }
 }
 
@@ -575,6 +576,7 @@ async fn page_account_by_id(
             Entry::Move(_) => "Move",
             Entry::Call(_) => "Call",
             Entry::Liftup(_) => "Liftup",
+            Entry::Swapout(_) => "Swapout",
         };
         history_rows.push_str(&format!(
             r#"<tr><td><a class="row-link" href="/entry/{0}"><code class="mono">{0}</code></a></td><td>{1}</td><td><a class="row-link" href="/batch/height/{2}">{2}</a></td><td>{3}</td></tr>"#,
@@ -860,6 +862,7 @@ async fn page_entry_by_id(
         Entry::Liftup(_) => "🛗 Liftup",
         Entry::Move(_) => "💰 Move",
         Entry::Call(_) => "📞 Call",
+        Entry::Swapout(_) => "🚪 Swapout",
     };
     let involved_accounts = entry_involved_account_keys(&entry)
         .into_iter()

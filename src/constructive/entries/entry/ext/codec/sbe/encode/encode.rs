@@ -24,6 +24,9 @@ impl Entry {
             Entry::Liftup(liftup) => liftup
                 .encode_sbe()
                 .map_err(|err| EntrySBEEncodeError::LiftupSBEEncodeError(err)),
+            Entry::Swapout(swapout) => swapout
+                .encode_sbe()
+                .map_err(EntrySBEEncodeError::SwapoutSBEEncodeError),
         }
     }
 }

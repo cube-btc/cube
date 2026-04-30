@@ -3,6 +3,7 @@ use crate::constructive::bitcoiny::batch_txn::signed_batch_txn::signed_batch_txn
 use crate::constructive::entry::entry::entry::Entry;
 use crate::constructive::entry::entry_kinds::liftup::liftup::Liftup;
 use crate::constructive::entry::entry_kinds::r#move::r#move::Move;
+use crate::constructive::entry::entry_kinds::swapout::swapout::Swapout;
 use crate::constructive::txout_types::payload::payload::Payload;
 use crate::constructive::txout_types::projector::projector::Projector;
 use crate::constructive::valtype::val::long_val::long_val::LongVal;
@@ -21,6 +22,7 @@ use crate::inscriptive::sync_manager::sync_manager::SYNC_MANAGER;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
 use crate::operative::tasks::engine_session::session_pool::error::exec_liftup_in_pool_error::ExecLiftupInPoolError;
 use crate::operative::tasks::engine_session::session_pool::error::exec_move_in_pool_error::ExecMoveInPoolError;
+use crate::operative::tasks::engine_session::session_pool::error::exec_swapout_in_pool_error::ExecSwapoutInPoolError;
 use crate::operative::tasks::engine_session::session_pool::error::into_batch_container_error::IntoBatchContainerError;
 use crate::transmutative::bls::agg::bls_aggregate;
 use crate::transmutative::codec::bitvec_ext::BitVecExt;
@@ -562,6 +564,69 @@ impl SessionPool {
                 }
                 // 5.b.2 Return the error.
                 Err(ExecMoveInPoolError::MoveExecutionError(format!("{error:?}")))
+            }
+        }
+    }
+
+    pub async fn exec_swapout_in_pool(
+        &mut self,
+        swapout: &Swapout,
+        swapout_bls_signature: [u8; 96],
+    ) -> Result<(EntryId, Entry, BatchHeight, BatchTimestamp), ExecSwapoutInPoolError> {
+        match self.state {
+            SessionPoolState::Inactive => return Err(ExecSwapoutInPoolError::SessionInactiveError),
+            SessionPoolState::Suspended => return Err(ExecSwapoutInPoolError::SessionSuspendedError),
+            SessionPoolState::Break => return Err(ExecSwapoutInPoolError::SessionBreakError),
+            _ => {
+                if self.added_entries.len() >= MAX_IN_POOL_ENTRIES {
+                    return Err(ExecSwapoutInPoolError::PoolOverloadedError);
+                }
+            }
+        };
+
+        let (batch_height, batch_timestamp, _) = self
+            .batch_info
+            .ok_or(ExecSwapoutInPoolError::BatchInfoNotFoundError)?;
+
+        swapout
+            .validate_overall(
+                batch_height,
+                &self.registery,
+                &self.graveyard,
+                &self.coin_manager,
+                swapout_bls_signature,
+            )
+            .await
+            .map_err(|err| ExecSwapoutInPoolError::SwapoutValidateOverallError(format!("{err:?}")))?;
+
+        {
+            let mut _exec_ctx = self.exec_ctx.lock().await;
+            _exec_ctx.pre_execution().await;
+        }
+
+        let swapout_result = {
+            let mut exec_ctx = self.exec_ctx.lock().await;
+            exec_ctx.execute_swapout(swapout, batch_timestamp).await
+        };
+
+        match swapout_result {
+            Ok(swapout_entry) => {
+                let entry_index_in_batch = self.added_entries.len() as u32;
+                let entry_id = swapout_entry
+                    .entry_id(batch_height, entry_index_in_batch)
+                    .ok_or(ExecSwapoutInPoolError::EntryIdDerivationError)?;
+                self.added_entries.push(swapout_entry.clone());
+                self.added_individual_entry_bls_signatures
+                    .push(swapout_bls_signature);
+                Ok((entry_id, swapout_entry, batch_height, batch_timestamp))
+            }
+            Err(error) => {
+                {
+                    self.exec_ctx.lock().await.rollback_last().await;
+                }
+                Err(ExecSwapoutInPoolError::SwapoutExecutionError(format!(
+                    "{error:?}"
+                )))
             }
         }
     }

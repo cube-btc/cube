@@ -29,9 +29,11 @@ pub enum HashTag {
     FlameConfig,
     // Sighashes
     LiftupEntrySighash,
+    SwapoutEntrySighash,
     MoveEntrySighash,
     // Entry ID tags
     LiftupEntryID,
+    SwapoutEntryID,
     MoveEntryID,
 }
 
@@ -59,9 +61,11 @@ impl HashTag {
             HashTag::FlameConfig => format!("{}/{}", baked::PROJECT_TAG, "flameconfig"),
             // Sighashes
             HashTag::LiftupEntrySighash => format!("{}/{}/{}/{}", baked::PROJECT_TAG, "sighash", "entry", "liftup"),
+            HashTag::SwapoutEntrySighash => format!("{}/{}/{}/{}", baked::PROJECT_TAG, "sighash", "entry", "swapout"),
             HashTag::MoveEntrySighash => format!("{}/{}/{}/{}", baked::PROJECT_TAG, "sighash", "entry", "move"),
             // Entry IDs
             HashTag::LiftupEntryID => format!("{}/{}/{}/{}", baked::PROJECT_TAG, "id", "entry", "liftup"),
+            HashTag::SwapoutEntryID => format!("{}/{}/{}/{}", baked::PROJECT_TAG, "id", "entry", "swapout"),
             HashTag::MoveEntryID => format!("{}/{}/{}/{}", baked::PROJECT_TAG, "id", "entry", "move"),
         }
     }

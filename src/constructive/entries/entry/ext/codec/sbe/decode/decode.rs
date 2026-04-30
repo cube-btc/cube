@@ -1,6 +1,7 @@
 use crate::constructive::entry::entry::entry::Entry;
 use crate::constructive::entry::entry_kinds::liftup::liftup::Liftup;
 use crate::constructive::entry::entry_kinds::r#move::r#move::Move;
+use crate::constructive::entry::entry_kinds::swapout::swapout::Swapout;
 
 use super::error::EntrySBEDecodeError;
 
@@ -38,6 +39,11 @@ impl Entry {
                     .map_err(|err| EntrySBEDecodeError::LiftupSBEDecodeError(err))?;
 
                 Ok(Entry::Liftup(liftup))
+            }
+            0x05 => {
+                let swapout = Swapout::decode_sbe(bytes)
+                    .map_err(EntrySBEDecodeError::SwapoutSBEDecodeError)?;
+                Ok(Entry::Swapout(swapout))
             }
 
             // 3.d Unknown entry kind byte.
