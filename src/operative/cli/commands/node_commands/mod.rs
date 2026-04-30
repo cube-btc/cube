@@ -10,3 +10,4 @@ pub mod liftuplocal;
 pub mod r#move;
 pub mod npub;
 pub mod ping;
+pub mod swapout;

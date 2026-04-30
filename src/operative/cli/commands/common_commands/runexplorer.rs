@@ -32,6 +32,7 @@ struct ExplorerState {
     archival: ARCHIVAL_MANAGER,
     registery: REGISTERY,
     privileges_manager: Option<PRIVILEGES_MANAGER>,
+    coin_manager: COIN_MANAGER,
     flame_manager: FLAME_MANAGER,
 }
 
@@ -42,7 +43,7 @@ pub async fn runexplorer_command(
     archival: Option<&ARCHIVAL_MANAGER>,
     registery: &REGISTERY,
     privileges_manager: Option<&PRIVILEGES_MANAGER>,
-    _coin_manager: &COIN_MANAGER,
+    coin_manager: &COIN_MANAGER,
     flame_manager: &FLAME_MANAGER,
 ) {
     let Some(archival) = archival else {
@@ -58,6 +59,7 @@ pub async fn runexplorer_command(
         archival: Arc::clone(archival),
         registery: Arc::clone(registery),
         privileges_manager: privileges_manager.map(Arc::clone),
+        coin_manager: Arc::clone(coin_manager),
         flame_manager: Arc::clone(flame_manager),
     };
 
@@ -319,10 +321,12 @@ a.row-link:hover { text-decoration: underline; }
 .summary { display: grid; grid-template-columns: 9.5rem 1fr; gap: 0.35rem 1rem; margin-bottom: 1.5rem; font-size: 0.92rem; }
 .summary dt { color: #5c6670; }
 .summary dd { margin: 0; font-family: ui-monospace, monospace; word-break: break-all; }
+.summary-copy-row { display: flex; align-items: center; justify-content: space-between; gap: 0.45rem; }
 .mono-wrap { display: inline-block; max-width: 100%; overflow-wrap: anywhere; word-break: break-all; white-space: normal; }
-.collapsible { margin: 0; }
-.collapsible > summary { cursor: pointer; color: #0550ae; user-select: none; }
-.collapsible > summary:hover { text-decoration: underline; }
+.expandable-mono { display: inline-flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; }
+.expandable-mono .mono { margin: 0; }
+.expandable-mono-btn { background: #f0ebe0; border: 1px solid #d8d0c0; color: #1f2328; border-radius: 6px; padding: 0.2rem 0.5rem; cursor: pointer; font-size: 0.75rem; line-height: 1.2; }
+.expandable-mono-btn:hover { background: #e8e2d4; color: #0550ae; }
 section.entries { margin-top: 2rem; }
 .entry-card { background: #fffefb; border: 1px solid #e8e2d4; border-radius: 6px; padding: 1rem; margin-bottom: 1rem; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
 .entry-card h3 { margin: 0 0 0.5rem; font-size: 0.95rem; color: #5c6670; }
@@ -333,15 +337,30 @@ pre.reg-json { font-size: 0.8rem; background: #fffefb; border: 1px solid #e8e2d4
 .explorer-subsec { margin-top: 1.85rem; }
 .explorer-subsec:first-of-type { margin-top: 1rem; }
 .explorer-subsec h2 { font-size: 1.18rem; font-weight: 620; color: #1f2328; margin: 0 0 0.5rem; padding-bottom: 0.35rem; border-bottom: 1px solid #e8e2d4; }
+.tab-menu { display: flex; gap: 0.45rem; flex-wrap: wrap; margin: 1rem 0 0.9rem; }
+.tab-btn { background: #f0ebe0; border: 1px solid #d8d0c0; color: #1f2328; border-radius: 8px; padding: 0.42rem 0.7rem; cursor: pointer; font-size: 0.85rem; }
+.tab-btn:hover { background: #e8e2d4; }
+.tab-btn.active { background: #fffefb; border-color: #bfae88; color: #0550ae; font-weight: 600; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 .action-btn { display: inline-block; text-decoration: none; background: #f0ebe0; border: 1px solid #d8d0c0; color: #1f2328; border-radius: 7px; padding: 0.45rem 0.75rem; font-size: 0.86rem; }
 .action-btn:hover { background: #e8e2d4; color: #0550ae; }
+.copy-btn { background: #f0ebe0; border: 1px solid #d8d0c0; color: #1f2328; border-radius: 6px; padding: 0.15rem 0.45rem; cursor: pointer; font-size: 0.74rem; white-space: nowrap; }
+.copy-btn:hover { background: #e8e2d4; color: #0550ae; }
 .account-hero { display: flex; align-items: flex-start; gap: 1rem; margin-bottom: 1rem; }
 .account-avatar { width: 64px; height: 64px; border-radius: 999px; border: 1px solid #d8d0c0; background: radial-gradient(circle at 30% 30%, #fffefb 0%, #f0ebe0 70%, #e3dbca 100%); display: inline-flex; align-items: center; justify-content: center; color: #8b949e; font-size: 1.5rem; flex-shrink: 0; }
 .account-hero-main { min-width: 0; }
 .account-hero-main h1 { margin: 0 0 0.4rem; }
 .account-head-row { display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap; margin: 0 0 0.5rem; }
 .account-npub-title { font-size: 1.06rem; font-weight: 700; letter-spacing: 0.01em; font-family: ui-monospace, monospace; overflow-wrap: anywhere; }
+.account-summary-wrap { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
+.account-summary-wrap .summary { margin-bottom: 0; flex: 1; min-width: 18rem; }
+.account-shell { display: grid; gap: 1rem; }
+.account-card { background: #fffefb; border: 1px solid #e8e2d4; border-radius: 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); }
+.account-card-header { padding: 1rem 1rem 0.2rem; }
+.account-card-summary { padding: 0 1rem 1rem; }
+.account-card-body { padding: 0.9rem 1rem 1rem; }
 </style>"#
 }
 
@@ -382,12 +401,64 @@ fn layout(title: &str, body: &str, search_value: &str) -> String {
     format!(
         r#"<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{}</title>{}</head>
-<body>{}<main>{}</main>{}</body></html>"#,
+<body>{}<main>{}</main>{}<script>
+(function () {{
+  const buttons = Array.from(document.querySelectorAll('[data-expand-target]'));
+  buttons.forEach((button) => {{
+    const targetId = button.getAttribute('data-expand-target');
+    if (!targetId) return;
+    const container = button.closest('.expandable-mono');
+    const shortNode = container ? container.querySelector('[data-expand-short]') : null;
+    const fullNode = document.getElementById(targetId);
+    if (!fullNode) return;
+    button.addEventListener('click', () => {{
+      if (shortNode) shortNode.style.display = 'none';
+      button.style.display = 'none';
+      fullNode.style.display = 'inline';
+    }});
+  }});
+  const copyButtons = Array.from(document.querySelectorAll('[data-copy-value]'));
+  copyButtons.forEach((button) => {{
+    const original = button.textContent || 'Copy';
+    button.addEventListener('click', async () => {{
+      const value = button.getAttribute('data-copy-value') || '';
+      try {{
+        await navigator.clipboard.writeText(value);
+        button.textContent = 'Copied';
+        setTimeout(() => {{
+          button.textContent = original;
+        }}, 900);
+      }} catch (_err) {{
+        button.textContent = 'Failed';
+        setTimeout(() => {{
+          button.textContent = original;
+        }}, 1100);
+      }}
+    }});
+  }});
+}})();
+</script></body></html>"#,
         html_escape(title),
         explorer_css(),
         site_header(search_value),
         body,
         site_footer()
+    )
+}
+
+fn expandable_mono_html(full: &str, head: usize, tail: usize, id_prefix: &str) -> String {
+    let short = truncated_head_tail(full, head, tail);
+    let target_id = format!(
+        "{}-{}",
+        id_prefix,
+        hex::encode(bitcoin::hashes::sha256::Hash::hash(full.as_bytes()))
+    );
+    format!(
+        r#"<span class="expandable-mono"><code class="mono mono-wrap" data-expand-short>{}</code><button type="button" class="expandable-mono-btn" data-expand-target="{}">Expand</button><code id="{}" class="mono mono-wrap" style="display:none">{}</code></span>"#,
+        html_escape(&short),
+        html_escape(&target_id),
+        html_escape(&target_id),
+        html_escape(full)
     )
 }
 
@@ -573,17 +644,17 @@ async fn page_account_by_id(
     for (batch_height, _batch_txid, batch_ts, entry_id, entry) in history.iter().rev() {
         let entry_id_hex = hex::encode(entry_id);
         let entry_kind = match entry {
-            Entry::Move(_) => "Move",
-            Entry::Call(_) => "Call",
-            Entry::Liftup(_) => "Liftup",
-            Entry::Swapout(_) => "Swapout",
+            Entry::Move(_) => "💰 Move",
+            Entry::Call(_) => "📞 Call",
+            Entry::Liftup(_) => "🛗 Liftup",
+            Entry::Swapout(_) => "🚪 Swapout",
         };
         history_rows.push_str(&format!(
-            r#"<tr><td><a class="row-link" href="/entry/{0}"><code class="mono">{0}</code></a></td><td>{1}</td><td><a class="row-link" href="/batch/height/{2}">{2}</a></td><td>{3}</td></tr>"#,
+            r#"<tr><td><a class="row-link" href="/entry/{0}"><code class="mono">{0}</code></a></td><td><a class="row-link" href="/batch/height/{2}">#{2}</a></td><td>{3}</td><td>{1}</td></tr>"#,
             html_escape(&entry_id_hex),
             entry_kind,
             batch_height,
-            explorer_timestamp_html(*batch_ts),
+            batch_table_relative_time_html(*batch_ts),
         ));
     }
     if history_rows.is_empty() {
@@ -624,54 +695,109 @@ async fn page_account_by_id(
         format!("https://iris.to/{}", npub)
     };
     let account_hex = hex::encode(account_key);
-    let account_body_json_pretty =
-        serde_json::to_string_pretty(&account_body.json()).unwrap_or_else(|_| "{}".to_string());
+    let coin_balance = {
+        let cm = st.coin_manager.lock().await;
+        cm.get_account_balance(account_key)
+    };
+    let coin_balance_text = coin_balance
+        .map(|v| v.to_string())
+        .unwrap_or_else(|| "N/A".to_string());
+    let coin_manager_account_json = {
+        let cm = st.coin_manager.lock().await;
+        cm.get_account_body(account_key)
+            .map(|body| {
+                serde_json::json!({
+                    "balance": body.balance.to_string(),
+                    "global_shadow_allocs_sum": body.global_shadow_allocs_sum.to_string(),
+                })
+            })
+            .unwrap_or(serde_json::Value::Null)
+    };
+    let coin_manager_account_json_pretty = serde_json::to_string_pretty(&coin_manager_account_json)
+        .unwrap_or_else(|_| "null".to_string());
 
     let body = format!(
-        r#"<section class="account-hero">
+        r#"<section class="account-shell">
+<section class="account-card">
+<div class="account-card-header">
+<section class="account-hero">
 <div class="account-avatar" aria-label="Profile placeholder">👻</div>
 <div class="account-hero-main">
 <h1>Account</h1>
 <div class="account-head-row"><span class="account-npub-title">{}</span><span class="badge">{}</span></div>
-<p style="margin:0 0 0.5rem"><a class="action-btn" href="{}" target="_blank" rel="noopener">View Nostr Profile ↗</a></p>
 </div>
 </section>
+ </div>
+<div class="account-card-summary">
+<section class="account-summary-wrap">
 <dl class="summary">
-<dt>Account key (hex)</dt><dd><code class="mono">{}</code></dd>
-<dt>Account npub</dt><dd><code class="mono">{}</code></dd>
+<dt>Account key (hex)</dt><dd><div class="summary-copy-row"><code class="mono">{}</code><button type="button" class="copy-btn" data-copy-value="{}">Copy</button></div></dd>
+<dt>Account npub</dt><dd><div class="summary-copy-row"><code class="mono">{}</code><button type="button" class="copy-btn" data-copy-value="{}">Copy</button></div></dd>
 <dt>Registery index</dt><dd>{}</dd>
 <dt>Last active</dt><dd>{}</dd>
 <dt>Call counter</dt><dd>{}</dd>
+<dt>Coins</dt><dd>{}</dd>
 </dl>
-<section class="explorer-subsec">
-<h2>Transaction History</h2>
-<table><thead><tr><th>Entry ID</th><th>Kind</th><th>Batch</th><th>Timestamp</th></tr></thead><tbody>{}</tbody></table>
+<a class="action-btn" href="{}" target="_blank" rel="noopener">View Nostr Profile ↗</a>
 </section>
-<section class="explorer-subsec">
+</div>
+</section>
+<section class="account-card">
+<div class="account-card-body">
+<nav class="tab-menu" aria-label="Account sections">
+<button type="button" class="tab-btn active" data-tab-target="tab-transaction-history">Transaction History</button>
+<button type="button" class="tab-btn" data-tab-target="tab-privileges">Privileges</button>
+<button type="button" class="tab-btn" data-tab-target="tab-vtxo-set">VTXO Set</button>
+<button type="button" class="tab-btn" data-tab-target="tab-coin-manager">Coin Manager</button>
+</nav>
+<section id="tab-transaction-history" class="explorer-subsec tab-panel active">
+<h2>Transaction History</h2>
+<table><thead><tr><th>Entry ID</th><th>Batch</th><th>Seen</th><th>Entry Kind</th></tr></thead><tbody>{}</tbody></table>
+</section>
+<section id="tab-privileges" class="explorer-subsec tab-panel">
 <h2>Privileges</h2>
 <pre class="reg-json">{}</pre>
 </section>
-<section class="explorer-subsec">
+<section id="tab-vtxo-set" class="explorer-subsec tab-panel">
 <h2>VTXO Set</h2>
 <pre class="reg-json">{}</pre>
 </section>
-<section class="explorer-subsec">
-<h2>Registery Account Body</h2>
+<section id="tab-coin-manager" class="explorer-subsec tab-panel">
+<h2>Coin Manager Account Body</h2>
 <pre class="reg-json">{}</pre>
 </section>
-<p style="margin-top:1.25rem"><a class="row-link" href="/accounts">← Accounts</a></p>"#,
+<script>
+(function () {{
+  const tabButtons = Array.from(document.querySelectorAll('.tab-btn[data-tab-target]'));
+  const tabPanels = Array.from(document.querySelectorAll('.tab-panel'));
+  function activateTab(tabId) {{
+    tabButtons.forEach((btn) => btn.classList.toggle('active', btn.dataset.tabTarget === tabId));
+    tabPanels.forEach((panel) => panel.classList.toggle('active', panel.id === tabId));
+  }}
+  tabButtons.forEach((btn) => {{
+    btn.addEventListener('click', () => activateTab(btn.dataset.tabTarget));
+  }});
+}})();
+</script>
+<p style="margin-top:1.25rem"><a class="row-link" href="/accounts">← Accounts</a></p>
+</div>
+</section>
+</section>"#,
         html_escape(&npub_short),
         hierarchy.to_string(),
-        html_escape(&nostr_profile_url),
         html_escape(&account_hex),
+        html_escape(&account_hex),
+        html_escape(&npub),
         html_escape(&npub),
         account_body.registery_index,
         explorer_timestamp_html(account_body.last_activity_timestamp),
         account_body.call_counter,
+        html_escape(&coin_balance_text),
+        html_escape(&nostr_profile_url),
         history_rows,
         html_escape(&privileges_pretty),
         html_escape(&vtxo_pretty),
-        html_escape(&account_body_json_pretty),
+        html_escape(&coin_manager_account_json_pretty),
     );
     Html(layout("Account — Cube explorer", &body, &account_id)).into_response()
 }
@@ -719,7 +845,7 @@ async fn page_batches(State(st): State<ExplorerState>) -> Html<String> {
     for (height, ts, txid, num_entries) in rows {
         let ts_html = batch_table_relative_time_html(ts);
         table_rows.push_str(&format!(
-            r#"<tr><td><a class="row-link" href="/batch/height/{0}">{0}</a></td><td>{1}</td><td class="mono"><a class="row-link" href="/batch/tx/{3}">{2}</a></td><td class="num">{4}</td></tr>"#,
+            r#"<tr><td><a class="row-link" href="/batch/height/{0}">#{0}</a></td><td>{1}</td><td class="mono"><a class="row-link" href="/batch/tx/{3}">{2}</a></td><td class="num">{4}</td></tr>"#,
             height,
             ts_html,
             html_escape(&txid),
@@ -878,12 +1004,7 @@ async fn page_entry_by_id(
         .join("<br/>");
     let collected_bits_html = match collected_bits {
         Some(bits) => {
-            let bits_preview = truncated_head_tail(&bits, 28, 16);
-            format!(
-                r#"<details class="collapsible"><summary><code class="mono mono-wrap">{}</code></summary><code class="mono mono-wrap">{}</code></details>"#,
-                html_escape(&bits_preview),
-                html_escape(&bits)
-            )
+            expandable_mono_html(&bits, 28, 16, "ape-bits")
         }
         None => "N/A (non-archival record)".to_string(),
     };
@@ -892,7 +1013,7 @@ async fn page_entry_by_id(
         r#"<h1>{}</h1>
 <dl class="summary">
 <dt>Entry id</dt><dd><code class="mono">{}</code></dd>
-<dt>Batch height</dt><dd><a class="row-link" href="/batch/height/{}">{}</a></dd>
+<dt>Batch height</dt><dd><a class="row-link" href="/batch/height/{}">#{}</a></dd>
 <dt>Batch txid</dt><dd>{}</dd>
 <dt>Batch timestamp</dt><dd>{}</dd>
 <dt>APE bitstream</dt><dd>{}</dd>
@@ -968,7 +1089,7 @@ fn render_batch_page(chain: Chain, record: &BatchRecord) -> String {
     let body = format!(
         r#"<h1>📦 Batch #{}</h1>
 <dl class="summary">
-<dt>Height</dt><dd>{}</dd>
+<dt>Height</dt><dd>#{}</dd>
 <dt>Timestamp</dt><dd>{}</dd>
 <dt>Txid</dt><dd>{}</dd>
 <dt>Payload version</dt><dd>{}</dd>
@@ -985,12 +1106,7 @@ fn render_batch_page(chain: Chain, record: &BatchRecord) -> String {
         record.entries.len(),
         {
             let bls_full = hex::encode(&record.aggregate_bls_signature);
-            let bls_preview = truncated_head_tail(&bls_full, 28, 16);
-            format!(
-                r#"<details class="collapsible"><summary><code class="mono mono-wrap">{}</code></summary><code class="mono mono-wrap">{}</code></details>"#,
-                html_escape(&bls_preview),
-                html_escape(&bls_full)
-            )
+            expandable_mono_html(&bls_full, 28, 16, "bls-agg-sig")
         },
         entries_html
     );

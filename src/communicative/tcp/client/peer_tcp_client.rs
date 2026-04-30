@@ -11,9 +11,12 @@ use crate::communicative::tcp::protocol::liftup_v1::client::request_liftup_v1;
 use crate::communicative::tcp::protocol::liftup_v1::LiftupV1ResponseBody;
 use crate::communicative::tcp::protocol::r#move::client::request_move;
 use crate::communicative::tcp::protocol::r#move::MoveResponseBody;
+use crate::communicative::tcp::protocol::swapout::client::request_swapout;
+use crate::communicative::tcp::protocol::swapout::SwapoutResponseBody;
 use crate::communicative::tcp::request_error::RequestError;
 use crate::constructive::entry::entry_kinds::liftup::liftup::Liftup;
 use crate::constructive::entry::entry_kinds::r#move::r#move::Move;
+use crate::constructive::entry::entry_kinds::swapout::swapout::Swapout;
 use async_trait::async_trait;
 use bitcoin::OutPoint;
 use std::time::Duration;
@@ -40,6 +43,14 @@ impl TCPClient for PEER {
         move_bls_signature: [u8; 96],
     ) -> Result<(MoveResponseBody, Duration), RequestError> {
         request_move(self, move_entry, move_bls_signature).await
+    }
+
+    async fn request_swapout(
+        &self,
+        swapout: &Swapout,
+        swapout_bls_signature: [u8; 96],
+    ) -> Result<(SwapoutResponseBody, Duration), RequestError> {
+        request_swapout(self, swapout, swapout_bls_signature).await
     }
 
     async fn request_batchrecord(

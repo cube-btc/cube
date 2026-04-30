@@ -7,3 +7,4 @@ pub mod in_flight_sync;
 pub mod liftup_v1;
 pub mod r#move;
 pub mod ping;
+pub mod swapout;

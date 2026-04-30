@@ -23,4 +23,8 @@ pub use crate::communicative::tcp::protocol::liftup_v1::{
 pub use crate::communicative::tcp::protocol::r#move::{
     ExecMoveInPoolError, MoveRequestBody, MoveResponseBody, MoveResponseError, MoveSuccessBody,
 };
+pub use crate::communicative::tcp::protocol::swapout::{
+    ExecSwapoutInPoolError, SwapoutRequestBody, SwapoutResponseBody, SwapoutResponseError,
+    SwapoutSuccessBody,
+};
 pub use tcp_client::TCPClient;

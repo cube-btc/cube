@@ -509,6 +509,26 @@ pub async fn run_node_cli(
                 )
                 .await;
             }
+            "swapout" => {
+                let amount: u32 = match parts.get(1).and_then(|s| s.parse().ok()) {
+                    Some(amount) => amount,
+                    None => {
+                        eprintln!("{}", "Usage: swapout <amount>.".yellow());
+                        continue;
+                    }
+                };
+
+                node_commands::swapout::swapout_command(
+                    amount,
+                    key_holder,
+                    sync_manager,
+                    registery,
+                    coin_manager,
+                    params_manager,
+                    engine_conn,
+                )
+                .await;
+            }
             _ => eprintln!("{}", format!("Unknown commmand.").yellow()),
         }
     }

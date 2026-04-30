@@ -142,6 +142,15 @@ pub async fn handle_package(
                     )
                     .await
                 }
+                PackageKind::SwapoutProtocol => {
+                    let session_pool = Arc::clone(session_pool);
+                    crate::communicative::tcp::protocol::swapout::server::handle_swapout_request(
+                        package.timestamp(),
+                        &package.payload(),
+                        &session_pool,
+                    )
+                    .await
+                }
                 PackageKind::BatchRecordProtocol => {
                     let archival_manager = archival_manager.clone();
                     crate::communicative::tcp::protocol::batchrecord::server::handle_batchrecord_request(
