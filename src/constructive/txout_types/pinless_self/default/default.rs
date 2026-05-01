@@ -37,23 +37,9 @@ impl PinlessSelfDefault {
         return_pinless_self_default_scriptpubkey(self.account_key)
     }
 
-    pub fn validate_scriptpubkey(&self) -> bool {
-        let self_txout = match self.txout() {
-            Some(txout) => txout,
-            None => return false,
-        };
-
-        let calculated_scriptpubkey = match self.calculated_scriptpubkey() {
-            Some(scriptpubkey) => scriptpubkey,
-            None => return false,
-        };
-
-        self_txout.script_pubkey.as_bytes() == calculated_scriptpubkey.as_slice()
-    }
-
     pub fn json(&self) -> Value {
         let mut obj = Map::new();
-        obj.insert("version".to_string(), Value::String("default".to_string()));
+        obj.insert("kind".to_string(), Value::String("default".to_string()));
         obj.insert(
             "account_key".to_string(),
             Value::String(hex::encode(self.account_key)),

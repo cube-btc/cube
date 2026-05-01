@@ -4,6 +4,8 @@ use crate::constructive::txout_types::pinless_self::PinlessSelf;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
+pub const DUST_SWAPOUT_MIN: u32 = 500;
+
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Swapout {
     pub root_account: RootAccount,

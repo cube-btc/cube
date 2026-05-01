@@ -10,6 +10,11 @@ pub enum SwapoutValidateOverallError {
     },
     SwapoutUnknownPinlessSelfNotSupportedYetError,
     SwapoutDefaultPinlessSelfLocationMustBeAbsentError,
+    SwapoutDefaultPinlessSelfAccountKeyMismatchError,
+    SwapoutAmountBelowDustMin {
+        amount: u32,
+        dust_min: u32,
+    },
     InsufficientBalance {
         requested_amount: u32,
         account_balance: u64,

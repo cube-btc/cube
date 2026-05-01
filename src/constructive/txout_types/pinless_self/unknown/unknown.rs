@@ -22,7 +22,7 @@ impl PinlessSelfUnknown {
 
     pub fn json(&self) -> Value {
         let mut obj = Map::new();
-        obj.insert("version".to_string(), Value::String("unknown".to_string()));
+        obj.insert("kind".to_string(), Value::String("unknown".to_string()));
         obj.insert(
             "custom_scriptpubkey".to_string(),
             Value::String(hex::encode(&self.custom_scriptpubkey)),

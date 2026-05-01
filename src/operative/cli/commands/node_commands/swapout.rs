@@ -2,7 +2,7 @@ use crate::communicative::peer::peer::PEER;
 use crate::communicative::tcp::client::{SwapoutResponseBody, TCPClient};
 use crate::constructive::core_types::target::target::Target;
 use crate::constructive::entity::account::root_account::root_account::RootAccount;
-use crate::constructive::entry::entry_kinds::swapout::swapout::Swapout;
+use crate::constructive::entry::entry_kinds::swapout::swapout::{Swapout, DUST_SWAPOUT_MIN};
 use crate::constructive::txout_types::pinless_self::PinlessSelf;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
 use crate::inscriptive::params_manager::params_manager::PARAMS_MANAGER;
@@ -22,6 +22,18 @@ pub async fn swapout_command(
     params_manager: &PARAMS_MANAGER,
     engine_peer: &PEER,
 ) {
+    if amount < DUST_SWAPOUT_MIN {
+        println!(
+            "{}",
+            format!(
+                "Error: SwapoutAmountBelowDustMin {{ amount: {}, dust_min: {} }}.",
+                amount, DUST_SWAPOUT_MIN
+            )
+            .red()
+        );
+        return;
+    }
+
     let root_account = RootAccount::self_root_account_from_registery(key_holder, registery).await;
     let account_key = root_account.account_key();
 

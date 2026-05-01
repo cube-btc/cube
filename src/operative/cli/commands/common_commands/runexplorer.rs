@@ -20,7 +20,7 @@ use bitcoin::Txid;
 use chrono::{DateTime, Utc};
 use colored::Colorize;
 use serde::Deserialize;
-use serde_json::Value;
+use serde_json::{Map, Value};
 use std::io::ErrorKind;
 use std::net::SocketAddr;
 use std::str::FromStr;
@@ -139,23 +139,6 @@ fn account_link(account_key: [u8; 32]) -> String {
         html_escape(&account_url(account_key)),
         html_escape(&npub)
     )
-}
-
-fn entry_involved_account_keys(entry: &Entry) -> Vec<[u8; 32]> {
-    match entry {
-        Entry::Move(move_entry) => {
-            let from_key = move_entry.from.account_key();
-            let to_key = move_entry.to.account_key();
-            if from_key == to_key {
-                vec![from_key]
-            } else {
-                vec![from_key, to_key]
-            }
-        }
-        Entry::Liftup(liftup) => vec![liftup.root_account.account_key()],
-        Entry::Call(call) => vec![call.account.account_key()],
-        Entry::Swapout(swapout) => vec![swapout.root_account.account_key()],
-    }
 }
 
 fn mempool_tx_url(chain: Chain, txid: &str) -> Option<String> {
@@ -321,7 +304,7 @@ a.row-link:hover { text-decoration: underline; }
 .summary { display: grid; grid-template-columns: 9.5rem 1fr; gap: 0.35rem 1rem; margin-bottom: 1.5rem; font-size: 0.92rem; }
 .summary dt { color: #5c6670; }
 .summary dd { margin: 0; font-family: ui-monospace, monospace; word-break: break-all; }
-.summary-copy-row { display: flex; align-items: center; justify-content: space-between; gap: 0.45rem; }
+.summary-copy-row { display: inline-flex; align-items: center; justify-content: flex-start; gap: 0.5rem; flex-wrap: wrap; }
 .mono-wrap { display: inline-block; max-width: 100%; overflow-wrap: anywhere; word-break: break-all; white-space: normal; }
 .expandable-mono { display: inline-flex; align-items: center; gap: 0.45rem; flex-wrap: wrap; }
 .expandable-mono .mono { margin: 0; }
@@ -346,12 +329,13 @@ pre.reg-json { font-size: 0.8rem; background: #fffefb; border: 1px solid #e8e2d4
 .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 .action-btn { display: inline-block; text-decoration: none; background: #f0ebe0; border: 1px solid #d8d0c0; color: #1f2328; border-radius: 7px; padding: 0.45rem 0.75rem; font-size: 0.86rem; }
 .action-btn:hover { background: #e8e2d4; color: #0550ae; }
-.copy-btn { background: #f0ebe0; border: 1px solid #d8d0c0; color: #1f2328; border-radius: 6px; padding: 0.15rem 0.45rem; cursor: pointer; font-size: 0.74rem; white-space: nowrap; }
+.copy-btn { background: #f0ebe0; border: 1px solid #d8d0c0; color: #1f2328; border-radius: 6px; padding: 0.3rem 0.58rem; cursor: pointer; font-size: 0.9rem; line-height: 1; white-space: nowrap; }
 .copy-btn:hover { background: #e8e2d4; color: #0550ae; }
-.account-hero { display: flex; align-items: flex-start; gap: 1rem; margin-bottom: 1rem; }
+.account-header-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.8rem; margin-bottom: 1rem; }
+.account-header-main { display: flex; align-items: flex-start; gap: 1rem; min-width: 0; }
 .account-avatar { width: 64px; height: 64px; border-radius: 999px; border: 1px solid #d8d0c0; background: radial-gradient(circle at 30% 30%, #fffefb 0%, #f0ebe0 70%, #e3dbca 100%); display: inline-flex; align-items: center; justify-content: center; color: #8b949e; font-size: 1.5rem; flex-shrink: 0; }
-.account-hero-main { min-width: 0; }
-.account-hero-main h1 { margin: 0 0 0.4rem; }
+.account-header-left { min-width: 0; }
+.account-header-left h1 { margin: 0 0 0.4rem; }
 .account-head-row { display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap; margin: 0 0 0.5rem; }
 .account-npub-title { font-size: 1.06rem; font-weight: 700; letter-spacing: 0.01em; font-family: ui-monospace, monospace; overflow-wrap: anywhere; }
 .account-summary-wrap { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
@@ -448,6 +432,12 @@ fn layout(title: &str, body: &str, search_value: &str) -> String {
 
 fn expandable_mono_html(full: &str, head: usize, tail: usize, id_prefix: &str) -> String {
     let short = truncated_head_tail(full, head, tail);
+    if short == full {
+        return format!(
+            r#"<span class="expandable-mono"><code class="mono mono-wrap">{}</code></span>"#,
+            html_escape(full)
+        );
+    }
     let target_id = format!(
         "{}-{}",
         id_prefix,
@@ -460,6 +450,17 @@ fn expandable_mono_html(full: &str, head: usize, tail: usize, id_prefix: &str) -
         html_escape(&target_id),
         html_escape(full)
     )
+}
+
+fn account_avatar_emoji(account_key: [u8; 32]) -> &'static str {
+    // Deterministic avatar choice from public key bytes.
+    const AVATARS: [&str; 40] = [
+        "👻", "🦘", "🐱", "🐰", "🦊", "🐼", "🐨", "🦁", "🐯", "🐸", "🐵", "🐶", "🐻", "🦉",
+        "🦄", "🐙", "🐧", "🦋", "🦒", "🦔", "🐺", "🦇", "🦅", "🐬", "🐢", "🦓", "🐘", "🦥",
+        "🦦", "🦩", "🦜", "🐿️", "🦝", "🐆", "🐮", "🐗", "🐭", "🐹", "🦎", "🦛",
+    ];
+    let idx = (account_key[0] as usize) % AVATARS.len();
+    AVATARS[idx]
 }
 
 fn truncated_head_tail(value: &str, head: usize, tail: usize) -> String {
@@ -650,7 +651,7 @@ async fn page_account_by_id(
             Entry::Swapout(_) => "🚪 Swapout",
         };
         history_rows.push_str(&format!(
-            r#"<tr><td><a class="row-link" href="/entry/{0}"><code class="mono">{0}</code></a></td><td><a class="row-link" href="/batch/height/{2}">#{2}</a></td><td>{3}</td><td>{1}</td></tr>"#,
+            r#"<tr><td>{1}</td><td><a class="row-link" href="/entry/{0}"><code class="mono">{0}</code></a></td><td><a class="row-link" href="/batch/height/{2}">#{2}</a></td><td>{3}</td></tr>"#,
             html_escape(&entry_id_hex),
             entry_kind,
             batch_height,
@@ -679,7 +680,7 @@ async fn page_account_by_id(
         let fm = st.flame_manager.lock().await;
         fm.get_account_flame_set(account_key)
             .and_then(|v| serde_json::to_value(v).ok())
-            .unwrap_or(Value::Null)
+            .unwrap_or(Value::Object(Map::new()))
     };
     let vtxo_pretty = serde_json::to_string_pretty(&vtxo_json).unwrap_or_else(|_| "null".to_string());
 
@@ -715,30 +716,33 @@ async fn page_account_by_id(
     };
     let coin_manager_account_json_pretty = serde_json::to_string_pretty(&coin_manager_account_json)
         .unwrap_or_else(|_| "null".to_string());
+    let avatar_emoji = account_avatar_emoji(account_key);
 
     let body = format!(
         r#"<section class="account-shell">
 <section class="account-card">
 <div class="account-card-header">
-<section class="account-hero">
-<div class="account-avatar" aria-label="Profile placeholder">👻</div>
-<div class="account-hero-main">
+<section class="account-header-row">
+<div class="account-header-main">
+<div class="account-avatar" aria-label="Profile placeholder">{}</div>
+<div class="account-header-left">
 <h1>Account</h1>
 <div class="account-head-row"><span class="account-npub-title">{}</span><span class="badge">{}</span></div>
 </div>
+</div>
+<a class="action-btn" href="{}" target="_blank" rel="noopener">View Nostr Profile ↗</a>
 </section>
  </div>
 <div class="account-card-summary">
 <section class="account-summary-wrap">
 <dl class="summary">
-<dt>Account key (hex)</dt><dd><div class="summary-copy-row"><code class="mono">{}</code><button type="button" class="copy-btn" data-copy-value="{}">Copy</button></div></dd>
-<dt>Account npub</dt><dd><div class="summary-copy-row"><code class="mono">{}</code><button type="button" class="copy-btn" data-copy-value="{}">Copy</button></div></dd>
-<dt>Registery index</dt><dd>{}</dd>
+<dt>Account key (hex)</dt><dd><div class="summary-copy-row"><code class="mono">{}</code><button type="button" class="copy-btn" data-copy-value="{}" aria-label="Copy account key hex" title="Copy account key hex">&#128203;</button></div></dd>
+<dt>Account npub</dt><dd><div class="summary-copy-row"><code class="mono">{}</code><button type="button" class="copy-btn" data-copy-value="{}" aria-label="Copy account npub" title="Copy account npub">&#128203;</button></div></dd>
 <dt>Last active</dt><dd>{}</dd>
+<dt>Registery index</dt><dd>{}</dd>
 <dt>Call counter</dt><dd>{}</dd>
 <dt>Coins</dt><dd>{}</dd>
 </dl>
-<a class="action-btn" href="{}" target="_blank" rel="noopener">View Nostr Profile ↗</a>
 </section>
 </div>
 </section>
@@ -752,7 +756,7 @@ async fn page_account_by_id(
 </nav>
 <section id="tab-transaction-history" class="explorer-subsec tab-panel active">
 <h2>Transaction History</h2>
-<table><thead><tr><th>Entry ID</th><th>Batch</th><th>Seen</th><th>Entry Kind</th></tr></thead><tbody>{}</tbody></table>
+<table><thead><tr><th>Entry Kind</th><th>Entry ID</th><th>Batch</th><th>Seen</th></tr></thead><tbody>{}</tbody></table>
 </section>
 <section id="tab-privileges" class="explorer-subsec tab-panel">
 <h2>Privileges</h2>
@@ -783,17 +787,18 @@ async fn page_account_by_id(
 </div>
 </section>
 </section>"#,
+        html_escape(avatar_emoji),
         html_escape(&npub_short),
         hierarchy.to_string(),
+        html_escape(&nostr_profile_url),
         html_escape(&account_hex),
         html_escape(&account_hex),
         html_escape(&npub),
         html_escape(&npub),
-        account_body.registery_index,
         explorer_timestamp_html(account_body.last_activity_timestamp),
+        account_body.registery_index,
         account_body.call_counter,
         html_escape(&coin_balance_text),
-        html_escape(&nostr_profile_url),
         history_rows,
         html_escape(&privileges_pretty),
         html_escape(&vtxo_pretty),
@@ -990,18 +995,25 @@ async fn page_entry_by_id(
         Entry::Call(_) => "📞 Call",
         Entry::Swapout(_) => "🚪 Swapout",
     };
-    let involved_accounts = entry_involved_account_keys(&entry)
-        .into_iter()
-        .map(|account_key| {
-            let npub = account_key.to_npub().unwrap_or_else(|| "n/a".to_string());
-            format!(
-                r#"<a class="row-link" href="{}"><code class="mono">{}</code></a>"#,
-                html_escape(&account_url(account_key)),
-                html_escape(&npub)
-            )
-        })
-        .collect::<Vec<_>>()
-        .join("<br/>");
+    let entry_accounts_html = match &entry {
+        Entry::Move(move_entry) => format!(
+            r#"<dt>From</dt><dd>{}</dd><dt>To</dt><dd>{}</dd>"#,
+            account_link(move_entry.from.account_key()),
+            account_link(move_entry.to.account_key())
+        ),
+        Entry::Liftup(liftup) => format!(
+            r#"<dt>Account</dt><dd>{}</dd>"#,
+            account_link(liftup.root_account.account_key())
+        ),
+        Entry::Swapout(swapout) => format!(
+            r#"<dt>Account</dt><dd>{}</dd>"#,
+            account_link(swapout.root_account.account_key())
+        ),
+        Entry::Call(call) => format!(
+            r#"<dt>Account</dt><dd>{}</dd>"#,
+            account_link(call.account.account_key())
+        ),
+    };
     let collected_bits_html = match collected_bits {
         Some(bits) => {
             expandable_mono_html(&bits, 28, 16, "ape-bits")
@@ -1017,7 +1029,7 @@ async fn page_entry_by_id(
 <dt>Batch txid</dt><dd>{}</dd>
 <dt>Batch timestamp</dt><dd>{}</dd>
 <dt>APE bitstream</dt><dd>{}</dd>
-<dt>Involved account(s)</dt><dd>{}</dd>
+{}
 </dl>
 <h2 style="font-size:1.1rem;margin:1.25rem 0 0.65rem">Entry fees</h2>
 <pre class="reg-json">{}</pre>
@@ -1031,7 +1043,7 @@ async fn page_entry_by_id(
         batch_txid_dd,
         ts_html,
         collected_bits_html,
-        involved_accounts,
+        entry_accounts_html,
         html_escape(&entry_fees_json),
         html_escape(&entry_json),
         batch_height,
@@ -1092,9 +1104,9 @@ fn render_batch_page(chain: Chain, record: &BatchRecord) -> String {
 <dt>Height</dt><dd>#{}</dd>
 <dt>Timestamp</dt><dd>{}</dd>
 <dt>Txid</dt><dd>{}</dd>
+<dt>BLS agg sig</dt><dd>{}</dd>
 <dt>Payload version</dt><dd>{}</dd>
 <dt>Entries</dt><dd>{}</dd>
-<dt>BLS agg sig</dt><dd>{}</dd>
 </dl>
 <section class="entries"><h2 style="font-size:1.1rem;margin-bottom:0.75rem">Entries</h2>{}</section>
 <p><a class="row-link" href="/batches">← All batches</a></p>"#,
@@ -1102,12 +1114,12 @@ fn render_batch_page(chain: Chain, record: &BatchRecord) -> String {
         record.batch_height,
         ts_html,
         txid_cell,
-        record.payload_version,
-        record.entries.len(),
         {
             let bls_full = hex::encode(&record.aggregate_bls_signature);
             expandable_mono_html(&bls_full, 28, 16, "bls-agg-sig")
         },
+        record.payload_version,
+        record.entries.len(),
         entries_html
     );
 

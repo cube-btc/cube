@@ -1,5 +1,5 @@
 use crate::constructive::entry::entry_kinds::swapout::ext::pre_validations::validate_overall::validate_overall_error::SwapoutValidateOverallError;
-use crate::constructive::entry::entry_kinds::swapout::swapout::Swapout;
+use crate::constructive::entry::entry_kinds::swapout::swapout::{Swapout, DUST_SWAPOUT_MIN};
 use crate::constructive::txout_types::pinless_self::PinlessSelf;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
@@ -32,6 +32,13 @@ impl Swapout {
             });
         }
 
+        if self.amount < DUST_SWAPOUT_MIN {
+            return Err(SwapoutValidateOverallError::SwapoutAmountBelowDustMin {
+                amount: self.amount,
+                dust_min: DUST_SWAPOUT_MIN,
+            });
+        }
+
         // 4 Ensure only `PinlessSelf::Default` is supported and its location is absent.
         match &self.pinless_self {
             PinlessSelf::Default(pinless_self_default) => {
@@ -39,6 +46,10 @@ impl Swapout {
                     return Err(
                         SwapoutValidateOverallError::SwapoutDefaultPinlessSelfLocationMustBeAbsentError,
                     );
+                }
+
+                if pinless_self_default.account_key != self.root_account.account_key() {
+                    return Err(SwapoutValidateOverallError::SwapoutDefaultPinlessSelfAccountKeyMismatchError);
                 }
             }
             PinlessSelf::Unknown(_) => {
