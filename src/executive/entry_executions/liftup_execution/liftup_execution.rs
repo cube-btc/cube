@@ -6,6 +6,7 @@ use crate::executive::entry_executions::liftup_execution::error::liftup_executio
 use crate::executive::exec_ctx::exec_ctx::ExecCtx;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
 use crate::inscriptive::coin_manager::errors::balance_update_errors::CMAccountBalanceUpError;
+use crate::inscriptive::privileges_manager::elements::exemption::exemption::Exemption;
 
 impl ExecCtx {
     /// Executes a `Liftup` entry.
@@ -14,38 +15,66 @@ impl ExecCtx {
         liftup: &Liftup,
         execution_timestamp: u64,
     ) -> Result<EntryFees, LiftupExecutionError> {
-        // 2 Get the liftup sum value in satoshis.
+        // 1 Get the liftup sum value in satoshis.
         let liftup_sum_value_in_satoshis = liftup.liftup_sum_value_in_satoshis();
 
-        // 3 Get params holder from the params manager.
+        // 2 Get params holder from the params manager.
         let params_holder = {
             let _params_manager = self._params_manager.lock().unwrap();
             _params_manager.get_params_holder()
         };
 
-        // 4 Calculate fees.
-        // 4.1 Get the base fee.
+        // 3 Calculate fees.
         let base_fee = params_holder.liftup_entry_base_fee;
-        // 4.2 Get the number of lifts.
         let number_of_lifts = liftup.lift_tx_inputs.len() as u64;
-        // 4.3 Calculate the per-lift fee.
         let per_lift_fee = number_of_lifts * params_holder.liftup_entry_per_lift_base_fee;
-        // 4.4 Calculate the total fee.
-        let fees: u64 = base_fee + per_lift_fee;
+        let fees_pre_subsidy: u64 = base_fee + per_lift_fee;
 
-        // 5 Liftup value after fees.
-        let liftup_value_after_fees_in_satoshis = liftup_sum_value_in_satoshis - fees;
+        // 4 Get the latest consumption timestamp from the registery.
+        let latest_consumption_timestamp = {
+            let account_key = liftup.root_account.account_key();
+            let _registery = self.registery.lock().await;
+            _registery
+                .get_account_last_activity_timestamp(account_key)
+                .unwrap_or(0)
+        };
 
-        // 6 Get the `RootAccount`.
+        // 5 Get fee exemptions for the account.
+        let mut txfee_exemptions: Exemption = {
+            let account_key = liftup.root_account.account_key();
+            let _privileges_manager = self.privileges_manager.lock().unwrap();
+            _privileges_manager
+                .get_account_txfee_exemptions(account_key)
+                .ok_or(LiftupExecutionError::FailedToGetAccountTxFeeExemptions(
+                    account_key,
+                ))
+        }?;
+
+        // 6 Apply the subsidy to the fees.
+        let subsidy_breakdown = txfee_exemptions
+            .apply_subsidy(
+                execution_timestamp,
+                latest_consumption_timestamp,
+                fees_pre_subsidy,
+            )
+            .ok_or(LiftupExecutionError::FailedToApplyFeesSubsidy)?;
+
+        // 7 Calculate the fees after subsidy.
+        let fees_post_subsidy = subsidy_breakdown.post_discount_leftover;
+
+        // 8 Calculate the liftup value after fees.
+        let liftup_value_after_fees_in_satoshis = liftup_sum_value_in_satoshis - fees_post_subsidy;
+
+        // 9 Get the `RootAccount`.
         let root_account = &liftup.root_account;
 
-        // 7 Validate scriptpubkeys of the lifts.
-        for lift in &liftup.lift_tx_inputs { 
-            // 6.1 Match on the lift type.
+        // 10 Validate scriptpubkeys of the lifts.
+        for lift in &liftup.lift_tx_inputs {
+            // 10.1 Match on the lift type.
             match lift {
-                // 6.1.a The lift is a `LiftV1`.
+                // 10.1.a The lift is a `LiftV1`.
                 Lift::LiftV1(liftv1) => {
-                    // 6.1.a.1 Validate the scriptpubkey.
+                    // 10.1.a.1 Validate the scriptpubkey.
                     if !liftv1.validate_scriptpubkey() {
                         return Err(LiftupExecutionError::ValidateLiftV1ScriptpubkeyError(
                             lift.clone(),
@@ -53,9 +82,9 @@ impl ExecCtx {
                     }
                 }
 
-                // 6.1.b The lift is a `LiftV2`.
+                // 10.1.b The lift is a `LiftV2`.
                 Lift::LiftV2(liftv2) => {
-                    // 6.1.b.1 Validate the scriptpubkey.
+                    // 10.1.b.1 Validate the scriptpubkey.
                     if !liftv2.validate_scriptpubkey() {
                         return Err(LiftupExecutionError::ValidateLiftV2ScriptpubkeyError(
                             lift.clone(),
@@ -63,37 +92,37 @@ impl ExecCtx {
                     }
                 }
 
-                // 6.1.c The lift is an unknown type.
+                // 10.1.c The lift is an unknown type.
                 Lift::Unknown { .. } => {}
             }
         }
 
-        // 8 Get the Account's Schnorr key and BLS key.
+        // 11 Get the Account's Schnorr key and BLS key.
         let (_account_key, _bls_key, _is_registered) = (
             root_account.account_key(),
             root_account.bls_key(),
             root_account.is_registered(),
         );
 
-        // 9 Match on the `RootAccount` type.
+        // 12 Match on the `RootAccount` type.
         match root_account {
-            // 8.a The `RootAccount` is an `UnregisteredRootAccount`.
+            // 12.a The `RootAccount` is an `UnregisteredRootAccount`.
             RootAccount::UnregisteredRootAccount(unregistered_root_account) => {
-                // 8.a.1 Validate the Schnorr and BLS keys are indeed valid.
+                // 12.a.1 Validate the Schnorr and BLS keys are indeed valid.
                 if !unregistered_root_account.validate_schnorr_and_bls_key() {
                     return Err(
                         LiftupExecutionError::UnregisteredRootAccountValidateSchnorrAndBLSKeyError,
                     );
                 }
 
-                // 8.a.2 Verify the BLS key authorization signature.
+                // 12.a.2 Verify the BLS key authorization signature.
                 if !unregistered_root_account.verify_authorization_signature() {
                     return Err(
                         LiftupExecutionError::UnregisteredRootAccountInvalidAuthorizationSignatureError,
                     );
                 }
 
-                // 9.a.3 Register the `UnregisteredRootAccount` with the `DB`.
+                // 12.a.3 Register the `UnregisteredRootAccount` with the `DB`.
                 unregistered_root_account
                     .register_with_db(
                         execution_timestamp,
@@ -110,25 +139,25 @@ impl ExecCtx {
                         LiftupExecutionError::UnregisteredRootAccountRegisterWithDBError(e)
                     })?;
             }
-            // 8.b The `RootAccount` is a `RegisteredButUnconfiguredRootAccount`.
+            // 12.b The `RootAccount` is a `RegisteredButUnconfiguredRootAccount`.
             RootAccount::RegisteredButUnconfiguredRootAccount(
                 registered_but_unconfigured_root_account,
             ) => {
-                // 8.b.0 Validate the BLS key is indeed a valid BLS public key.
+                // 12.b.0 Validate the BLS key is indeed a valid BLS public key.
                 if !registered_but_unconfigured_root_account.validate_bls_key() {
                     return Err(
                         LiftupExecutionError::RegisteredButUnconfiguredRootAccountValidateBLSKeyError,
                     );
                 }
 
-                // 8.b.1 Verify the BLS key authorization signature.
+                // 12.b.1 Verify the BLS key authorization signature.
                 if !registered_but_unconfigured_root_account.verify_authorization_signature() {
                     return Err(
                         LiftupExecutionError::RegisteredButUnconfiguredRootAccountInvalidAuthorizationSignatureError,
                     );
                 }
 
-                // 8.b.2 Sync the `RegisteredButUnconfiguredRootAccount` with the `Registery`.
+                // 12.b.2 Sync the `RegisteredButUnconfiguredRootAccount` with the `Registery`.
                 registered_but_unconfigured_root_account
                     .sync_with_registery(execution_timestamp, &self.registery)
                     .await
@@ -136,7 +165,7 @@ impl ExecCtx {
                         LiftupExecutionError::RegisteredButUnconfiguredRootAccountSyncWithRegisteryError(e)
                     })?;
 
-                // 8.b.3 Increase the account balance with the `CoinManager`.
+                // 12.b.3 Increase the account balance with the `CoinManager`.
                 increase_account_balance_with_coin_manager(
                     &self.coin_manager,
                     _account_key,
@@ -145,11 +174,11 @@ impl ExecCtx {
                 .await
                 .map_err(LiftupExecutionError::CoinManagerAccountBalanceUpError)?;
             }
-            // 8.c The `RootAccount` is a `RegisteredAndConfiguredRootAccount`.
+            // 12.c The `RootAccount` is a `RegisteredAndConfiguredRootAccount`.
             RootAccount::RegisteredAndConfiguredRootAccount(
                 registered_and_configured_root_account,
             ) => {
-                // 8.c.1 Sync the `RegisteredAndConfiguredRootAccount` with the `Registery`.
+                // 12.c.1 Sync the `RegisteredAndConfiguredRootAccount` with the `Registery`.
                 registered_and_configured_root_account
                     .sync_with_registery(execution_timestamp, &self.registery)
                     .await
@@ -157,7 +186,7 @@ impl ExecCtx {
                         LiftupExecutionError::RegisteredAndConfiguredRootAccountSyncWithRegisteryError(e)
                     })?;
 
-                // 8.c.2 Increase the account balance with the `CoinManager`.
+                // 12.c.2 Increase the account balance with the `CoinManager`.
                 increase_account_balance_with_coin_manager(
                     &self.coin_manager,
                     _account_key,
@@ -168,11 +197,12 @@ impl ExecCtx {
             }
         }
 
-        // 10 Return Ok.
+        // 13 Return Ok.
         Ok(EntryFees::Liftup {
             base_fee,
             per_lift_fee,
-            total: fees,
+            total_pre_subsidy: fees_pre_subsidy,
+            subsidy_breakdown,
         })
     }
 }

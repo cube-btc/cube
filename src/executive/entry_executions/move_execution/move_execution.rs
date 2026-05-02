@@ -8,6 +8,7 @@ use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
 use crate::inscriptive::coin_manager::errors::balance_update_errors::{
     CMAccountBalanceDownError, CMAccountBalanceUpError,
 };
+use crate::inscriptive::privileges_manager::elements::exemption::exemption::Exemption;
 
 impl ExecCtx {
     /// Executes a `Move` entry.
@@ -26,53 +27,82 @@ impl ExecCtx {
         };
 
         // 3 Calculate fees.
-        // 3.1 Get the base fee.
         let base_fee = params_holder.move_entry_base_fee;
-        // 3.2 Calculate the proportional liquidity fee.
         let liquidity_fee =
             (move_amount_in_satoshis * params_holder.move_ppm_liquidity_fee) / 1_000_000;
-        // 3.3 Calculate the total fee.
-        let fees: u64 = base_fee + liquidity_fee;
+        let fees_pre_subsidy: u64 = base_fee + liquidity_fee;
 
-        // 4 Move value after fees.
-        let move_value_after_fees_in_satoshis = move_amount_in_satoshis
-            .checked_sub(fees)
-            .ok_or(MoveExecutionError::AmountUnderflowAfterFeesError)?;
-
-        // 4 Resolve sender and receiver account keys.
+        // 4 Resolve sender and receiver account keys (sender pays tx-fee subsidy).
         let from_account_key = move_entry.from.account_key();
         let to_account_key = move_entry.to.account_key();
 
-        // 4.1 Reject self-transfer (`from` and `to` keys must be different).
+        // 5 Last activity timestamp from the registery (periodic fee-credit consumption).
+        let latest_consumption_timestamp = {
+            let _registery = self.registery.lock().await;
+            _registery
+                .get_account_last_activity_timestamp(from_account_key)
+                .unwrap_or(0)
+        };
+
+        // 6 Apply tx-fee exemptions for the sender.
+        let mut txfee_exemptions: Exemption = {
+            let _privileges_manager = self.privileges_manager.lock().unwrap();
+            _privileges_manager
+                .get_account_txfee_exemptions(from_account_key)
+                .ok_or(MoveExecutionError::FailedToGetAccountTxFeeExemptions(
+                    from_account_key,
+                ))?
+        };
+
+        // 7 Apply the subsidy to the fees.
+        let subsidy_breakdown = txfee_exemptions
+            .apply_subsidy(
+                execution_timestamp,
+                latest_consumption_timestamp,
+                fees_pre_subsidy,
+            )
+            .ok_or(MoveExecutionError::FailedToApplyFeesSubsidy)?;
+
+        // 8 Calculate the fees after subsidy.
+        let fees_post_subsidy = subsidy_breakdown.post_discount_leftover;
+
+        // 9 Calculate the move value after fees.
+        let move_value_after_fees_in_satoshis = move_amount_in_satoshis
+            .checked_sub(fees_post_subsidy)
+            .ok_or(MoveExecutionError::AmountUnderflowAfterFeesError)?;
+
+        // 10 Reject self-transfer (`from` and `to` keys must be different).
         if from_account_key == to_account_key {
             return Err(MoveExecutionError::FromAndToAccountKeysAreSameError(
                 from_account_key,
             ));
         }
 
-        // 5 Sync/register sender root account with DB.
+        // 11 Sync/register sender root account with DB.
         match &move_entry.from {
+            // 11.a The `RootAccount` is an `UnregisteredRootAccount`.
             RootAccount::UnregisteredRootAccount(_) => {
                 return Err(MoveExecutionError::UnexpectedUnregisteredFromRootAccountError);
             }
+            // 11.b The `RootAccount` is a `RegisteredButUnconfiguredRootAccount`.
             RootAccount::RegisteredButUnconfiguredRootAccount(
                 registered_but_unconfigured_root_account,
             ) => {
-                // 5.b.1 Validate the BLS key is indeed a valid BLS public key.
+                // 11.b.1 Validate the BLS key is indeed a valid BLS public key.
                 if !registered_but_unconfigured_root_account.validate_bls_key() {
                     return Err(
                         MoveExecutionError::RegisteredButUnconfiguredRootAccountValidateBLSKeyError,
                     );
                 }
 
-                // 5.b.2 Verify the BLS key authorization signature.
+                // 11.b.2 Verify the BLS key authorization signature.
                 if !registered_but_unconfigured_root_account.verify_authorization_signature() {
                     return Err(
                         MoveExecutionError::RegisteredButUnconfiguredRootAccountInvalidAuthorizationSignatureError,
                     );
                 }
 
-                // 5.b.3 Sync with registery.
+                // 11.b.3 Sync with registery.
                 registered_but_unconfigured_root_account
                     .sync_with_registery(execution_timestamp, &self.registery)
                     .await
@@ -80,10 +110,11 @@ impl ExecCtx {
                         MoveExecutionError::RegisteredButUnconfiguredRootAccountSyncWithRegisteryError,
                     )?;
             }
+            // 11.c The `RootAccount` is a `RegisteredAndConfiguredRootAccount`.
             RootAccount::RegisteredAndConfiguredRootAccount(
                 registered_and_configured_root_account,
             ) => {
-                // 5.c.1 Sync with registery.
+                // 11.c.1 Sync with registery.
                 registered_and_configured_root_account
                     .sync_with_registery(execution_timestamp, &self.registery)
                     .await
@@ -93,7 +124,7 @@ impl ExecCtx {
             }
         }
 
-        // 6 Decrease sender balance in the coin manager first.
+        // 12 Decrease sender balance in the coin manager first.
         decrease_account_balance_with_coin_manager(
             &self.coin_manager,
             from_account_key,
@@ -102,15 +133,15 @@ impl ExecCtx {
         .await
         .map_err(MoveExecutionError::CoinManagerAccountBalanceDownError)?;
 
-        // 7 Sync/register receiver account with DB.
+        // 13 Sync/register receiver account with DB.
         match &move_entry.to {
             Account::UnregisteredAccount(unregistered_account) => {
-                // 6.a.1 Validate Schnorr key.
+                // 13.a.1 Validate Schnorr key.
                 if !unregistered_account.validate_schnorr_key() {
                     return Err(MoveExecutionError::UnregisteredToAccountValidateSchnorrKeyError);
                 }
 
-                // 6.a.2 Register receiver account with DB using move value after fees as initial balance.
+                // 13.a.2 Register receiver account with DB using move value after fees as initial balance.
                 unregistered_account
                     .register_with_db(
                         execution_timestamp,
@@ -126,7 +157,7 @@ impl ExecCtx {
                     .map_err(MoveExecutionError::UnregisteredToAccountRegisterWithDBError)?;
             }
             Account::RegisteredAccount(_) => {
-                // 6.b.1 Receiver is already registered; credit via coin manager.
+                // 13.b.1 Receiver is already registered; credit via coin manager.
                 increase_account_balance_with_coin_manager(
                     &self.coin_manager,
                     to_account_key,
@@ -137,11 +168,12 @@ impl ExecCtx {
             }
         }
 
-        // 8 Return Ok.
+        // 14 Return Ok.
         Ok(EntryFees::Move {
             base_fee,
             liquidity_fee,
-            total: fees,
+            total_pre_subsidy: fees_pre_subsidy,
+            subsidy_breakdown,
         })
     }
 }

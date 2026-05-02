@@ -27,4 +27,7 @@ pub enum MoveExecutionError {
     UnregisteredToAccountRegisterWithDBError(UnregisteredAccountRegisterWithDBError),
     CoinManagerAccountBalanceDownError(CMAccountBalanceDownError),
     CoinManagerAccountBalanceUpError(CMAccountBalanceUpError),
+
+    FailedToGetAccountTxFeeExemptions([u8; 32]),
+    FailedToApplyFeesSubsidy,
 }

@@ -21,4 +21,7 @@ pub enum SwapoutExecutionError {
     ),
     CoinManagerAccountBalanceDownError(CMAccountBalanceDownError),
     AmountPlusFeesOverflow,
+
+    FailedToGetAccountTxFeeExemptions([u8; 32]),
+    FailedToApplyFeesSubsidy,
 }

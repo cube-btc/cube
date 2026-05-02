@@ -537,6 +537,34 @@ impl Registery {
         self.in_memory_accounts.get(&account_key).cloned()
     }
 
+    /// Returns the last activity timestamp for a given account (ephemeral updates, then pending
+    /// registration, then persisted in-memory body).
+    pub fn get_account_last_activity_timestamp(
+        &self,
+        account_key: AccountKey,
+    ) -> Option<u64> {
+        if let Some(ts) = self
+            .delta
+            .updated_account_last_activity_timestamps
+            .get(&account_key)
+        {
+            return Some(*ts);
+        }
+
+        if let Some((_, last_activity_timestamp, _, _, _)) = self
+            .delta
+            .new_accounts_to_register
+            .iter()
+            .find(|(key, _, _, _, _)| key == &account_key)
+        {
+            return Some(*last_activity_timestamp);
+        }
+
+        self.in_memory_accounts
+            .get(&account_key)
+            .map(|body| body.last_activity_timestamp)
+    }
+
     /// Returns the flame config for a given account.
     pub fn get_account_flame_config(
         &self,

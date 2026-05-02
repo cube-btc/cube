@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
 
+/// The amount of the resource left after consumption.
+type ConsumeAmountLeft = u64;
+
 /// Represents a periodically refilled resource, refilled in proportion to the time passed.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct PeriodicResource {
@@ -16,11 +19,7 @@ pub struct PeriodicResource {
 
 impl PeriodicResource {
     /// Creates a new periodic resource with the given parameters.
-    pub fn new(
-        period: u64,
-        limit: u64,
-        latest_left: u64,
-    ) -> Self {
+    pub fn new(period: u64, limit: u64, latest_left: u64) -> Self {
         Self {
             period,
             limit,
@@ -39,7 +38,11 @@ impl PeriodicResource {
     }
 
     /// Returns the current left by taking the refill into account since the latest consumption timestamp.
-    pub fn current_left(&self, current_timestamp: u64, latest_consumption_timestamp: u64) -> Option<u64> {
+    pub fn current_left(
+        &self,
+        current_timestamp: u64,
+        latest_consumption_timestamp: u64,
+    ) -> Option<u64> {
         // 1 Check if the current timestamp is before the latest consumption timestamp.
         if latest_consumption_timestamp > current_timestamp {
             return None;
@@ -77,29 +80,33 @@ impl PeriodicResource {
         };
     }
 
-    /// Refills the resource, then consumes the given amount, then updates and returns the new amount.
+    /// Refills the resource, then consumes the given amount, then updates and returns the new consume amount left.
     pub fn refill_and_consume(
         &mut self,
         current_timestamp: u64,
         latest_consumption_timestamp: u64,
         consume_amount: u64,
-    ) -> Option<u64> {
+    ) -> Option<ConsumeAmountLeft> {
         // 1 Return the current left.
         let current_left = self.current_left(current_timestamp, latest_consumption_timestamp)?;
 
-        // 2 Check if there is enough resource to consume.
-        if current_left < consume_amount {
-            return None;
+        // 2 Check if the amount is within the resource.
+        if current_left >= consume_amount {
+            // Consume amount is within the resource, thus the new current left is the current left minus the consume amount.
+            let new_current_left = current_left - consume_amount;
+            self.latest_left = new_current_left;
+
+            // Consume amount is fulyl subsided, so the consume amount left is 0.
+            let consume_amount_left = 0;
+            return Some(consume_amount_left);
+        } else {
+            // Resource is exhausted, thus the new current left is 0.
+            self.latest_left = 0;
+
+            // Consume amount is exceeded the resource, thus the consume amount left is the consume amount minus the current left.
+            let consume_amount_left = consume_amount - current_left;
+            return Some(consume_amount_left);
         }
-
-        // 3 Calculate the new amount.
-        let new_amount = current_left - consume_amount;
-
-        // 4 Update the latest left.
-        self.latest_left = new_amount;
-
-        // 5 Return the new amount.
-        Some(new_amount)
     }
 
     /// Serializes the periodic resource to bytes.
