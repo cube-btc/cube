@@ -105,13 +105,13 @@ impl Exemption {
     pub fn apply_subsidy(
         &mut self,
         current_timestamp: u64,
-        latest_consumption_timestamp: u64,
+        latest_activity_timestamp: u64,
         consume_amount: u64,
     ) -> Option<ExemptionSubsidyBreakdown> {
         // 1 Refill and consume the periodic credit.
         let post_periodic_credit_leftover = self.periodic_credit.refill_and_consume(
             current_timestamp,
-            latest_consumption_timestamp,
+            latest_activity_timestamp,
             consume_amount,
         )?;
 

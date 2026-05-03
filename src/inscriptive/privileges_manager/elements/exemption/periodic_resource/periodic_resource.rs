@@ -37,19 +37,19 @@ impl PeriodicResource {
         self.limit = new_limit;
     }
 
-    /// Returns the current left by taking the refill into account since the latest consumption timestamp.
+    /// Returns the current left by taking the refill into account since the latest activity timestamp.
     pub fn current_left(
         &self,
         current_timestamp: u64,
-        latest_consumption_timestamp: u64,
+        latest_activity_timestamp: u64,
     ) -> Option<u64> {
-        // 1 Check if the current timestamp is before the latest consumption timestamp.
-        if latest_consumption_timestamp > current_timestamp {
+        // 1 Check if the current timestamp is before the latest activity timestamp.
+        if latest_activity_timestamp > current_timestamp {
             return None;
         }
 
-        // 2 Calculate the time passed since the latest consumption.
-        let time_passed = current_timestamp - latest_consumption_timestamp;
+        // 2 Calculate the time passed since the latest activity.
+        let time_passed = current_timestamp - latest_activity_timestamp;
 
         // 3 Check if the time passed is greater than or equal to the period.
         match time_passed >= self.period {
@@ -84,11 +84,11 @@ impl PeriodicResource {
     pub fn refill_and_consume(
         &mut self,
         current_timestamp: u64,
-        latest_consumption_timestamp: u64,
+        latest_activity_timestamp: u64,
         consume_amount: u64,
     ) -> Option<ConsumeAmountLeft> {
         // 1 Return the current left.
-        let current_left = self.current_left(current_timestamp, latest_consumption_timestamp)?;
+        let current_left = self.current_left(current_timestamp, latest_activity_timestamp)?;
 
         // 2 Check if the amount is within the resource.
         if current_left >= consume_amount {

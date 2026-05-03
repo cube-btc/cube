@@ -58,6 +58,14 @@ impl ExecCtx {
         let fees_pre_subsidy = base_fee;
         let account_key = swapout.root_account.account_key();
 
+        // 3.1 Last activity before this entry (read before `sync_with_registery`, which bumps it to `execution_timestamp`).
+        let latest_activity_timestamp = {
+            let _registery = self.registery.lock().await;
+            _registery
+                .get_account_last_activity_timestamp(account_key)
+                .unwrap_or(0)
+        };
+
         // 4 `RootAccount`: sync then tx-fee subsidy (registery / PM; no `CoinManager` here).
         let (fees_after_subsidy, subsidy_breakdown) = match &swapout.root_account {
             RootAccount::UnregisteredRootAccount(_) => {
@@ -85,7 +93,12 @@ impl ExecCtx {
                         SwapoutExecutionError::RegisteredButUnconfiguredRootAccountSyncWithRegisteryError,
                     )?;
 
-                self.apply_subsidy_swapout(account_key, execution_timestamp, fees_pre_subsidy)
+                self.apply_subsidy_swapout(
+                    account_key,
+                    execution_timestamp,
+                    fees_pre_subsidy,
+                    latest_activity_timestamp,
+                )
                     .await?
             }
             RootAccount::RegisteredAndConfiguredRootAccount(
@@ -98,7 +111,12 @@ impl ExecCtx {
                         SwapoutExecutionError::RegisteredAndConfiguredRootAccountSyncWithRegisteryError,
                     )?;
 
-                self.apply_subsidy_swapout(account_key, execution_timestamp, fees_pre_subsidy)
+                self.apply_subsidy_swapout(
+                    account_key,
+                    execution_timestamp,
+                    fees_pre_subsidy,
+                    latest_activity_timestamp,
+                )
                     .await?
             }
         };
@@ -127,14 +145,8 @@ impl ExecCtx {
         account_key: [u8; 32],
         execution_timestamp: u64,
         fees_pre_subsidy: u64,
+        latest_activity_timestamp: u64,
     ) -> Result<(u64, Option<ExemptionSubsidyBreakdown>), SwapoutExecutionError> {
-        let latest_consumption_timestamp = {
-            let _registery = self.registery.lock().await;
-            _registery
-                .get_account_last_activity_timestamp(account_key)
-                .unwrap_or(0)
-        };
-
         let txfee_exemptions = {
             let _privileges_manager = self.privileges_manager.lock().await;
             _privileges_manager.get_account_txfee_exemptions(account_key)
@@ -147,7 +159,7 @@ impl ExecCtx {
         let bd = exemptions
             .apply_subsidy(
                 execution_timestamp,
-                latest_consumption_timestamp,
+                latest_activity_timestamp,
                 fees_pre_subsidy,
             )
             .ok_or(SwapoutExecutionError::FailedToApplyFeesSubsidy)?;

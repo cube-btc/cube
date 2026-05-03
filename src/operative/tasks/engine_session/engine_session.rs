@@ -56,7 +56,7 @@ pub async fn engine_batch_builder_background_task(
         let current_execution_batch_height = latest_batch_height + 1;
 
         // 3 Get current timestamp.
-        let current_execution_timestamp = Utc::now().timestamp() as u64;
+        let current_execution_timestamp = Utc::now().timestamp() as u64 + 60;
 
         println!(
             "BATCH BUILDER SESSION BEGINNING: height: #{}, timestamp: {}",

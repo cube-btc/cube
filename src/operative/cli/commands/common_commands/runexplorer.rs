@@ -73,7 +73,8 @@ pub async fn runexplorer_command(
         .route("/batch/height/:height", get(page_batch_by_height))
         .route("/batch/tx/:txid", get(page_batch_by_txid))
         .route("/entry/:entry_id", get(page_entry_by_id))
-        .route("/account/:account_id", get(page_account_by_id))
+        .route("/account/:account_id/:section", get(page_account_section))
+        .route("/account/:account_id", get(page_account_root_redirect))
         .with_state(state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
@@ -130,7 +131,157 @@ fn parse_account_key(input: &str) -> Option<[u8; 32]> {
 }
 
 fn account_url(account_key: [u8; 32]) -> String {
-    format!("/account/{}", hex::encode(account_key))
+    format!("/account/{}/history", hex::encode(account_key))
+}
+
+/// Account explorer subpages under `/account/:account_id/:section`.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum AccountExplorerSection {
+    History,
+    Vip,
+    Privileges,
+    Vtxo,
+    CoinManager,
+}
+
+impl AccountExplorerSection {
+    const ALL: [Self; 5] = [
+        Self::History,
+        Self::Vip,
+        Self::Privileges,
+        Self::Vtxo,
+        Self::CoinManager,
+    ];
+
+    fn from_slug(s: &str) -> Option<Self> {
+        match s.trim() {
+            "history" => Some(Self::History),
+            "vip" => Some(Self::Vip),
+            "privileges" => Some(Self::Privileges),
+            "vtxo" => Some(Self::Vtxo),
+            "coin-manager" => Some(Self::CoinManager),
+            _ => None,
+        }
+    }
+
+    fn slug(self) -> &'static str {
+        match self {
+            Self::History => "history",
+            Self::Vip => "vip",
+            Self::Privileges => "privileges",
+            Self::Vtxo => "vtxo",
+            Self::CoinManager => "coin-manager",
+        }
+    }
+
+    fn nav_label(self) -> &'static str {
+        match self {
+            Self::History => "Transaction History",
+            Self::Vip => "V.I.P.",
+            Self::Privileges => "Privileges",
+            Self::Vtxo => "VTXO Set",
+            Self::CoinManager => "Coin Manager",
+        }
+    }
+
+    fn document_title(self) -> &'static str {
+        match self {
+            Self::History => "History",
+            Self::Vip => "V.I.P.",
+            Self::Privileges => "Privileges",
+            Self::Vtxo => "VTXO set",
+            Self::CoinManager => "Coin manager",
+        }
+    }
+}
+
+fn account_explorer_nav(account_id: &str, current: AccountExplorerSection) -> String {
+    let mut parts = Vec::with_capacity(AccountExplorerSection::ALL.len());
+    for s in AccountExplorerSection::ALL {
+        let active = s == current;
+        let cls = if active {
+            r#" class="tab-btn active""#
+        } else {
+            r#" class="tab-btn""#
+        };
+        let aria = if active {
+            r#" aria-current="page""#
+        } else {
+            ""
+        };
+        parts.push(format!(
+            r#"<a{}{} href="/account/{}/{}">{}</a>"#,
+            cls,
+            aria,
+            account_id,
+            s.slug(),
+            html_escape(s.nav_label()),
+        ));
+    }
+    format!(
+        r#"<nav class="tab-menu" aria-label="Account sections">{}</nav>"#,
+        parts.join("\n")
+    )
+}
+
+/// Inline script for the V.I.P. periodic meter (only included on the V.I.P. subpage).
+fn explorer_vip_periodic_meter_script() -> &'static str {
+    r#"<script>
+(function () {
+  function cubeVipCurrentLeftSec(period, limit, latestLeft, latestActivityTs, nowTs) {
+    const periodB = BigInt(period);
+    const limitB = BigInt(limit);
+    let latestB = BigInt(latestLeft);
+    const activityB = BigInt(latestActivityTs);
+    const nowB = BigInt(nowTs);
+    if (activityB > nowB) {
+      return latestB < limitB ? latestB : limitB;
+    }
+    const timePassed = nowB - activityB;
+    if (periodB === 0n) {
+      return latestB < limitB ? latestB : limitB;
+    }
+    if (timePassed >= periodB) {
+      return limitB;
+    }
+    const refill = (timePassed * limitB) / periodB;
+    let newAmt = latestB + refill;
+    if (newAmt > limitB) newAmt = limitB;
+    return newAmt;
+  }
+
+  function cubeFormatCommaU64FromBigint(n) {
+    const s = n.toString();
+    return s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  }
+
+  function refreshVipPeriodicMeter() {
+    const root = document.querySelector('[data-vip-meter]');
+    if (!root) return;
+    const period = root.dataset.period;
+    const limit = root.dataset.limit;
+    const latestLeft = root.dataset.latestLeft;
+    const latestActivityTs = root.dataset.latestActivityTs;
+    if (period === undefined || limit === undefined || latestLeft === undefined || latestActivityTs === undefined) return;
+    const nowSec = Math.floor(Date.now() / 1000);
+    const cur = cubeVipCurrentLeftSec(period, limit, latestLeft, latestActivityTs, nowSec);
+    const limitB = BigInt(limit);
+    const fill = root.querySelector('[data-vip-fill]');
+    const track = root.querySelector('[data-vip-track]');
+    const cap = root.querySelector('[data-vip-cur-left]');
+    let fillPct = 0;
+    if (limitB > 0n) {
+      fillPct = Math.min(100, Number((cur * 10000n) / limitB) / 100);
+    }
+    if (fill) fill.style.width = fillPct.toFixed(4) + '%';
+    if (track) track.setAttribute('aria-valuenow', String(Math.round(fillPct)));
+    if (cap) cap.textContent = cubeFormatCommaU64FromBigint(cur);
+  }
+
+  refreshVipPeriodicMeter();
+  setInterval(refreshVipPeriodicMeter, 15000);
+})();
+</script>"#
 }
 
 fn account_link(account_key: [u8; 32]) -> String {
@@ -325,8 +476,66 @@ pre.reg-json { font-size: 0.8rem; background: #fffefb; border: 1px solid #e8e2d4
 .tab-btn { background: #f0ebe0; border: 1px solid #d8d0c0; color: #1f2328; border-radius: 8px; padding: 0.42rem 0.7rem; cursor: pointer; font-size: 0.85rem; }
 .tab-btn:hover { background: #e8e2d4; }
 .tab-btn.active { background: #fffefb; border-color: #bfae88; color: #0550ae; font-weight: 600; }
-.tab-panel { display: none; }
-.tab-panel.active { display: block; }
+a.tab-btn { text-decoration: none; display: inline-block; box-sizing: border-box; }
+.account-section-page { margin-top: 0.2rem; }
+.account-section-page > h2 { font-size: 1.18rem; font-weight: 620; color: #1f2328; margin: 0 0 0.55rem; padding-bottom: 0.35rem; border-bottom: 1px solid #e8e2d4; }
+.account-subpage-footer { margin-top: 1.25rem; }
+.account-card-body:has(#account-section-vip) {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-height: min(72vh, 44rem);
+}
+.account-card-body:has(#account-section-vip) .account-subpage-footer {
+  margin-top: auto;
+  padding-top: 0.6rem;
+}
+#account-section-vip {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0.35rem 0.75rem 0.85rem;
+  box-sizing: border-box;
+}
+#account-section-vip > h2 {
+  align-self: stretch;
+  text-align: center;
+}
+#account-section-vip > p.muted {
+  max-width: 28rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+#account-section-vip .vip-tier-root {
+  width: 100%;
+  max-width: 24rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+#account-section-vip .vip-meter-block {
+  width: min(100%, 24rem);
+  margin-left: auto;
+  margin-right: auto;
+}
+#account-section-vip .vip-meter-row {
+  justify-content: center;
+  flex-wrap: wrap;
+}
+#account-section-vip .vip-meter-track {
+  flex: 1 1 9rem;
+  min-width: 7rem;
+  max-width: 16rem;
+}
+#account-section-vip .vip-stat-line {
+  justify-content: center;
+  max-width: 26rem;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
 .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 .action-btn { display: inline-block; text-decoration: none; background: #f0ebe0; border: 1px solid #d8d0c0; color: #1f2328; border-radius: 7px; padding: 0.45rem 0.75rem; font-size: 0.86rem; }
 .action-btn:hover { background: #e8e2d4; color: #0550ae; }
@@ -358,6 +567,7 @@ pre.reg-json { font-size: 0.8rem; background: #fffefb; border: 1px solid #e8e2d4
 .account-header-left h1 { margin: 0 0 0.4rem; }
 .account-head-row { display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap; margin: 0 0 0.5rem; }
 .account-npub-title { font-size: 1.06rem; font-weight: 700; letter-spacing: 0.01em; font-family: ui-monospace, monospace; overflow-wrap: anywhere; }
+.account-vip-emoji { font-size: 1.12rem; line-height: 1; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .account-summary-wrap { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
 .account-summary-wrap .summary { margin-bottom: 0; flex: 1; min-width: 18rem; }
 .account-shell { display: grid; gap: 1rem; }
@@ -535,7 +745,27 @@ fn explorer_vip_discount_percent_label(discount: u8) -> String {
     format!("{:.1}%", pct)
 }
 
-fn explorer_vip_tab_inner(reserved_flag_1: u8, txfee: &Exemption) -> String {
+/// Title-row VIP marker from `reserved_flag_1` (same tiers as the V.I.P. tab); empty when unset.
+fn explorer_account_vip_title_emoji_html(reserved_flag_1: u8) -> String {
+    let (emoji, label) = match reserved_flag_1 {
+        1 => ("⚪", "Silver VIP"),
+        2 => ("🪙", "Gold VIP"),
+        3 => ("💎", "Diamond VIP"),
+        _ => return String::new(),
+    };
+    format!(
+        r#"<span class="account-vip-emoji" title="{}" aria-label="{}">{}</span>"#,
+        html_escape(label),
+        html_escape(label),
+        emoji,
+    )
+}
+
+fn explorer_vip_tab_inner(
+    reserved_flag_1: u8,
+    txfee: &Exemption,
+    latest_activity_timestamp: u64,
+) -> String {
     if reserved_flag_1 == 0 || reserved_flag_1 > 3 {
         return String::new();
     }
@@ -547,32 +777,25 @@ fn explorer_vip_tab_inner(reserved_flag_1: u8, txfee: &Exemption) -> String {
         ("💎", "diamond", "vip-card-diamond")
     };
     let pr = &txfee.periodic_credit;
-    let fill_pct = if pr.limit == 0 {
-        0_f64
-    } else {
-        (pr.latest_left.min(pr.limit) as f64 / pr.limit as f64 * 100.0).clamp(0.0, 100.0)
-    };
     let period_label = explorer_format_period_for_bar(pr.period);
     let suffix = format!("/ per {}", period_label);
     let discount_label = explorer_vip_discount_percent_label(txfee.discount);
     let direct_str = explorer_format_u64_commas(txfee.direct_credit);
     let limit_str = explorer_format_u64_commas(pr.limit);
-    let left_str = explorer_format_u64_commas(pr.latest_left);
-    let aria_now = fill_pct.round().clamp(0.0, 100.0) as i64;
     format!(
         r#"<div class="vip-tier-root">
 <div class="vip-card {}" role="img" aria-label="{} VIP card">
 <div class="vip-card-emoji">{}</div>
 <div class="vip-card-label">{}</div>
 </div>
-<div class="vip-meter-block">
+<div class="vip-meter-block" data-vip-meter data-period="{}" data-limit="{}" data-latest-left="{}" data-latest-activity-ts="{}">
 <div class="vip-meter-row">
-<div class="vip-meter-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{}" aria-label="Periodic fee credit remaining">
-<div class="vip-meter-fill" style="width: {:.4}%"></div>
+<div class="vip-meter-track" data-vip-track role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Periodic fee credit remaining (live from your clock)">
+<div class="vip-meter-fill" data-vip-fill style="width:0%"></div>
 </div>
 <span class="vip-meter-suffix">{}</span>
 </div>
-<p class="muted" style="margin:0.45rem 0 0;font-size:0.78rem"><span class="mono">{}</span> left of <span class="mono">{}</span> per period</p>
+<p class="muted" style="margin:0.45rem 0 0;font-size:0.78rem"><span class="mono" data-vip-cur-left>—</span> left of <span class="mono">{}</span> per period</p>
 </div>
 <dl class="vip-stat-line"><dt>Direct credit</dt><dd class="mono">{} sats</dd></dl>
 <dl class="vip-stat-line"><dt>Fee discount (of post-direct fee)</dt><dd class="mono">{}</dd></dl>
@@ -581,10 +804,11 @@ fn explorer_vip_tab_inner(reserved_flag_1: u8, txfee: &Exemption) -> String {
         html_escape(label),
         emoji,
         html_escape(label),
-        aria_now,
-        fill_pct,
+        pr.period,
+        pr.limit,
+        pr.latest_left,
+        latest_activity_timestamp,
         html_escape(&suffix),
-        html_escape(&left_str),
         html_escape(&limit_str),
         html_escape(&direct_str),
         html_escape(&discount_label),
@@ -715,9 +939,32 @@ async fn page_accounts(State(st): State<ExplorerState>) -> Html<String> {
     Html(layout("Accounts — Cube explorer", &body, ""))
 }
 
-async fn page_account_by_id(
-    State(st): State<ExplorerState>,
+async fn page_account_root_redirect(
+    State(_st): State<ExplorerState>,
     Path(account_id): Path<String>,
+) -> impl IntoResponse {
+    let trimmed = account_id.trim();
+    if parse_account_key(trimmed).is_none() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Html(layout(
+                "Account — Cube explorer",
+                &format!(
+                    r#"<h1>Invalid account id</h1><p>Expected 32-byte hex or npub; got <code class="mono">{}</code>.</p><p><a class="row-link" href="/accounts">← Accounts</a></p>"#,
+                    html_escape(trimmed),
+                ),
+                "",
+            )),
+        )
+            .into_response();
+    }
+    let dest = format!("/account/{}/history", account_id.trim());
+    Redirect::temporary(dest.as_str()).into_response()
+}
+
+async fn page_account_section(
+    State(st): State<ExplorerState>,
+    Path((account_id, section_slug)): Path<(String, String)>,
 ) -> impl IntoResponse {
     let Some(account_key) = parse_account_key(&account_id) else {
         return (
@@ -727,6 +974,21 @@ async fn page_account_by_id(
                 &format!(
                     r#"<h1>Invalid account id</h1><p>Expected 32-byte hex or npub; got <code class="mono">{}</code>.</p><p><a class="row-link" href="/accounts">← Accounts</a></p>"#,
                     html_escape(account_id.trim()),
+                ),
+                "",
+            )),
+        )
+            .into_response();
+    };
+
+    let Some(section) = AccountExplorerSection::from_slug(&section_slug) else {
+        return (
+            StatusCode::NOT_FOUND,
+            Html(layout(
+                "Account — Cube explorer",
+                &format!(
+                    r#"<h1>Unknown account section</h1><p>No tab <code class="mono">{}</code>. Use <code>history</code>, <code>vip</code>, <code>privileges</code>, <code>vtxo</code>, or <code>coin-manager</code>.</p><p><a class="row-link" href="/accounts">← Accounts</a></p>"#,
+                    html_escape(section_slug.trim()),
                 ),
                 "",
             )),
@@ -851,7 +1113,58 @@ async fn page_account_by_id(
     let vip_tab_body_html = match &privilege_body {
         None => r#"<p class="muted">Privileges manager is not available for this explorer instance.</p>"#
             .to_string(),
-        Some(pb) => explorer_vip_tab_inner(pb.reserved_flag_1, &pb.txfee_exemptions),
+        Some(pb) => explorer_vip_tab_inner(
+            pb.reserved_flag_1,
+            &pb.txfee_exemptions,
+            account_body.last_activity_timestamp,
+        ),
+    };
+
+    let account_vip_title_emoji_html = privilege_body
+        .as_ref()
+        .map(|pb| explorer_account_vip_title_emoji_html(pb.reserved_flag_1))
+        .unwrap_or_default();
+
+    let nav_html = account_explorer_nav(account_id.trim(), section);
+
+    let section_block = match section {
+        AccountExplorerSection::History => format!(
+            r#"<article class="account-section-page" id="account-section-history" aria-labelledby="account-section-history-heading">
+<h2 id="account-section-history-heading">Transaction History</h2>
+<table><thead><tr><th>Entry Kind</th><th>Entry ID</th><th>Batch</th><th>Seen</th></tr></thead><tbody>{}</tbody></table>
+</article>"#,
+            history_rows,
+        ),
+        AccountExplorerSection::Vip => format!(
+            r#"<article class="account-section-page" id="account-section-vip" aria-labelledby="account-section-vip-heading">
+<h2 id="account-section-vip-heading">V.I.P.</h2>
+{}
+</article>
+{}"#,
+            vip_tab_body_html,
+            explorer_vip_periodic_meter_script(),
+        ),
+        AccountExplorerSection::Privileges => format!(
+            r#"<article class="account-section-page" id="account-section-privileges" aria-labelledby="account-section-privileges-heading">
+<h2 id="account-section-privileges-heading">Privileges</h2>
+<pre class="reg-json">{}</pre>
+</article>"#,
+            html_escape(&privileges_pretty),
+        ),
+        AccountExplorerSection::Vtxo => format!(
+            r#"<article class="account-section-page" id="account-section-vtxo" aria-labelledby="account-section-vtxo-heading">
+<h2 id="account-section-vtxo-heading">VTXO Set</h2>
+<pre class="reg-json">{}</pre>
+</article>"#,
+            html_escape(&vtxo_pretty),
+        ),
+        AccountExplorerSection::CoinManager => format!(
+            r#"<article class="account-section-page" id="account-section-coin-manager" aria-labelledby="account-section-coin-manager-heading">
+<h2 id="account-section-coin-manager-heading">Coin Manager Account Body</h2>
+<pre class="reg-json">{}</pre>
+</article>"#,
+            html_escape(&coin_manager_account_json_pretty),
+        ),
     };
 
     let body = format!(
@@ -863,7 +1176,7 @@ async fn page_account_by_id(
 <div class="account-avatar" aria-label="Profile placeholder">{}</div>
 <div class="account-header-left">
 <h1>Account</h1>
-<div class="account-head-row"><span class="account-npub-title">{}</span><span class="badge">{}</span></div>
+<div class="account-head-row"><span class="account-npub-title">{}</span>{}<span class="badge">{}</span></div>
 </div>
 </div>
 <a class="action-btn" href="{}" target="_blank" rel="noopener">View Nostr Profile ↗</a>
@@ -884,52 +1197,15 @@ async fn page_account_by_id(
 </section>
 <section class="account-card">
 <div class="account-card-body">
-<nav class="tab-menu" aria-label="Account sections">
-<button type="button" class="tab-btn active" data-tab-target="tab-transaction-history">Transaction History</button>
-<button type="button" class="tab-btn" data-tab-target="tab-privileges">Privileges</button>
-<button type="button" class="tab-btn" data-tab-target="tab-vip">V.I.P.</button>
-<button type="button" class="tab-btn" data-tab-target="tab-vtxo-set">VTXO Set</button>
-<button type="button" class="tab-btn" data-tab-target="tab-coin-manager">Coin Manager</button>
-</nav>
-<section id="tab-transaction-history" class="explorer-subsec tab-panel active">
-<h2>Transaction History</h2>
-<table><thead><tr><th>Entry Kind</th><th>Entry ID</th><th>Batch</th><th>Seen</th></tr></thead><tbody>{}</tbody></table>
-</section>
-<section id="tab-privileges" class="explorer-subsec tab-panel">
-<h2>Privileges</h2>
-<pre class="reg-json">{}</pre>
-</section>
-<section id="tab-vip" class="explorer-subsec tab-panel">
-<h2>V.I.P.</h2>
 {}
-</section>
-<section id="tab-vtxo-set" class="explorer-subsec tab-panel">
-<h2>VTXO Set</h2>
-<pre class="reg-json">{}</pre>
-</section>
-<section id="tab-coin-manager" class="explorer-subsec tab-panel">
-<h2>Coin Manager Account Body</h2>
-<pre class="reg-json">{}</pre>
-</section>
-<script>
-(function () {{
-  const tabButtons = Array.from(document.querySelectorAll('.tab-btn[data-tab-target]'));
-  const tabPanels = Array.from(document.querySelectorAll('.tab-panel'));
-  function activateTab(tabId) {{
-    tabButtons.forEach((btn) => btn.classList.toggle('active', btn.dataset.tabTarget === tabId));
-    tabPanels.forEach((panel) => panel.classList.toggle('active', panel.id === tabId));
-  }}
-  tabButtons.forEach((btn) => {{
-    btn.addEventListener('click', () => activateTab(btn.dataset.tabTarget));
-  }});
-}})();
-</script>
-<p style="margin-top:1.25rem"><a class="row-link" href="/accounts">← Accounts</a></p>
+{}
+<p class="account-subpage-footer"><a class="row-link" href="/accounts">← Accounts</a></p>
 </div>
 </section>
 </section>"#,
         html_escape(avatar_emoji),
         html_escape(&npub_short),
+        account_vip_title_emoji_html,
         hierarchy.to_string(),
         html_escape(&nostr_profile_url),
         html_escape(&account_hex),
@@ -940,13 +1216,11 @@ async fn page_account_by_id(
         account_body.registery_index,
         account_body.call_counter,
         html_escape(&coin_balance_text),
-        history_rows,
-        html_escape(&privileges_pretty),
-        vip_tab_body_html,
-        html_escape(&vtxo_pretty),
-        html_escape(&coin_manager_account_json_pretty),
+        nav_html,
+        section_block,
     );
-    Html(layout("Account — Cube explorer", &body, &account_id)).into_response()
+    let page_title = format!("Account — {} — Cube explorer", section.document_title());
+    Html(layout(&page_title, &body, &account_id)).into_response()
 }
 
 async fn page_contracts(State(st): State<ExplorerState>) -> Html<String> {
