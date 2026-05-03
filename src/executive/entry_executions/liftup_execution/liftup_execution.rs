@@ -6,7 +6,8 @@ use crate::executive::entry_executions::liftup_execution::error::liftup_executio
 use crate::executive::exec_ctx::exec_ctx::ExecCtx;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
 use crate::inscriptive::coin_manager::errors::balance_update_errors::CMAccountBalanceUpError;
-use crate::inscriptive::privileges_manager::elements::exemption::exemption::Exemption;
+use crate::inscriptive::privileges_manager::elements::exemption::exemption::ExemptionSubsidyBreakdown;
+use crate::inscriptive::privileges_manager::errors::update_error::PMUpdateAccountError;
 
 impl ExecCtx {
     /// Executes a `Liftup` entry.
@@ -24,105 +25,59 @@ impl ExecCtx {
             _params_manager.get_params_holder()
         };
 
-        // 3 Calculate fees.
+        // 3 Calculate nominal fees (pre-subsidy).
         let base_fee = params_holder.liftup_entry_base_fee;
         let number_of_lifts = liftup.lift_tx_inputs.len() as u64;
         let per_lift_fee = number_of_lifts * params_holder.liftup_entry_per_lift_base_fee;
         let fees_pre_subsidy: u64 = base_fee + per_lift_fee;
 
-        // 4 Get the latest consumption timestamp from the registery.
-        let latest_consumption_timestamp = {
-            let account_key = liftup.root_account.account_key();
-            let _registery = self.registery.lock().await;
-            _registery
-                .get_account_last_activity_timestamp(account_key)
-                .unwrap_or(0)
-        };
-
-        // 5 Get fee exemptions for the account.
-        let mut txfee_exemptions: Exemption = {
-            let account_key = liftup.root_account.account_key();
-            let _privileges_manager = self.privileges_manager.lock().unwrap();
-            _privileges_manager
-                .get_account_txfee_exemptions(account_key)
-                .ok_or(LiftupExecutionError::FailedToGetAccountTxFeeExemptions(
-                    account_key,
-                ))
-        }?;
-
-        // 6 Apply the subsidy to the fees.
-        let subsidy_breakdown = txfee_exemptions
-            .apply_subsidy(
-                execution_timestamp,
-                latest_consumption_timestamp,
-                fees_pre_subsidy,
-            )
-            .ok_or(LiftupExecutionError::FailedToApplyFeesSubsidy)?;
-
-        // 7 Calculate the fees after subsidy.
-        let fees_post_subsidy = subsidy_breakdown.post_discount_leftover;
-
-        // 8 Calculate the liftup value after fees.
-        let liftup_value_after_fees_in_satoshis = liftup_sum_value_in_satoshis - fees_post_subsidy;
-
-        // 9 Get the `RootAccount`.
+        // 4 Get the `RootAccount`.
         let root_account = &liftup.root_account;
 
-        // 10 Validate scriptpubkeys of the lifts.
+        // 5 Validate scriptpubkeys of the lifts.
         for lift in &liftup.lift_tx_inputs {
-            // 10.1 Match on the lift type.
             match lift {
-                // 10.1.a The lift is a `LiftV1`.
                 Lift::LiftV1(liftv1) => {
-                    // 10.1.a.1 Validate the scriptpubkey.
                     if !liftv1.validate_scriptpubkey() {
                         return Err(LiftupExecutionError::ValidateLiftV1ScriptpubkeyError(
                             lift.clone(),
                         ));
                     }
                 }
-
-                // 10.1.b The lift is a `LiftV2`.
                 Lift::LiftV2(liftv2) => {
-                    // 10.1.b.1 Validate the scriptpubkey.
                     if !liftv2.validate_scriptpubkey() {
                         return Err(LiftupExecutionError::ValidateLiftV2ScriptpubkeyError(
                             lift.clone(),
                         ));
                     }
                 }
-
-                // 10.1.c The lift is an unknown type.
                 Lift::Unknown { .. } => {}
             }
         }
 
-        // 11 Get the Account's Schnorr key and BLS key.
-        let (_account_key, _bls_key, _is_registered) = (
-            root_account.account_key(),
-            root_account.bls_key(),
-            root_account.is_registered(),
-        );
+        // 6 Account key (same for all `RootAccount` variants on this entry).
+        let account_key = root_account.account_key();
 
-        // 12 Match on the `RootAccount` type.
+        // 7 Registery / registration first; fee subsidy only for registered roots and only when PM exemptions exist.
+        let mut subsidy_breakdown: Option<ExemptionSubsidyBreakdown> = None;
+
         match root_account {
-            // 12.a The `RootAccount` is an `UnregisteredRootAccount`.
             RootAccount::UnregisteredRootAccount(unregistered_root_account) => {
-                // 12.a.1 Validate the Schnorr and BLS keys are indeed valid.
                 if !unregistered_root_account.validate_schnorr_and_bls_key() {
                     return Err(
                         LiftupExecutionError::UnregisteredRootAccountValidateSchnorrAndBLSKeyError,
                     );
                 }
 
-                // 12.a.2 Verify the BLS key authorization signature.
                 if !unregistered_root_account.verify_authorization_signature() {
                     return Err(
                         LiftupExecutionError::UnregisteredRootAccountInvalidAuthorizationSignatureError,
                     );
                 }
 
-                // 12.a.3 Register the `UnregisteredRootAccount` with the `DB`.
+                let liftup_value_after_fees_in_satoshis =
+                    liftup_sum_value_in_satoshis.saturating_sub(fees_pre_subsidy);
+
                 unregistered_root_account
                     .register_with_db(
                         execution_timestamp,
@@ -135,29 +90,23 @@ impl ExecCtx {
                         liftup_value_after_fees_in_satoshis,
                     )
                     .await
-                    .map_err(|e| {
-                        LiftupExecutionError::UnregisteredRootAccountRegisterWithDBError(e)
-                    })?;
+                    .map_err(LiftupExecutionError::UnregisteredRootAccountRegisterWithDBError)?;
             }
-            // 12.b The `RootAccount` is a `RegisteredButUnconfiguredRootAccount`.
             RootAccount::RegisteredButUnconfiguredRootAccount(
                 registered_but_unconfigured_root_account,
             ) => {
-                // 12.b.0 Validate the BLS key is indeed a valid BLS public key.
                 if !registered_but_unconfigured_root_account.validate_bls_key() {
                     return Err(
                         LiftupExecutionError::RegisteredButUnconfiguredRootAccountValidateBLSKeyError,
                     );
                 }
 
-                // 12.b.1 Verify the BLS key authorization signature.
                 if !registered_but_unconfigured_root_account.verify_authorization_signature() {
                     return Err(
                         LiftupExecutionError::RegisteredButUnconfiguredRootAccountInvalidAuthorizationSignatureError,
                     );
                 }
 
-                // 12.b.2 Sync the `RegisteredButUnconfiguredRootAccount` with the `Registery`.
                 registered_but_unconfigured_root_account
                     .sync_with_registery(execution_timestamp, &self.registery)
                     .await
@@ -165,20 +114,26 @@ impl ExecCtx {
                         LiftupExecutionError::RegisteredButUnconfiguredRootAccountSyncWithRegisteryError(e)
                     })?;
 
-                // 12.b.3 Increase the account balance with the `CoinManager`.
+                let (fees_after_subsidy, bd) = self
+                    .apply_subsidy_liftup(account_key, execution_timestamp, fees_pre_subsidy)
+                    .await?;
+
+                subsidy_breakdown = bd;
+
+                let liftup_credit_after_fees =
+                    liftup_sum_value_in_satoshis.saturating_sub(fees_after_subsidy);
+
                 increase_account_balance_with_coin_manager(
                     &self.coin_manager,
-                    _account_key,
-                    liftup_value_after_fees_in_satoshis,
+                    account_key,
+                    liftup_credit_after_fees,
                 )
                 .await
                 .map_err(LiftupExecutionError::CoinManagerAccountBalanceUpError)?;
             }
-            // 12.c The `RootAccount` is a `RegisteredAndConfiguredRootAccount`.
             RootAccount::RegisteredAndConfiguredRootAccount(
                 registered_and_configured_root_account,
             ) => {
-                // 12.c.1 Sync the `RegisteredAndConfiguredRootAccount` with the `Registery`.
                 registered_and_configured_root_account
                     .sync_with_registery(execution_timestamp, &self.registery)
                     .await
@@ -186,24 +141,84 @@ impl ExecCtx {
                         LiftupExecutionError::RegisteredAndConfiguredRootAccountSyncWithRegisteryError(e)
                     })?;
 
-                // 12.c.2 Increase the account balance with the `CoinManager`.
+                let (fees_after_subsidy, bd) = self
+                    .apply_subsidy_liftup(account_key, execution_timestamp, fees_pre_subsidy)
+                    .await?;
+
+                subsidy_breakdown = bd;
+
+                let liftup_credit_after_fees =
+                    liftup_sum_value_in_satoshis.saturating_sub(fees_after_subsidy);
+
                 increase_account_balance_with_coin_manager(
                     &self.coin_manager,
-                    _account_key,
-                    liftup_value_after_fees_in_satoshis,
+                    account_key,
+                    liftup_credit_after_fees,
                 )
                 .await
                 .map_err(LiftupExecutionError::CoinManagerAccountBalanceUpError)?;
             }
         }
 
-        // 13 Return Ok.
+        // 8 Return Ok.
         Ok(EntryFees::Liftup {
             base_fee,
             per_lift_fee,
             total_pre_subsidy: fees_pre_subsidy,
             subsidy_breakdown,
         })
+    }
+
+    /// Effective liftup entry fee after subsidy (same first-return meaning as `apply_subsidy_move` / `apply_subsidy_swapout`).
+    /// Root must already be synced — last activity, PM exemptions, `apply_subsidy`,
+    /// ephemeral `set_or_update_account_txfee_exemptions` when subsidy ran (skipped if not permanently in PM).
+    /// Caller subtracts this from `liftup_sum_value_in_satoshis` for the balance credit. Does not touch `CoinManager`.
+    /// If the caller fails afterward, batch `rollback_last` restores PM and coin ephemerals together.
+    async fn apply_subsidy_liftup(
+        &self,
+        account_key: [u8; 32],
+        execution_timestamp: u64,
+        fees_pre_subsidy: u64,
+    ) -> Result<(u64, Option<ExemptionSubsidyBreakdown>), LiftupExecutionError> {
+        let latest_consumption_timestamp = {
+            let _registery = self.registery.lock().await;
+            _registery
+                .get_account_last_activity_timestamp(account_key)
+                .unwrap_or(0)
+        };
+
+        let txfee_exemptions = {
+            let _privileges_manager = self.privileges_manager.lock().await;
+            _privileges_manager.get_account_txfee_exemptions(account_key)
+        };
+
+        let Some(mut exemptions) = txfee_exemptions else {
+            return Ok((fees_pre_subsidy, None));
+        };
+
+        let bd = exemptions
+            .apply_subsidy(
+                execution_timestamp,
+                latest_consumption_timestamp,
+                fees_pre_subsidy,
+            )
+            .ok_or(LiftupExecutionError::FailedToApplyFeesSubsidy)?;
+
+        let fees_after_subsidy = bd.post_discount_leftover;
+
+        {
+            let mut _privileges_manager = self.privileges_manager.lock().await;
+            match _privileges_manager
+                .set_or_update_account_txfee_exemptions(account_key, exemptions)
+            {
+                Ok(()) => {}
+                Err(PMUpdateAccountError::AccountIsNotPermanentlyRegistered(_)) => {
+                    // Ephemeral PM row this batch: no delta write; fee math already used in-memory exemption.
+                }
+            }
+        }
+
+        Ok((fees_after_subsidy, Some(bd)))
     }
 }
 

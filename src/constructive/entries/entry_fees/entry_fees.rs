@@ -9,13 +9,15 @@ pub enum EntryFees {
         base_fee: u64,
         liquidity_fee: u64,
         total_pre_subsidy: u64,
-        subsidy_breakdown: ExemptionSubsidyBreakdown,
+        /// `Some` when a PM exemption row existed and subsidy was applied; `None` when there was no row (full nominal fee).
+        subsidy_breakdown: Option<ExemptionSubsidyBreakdown>,
     },
     Liftup {
         base_fee: u64,
         per_lift_fee: u64,
         total_pre_subsidy: u64,
-        subsidy_breakdown: ExemptionSubsidyBreakdown,
+        /// `Some` after a successful subsidy pass; `None` if no PM exemptions (e.g. unregistered liftup) or registered with no exemption row.
+        subsidy_breakdown: Option<ExemptionSubsidyBreakdown>,
     },
     Call {
         base_fee: u64,
@@ -25,7 +27,8 @@ pub enum EntryFees {
     Swapout {
         base_fee: u64,
         total_pre_subsidy: u64,
-        subsidy_breakdown: ExemptionSubsidyBreakdown,
+        /// `Some` when a PM exemption row existed and subsidy was applied; `None` when there was no row (full nominal fee).
+        subsidy_breakdown: Option<ExemptionSubsidyBreakdown>,
     },
 }
 
@@ -51,7 +54,10 @@ impl EntryFees {
                 );
                 obj.insert(
                     "subsidy_breakdown".to_string(),
-                    subsidy_breakdown.json(),
+                    match subsidy_breakdown {
+                        Some(b) => b.json(),
+                        None => Value::Null,
+                    },
                 );
             }
             EntryFees::Liftup {
@@ -69,7 +75,10 @@ impl EntryFees {
                 );
                 obj.insert(
                     "subsidy_breakdown".to_string(),
-                    subsidy_breakdown.json(),
+                    match subsidy_breakdown {
+                        Some(b) => b.json(),
+                        None => Value::Null,
+                    },
                 );
             }
             EntryFees::Call {
@@ -101,7 +110,10 @@ impl EntryFees {
                 );
                 obj.insert(
                     "subsidy_breakdown".to_string(),
-                    subsidy_breakdown.json(),
+                    match subsidy_breakdown {
+                        Some(b) => b.json(),
+                        None => Value::Null,
+                    },
                 );
             }
         }

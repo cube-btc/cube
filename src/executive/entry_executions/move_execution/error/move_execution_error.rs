@@ -9,7 +9,8 @@ use crate::inscriptive::coin_manager::errors::balance_update_errors::{
 /// Errors associated with executing a `Move` entry.
 #[derive(Debug, Clone)]
 pub enum MoveExecutionError {
-    AmountUnderflowAfterFeesError,
+    /// `amount` plus post-subsidy entry fee does not fit in `u64`.
+    MoveSenderTotalDebitOverflow,
     FromAndToAccountKeysAreSameError([u8; 32]),
     UnexpectedUnregisteredFromRootAccountError,
     UnregisteredRootAccountValidateSchnorrAndBLSKeyError,
@@ -28,6 +29,5 @@ pub enum MoveExecutionError {
     CoinManagerAccountBalanceDownError(CMAccountBalanceDownError),
     CoinManagerAccountBalanceUpError(CMAccountBalanceUpError),
 
-    FailedToGetAccountTxFeeExemptions([u8; 32]),
     FailedToApplyFeesSubsidy,
 }

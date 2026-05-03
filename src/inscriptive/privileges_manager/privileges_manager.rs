@@ -14,7 +14,8 @@ use crate::inscriptive::privileges_manager::errors::update_error::{
 };
 use crate::operative::run_args::chain::Chain;
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 /// Account key.
 type AccountKey = [u8; 32];
@@ -27,6 +28,8 @@ const ACCOUNT_HIERARCHY_SPECIAL_DB_KEY: [u8; 1] = [0x01; 1];
 const ACCOUNT_TXFEE_EXEMPTIONS_SPECIAL_DB_KEY: [u8; 1] = [0x02; 1];
 const ACCOUNT_CAN_DEPLOY_LIQUIDITY_SPECIAL_DB_KEY: [u8; 1] = [0x03; 1];
 const ACCOUNT_CAN_DEPLOY_CONTRACT_SPECIAL_DB_KEY: [u8; 1] = [0x04; 1];
+const ACCOUNT_RESERVED_FLAG_1_SPECIAL_DB_KEY: [u8; 1] = [0x05; 1];
+const ACCOUNT_RESERVED_FLAG_2_SPECIAL_DB_KEY: [u8; 1] = [0x06; 1];
 
 const CONTRACT_LIVENESS_FLAG_SPECIAL_DB_KEY: [u8; 1] = [0x00; 1];
 const CONTRACT_IMMUTABILITY_SPECIAL_DB_KEY: [u8; 1] = [0x01; 1];
@@ -90,6 +93,8 @@ impl PrivilegesManager {
             let mut account_liveness_flag: Option<LivenessFlag> = None;
             let mut account_hierarchy: Option<AccountHierarchy> = None;
             let mut account_txfee_exemptions: Option<Exemption> = None;
+            let mut account_reserved_flag_1: Option<u8> = None;
+            let mut account_reserved_flag_2: Option<u8> = None;
             let mut account_can_deploy_liquidity: Option<TimedSwitchBool> = None;
             let mut account_can_deploy_contract: Option<TimedSwitchBool> = None;
 
@@ -155,6 +160,36 @@ impl PrivilegesManager {
                         account_txfee_exemptions = Some(account_txfee_exemptions_deserialized);
                     }
 
+                    ACCOUNT_RESERVED_FLAG_1_SPECIAL_DB_KEY => {
+                        let byte = match value.len() {
+                            1 => value.as_ref()[0],
+                            _ => {
+                                return Err(
+                                    PrivilegesManagerConstructionError::UnableToDeserializeAccountReservedFlag1FromBytes(
+                                        account_key,
+                                        value.to_vec(),
+                                    ),
+                                );
+                            }
+                        };
+                        account_reserved_flag_1 = Some(byte);
+                    }
+
+                    ACCOUNT_RESERVED_FLAG_2_SPECIAL_DB_KEY => {
+                        let byte = match value.len() {
+                            1 => value.as_ref()[0],
+                            _ => {
+                                return Err(
+                                    PrivilegesManagerConstructionError::UnableToDeserializeAccountReservedFlag2FromBytes(
+                                        account_key,
+                                        value.to_vec(),
+                                    ),
+                                );
+                            }
+                        };
+                        account_reserved_flag_2 = Some(byte);
+                    }
+
                     ACCOUNT_CAN_DEPLOY_LIQUIDITY_SPECIAL_DB_KEY => {
                         let account_can_deploy_liquidity_deserialized = TimedSwitchBool::from_bytes(value.as_ref()).ok_or(PrivilegesManagerConstructionError::UnableToDeserializeAccountCanDeployLiquidityFromBytes(account_key, value.to_vec()))?;
 
@@ -191,6 +226,8 @@ impl PrivilegesManager {
                         account_key,
                     ),
                 )?,
+                account_reserved_flag_1.unwrap_or(0),
+                account_reserved_flag_2.unwrap_or(0),
                 account_can_deploy_liquidity.ok_or(
                     PrivilegesManagerConstructionError::AccountCanDeployLiquidityNotPresent(
                         account_key,
@@ -374,13 +411,13 @@ impl PrivilegesManager {
         self.in_memory_contracts.get(&contract_id).cloned()
     }
 
-    /// Returns whether account is permanently registered.
-    pub fn is_account_registered(&self, account_key: AccountKey) -> bool {
+    /// Returns whether the account exists in permanent in-memory state (loaded from disk).
+    pub fn is_account_permanently_registered(&self, account_key: AccountKey) -> bool {
         self.in_memory_accounts.contains_key(&account_key)
     }
 
-    /// Returns whether contract is permanently registered.
-    pub fn is_contract_registered(&self, contract_id: ContractId) -> bool {
+    /// Returns whether the contract exists in permanent in-memory state (loaded from disk).
+    pub fn is_contract_permanently_registered(&self, contract_id: ContractId) -> bool {
         self.in_memory_contracts.contains_key(&contract_id)
     }
 
@@ -392,16 +429,6 @@ impl PrivilegesManager {
     /// Returns whether contract has just been ephemerally registered.
     pub fn is_contract_epheremally_registered(&self, contract_id: ContractId) -> bool {
         self.delta.is_contract_epheremally_registered(contract_id)
-    }
-
-    /// Returns whether account is available in either permanent or ephemeral state.
-    fn is_account_available(&self, account_key: AccountKey) -> bool {
-        self.is_account_registered(account_key) || self.is_account_epheremally_registered(account_key)
-    }
-
-    /// Returns whether contract is available in either permanent or ephemeral state.
-    fn is_contract_available(&self, contract_id: ContractId) -> bool {
-        self.is_contract_registered(contract_id) || self.is_contract_epheremally_registered(contract_id)
     }
 
     /// Ephemerally registers a new account.
@@ -416,7 +443,7 @@ impl PrivilegesManager {
             ));
         }
 
-        if self.is_account_registered(account_key) {
+        if self.is_account_permanently_registered(account_key) {
             return Err(PMRegisterAccountError::AccountIsAlreadyPermanentlyRegistered(
                 account_key,
             ));
@@ -439,7 +466,7 @@ impl PrivilegesManager {
             ));
         }
 
-        if self.is_contract_registered(contract_id) {
+        if self.is_contract_permanently_registered(contract_id) {
             return Err(PMRegisterContractError::ContractIsAlreadyPermanentlyRegistered(
                 contract_id,
             ));
@@ -493,6 +520,36 @@ impl PrivilegesManager {
         self.in_memory_accounts
             .get(&account_key)
             .map(|body| body.txfee_exemptions.clone())
+    }
+
+    /// Returns account reserved flag 1 (ephemeral delta overrides permanent state).
+    pub fn get_account_reserved_flag_1(&self, account_key: AccountKey) -> Option<u8> {
+        if let Some(value) = self.delta.updated_account_reserved_flag_1.get(&account_key) {
+            return Some(*value);
+        }
+
+        if let Some(body) = self.delta.new_accounts_to_register.get(&account_key) {
+            return Some(body.reserved_flag_1);
+        }
+
+        self.in_memory_accounts
+            .get(&account_key)
+            .map(|body| body.reserved_flag_1)
+    }
+
+    /// Returns account reserved flag 2 (ephemeral delta overrides permanent state).
+    pub fn get_account_reserved_flag_2(&self, account_key: AccountKey) -> Option<u8> {
+        if let Some(value) = self.delta.updated_account_reserved_flag_2.get(&account_key) {
+            return Some(*value);
+        }
+
+        if let Some(body) = self.delta.new_accounts_to_register.get(&account_key) {
+            return Some(body.reserved_flag_2);
+        }
+
+        self.in_memory_accounts
+            .get(&account_key)
+            .map(|body| body.reserved_flag_2)
     }
 
     /// Returns account can-deploy-liquidity switch.
@@ -588,14 +645,16 @@ impl PrivilegesManager {
             .map(|body| body.tax_exemptions.clone())
     }
 
-    /// Epheremally updates account liveness flag.
-    pub fn set_account_liveness_flag(
+    /// Epheremally sets or updates account liveness flag (permanent registration only).
+    pub fn set_or_update_account_liveness_flag(
         &mut self,
         account_key: AccountKey,
         liveness_flag: LivenessFlag,
     ) -> Result<(), PMUpdateAccountError> {
-        if !self.is_account_available(account_key) {
-            return Err(PMUpdateAccountError::AccountIsNotRegistered(account_key));
+        if !self.is_account_permanently_registered(account_key) {
+            return Err(PMUpdateAccountError::AccountIsNotPermanentlyRegistered(
+                account_key,
+            ));
         }
 
         self.delta
@@ -604,14 +663,16 @@ impl PrivilegesManager {
         Ok(())
     }
 
-    /// Epheremally updates account hierarchy.
-    pub fn set_account_hierarchy(
+    /// Epheremally sets or updates account hierarchy (permanent registration only).
+    pub fn set_or_update_account_hierarchy(
         &mut self,
         account_key: AccountKey,
         hierarchy: AccountHierarchy,
     ) -> Result<(), PMUpdateAccountError> {
-        if !self.is_account_available(account_key) {
-            return Err(PMUpdateAccountError::AccountIsNotRegistered(account_key));
+        if !self.is_account_permanently_registered(account_key) {
+            return Err(PMUpdateAccountError::AccountIsNotPermanentlyRegistered(
+                account_key,
+            ));
         }
 
         self.delta
@@ -620,14 +681,16 @@ impl PrivilegesManager {
         Ok(())
     }
 
-    /// Epheremally updates account txfee exemptions.
-    pub fn set_account_txfee_exemptions(
+    /// Epheremally sets or updates account tx-fee exemptions (permanent registration only).
+    pub fn set_or_update_account_txfee_exemptions(
         &mut self,
         account_key: AccountKey,
         txfee_exemptions: Exemption,
     ) -> Result<(), PMUpdateAccountError> {
-        if !self.is_account_available(account_key) {
-            return Err(PMUpdateAccountError::AccountIsNotRegistered(account_key));
+        if !self.is_account_permanently_registered(account_key) {
+            return Err(PMUpdateAccountError::AccountIsNotPermanentlyRegistered(
+                account_key,
+            ));
         }
 
         self.delta
@@ -636,14 +699,52 @@ impl PrivilegesManager {
         Ok(())
     }
 
-    /// Epheremally updates account can-deploy-liquidity switch.
-    pub fn set_account_can_deploy_liquidity(
+    /// Epheremally sets or updates account reserved flag 1 (permanent registration only).
+    pub fn set_or_update_account_reserved_flag_1(
+        &mut self,
+        account_key: AccountKey,
+        reserved_flag_1: u8,
+    ) -> Result<(), PMUpdateAccountError> {
+        if !self.is_account_permanently_registered(account_key) {
+            return Err(PMUpdateAccountError::AccountIsNotPermanentlyRegistered(
+                account_key,
+            ));
+        }
+
+        self.delta
+            .updated_account_reserved_flag_1
+            .insert(account_key, reserved_flag_1);
+        Ok(())
+    }
+
+    /// Epheremally sets or updates account reserved flag 2 (permanent registration only).
+    pub fn set_or_update_account_reserved_flag_2(
+        &mut self,
+        account_key: AccountKey,
+        reserved_flag_2: u8,
+    ) -> Result<(), PMUpdateAccountError> {
+        if !self.is_account_permanently_registered(account_key) {
+            return Err(PMUpdateAccountError::AccountIsNotPermanentlyRegistered(
+                account_key,
+            ));
+        }
+
+        self.delta
+            .updated_account_reserved_flag_2
+            .insert(account_key, reserved_flag_2);
+        Ok(())
+    }
+
+    /// Epheremally sets or updates account can-deploy-liquidity switch (permanent registration only).
+    pub fn set_or_update_account_can_deploy_liquidity(
         &mut self,
         account_key: AccountKey,
         can_deploy_liquidity: TimedSwitchBool,
     ) -> Result<(), PMUpdateAccountError> {
-        if !self.is_account_available(account_key) {
-            return Err(PMUpdateAccountError::AccountIsNotRegistered(account_key));
+        if !self.is_account_permanently_registered(account_key) {
+            return Err(PMUpdateAccountError::AccountIsNotPermanentlyRegistered(
+                account_key,
+            ));
         }
 
         self.delta
@@ -652,14 +753,16 @@ impl PrivilegesManager {
         Ok(())
     }
 
-    /// Epheremally updates account can-deploy-contract switch.
-    pub fn set_account_can_deploy_contract(
+    /// Epheremally sets or updates account can-deploy-contract switch (permanent registration only).
+    pub fn set_or_update_account_can_deploy_contract(
         &mut self,
         account_key: AccountKey,
         can_deploy_contract: TimedSwitchBool,
     ) -> Result<(), PMUpdateAccountError> {
-        if !self.is_account_available(account_key) {
-            return Err(PMUpdateAccountError::AccountIsNotRegistered(account_key));
+        if !self.is_account_permanently_registered(account_key) {
+            return Err(PMUpdateAccountError::AccountIsNotPermanentlyRegistered(
+                account_key,
+            ));
         }
 
         self.delta
@@ -668,14 +771,16 @@ impl PrivilegesManager {
         Ok(())
     }
 
-    /// Epheremally updates contract liveness flag.
-    pub fn set_contract_liveness_flag(
+    /// Epheremally sets or updates contract liveness flag (permanent registration only).
+    pub fn set_or_update_contract_liveness_flag(
         &mut self,
         contract_id: ContractId,
         liveness_flag: LivenessFlag,
     ) -> Result<(), PMUpdateContractError> {
-        if !self.is_contract_available(contract_id) {
-            return Err(PMUpdateContractError::ContractIsNotRegistered(contract_id));
+        if !self.is_contract_permanently_registered(contract_id) {
+            return Err(PMUpdateContractError::ContractIsNotPermanentlyRegistered(
+                contract_id,
+            ));
         }
 
         self.delta
@@ -684,14 +789,16 @@ impl PrivilegesManager {
         Ok(())
     }
 
-    /// Epheremally updates contract immutability.
-    pub fn set_contract_immutability(
+    /// Epheremally sets or updates contract immutability (permanent registration only).
+    pub fn set_or_update_contract_immutability(
         &mut self,
         contract_id: ContractId,
         immutability: bool,
     ) -> Result<(), PMUpdateContractError> {
-        if !self.is_contract_available(contract_id) {
-            return Err(PMUpdateContractError::ContractIsNotRegistered(contract_id));
+        if !self.is_contract_permanently_registered(contract_id) {
+            return Err(PMUpdateContractError::ContractIsNotPermanentlyRegistered(
+                contract_id,
+            ));
         }
 
         self.delta
@@ -700,14 +807,16 @@ impl PrivilegesManager {
         Ok(())
     }
 
-    /// Epheremally updates contract tax exemptions.
-    pub fn set_contract_tax_exemptions(
+    /// Epheremally sets or updates contract tax exemptions (permanent registration only).
+    pub fn set_or_update_contract_tax_exemptions(
         &mut self,
         contract_id: ContractId,
         tax_exemptions: Exemption,
     ) -> Result<(), PMUpdateContractError> {
-        if !self.is_contract_available(contract_id) {
-            return Err(PMUpdateContractError::ContractIsNotRegistered(contract_id));
+        if !self.is_contract_permanently_registered(contract_id) {
+            return Err(PMUpdateContractError::ContractIsNotPermanentlyRegistered(
+                contract_id,
+            ));
         }
 
         self.delta
@@ -738,6 +847,14 @@ impl PrivilegesManager {
                 tree.insert(
                     ACCOUNT_TXFEE_EXEMPTIONS_SPECIAL_DB_KEY,
                     account_body.txfee_exemptions.to_bytes(),
+                )?;
+                tree.insert(
+                    ACCOUNT_RESERVED_FLAG_1_SPECIAL_DB_KEY,
+                    [account_body.reserved_flag_1].as_slice(),
+                )?;
+                tree.insert(
+                    ACCOUNT_RESERVED_FLAG_2_SPECIAL_DB_KEY,
+                    [account_body.reserved_flag_2].as_slice(),
                 )?;
                 tree.insert(
                     ACCOUNT_CAN_DEPLOY_LIQUIDITY_SPECIAL_DB_KEY,
@@ -815,7 +932,37 @@ impl PrivilegesManager {
             }
         }
 
-        // 6 Save updated account can-deploy-liquidity switches.
+        // 6 Save updated account reserved flag 1.
+        for (account_key, reserved_flag_1) in self.delta.updated_account_reserved_flag_1.iter() {
+            {
+                let tree = self.on_disk_accounts.open_tree(account_key)?;
+                tree.insert(
+                    ACCOUNT_RESERVED_FLAG_1_SPECIAL_DB_KEY,
+                    [*reserved_flag_1].as_slice(),
+                )?;
+            }
+
+            if let Some(account_body) = self.in_memory_accounts.get_mut(account_key) {
+                account_body.reserved_flag_1 = *reserved_flag_1;
+            }
+        }
+
+        // 7 Save updated account reserved flag 2.
+        for (account_key, reserved_flag_2) in self.delta.updated_account_reserved_flag_2.iter() {
+            {
+                let tree = self.on_disk_accounts.open_tree(account_key)?;
+                tree.insert(
+                    ACCOUNT_RESERVED_FLAG_2_SPECIAL_DB_KEY,
+                    [*reserved_flag_2].as_slice(),
+                )?;
+            }
+
+            if let Some(account_body) = self.in_memory_accounts.get_mut(account_key) {
+                account_body.reserved_flag_2 = *reserved_flag_2;
+            }
+        }
+
+        // 8 Save updated account can-deploy-liquidity switches.
         for (account_key, can_deploy_liquidity) in
             self.delta.updated_account_can_deploy_liquidity.iter()
         {
@@ -832,7 +979,7 @@ impl PrivilegesManager {
             }
         }
 
-        // 7 Save updated account can-deploy-contract switches.
+        // 9 Save updated account can-deploy-contract switches.
         for (account_key, can_deploy_contract) in self.delta.updated_account_can_deploy_contract.iter()
         {
             {
@@ -848,7 +995,7 @@ impl PrivilegesManager {
             }
         }
 
-        // 8 Save updated contract liveness flags.
+        // 10 Save updated contract liveness flags.
         for (contract_id, liveness_flag) in self.delta.updated_contract_liveness_flags.iter() {
             {
                 let tree = self.on_disk_contracts.open_tree(contract_id)?;
@@ -860,7 +1007,7 @@ impl PrivilegesManager {
             }
         }
 
-        // 9 Save updated contract immutability flags.
+        // 11 Save updated contract immutability flags.
         for (contract_id, immutability) in self.delta.updated_contract_immutability_flags.iter() {
             {
                 let tree = self.on_disk_contracts.open_tree(contract_id)?;
@@ -873,7 +1020,7 @@ impl PrivilegesManager {
             }
         }
 
-        // 10 Save updated contract tax exemptions.
+        // 12 Save updated contract tax exemptions.
         for (contract_id, tax_exemptions) in self.delta.updated_contract_tax_exemptions.iter() {
             {
                 let tree = self.on_disk_contracts.open_tree(contract_id)?;

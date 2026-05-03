@@ -4,6 +4,7 @@ use crate::inscriptive::archival_manager::archival_manager::ARCHIVAL_MANAGER;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
 use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
 use crate::inscriptive::privileges_manager::elements::account_hierarchy::account_hierarchy::AccountHierarchy;
+use crate::inscriptive::privileges_manager::elements::exemption::exemption::Exemption;
 use crate::inscriptive::privileges_manager::privileges_manager::PRIVILEGES_MANAGER;
 use crate::inscriptive::registery::registery::REGISTERY;
 use crate::operative::run_args::chain::Chain;
@@ -334,6 +335,25 @@ pre.reg-json { font-size: 0.8rem; background: #fffefb; border: 1px solid #e8e2d4
 .account-header-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.8rem; margin-bottom: 1rem; }
 .account-header-main { display: flex; align-items: flex-start; gap: 1rem; min-width: 0; }
 .account-avatar { width: 64px; height: 64px; border-radius: 999px; border: 1px solid #d8d0c0; background: radial-gradient(circle at 30% 30%, #fffefb 0%, #f0ebe0 70%, #e3dbca 100%); display: inline-flex; align-items: center; justify-content: center; color: #8b949e; font-size: 1.5rem; flex-shrink: 0; }
+.vip-tier-root { max-width: 22rem; margin-top: 0.35rem; }
+.vip-card { width: 11.2rem; margin: 0 auto 1.1rem; border-radius: 12px; padding: 0.85rem 0.75rem 0.75rem; text-align: center; border: 1px solid rgba(0,0,0,0.12); box-shadow: 0 4px 14px rgba(31,35,40,0.12), inset 0 1px 0 rgba(255,255,255,0.35); position: relative; overflow: hidden; }
+.vip-card::before { content: ""; position: absolute; inset: 0; opacity: 0.22; pointer-events: none; background-image: repeating-linear-gradient(-18deg, transparent, transparent 3px, rgba(255,255,255,0.08) 3px, rgba(255,255,255,0.08) 5px); }
+.vip-card-emoji { font-size: 2.05rem; line-height: 1.15; position: relative; z-index: 1; text-shadow: 0 1px 2px rgba(0,0,0,0.18); }
+.vip-card-label { margin-top: 0.35rem; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; position: relative; z-index: 1; text-shadow: 0 1px 1px rgba(0,0,0,0.12); }
+.vip-card-silver { background: linear-gradient(145deg, #e4e4e8 0%, #b8bcc4 45%, #9a9faa 100%); color: #2f343d; border-color: #aeb3bd; }
+.vip-card-gold { background: linear-gradient(145deg, #fff6d2 0%, #e8c86a 42%, #c9a227 100%); color: #3d3208; border-color: #c4a035; }
+.vip-card-diamond { background: linear-gradient(145deg, #2a2a32 0%, #121218 55%, #0a0a0e 100%); color: #e8eaef; border-color: #3a3d48; }
+.vip-meter-block { margin-top: 0.15rem; }
+.vip-meter-row { display: flex; align-items: center; gap: 0.55rem; flex-wrap: nowrap; }
+.vip-meter-track { flex: 1; min-width: 0; height: 0.65rem; border-radius: 999px; background: #e4dcc8; border: 1px solid #d8d0c0; overflow: hidden; box-shadow: inset 0 1px 2px rgba(31,35,40,0.08); }
+.vip-meter-fill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #6eb5f7 0%, #0550ae 100%); transition: width 0.25s ease; }
+.vip-tier-root:has(.vip-card-silver) .vip-meter-fill { background: linear-gradient(90deg, #aeb3bd 0%, #6e7781 100%); }
+.vip-tier-root:has(.vip-card-gold) .vip-meter-fill { background: linear-gradient(90deg, #f0d78c 0%, #b8891a 100%); }
+.vip-tier-root:has(.vip-card-diamond) .vip-meter-fill { background: linear-gradient(90deg, #9aa3b5 0%, #4a5160 100%); }
+.vip-meter-suffix { flex-shrink: 0; font-size: 0.78rem; color: #5c6670; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vip-stat-line { margin-top: 0.65rem; font-size: 0.88rem; color: #24292f; display: flex; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+.vip-stat-line dt { color: #5c6670; font-weight: 600; margin: 0; }
+.vip-stat-line dd { margin: 0; font-family: ui-monospace, monospace; font-variant-numeric: tabular-nums; }
 .account-header-left { min-width: 0; }
 .account-header-left h1 { margin: 0 0 0.4rem; }
 .account-head-row { display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap; margin: 0 0 0.5rem; }
@@ -461,6 +481,114 @@ fn account_avatar_emoji(account_key: [u8; 32]) -> &'static str {
     ];
     let idx = (account_key[0] as usize) % AVATARS.len();
     AVATARS[idx]
+}
+
+fn explorer_format_u64_commas(n: u64) -> String {
+    let s = n.to_string();
+    let mut out = String::new();
+    for (i, ch) in s.chars().enumerate() {
+        if i > 0 && (s.len() - i) % 3 == 0 {
+            out.push(',');
+        }
+        out.push(ch);
+    }
+    out
+}
+
+/// Human-readable refill period for the VIP meter suffix (e.g. 600 → "10 minutes").
+fn explorer_format_period_for_bar(secs: u64) -> String {
+    if secs == 0 {
+        return "0 seconds".to_string();
+    }
+    let mut rem = secs;
+    let mut parts: Vec<String> = Vec::new();
+    const UNITS: &[(u64, &str, &str)] = &[
+        (86400, "day", "days"),
+        (3600, "hour", "hours"),
+        (60, "minute", "minutes"),
+        (1, "second", "seconds"),
+    ];
+    for &(div, one, many) in UNITS {
+        if rem >= div {
+            let k = rem / div;
+            rem %= div;
+            parts.push(if k == 1 {
+                format!("1 {}", one)
+            } else {
+                format!("{} {}", k, many)
+            });
+            if parts.len() >= 2 {
+                break;
+            }
+        }
+    }
+    if parts.is_empty() {
+        "0 seconds".to_string()
+    } else {
+        parts.join(" ")
+    }
+}
+
+fn explorer_vip_discount_percent_label(discount: u8) -> String {
+    let d = (discount as f64).min(200.0);
+    let pct = d * 0.5;
+    format!("{:.1}%", pct)
+}
+
+fn explorer_vip_tab_inner(reserved_flag_1: u8, txfee: &Exemption) -> String {
+    if reserved_flag_1 == 0 || reserved_flag_1 > 3 {
+        return String::new();
+    }
+    let (emoji, label, card_class) = if reserved_flag_1 == 1 {
+        ("⚪", "silver", "vip-card-silver")
+    } else if reserved_flag_1 == 2 {
+        ("🪙", "gold", "vip-card-gold")
+    } else {
+        ("💎", "diamond", "vip-card-diamond")
+    };
+    let pr = &txfee.periodic_credit;
+    let fill_pct = if pr.limit == 0 {
+        0_f64
+    } else {
+        (pr.latest_left.min(pr.limit) as f64 / pr.limit as f64 * 100.0).clamp(0.0, 100.0)
+    };
+    let period_label = explorer_format_period_for_bar(pr.period);
+    let suffix = format!("/ per {}", period_label);
+    let discount_label = explorer_vip_discount_percent_label(txfee.discount);
+    let direct_str = explorer_format_u64_commas(txfee.direct_credit);
+    let limit_str = explorer_format_u64_commas(pr.limit);
+    let left_str = explorer_format_u64_commas(pr.latest_left);
+    let aria_now = fill_pct.round().clamp(0.0, 100.0) as i64;
+    format!(
+        r#"<div class="vip-tier-root">
+<div class="vip-card {}" role="img" aria-label="{} VIP card">
+<div class="vip-card-emoji">{}</div>
+<div class="vip-card-label">{}</div>
+</div>
+<div class="vip-meter-block">
+<div class="vip-meter-row">
+<div class="vip-meter-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{}" aria-label="Periodic fee credit remaining">
+<div class="vip-meter-fill" style="width: {:.4}%"></div>
+</div>
+<span class="vip-meter-suffix">{}</span>
+</div>
+<p class="muted" style="margin:0.45rem 0 0;font-size:0.78rem"><span class="mono">{}</span> left of <span class="mono">{}</span> per period</p>
+</div>
+<dl class="vip-stat-line"><dt>Direct credit</dt><dd class="mono">{} sats</dd></dl>
+<dl class="vip-stat-line"><dt>Fee discount (of post-direct fee)</dt><dd class="mono">{}</dd></dl>
+</div>"#,
+        card_class,
+        html_escape(label),
+        emoji,
+        html_escape(label),
+        aria_now,
+        fill_pct,
+        html_escape(&suffix),
+        html_escape(&left_str),
+        html_escape(&limit_str),
+        html_escape(&direct_str),
+        html_escape(&discount_label),
+    )
 }
 
 fn truncated_head_tail(value: &str, head: usize, tail: usize) -> String {
@@ -627,7 +755,7 @@ async fn page_account_by_id(
 
     let privilege_body = match st.privileges_manager.as_ref() {
         Some(pm) => {
-            let p = pm.lock().unwrap();
+            let p = pm.lock().await;
             p.get_account_body_by_account_key(account_key)
         }
         None => None,
@@ -662,11 +790,13 @@ async fn page_account_by_id(
         history_rows = r#"<tr><td colspan="4">No transaction history in archival records.</td></tr>"#.to_string();
     }
 
-    let privileges_json = if let Some(pb) = privilege_body {
+    let privileges_json = if let Some(ref pb) = privilege_body {
         serde_json::json!({
             "liveness_flag": pb.liveness_flag,
             "hierarchy": pb.hierarchy.to_string(),
             "txfee_exemptions": pb.txfee_exemptions,
+            "reserved_flag_1": pb.reserved_flag_1,
+            "reserved_flag_2": pb.reserved_flag_2,
             "can_deploy_liquidity": pb.can_deploy_liquidity,
             "can_deploy_contract": pb.can_deploy_contract,
         })
@@ -718,6 +848,12 @@ async fn page_account_by_id(
         .unwrap_or_else(|_| "null".to_string());
     let avatar_emoji = account_avatar_emoji(account_key);
 
+    let vip_tab_body_html = match &privilege_body {
+        None => r#"<p class="muted">Privileges manager is not available for this explorer instance.</p>"#
+            .to_string(),
+        Some(pb) => explorer_vip_tab_inner(pb.reserved_flag_1, &pb.txfee_exemptions),
+    };
+
     let body = format!(
         r#"<section class="account-shell">
 <section class="account-card">
@@ -751,6 +887,7 @@ async fn page_account_by_id(
 <nav class="tab-menu" aria-label="Account sections">
 <button type="button" class="tab-btn active" data-tab-target="tab-transaction-history">Transaction History</button>
 <button type="button" class="tab-btn" data-tab-target="tab-privileges">Privileges</button>
+<button type="button" class="tab-btn" data-tab-target="tab-vip">V.I.P.</button>
 <button type="button" class="tab-btn" data-tab-target="tab-vtxo-set">VTXO Set</button>
 <button type="button" class="tab-btn" data-tab-target="tab-coin-manager">Coin Manager</button>
 </nav>
@@ -761,6 +898,10 @@ async fn page_account_by_id(
 <section id="tab-privileges" class="explorer-subsec tab-panel">
 <h2>Privileges</h2>
 <pre class="reg-json">{}</pre>
+</section>
+<section id="tab-vip" class="explorer-subsec tab-panel">
+<h2>V.I.P.</h2>
+{}
 </section>
 <section id="tab-vtxo-set" class="explorer-subsec tab-panel">
 <h2>VTXO Set</h2>
@@ -801,6 +942,7 @@ async fn page_account_by_id(
         html_escape(&coin_balance_text),
         history_rows,
         html_escape(&privileges_pretty),
+        vip_tab_body_html,
         html_escape(&vtxo_pretty),
         html_escape(&coin_manager_account_json_pretty),
     );

@@ -92,11 +92,13 @@ impl UnregisteredAccount {
                 LivenessFlag::new_operational(),
                 AccountHierarchy::new_pleb(),
                 Exemption::new(PeriodicResource::new(0, 0, 0), 0, 0),
+                0,
+                0,
                 TimedSwitchBool::new(params_holder.account_can_initially_deploy_liquidity, None),
                 TimedSwitchBool::new(params_holder.account_can_initially_deploy_contract, None),
             );
             // 5.2 Register the account with the `PrivilegesManager`.
-            let mut _privileges_manager = privileges_manager.lock().unwrap();
+            let mut _privileges_manager = privileges_manager.lock().await;
             _privileges_manager
                 .register_account(
                     self.account_key_to_be_registered,

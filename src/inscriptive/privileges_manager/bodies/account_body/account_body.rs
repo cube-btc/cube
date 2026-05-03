@@ -15,6 +15,12 @@ pub struct PrivilegesManagerAccountBody {
     // The transaction fee exemptions of the account.
     pub txfee_exemptions: Exemption,
 
+    // Reserved for future use (persisted with the account privileges tree).
+    pub reserved_flag_1: u8,
+
+    // Reserved for future use (persisted with the account privileges tree).
+    pub reserved_flag_2: u8,
+
     // Whether the account can deploy liquidity (liquidity provider).
     pub can_deploy_liquidity: TimedSwitchBool,
 
@@ -28,6 +34,8 @@ impl PrivilegesManagerAccountBody {
         liveness_flag: LivenessFlag,
         hierarchy: AccountHierarchy,
         txfee_exemptions: Exemption,
+        reserved_flag_1: u8,
+        reserved_flag_2: u8,
         can_deploy_liquidity: TimedSwitchBool,
         can_deploy_contract: TimedSwitchBool,
     ) -> PrivilegesManagerAccountBody {
@@ -35,6 +43,8 @@ impl PrivilegesManagerAccountBody {
             liveness_flag,
             hierarchy,
             txfee_exemptions,
+            reserved_flag_1,
+            reserved_flag_2,
             can_deploy_liquidity,
             can_deploy_contract,
         }

@@ -21,6 +21,5 @@ pub enum LiftupExecutionError {
         RegisteredAndConfiguredRootAccountSyncWithRegisteryError,
     ),
     CoinManagerAccountBalanceUpError(CMAccountBalanceUpError),
-    FailedToGetAccountTxFeeExemptions([u8; 32]),
     FailedToApplyFeesSubsidy,
 }

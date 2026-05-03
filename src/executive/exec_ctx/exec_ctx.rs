@@ -137,7 +137,7 @@ impl ExecCtx {
 
         // 6 Pre-execution privileges manager.
         {
-            self.privileges_manager.lock().unwrap().pre_execution();
+            self.privileges_manager.lock().await.pre_execution();
         }
     }
 
@@ -170,7 +170,7 @@ impl ExecCtx {
 
         // 6 Rollback last privileges manager.
         {
-            self.privileges_manager.lock().unwrap().rollback_last();
+            self.privileges_manager.lock().await.rollback_last();
         }
     }
 
@@ -203,7 +203,7 @@ impl ExecCtx {
 
         // 6 Flush privileges manager ephemerals.
         {
-            self.privileges_manager.lock().unwrap().flush_delta();
+            self.privileges_manager.lock().await.flush_delta();
         }
     }
 
@@ -291,7 +291,7 @@ impl ExecCtx {
 
         // 11 Apply changes to the privileges manager.
         {
-            let mut _privileges_manager = self.privileges_manager.lock().unwrap();
+            let mut _privileges_manager = self.privileges_manager.lock().await;
             if let Err(error) = _privileges_manager.apply_changes() {
                 return Err(ApplyChangesError::PrivilegesManagerApplyChangesError(error));
             }

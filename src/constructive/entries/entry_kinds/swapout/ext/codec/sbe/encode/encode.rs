@@ -16,8 +16,8 @@ impl Swapout {
         bytes.push(0x05);
         bytes.extend_from_slice(&root_len_u32.to_le_bytes());
         bytes.extend_from_slice(&root_bytes);
-        bytes.extend_from_slice(&self.target.encode_sbe());
         bytes.extend_from_slice(&self.amount.to_le_bytes());
+        bytes.extend_from_slice(&self.target.encode_sbe());
 
         match &self.pinless_self {
             PinlessSelf::Default(_) => {

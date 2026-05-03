@@ -20,6 +20,8 @@ pub struct PrivilegesManagerDelta {
     pub updated_account_liveness_flags: HashMap<AccountKey, LivenessFlag>,
     pub updated_account_hierarchies: HashMap<AccountKey, AccountHierarchy>,
     pub updated_account_txfee_exemptions: HashMap<AccountKey, Exemption>,
+    pub updated_account_reserved_flag_1: HashMap<AccountKey, u8>,
+    pub updated_account_reserved_flag_2: HashMap<AccountKey, u8>,
     pub updated_account_can_deploy_liquidity: HashMap<AccountKey, TimedSwitchBool>,
     pub updated_account_can_deploy_contract: HashMap<AccountKey, TimedSwitchBool>,
     pub updated_contract_liveness_flags: HashMap<ContractId, LivenessFlag>,
@@ -36,6 +38,8 @@ impl PrivilegesManagerDelta {
             updated_account_liveness_flags: HashMap::new(),
             updated_account_hierarchies: HashMap::new(),
             updated_account_txfee_exemptions: HashMap::new(),
+            updated_account_reserved_flag_1: HashMap::new(),
+            updated_account_reserved_flag_2: HashMap::new(),
             updated_account_can_deploy_liquidity: HashMap::new(),
             updated_account_can_deploy_contract: HashMap::new(),
             updated_contract_liveness_flags: HashMap::new(),
@@ -51,6 +55,8 @@ impl PrivilegesManagerDelta {
         self.updated_account_liveness_flags.clear();
         self.updated_account_hierarchies.clear();
         self.updated_account_txfee_exemptions.clear();
+        self.updated_account_reserved_flag_1.clear();
+        self.updated_account_reserved_flag_2.clear();
         self.updated_account_can_deploy_liquidity.clear();
         self.updated_account_can_deploy_contract.clear();
         self.updated_contract_liveness_flags.clear();

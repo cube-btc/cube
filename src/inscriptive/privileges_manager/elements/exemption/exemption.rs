@@ -41,7 +41,7 @@ pub struct Exemption {
     // Secondary, direct, non-refilling credit, applied after the periodic credit, on top of the remaining amount.
     pub direct_credit: u64,
 
-    // Third place, discount: fraction `discount / 256` of the post-direct leftover is waived (not depleted).
+    // Third place, discount: fraction `discount / 200` of the post-direct leftover is waived (not depleted). Values above 200 are treated as 200 when applying.
     pub discount: u8,
 }
 
@@ -83,12 +83,12 @@ impl Exemption {
                 (periodic_credit, direct_credit, discount)
             }
             40 => {
-                // Legacy: discount was PPM out of 1_000_000; map into 0..=255 for /256 semantics.
+                // Legacy: discount was PPM out of 1_000_000; map into 0..=200 for /200 semantics.
                 let periodic_credit = PeriodicResource::from_bytes(bytes[0..24].try_into().ok()?)?;
                 let direct_credit = u64::from_le_bytes(bytes[24..32].try_into().ok()?);
                 let discount_ppm = u64::from_le_bytes(bytes[32..40].try_into().ok()?);
                 let discount =
-                    ((discount_ppm.min(1_000_000) as u128 * 255) / 1_000_000).min(255) as u8;
+                    ((discount_ppm.min(1_000_000) as u128 * 200) / 1_000_000).min(200) as u8;
                 (periodic_credit, direct_credit, discount)
             }
             _ => return None,
@@ -132,9 +132,10 @@ impl Exemption {
             }
         };
 
-        // 3 Subsidize the discount: waive `floor(leftover * discount / 256)` (discount is not depleted).
+        // 3 Subsidize the discount: waive `floor(leftover * min(discount, 200) / 200)` (discount is not depleted).
         let leftover_u = post_direct_credit_leftover as u128;
-        let discount_amount = ((leftover_u * (self.discount as u128)) / 256) as u64;
+        let discount_factor = (self.discount as u128).min(200);
+        let discount_amount = ((leftover_u * discount_factor) / 200) as u64;
         let post_discount_leftover = post_direct_credit_leftover.saturating_sub(discount_amount);
 
         Some(ExemptionSubsidyBreakdown {

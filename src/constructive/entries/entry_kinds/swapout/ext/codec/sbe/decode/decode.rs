@@ -46,16 +46,17 @@ impl Swapout {
             });
         }
 
-        let target = Target::decode_sbe(&after_root[..8]).map_err(|_| {
-            SwapoutSBEDecodeError::SwapoutSBEInsufficientBytesForTargetAndAmount {
-                got_total: bytes.len(),
-            }
-        })?;
-        let amount = u32::from_le_bytes(after_root[8..12].try_into().map_err(|_| {
+        // Matches `encode_sbe`: LE `amount` (4) then `target` SBE (8).
+        let amount = u32::from_le_bytes(after_root[0..4].try_into().map_err(|_| {
             SwapoutSBEDecodeError::SwapoutSBEInsufficientBytesForTargetAndAmount {
                 got_total: bytes.len(),
             }
         })?);
+        let target = Target::decode_sbe(&after_root[4..12]).map_err(|_| {
+            SwapoutSBEDecodeError::SwapoutSBEInsufficientBytesForTargetAndAmount {
+                got_total: bytes.len(),
+            }
+        })?;
 
         let pinless_slice = &after_root[12..];
         if pinless_slice.is_empty() {

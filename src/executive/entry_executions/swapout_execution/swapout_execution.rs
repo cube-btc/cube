@@ -4,7 +4,10 @@ use crate::constructive::entry::entry_kinds::swapout::swapout::{Swapout, DUST_SW
 use crate::constructive::txout_types::pinless_self::PinlessSelf;
 use crate::executive::entry_executions::swapout_execution::error::swapout_execution_error::SwapoutExecutionError;
 use crate::executive::exec_ctx::exec_ctx::ExecCtx;
-use crate::inscriptive::privileges_manager::elements::exemption::exemption::Exemption;
+use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
+use crate::inscriptive::coin_manager::errors::balance_update_errors::CMAccountBalanceDownError;
+use crate::inscriptive::privileges_manager::elements::exemption::exemption::ExemptionSubsidyBreakdown;
+use crate::inscriptive::privileges_manager::errors::update_error::PMUpdateAccountError;
 
 impl ExecCtx {
     /// Executes a `Swapout` entry.
@@ -23,20 +26,19 @@ impl ExecCtx {
 
         // 2 Validate the `PinlessSelf` scriptpubkey when it is `Default`.
         match &swapout.pinless_self {
-            // 2.a Default pinless self.
             PinlessSelf::Default(pinless_self_default) => {
-                // 2.a.1 Validate default scriptpubkey if location is present.
                 if let Some(self_txout) = pinless_self_default.txout() {
-                    // 2.a.1.1 Get the calculated scriptpubkey.
-                    let calculated_scriptpubkey =
-                    match pinless_self_default.calculated_scriptpubkey() {
+                    let calculated_scriptpubkey = match pinless_self_default
+                        .calculated_scriptpubkey()
+                    {
                         Some(scriptpubkey) => scriptpubkey,
-                        None => return Err(
-                            SwapoutExecutionError::PinlessSelfDefaultFailedToGetCalculatedScriptpubkeyError,
-                        ),
+                        None => {
+                            return Err(
+                                    SwapoutExecutionError::PinlessSelfDefaultFailedToGetCalculatedScriptpubkeyError,
+                                );
+                        }
                     };
 
-                    // 2.a.1.2 Validate the scriptpubkey.
                     if self_txout.script_pubkey.as_bytes() != calculated_scriptpubkey.as_slice() {
                         return Err(
                             SwapoutExecutionError::PinlessSelfDefaultScriptpubkeyMismatchError,
@@ -44,70 +46,88 @@ impl ExecCtx {
                     }
                 }
             }
-            // 2.b Unknown pinless self.
             PinlessSelf::Unknown(_) => {}
         }
 
-        // 3 Sync/register sender root account with DB.
-        match &swapout.root_account {
-            // 3.a The `RootAccount` is an `UnregisteredRootAccount`.
+        // 3 Params and nominal entry fee (pre-subsidy); account key for subsidy reads.
+        let params_holder = {
+            let _params_manager = self._params_manager.lock().unwrap();
+            _params_manager.get_params_holder()
+        };
+        let base_fee = params_holder.swapout_entry_base_fee;
+        let fees_pre_subsidy = base_fee;
+        let account_key = swapout.root_account.account_key();
+
+        // 4 `RootAccount`: sync then tx-fee subsidy (registery / PM; no `CoinManager` here).
+        let (fees_after_subsidy, subsidy_breakdown) = match &swapout.root_account {
             RootAccount::UnregisteredRootAccount(_) => {
                 return Err(SwapoutExecutionError::UnexpectedUnregisteredRootAccountError);
             }
-            // 3.b The `RootAccount` is a `RegisteredButUnconfiguredRootAccount`.
             RootAccount::RegisteredButUnconfiguredRootAccount(
                 registered_but_unconfigured_root_account,
             ) => {
-                // 3.b.1 Validate the BLS key is indeed a valid BLS public key.
                 if !registered_but_unconfigured_root_account.validate_bls_key() {
                     return Err(
                         SwapoutExecutionError::RegisteredButUnconfiguredRootAccountValidateBLSKeyError,
                     );
                 }
 
-                // 3.b.2 Verify the BLS key authorization signature.
                 if !registered_but_unconfigured_root_account.verify_authorization_signature() {
                     return Err(
                         SwapoutExecutionError::RegisteredButUnconfiguredRootAccountInvalidAuthorizationSignatureError,
                     );
                 }
 
-                // 3.b.3 Sync with registery.
                 registered_but_unconfigured_root_account
                     .sync_with_registery(execution_timestamp, &self.registery)
                     .await
                     .map_err(
                         SwapoutExecutionError::RegisteredButUnconfiguredRootAccountSyncWithRegisteryError,
                     )?;
+
+                self.apply_subsidy_swapout(account_key, execution_timestamp, fees_pre_subsidy)
+                    .await?
             }
-            // 3.c The `RootAccount` is a `RegisteredAndConfiguredRootAccount`.
             RootAccount::RegisteredAndConfiguredRootAccount(
                 registered_and_configured_root_account,
             ) => {
-                // 3.c.1 Sync with registery.
                 registered_and_configured_root_account
                     .sync_with_registery(execution_timestamp, &self.registery)
                     .await
                     .map_err(
                         SwapoutExecutionError::RegisteredAndConfiguredRootAccountSyncWithRegisteryError,
                     )?;
-            }
-        }
 
-        // 4 Get params holder from the params manager.
-        let params_holder = {
-            let _params_manager = self._params_manager.lock().unwrap();
-            _params_manager.get_params_holder()
+                self.apply_subsidy_swapout(account_key, execution_timestamp, fees_pre_subsidy)
+                    .await?
+            }
         };
 
-        // 5 Calculate the total debit amount (`amount + fee` after tx-fee subsidy).
-        let base_fee = params_holder.swapout_entry_base_fee;
-        let fees_pre_subsidy = base_fee;
+        // 5 Total debit (`amount` + fee after subsidy).
+        let total_debit = u64::from(swapout.amount)
+            .checked_add(fees_after_subsidy)
+            .ok_or(SwapoutExecutionError::AmountPlusFeesOverflow)?;
 
-        // 6 Get the account key.
-        let account_key = swapout.root_account.account_key();
+        // 6 Decrease the root account balance with the `CoinManager`.
+        decrease_account_balance_with_coin_manager(&self.coin_manager, account_key, total_debit)
+            .await
+            .map_err(SwapoutExecutionError::CoinManagerAccountBalanceDownError)?;
 
-        // 7 Get the latest consumption timestamp.
+        // 7 Return the entry fees.
+        Ok(EntryFees::Swapout {
+            base_fee,
+            total_pre_subsidy: fees_pre_subsidy,
+            subsidy_breakdown,
+        })
+    }
+
+    /// Applies the subsidy to the swapout entry fees.
+    async fn apply_subsidy_swapout(
+        &self,
+        account_key: [u8; 32],
+        execution_timestamp: u64,
+        fees_pre_subsidy: u64,
+    ) -> Result<(u64, Option<ExemptionSubsidyBreakdown>), SwapoutExecutionError> {
         let latest_consumption_timestamp = {
             let _registery = self.registery.lock().await;
             _registery
@@ -115,18 +135,16 @@ impl ExecCtx {
                 .unwrap_or(0)
         };
 
-        // 8 Get the tx-fee exemptions.
-        let mut txfee_exemptions: Exemption = {
-            let _privileges_manager = self.privileges_manager.lock().unwrap();
-            _privileges_manager
-                .get_account_txfee_exemptions(account_key)
-                .ok_or(SwapoutExecutionError::FailedToGetAccountTxFeeExemptions(
-                    account_key,
-                ))?
+        let txfee_exemptions = {
+            let _privileges_manager = self.privileges_manager.lock().await;
+            _privileges_manager.get_account_txfee_exemptions(account_key)
         };
 
-        // 9 Apply the subsidy to the fees.
-        let subsidy_breakdown = txfee_exemptions
+        let Some(mut exemptions) = txfee_exemptions else {
+            return Ok((fees_pre_subsidy, None));
+        };
+
+        let bd = exemptions
             .apply_subsidy(
                 execution_timestamp,
                 latest_consumption_timestamp,
@@ -134,27 +152,29 @@ impl ExecCtx {
             )
             .ok_or(SwapoutExecutionError::FailedToApplyFeesSubsidy)?;
 
-        // 10 Calculate the fees after subsidy.
-        let fees_post_subsidy = subsidy_breakdown.post_discount_leftover;
+        let fees_after_subsidy = bd.post_discount_leftover;
 
-        // 11 Calculate the total debit.
-        let total_debit = u64::from(swapout.amount)
-            .checked_add(fees_post_subsidy)
-            .ok_or(SwapoutExecutionError::AmountPlusFeesOverflow)?;
-
-        // 12 Decrease the root account balance with the `CoinManager`.
         {
-            let mut _coin_manager = self.coin_manager.lock().await;
-            _coin_manager
-                .account_balance_down(swapout.root_account.account_key(), total_debit)
-                .map_err(SwapoutExecutionError::CoinManagerAccountBalanceDownError)?;
+            let mut _privileges_manager = self.privileges_manager.lock().await;
+            match _privileges_manager
+                .set_or_update_account_txfee_exemptions(account_key, exemptions)
+            {
+                Ok(()) => {}
+                Err(PMUpdateAccountError::AccountIsNotPermanentlyRegistered(_)) => {
+                    // Ephemeral PM row this batch: no delta write; fee math already used in-memory exemption.
+                }
+            }
         }
 
-        // 13 Return the entry fees.
-        Ok(EntryFees::Swapout {
-            base_fee,
-            total_pre_subsidy: fees_pre_subsidy,
-            subsidy_breakdown,
-        })
+        Ok((fees_after_subsidy, Some(bd)))
     }
+}
+
+async fn decrease_account_balance_with_coin_manager(
+    coin_manager: &COIN_MANAGER,
+    account_key: [u8; 32],
+    amount: u64,
+) -> Result<(), CMAccountBalanceDownError> {
+    let mut _coin_manager = coin_manager.lock().await;
+    _coin_manager.account_balance_down(account_key, amount)
 }
