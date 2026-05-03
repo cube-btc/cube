@@ -275,7 +275,7 @@ fn explorer_vip_periodic_meter_script() -> &'static str {
     }
     if (fill) fill.style.width = fillPct.toFixed(4) + '%';
     if (track) track.setAttribute('aria-valuenow', String(Math.round(fillPct)));
-    if (cap) cap.textContent = cubeFormatCommaU64FromBigint(cur);
+    if (cap) cap.textContent = '¢ ' + cubeFormatCommaU64FromBigint(cur);
   }
 
   refreshVipPeriodicMeter();
@@ -472,11 +472,31 @@ pre.reg-json { font-size: 0.8rem; background: #fffefb; border: 1px solid #e8e2d4
 .explorer-subsec { margin-top: 1.85rem; }
 .explorer-subsec:first-of-type { margin-top: 1rem; }
 .explorer-subsec h2 { font-size: 1.18rem; font-weight: 620; color: #1f2328; margin: 0 0 0.5rem; padding-bottom: 0.35rem; border-bottom: 1px solid #e8e2d4; }
-.tab-menu { display: flex; gap: 0.45rem; flex-wrap: wrap; margin: 1rem 0 0.9rem; }
-.tab-btn { background: #f0ebe0; border: 1px solid #d8d0c0; color: #1f2328; border-radius: 8px; padding: 0.42rem 0.7rem; cursor: pointer; font-size: 0.85rem; }
+.tab-menu { display: flex; gap: 0.45rem; flex-wrap: wrap; align-items: center; margin: 1rem 0 0.9rem; }
+.tab-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  margin: 0;
+  background: #f0ebe0;
+  border: 1px solid #d8d0c0;
+  color: #1f2328;
+  border-radius: 8px;
+  padding: 0.42rem 0.72rem;
+  min-height: 2.05rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 400;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
 .tab-btn:hover { background: #e8e2d4; }
-.tab-btn.active { background: #fffefb; border-color: #bfae88; color: #0550ae; font-weight: 600; }
-a.tab-btn { text-decoration: none; display: inline-block; box-sizing: border-box; }
+.tab-btn.active { background: #fffefb; border-color: #bfae88; color: #0550ae; }
+.tab-btn:focus-visible { outline: 2px solid #bfae88; outline-offset: 2px; }
 .account-section-page { margin-top: 0.2rem; }
 .account-section-page > h2 { font-size: 1.18rem; font-weight: 620; color: #1f2328; margin: 0 0 0.55rem; padding-bottom: 0.35rem; border-bottom: 1px solid #e8e2d4; }
 .account-subpage-footer { margin-top: 1.25rem; }
@@ -484,25 +504,33 @@ a.tab-btn { text-decoration: none; display: inline-block; box-sizing: border-box
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  min-height: min(72vh, 44rem);
+  padding-bottom: 0.55rem;
 }
 .account-card-body:has(#account-section-vip) .account-subpage-footer {
-  margin-top: auto;
-  padding-top: 0.6rem;
+  margin-top: 0.65rem;
+  padding-top: 0;
 }
 #account-section-vip {
-  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   text-align: center;
-  padding: 0.35rem 0.75rem 0.85rem;
+  margin-top: 0.2rem;
+  padding: 0 0.75rem 0.35rem;
   box-sizing: border-box;
 }
-#account-section-vip > h2 {
+#account-section-vip::before {
+  content: "";
+  display: block;
+  flex-shrink: 0;
+  width: 100%;
   align-self: stretch;
-  text-align: center;
+  box-sizing: border-box;
+  margin: 0 0 0.55rem;
+  height: calc(1.18rem * 1.22 + 0.35rem + 1px);
+  border-bottom: 1px solid #e8e2d4;
+  pointer-events: none;
 }
 #account-section-vip > p.muted {
   max-width: 28rem;
@@ -512,6 +540,7 @@ a.tab-btn { text-decoration: none; display: inline-block; box-sizing: border-box
 #account-section-vip .vip-tier-root {
   width: 100%;
   max-width: 24rem;
+  margin-top: 0;
   margin-left: auto;
   margin-right: auto;
 }
@@ -693,8 +722,7 @@ fn account_avatar_emoji(account_key: [u8; 32]) -> &'static str {
     AVATARS[idx]
 }
 
-fn explorer_format_u64_commas(n: u64) -> String {
-    let s = n.to_string();
+fn explorer_format_u64_dec_groups(s: &str) -> String {
     let mut out = String::new();
     for (i, ch) in s.chars().enumerate() {
         if i > 0 && (s.len() - i) % 3 == 0 {
@@ -703,6 +731,19 @@ fn explorer_format_u64_commas(n: u64) -> String {
         out.push(ch);
     }
     out
+}
+
+fn explorer_format_u64_commas(n: u64) -> String {
+    explorer_format_u64_dec_groups(&n.to_string())
+}
+
+/// Coin amounts in HTML: cent sign, space, then the integer (with thousands grouping).
+fn explorer_format_coins_u64(n: u64) -> String {
+    format!("¢ {}", explorer_format_u64_commas(n))
+}
+
+fn explorer_format_coins_u128(n: u128) -> String {
+    format!("¢ {}", explorer_format_u64_dec_groups(&n.to_string()))
 }
 
 /// Human-readable refill period for the VIP meter suffix (e.g. 600 → "10 minutes").
@@ -780,8 +821,8 @@ fn explorer_vip_tab_inner(
     let period_label = explorer_format_period_for_bar(pr.period);
     let suffix = format!("/ per {}", period_label);
     let discount_label = explorer_vip_discount_percent_label(txfee.discount);
-    let direct_str = explorer_format_u64_commas(txfee.direct_credit);
-    let limit_str = explorer_format_u64_commas(pr.limit);
+    let direct_coins = explorer_format_coins_u64(txfee.direct_credit);
+    let limit_coins = explorer_format_coins_u64(pr.limit);
     format!(
         r#"<div class="vip-tier-root">
 <div class="vip-card {}" role="img" aria-label="{} VIP card">
@@ -797,7 +838,7 @@ fn explorer_vip_tab_inner(
 </div>
 <p class="muted" style="margin:0.45rem 0 0;font-size:0.78rem"><span class="mono" data-vip-cur-left>—</span> left of <span class="mono">{}</span> per period</p>
 </div>
-<dl class="vip-stat-line"><dt>Direct credit</dt><dd class="mono">{} sats</dd></dl>
+<dl class="vip-stat-line"><dt>Direct credit</dt><dd class="mono">{}</dd></dl>
 <dl class="vip-stat-line"><dt>Fee discount (of post-direct fee)</dt><dd class="mono">{}</dd></dl>
 </div>"#,
         card_class,
@@ -809,8 +850,8 @@ fn explorer_vip_tab_inner(
         pr.latest_left,
         latest_activity_timestamp,
         html_escape(&suffix),
-        html_escape(&limit_str),
-        html_escape(&direct_str),
+        html_escape(&limit_coins),
+        html_escape(&direct_coins),
         html_escape(&discount_label),
     )
 }
@@ -1093,15 +1134,15 @@ async fn page_account_section(
         cm.get_account_balance(account_key)
     };
     let coin_balance_text = coin_balance
-        .map(|v| v.to_string())
+        .map(explorer_format_coins_u64)
         .unwrap_or_else(|| "N/A".to_string());
     let coin_manager_account_json = {
         let cm = st.coin_manager.lock().await;
         cm.get_account_body(account_key)
             .map(|body| {
                 serde_json::json!({
-                    "balance": body.balance.to_string(),
-                    "global_shadow_allocs_sum": body.global_shadow_allocs_sum.to_string(),
+                    "balance": explorer_format_coins_u64(body.balance),
+                    "global_shadow_allocs_sum": explorer_format_coins_u128(body.global_shadow_allocs_sum),
                 })
             })
             .unwrap_or(serde_json::Value::Null)
@@ -1136,8 +1177,7 @@ async fn page_account_section(
             history_rows,
         ),
         AccountExplorerSection::Vip => format!(
-            r#"<article class="account-section-page" id="account-section-vip" aria-labelledby="account-section-vip-heading">
-<h2 id="account-section-vip-heading">V.I.P.</h2>
+            r#"<article class="account-section-page" id="account-section-vip" aria-label="V.I.P.">
 {}
 </article>
 {}"#,
