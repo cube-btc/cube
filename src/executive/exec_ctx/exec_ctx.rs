@@ -4,6 +4,7 @@ use crate::constructive::core_types::valtypes::val::long_val::long_val::LongVal;
 use crate::constructive::core_types::valtypes::val::short_val::short_val::ShortVal;
 use crate::constructive::entry::entry::entry::Entry;
 use crate::constructive::entry::entry_fees::entry_fees::EntryFees;
+use crate::constructive::entry::entry_kinds::config::config::Config;
 use crate::constructive::txn::ext::OutpointExt;
 use crate::constructive::txout_types::payload::payload::Payload;
 use crate::constructive::txout_types::projector::projector::Projector;
@@ -24,6 +25,7 @@ use crate::{
     constructive::entry::entry_kinds::liftup::liftup::Liftup,
     constructive::entry::entry_kinds::r#move::r#move::Move,
     constructive::entry::entry_kinds::swapout::swapout::Swapout,
+    executive::entry_executions::config_execution::error::config_execution_error::ConfigExecutionError,
     executive::entry_executions::liftup_execution::error::liftup_execution_error::LiftupExecutionError,
     executive::entry_executions::move_execution::error::move_execution_error::MoveExecutionError,
     executive::entry_executions::swapout_execution::error::swapout_execution_error::SwapoutExecutionError,
@@ -672,6 +674,23 @@ impl ExecCtx {
                         Err(error) => return Err(BatchExecutionError::SwapoutExecutionError(error)),
                     }
                 }
+                Entry::Config(config) => {
+                    match self.execute_config_internal(&config, batch_timestamp).await {
+                        Ok(fees) => {
+                            executed_entries.push(Entry::new_config(config.clone()));
+                            executed_entry_fees.push(fees);
+                            if let Some(all_collected_bits) = collected_entry_ape_bits.as_mut() {
+                                all_collected_bits.push(collected_bits_text.clone());
+                            }
+                            let sighash = config
+                                .sighash()
+                                .map_err(BatchExecutionError::ConfigSighashError)?;
+                            executed_entry_sighashes.push(sighash);
+                            executed_entry_account_bls_keys.push(config.root_account.bls_key());
+                        }
+                        Err(error) => return Err(BatchExecutionError::ConfigExecutionError(error)),
+                    }
+                }
                 _ => panic!("Not implemented yet."),
             }
         }
@@ -766,6 +785,20 @@ impl ExecCtx {
             .await
         {
             Ok(_) => Ok(Entry::new_swapout(swapout.clone())),
+            Err(error) => Err(error),
+        }
+    }
+
+    pub async fn execute_config(
+        &mut self,
+        config: &Config,
+        execution_timestamp: u64,
+    ) -> Result<Entry, ConfigExecutionError> {
+        match self
+            .execute_config_internal(config, execution_timestamp)
+            .await
+        {
+            Ok(_) => Ok(Entry::new_config(config.clone())),
             Err(error) => Err(error),
         }
     }

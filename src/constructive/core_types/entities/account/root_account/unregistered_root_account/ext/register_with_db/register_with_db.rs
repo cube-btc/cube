@@ -48,6 +48,7 @@ impl UnregisteredRootAccount {
                     execution_timestamp,
                     Some(self.bls_key_to_be_configured),
                     None,
+                    None,
                     self.flame_config_to_be_configured.clone(),
                 )
                 .map_err(|e| {

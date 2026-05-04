@@ -8,6 +8,7 @@ pub enum PackageKind {
     LiftupV1Protocol,
     MoveProtocol,
     SwapoutProtocol,
+    ConfigProtocol,
     BatchRecordProtocol,
     InFlightSyncProtocol,
     BatchContainerProtocol,
@@ -25,6 +26,7 @@ impl PackageKind {
             PackageKind::BatchContainerProtocol => 0x05,
             PackageKind::BatchContainerByPrevOutpointProtocol => 0x06,
             PackageKind::SwapoutProtocol => 0x07,
+            PackageKind::ConfigProtocol => 0x08,
         }
     }
     pub fn from_bytecode(bytecode: u8) -> Option<Self> {
@@ -37,6 +39,7 @@ impl PackageKind {
             0x05 => Some(PackageKind::BatchContainerProtocol),
             0x06 => Some(PackageKind::BatchContainerByPrevOutpointProtocol),
             0x07 => Some(PackageKind::SwapoutProtocol),
+            0x08 => Some(PackageKind::ConfigProtocol),
             _ => None,
         }
     }

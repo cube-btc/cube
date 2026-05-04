@@ -50,6 +50,7 @@ impl UnregisteredAccount {
                     None,
                     None,
                     None,
+                    None,
                 )
                 .map_err(|e| {
                     UnregisteredAccountRegisterWithDBError::RegisteryRegisterAccountError(e)

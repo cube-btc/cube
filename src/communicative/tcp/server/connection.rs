@@ -151,6 +151,15 @@ pub async fn handle_package(
                     )
                     .await
                 }
+                PackageKind::ConfigProtocol => {
+                    let session_pool = Arc::clone(session_pool);
+                    crate::communicative::tcp::protocol::config::server::handle_config_request(
+                        package.timestamp(),
+                        &package.payload(),
+                        &session_pool,
+                    )
+                    .await
+                }
                 PackageKind::BatchRecordProtocol => {
                     let archival_manager = archival_manager.clone();
                     crate::communicative::tcp::protocol::batchrecord::server::handle_batchrecord_request(

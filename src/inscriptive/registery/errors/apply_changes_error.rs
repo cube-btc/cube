@@ -14,6 +14,7 @@ pub enum RMApplyChangesError {
     AccountBLSKeyInsertError(AccountKey, sled::Error),
     AccountSecondaryAggregationKeyInsertError(AccountKey, sled::Error),
     AccountFlameConfigInsertError(AccountKey, sled::Error),
+    AccountProjectorConfigInsertError(AccountKey, sled::Error),
     AccountNotFoundInMemory(AccountKey),
     AccountCallCounterUpdateError(AccountKey, u64, sled::Error),
     AccountLastActivityTimestampUpdateError(AccountKey, u64, sled::Error),

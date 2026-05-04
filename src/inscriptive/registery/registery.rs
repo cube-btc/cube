@@ -15,6 +15,7 @@ use crate::inscriptive::registery::errors::register_contract_error::RMRegisterCo
 use crate::inscriptive::registery::errors::update_account_bls_key_error::RMUpdateAccountBLSKeyError;
 use crate::inscriptive::registery::errors::update_account_call_counter_and_last_activity_timestamp_error::RMUpdateAccountCallCounterAndLastActivityTimestampError;
 use crate::inscriptive::registery::errors::update_account_flame_config_error::RMUpdateAccountFlameConfigError;
+use crate::inscriptive::registery::errors::update_account_projector_config_error::RMUpdateAccountProjectorConfigError;
 use crate::inscriptive::registery::errors::update_account_secondary_aggregation_key_error::RMUpdateAccountSecondaryAggregationKeyError;
 use crate::inscriptive::registery::errors::update_contract_call_counter_and_last_activity_timestamp_error::RMUpdateContractCallCounterAndLastActivityTimestampError;
 use crate::operative::run_args::chain::Chain;
@@ -31,6 +32,9 @@ type AccountBLSKey = [u8; 48];
 
 /// Secondary aggregation key of an account (in case needed for post-quantum security).
 type AccountSecondaryAggregationKey = Vec<u8>;
+
+/// Projector config key of an account.
+type AccountProjectorConfig = [u8; 32];
 
 /// Contract ID.
 type ContractId = [u8; 32];
@@ -61,6 +65,9 @@ const LAST_ACTIVITY_TIMESTAMP_SPECIAL_DB_KEY: [u8; 1] = [0x05; 1];
 
 /// Special db key for account flame config (0x06..).
 const ACCOUNT_FLAME_CONFIG_SPECIAL_DB_KEY: [u8; 1] = [0x06; 1];
+
+/// Special db key for projector config (0x07..).
+const PROJECTOR_CONFIG_SPECIAL_DB_KEY: [u8; 1] = [0x07; 1];
 
 /// A struct for managing the registery of accounts and contracts.
 #[allow(dead_code)]
@@ -133,6 +140,9 @@ impl Registery {
 
             // 4.5 Initialize the flame config to None.
             let mut flame_config: Option<FMAccountFlameConfig> = None;
+
+            // 4.6 Initialize the projector config to None.
+            let mut projector_config: Option<AccountProjectorConfig> = None;
 
             // 4.5 Open the tree associated with the account.
             let tree = accounts_db
@@ -229,6 +239,19 @@ impl Registery {
                             flame_config = Some(flame_config_deserialized);
                         }
                     }
+                    // 0x07 key byte represents the projector config.
+                    PROJECTOR_CONFIG_SPECIAL_DB_KEY => {
+                        if value.as_ref().len() > 0 {
+                            let projector_config_bytes: [u8; 32] =
+                                value.as_ref().try_into().map_err(|_| {
+                                    RMConstructionError::UnableToDeserializeAccountProjectorConfigBytesFromTreeValue(
+                                        account_key,
+                                        value.to_vec(),
+                                    )
+                                })?;
+                            projector_config = Some(projector_config_bytes);
+                        }
+                    }
                     // Invalid db key byte.
                     _ => {
                         return Err(RMConstructionError::InvalidAccountDbKeyByte(
@@ -246,6 +269,7 @@ impl Registery {
                 last_activity_timestamp,
                 bls_key,
                 secondary_aggregation_key,
+                projector_config,
                 flame_config,
             );
 
@@ -551,11 +575,11 @@ impl Registery {
             return Some(*ts);
         }
 
-        if let Some((_, last_activity_timestamp, _, _, _)) = self
+        if let Some((_, last_activity_timestamp, _, _, _, _)) = self
             .delta
             .new_accounts_to_register
             .iter()
-            .find(|(key, _, _, _, _)| key == &account_key)
+            .find(|(key, _, _, _, _, _)| key == &account_key)
         {
             return Some(*last_activity_timestamp);
         }
@@ -576,11 +600,11 @@ impl Registery {
         }
 
         // 2 Try to get from the delta's new accounts to register (ephemeral registrations).
-        if let Some((_, _, _, _, flame_config)) = self
+        if let Some((_, _, _, _, _, flame_config)) = self
             .delta
             .new_accounts_to_register
             .iter()
-            .find(|(key, _, _, _, _)| key == &account_key)
+            .find(|(key, _, _, _, _, _)| key == &account_key)
         {
             if let Some(flame_config) = flame_config {
                 return Some(flame_config.clone());
@@ -768,6 +792,7 @@ impl Registery {
         last_activity_timestamp: u64,
         bls_key: Option<AccountBLSKey>,
         secondary_aggregation_key: Option<AccountSecondaryAggregationKey>,
+        projector_config: Option<AccountProjectorConfig>,
         flame_config: Option<FMAccountFlameConfig>,
     ) -> Result<(), RMRegisterAccountError> {
         // 1 Check if the account has just been epheremally registered in the delta.
@@ -799,6 +824,7 @@ impl Registery {
             last_activity_timestamp,
             bls_key,
             secondary_aggregation_key,
+            projector_config,
             flame_config,
         );
 
@@ -982,6 +1008,39 @@ impl Registery {
         Ok(previous_secondary_aggregation_key)
     }
 
+    /// Epheremally sets or updates an account's projector config.
+    ///
+    /// NOTE: These changes are saved with the use of the `apply_changes` function.
+    pub fn set_or_update_account_projector_config(
+        &mut self,
+        account_key: AccountKey,
+        projector_config: AccountProjectorConfig,
+    ) -> Result<Option<AccountProjectorConfig>, RMUpdateAccountProjectorConfigError> {
+        // 1 Check if the account is registered and return its body.
+        let account_body = self.in_memory_accounts.get(&account_key).ok_or(
+            RMUpdateAccountProjectorConfigError::AccountIsNotRegistered(account_key),
+        )?;
+
+        // 2 Get the existing projector config if it was set before.
+        let previous_projector_config: Option<AccountProjectorConfig> = account_body.projector_config;
+
+        // 3 Update the projector config in the delta, and return an error if it has already been epheremally updated in the same execution.
+        if let Some(existing_projector_config) = self
+            .delta
+            .epheremally_set_or_update_account_projector_config(account_key, projector_config)
+        {
+            return Err(
+                RMUpdateAccountProjectorConfigError::ProjectorConfigIsAlreadyEpheremallyUpdated(
+                    account_key,
+                    existing_projector_config,
+                ),
+            );
+        }
+
+        // 4 Return the previous projector config.
+        Ok(previous_projector_config)
+    }
+
     /// Epheremally sets or updates an account's flame config.
     pub fn set_or_update_account_flame_config(
         &mut self,
@@ -1048,6 +1107,7 @@ impl Registery {
                 last_activity_timestamp,
                 bls_key,
                 secondary_aggregation_key,
+                projector_config,
                 flame_config,
             ),
         ) in self.delta.new_accounts_to_register.iter().enumerate()
@@ -1135,6 +1195,14 @@ impl Registery {
                             RMApplyChangesError::AccountFlameConfigInsertError(*account_key, e)
                         })?;
                 }
+
+                // 1.4.8 Insert the projector config on-disk if present.
+                if let Some(projector_config) = projector_config {
+                    tree.insert(PROJECTOR_CONFIG_SPECIAL_DB_KEY, projector_config.as_slice())
+                        .map_err(|e| {
+                            RMApplyChangesError::AccountProjectorConfigInsertError(*account_key, e)
+                        })?;
+                }
             }
 
             // 1.5 In-memory insertion.
@@ -1146,6 +1214,7 @@ impl Registery {
                     *last_activity_timestamp,
                     *bls_key,
                     secondary_aggregation_key.clone(),
+                    *projector_config,
                     flame_config.clone(),
                 );
 
@@ -1463,8 +1532,8 @@ impl Registery {
             }
         }
 
-        // 9 Update account flame configs.
-        for (account_key, flame_config) in self.delta.updated_account_flame_configs.iter() {
+        // 9 Update account projector configs.
+        for (account_key, projector_config) in self.delta.updated_projector_configs.iter() {
             // 9.1 Get the mutable account body from the in-memory list.
             let mut_account_body = self
                 .in_memory_accounts
@@ -1479,30 +1548,57 @@ impl Registery {
                     .open_tree(account_key)
                     .map_err(|e| RMApplyChangesError::AccountTreeOpenError(*account_key, e))?;
 
-                // 9.2.2 Update the flame config on-disk.
+                // 9.2.2 Update the projector config on-disk.
+                tree.insert(PROJECTOR_CONFIG_SPECIAL_DB_KEY, projector_config.as_slice())
+                    .map_err(|e| {
+                        RMApplyChangesError::AccountProjectorConfigInsertError(*account_key, e)
+                    })?;
+            }
+
+            // 9.3 In-memory update.
+            mut_account_body.projector_config = Some(*projector_config);
+        }
+
+        // 10 Update account flame configs.
+        for (account_key, flame_config) in self.delta.updated_account_flame_configs.iter() {
+            // 10.1 Get the mutable account body from the in-memory list.
+            let mut_account_body = self
+                .in_memory_accounts
+                .get_mut(account_key)
+                .ok_or(RMApplyChangesError::AccountNotFoundInMemory(*account_key))?;
+
+            // 10.2 On-disk update.
+            {
+                // 10.2.1 Open the tree for the account.
+                let tree = self
+                    .on_disk_accounts
+                    .open_tree(account_key)
+                    .map_err(|e| RMApplyChangesError::AccountTreeOpenError(*account_key, e))?;
+
+                // 10.2.2 Update the flame config on-disk.
                 tree.insert(ACCOUNT_FLAME_CONFIG_SPECIAL_DB_KEY, flame_config.to_bytes())
                     .map_err(|e| {
                         RMApplyChangesError::AccountFlameConfigInsertError(*account_key, e)
                     })?;
             }
 
-            // 9.3 In-memory update.
+            // 10.3 In-memory update.
             mut_account_body.flame_config = Some(flame_config.clone());
         }
 
-        // 10 Re-rank accounts after all changes.
+        // 11 Re-rank accounts after all changes.
         {
             let new_ranked_accounts = Self::rank_accounts(&self.in_memory_accounts);
             self.in_memory_account_ranks = new_ranked_accounts;
         }
 
-        // 11 Re-rank contracts after all changes.
+        // 12 Re-rank contracts after all changes.
         {
             let new_ranked_contracts = Self::rank_contracts(&self.in_memory_contracts);
             self.in_memory_contract_ranks = new_ranked_contracts;
         }
 
-        // 12 Return the result.
+        // 13 Return the result.
         Ok(())
     }
 

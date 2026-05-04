@@ -1,3 +1,4 @@
+use crate::constructive::entry::entry_kinds::config::ext::codec::sbe::decode::error::decode_error::ConfigSBEDecodeError;
 use crate::constructive::entry::entry_kinds::liftup::ext::codec::sbe::decode::error::LiftupSBEDecodeError;
 use crate::constructive::entry::entry_kinds::r#move::ext::codec::sbe::decode::error::decode_error::MoveSBEDecodeError;
 use crate::constructive::entry::entry_kinds::swapout::ext::codec::sbe::decode::error::decode_error::SwapoutSBEDecodeError;
@@ -20,4 +21,6 @@ pub enum EntrySBEDecodeError {
     LiftupSBEDecodeError(LiftupSBEDecodeError),
     /// Decoding the `Swapout` SBE bytes failed.
     SwapoutSBEDecodeError(SwapoutSBEDecodeError),
+    /// Decoding the `Config` SBE bytes failed.
+    ConfigSBEDecodeError(ConfigSBEDecodeError),
 }

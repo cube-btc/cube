@@ -7,6 +7,9 @@ type AccountBLSKey = [u8; 48];
 /// Secondary aggregation key of an account (in case needed for post-quantum security).
 type AccountSecondaryAggregationKey = Vec<u8>;
 
+/// Projector config key of an account.
+type AccountProjectorConfig = [u8; 32];
+
 // A struct for containing the registery index and call counter of an account.
 #[derive(Clone)]
 pub struct RMAccountBody {
@@ -25,6 +28,9 @@ pub struct RMAccountBody {
     // Secondary aggregation key of an account.
     pub secondary_aggregation_key: Option<AccountSecondaryAggregationKey>,
 
+    // Projector config of an account.
+    pub projector_config: Option<AccountProjectorConfig>,
+
     // Flame config of an account.
     pub flame_config: Option<FMAccountFlameConfig>,
 }
@@ -37,6 +43,7 @@ impl RMAccountBody {
         last_activity_timestamp: u64,
         primary_bls_key: Option<AccountBLSKey>,
         secondary_aggregation_key: Option<AccountSecondaryAggregationKey>,
+        projector_config: Option<AccountProjectorConfig>,
         flame_config: Option<FMAccountFlameConfig>,
     ) -> Self {
         Self {
@@ -45,6 +52,7 @@ impl RMAccountBody {
             last_activity_timestamp,
             primary_bls_key,
             secondary_aggregation_key,
+            projector_config,
             flame_config,
         }
     }
@@ -90,7 +98,16 @@ impl RMAccountBody {
             },
         );
 
-        // 7 Insert the flame config.
+        // 7 Insert the projector config.
+        obj.insert(
+            "projector_config".to_string(),
+            match &self.projector_config {
+                Some(config) => Value::String(hex::encode(config)),
+                None => Value::Null,
+            },
+        );
+
+        // 8 Insert the flame config.
         obj.insert(
             "flame_config".to_string(),
             match &self.flame_config {
@@ -99,7 +116,7 @@ impl RMAccountBody {
             },
         );
 
-        // 8 Return the account body JSON object.
+        // 9 Return the account body JSON object.
         Value::Object(obj)
     }
 }

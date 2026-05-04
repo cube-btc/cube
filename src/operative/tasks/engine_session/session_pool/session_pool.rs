@@ -1,6 +1,7 @@
 use crate::constructive::bitcoiny::batch_container::batch_container::BatchContainer;
 use crate::constructive::bitcoiny::batch_txn::signed_batch_txn::signed_batch_txn::SignedBatchTxn;
 use crate::constructive::entry::entry::entry::Entry;
+use crate::constructive::entry::entry_kinds::config::config::Config;
 use crate::constructive::entry::entry_kinds::liftup::liftup::Liftup;
 use crate::constructive::entry::entry_kinds::r#move::r#move::Move;
 use crate::constructive::entry::entry_kinds::swapout::swapout::Swapout;
@@ -22,6 +23,7 @@ use crate::inscriptive::sync_manager::sync_manager::SYNC_MANAGER;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
 use crate::operative::tasks::engine_session::session_pool::error::exec_liftup_in_pool_error::ExecLiftupInPoolError;
 use crate::operative::tasks::engine_session::session_pool::error::exec_move_in_pool_error::ExecMoveInPoolError;
+use crate::operative::tasks::engine_session::session_pool::error::exec_config_in_pool_error::ExecConfigInPoolError;
 use crate::operative::tasks::engine_session::session_pool::error::exec_swapout_in_pool_error::ExecSwapoutInPoolError;
 use crate::operative::tasks::engine_session::session_pool::error::into_batch_container_error::IntoBatchContainerError;
 use crate::transmutative::bls::agg::bls_aggregate;
@@ -625,6 +627,77 @@ impl SessionPool {
                     self.exec_ctx.lock().await.rollback_last().await;
                 }
                 Err(ExecSwapoutInPoolError::SwapoutExecutionError(format!(
+                    "{error:?}"
+                )))
+            }
+        }
+    }
+
+    pub async fn exec_config_in_pool(
+        &mut self,
+        config: &Config,
+        config_bls_signature: [u8; 96],
+    ) -> Result<(EntryId, Entry, BatchHeight, BatchTimestamp), ExecConfigInPoolError> {
+        match self.state {
+            SessionPoolState::Inactive => return Err(ExecConfigInPoolError::SessionInactiveError),
+            SessionPoolState::Suspended => return Err(ExecConfigInPoolError::SessionSuspendedError),
+            SessionPoolState::Break => return Err(ExecConfigInPoolError::SessionBreakError),
+            _ => {
+                if self.added_entries.len() >= MAX_IN_POOL_ENTRIES {
+                    return Err(ExecConfigInPoolError::PoolOverloadedError);
+                }
+            }
+        };
+
+        let (batch_height, batch_timestamp, _) = self
+            .batch_info
+            .ok_or(ExecConfigInPoolError::BatchInfoNotFoundError)?;
+
+        config
+            .bls_verify(config_bls_signature)
+            .map_err(|err| ExecConfigInPoolError::ConfigBLSVerifyError(format!("{err:?}")))?;
+
+        config
+            .root_account
+            .validate_root_account(&self.registery, &self.graveyard)
+            .await
+            .map_err(|err| ExecConfigInPoolError::ConfigValidateRootAccountError(format!("{err:?}")))?;
+
+        if let Err((targeted_at_batch_height, execution_batch_height)) =
+            config.target.validate(batch_height)
+        {
+            return Err(ExecConfigInPoolError::ConfigValidateTargetError {
+                targeted_at_batch_height,
+                execution_batch_height,
+            });
+        }
+
+        {
+            let mut _exec_ctx = self.exec_ctx.lock().await;
+            _exec_ctx.pre_execution().await;
+        }
+
+        let config_result = {
+            let mut exec_ctx = self.exec_ctx.lock().await;
+            exec_ctx.execute_config(config, batch_timestamp).await
+        };
+
+        match config_result {
+            Ok(config_entry) => {
+                let entry_index_in_batch = self.added_entries.len() as u32;
+                let entry_id = config_entry
+                    .entry_id(batch_height, entry_index_in_batch)
+                    .ok_or(ExecConfigInPoolError::EntryIdDerivationError)?;
+                self.added_entries.push(config_entry.clone());
+                self.added_individual_entry_bls_signatures
+                    .push(config_bls_signature);
+                Ok((entry_id, config_entry, batch_height, batch_timestamp))
+            }
+            Err(error) => {
+                {
+                    self.exec_ctx.lock().await.rollback_last().await;
+                }
+                Err(ExecConfigInPoolError::ConfigExecutionError(format!(
                     "{error:?}"
                 )))
             }

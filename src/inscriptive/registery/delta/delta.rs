@@ -11,6 +11,9 @@ type AccountBLSKey = [u8; 48];
 /// Secondary aggregation key of an account (in case needed for post-quantum security).
 type AccountSecondaryAggregationKey = Vec<u8>;
 
+/// Projector config key of an account.
+type AccountProjectorConfig = [u8; 32];
+
 /// Contract ID.
 type ContractId = [u8; 32];
 
@@ -31,6 +34,7 @@ pub struct RMDelta {
         ActivityTimestamp,
         Option<AccountBLSKey>,
         Option<AccountSecondaryAggregationKey>,
+        Option<AccountProjectorConfig>,
         Option<FMAccountFlameConfig>,
     )>,
 
@@ -42,6 +46,9 @@ pub struct RMDelta {
 
     // Updated secondary aggregation keys for a given account.
     pub updated_secondary_aggregation_keys: HashMap<AccountKey, AccountSecondaryAggregationKey>,
+
+    // Updated projector configs for a given account.
+    pub updated_projector_configs: HashMap<AccountKey, AccountProjectorConfig>,
 
     // Updated account last activity timestamps.
     pub updated_account_last_activity_timestamps: HashMap<AccountKey, ActivityTimestamp>,
@@ -69,6 +76,7 @@ impl RMDelta {
             updated_account_call_counters: HashMap::new(),
             updated_bls_keys: HashMap::new(),
             updated_secondary_aggregation_keys: HashMap::new(),
+            updated_projector_configs: HashMap::new(),
             updated_account_last_activity_timestamps: HashMap::new(),
             updated_account_flame_configs: HashMap::new(),
             new_contracts_to_register: Vec::new(),
@@ -83,6 +91,7 @@ impl RMDelta {
         self.updated_account_call_counters.clear();
         self.updated_bls_keys.clear();
         self.updated_secondary_aggregation_keys.clear();
+        self.updated_projector_configs.clear();
         self.updated_account_last_activity_timestamps.clear();
         self.updated_account_flame_configs.clear();
         self.new_contracts_to_register.clear();
@@ -94,7 +103,7 @@ impl RMDelta {
     pub fn is_account_epheremally_registered(&self, account_key: AccountKey) -> bool {
         self.new_accounts_to_register
             .iter()
-            .any(|(key, _, _, _, _)| key == &account_key)
+            .any(|(key, _, _, _, _, _)| key == &account_key)
     }
 
     /// Checks if a contract has just been epheremally registered in the delta.
@@ -111,6 +120,7 @@ impl RMDelta {
         last_activity_timestamp: ActivityTimestamp,
         primary_bls_key: Option<AccountBLSKey>,
         secondary_aggregation_key: Option<AccountSecondaryAggregationKey>,
+        projector_config: Option<AccountProjectorConfig>,
         flame_config: Option<FMAccountFlameConfig>,
     ) {
         self.new_accounts_to_register.push((
@@ -118,6 +128,7 @@ impl RMDelta {
             last_activity_timestamp,
             primary_bls_key,
             secondary_aggregation_key,
+            projector_config,
             flame_config,
         ));
     }
@@ -197,6 +208,16 @@ impl RMDelta {
     ) -> Option<AccountSecondaryAggregationKey> {
         self.updated_secondary_aggregation_keys
             .insert(account_key, secondary_aggregation_key)
+    }
+
+    /// Epheremally sets or updates an account projector config.
+    pub fn epheremally_set_or_update_account_projector_config(
+        &mut self,
+        account_key: AccountKey,
+        projector_config: AccountProjectorConfig,
+    ) -> Option<AccountProjectorConfig> {
+        self.updated_projector_configs
+            .insert(account_key, projector_config)
     }
 
     /// Epheremally updates an account's last activity timestamp.

@@ -1,4 +1,5 @@
 use crate::{constructive::entry::entry_kinds::call::call::Call, transmutative::hash::Hash};
+use crate::constructive::entry::entry_kinds::config::config::Config;
 use crate::constructive::entry::entry_kinds::liftup::liftup::Liftup;
 use crate::constructive::entry::entry_kinds::r#move::r#move::Move;
 use crate::constructive::entry::entry_kinds::swapout::swapout::Swapout;
@@ -18,7 +19,7 @@ pub enum Entry {
     Liftup(Liftup),
     Swapout(Swapout),
     //Deploy(DeployEntry),
-    //Config(ConfigEntry),
+    Config(Config),
     //Nop(NopEntry),
     //Fail(FailEntry),
 }
@@ -43,6 +44,10 @@ impl Entry {
         Self::Swapout(swapout)
     }
 
+    pub fn new_config(config: Config) -> Self {
+        Self::Config(config)
+    }
+
     /// Returns this entry as a JSON object.
     pub fn json(&self) -> Value {
         match self {
@@ -50,6 +55,7 @@ impl Entry {
             Entry::Call(call) => call.json(),
             Entry::Liftup(liftup) => liftup.json(),
             Entry::Swapout(swapout) => swapout.json(),
+            Entry::Config(config) => config.json(),
         }
     }
 
@@ -103,6 +109,14 @@ impl Entry {
                 preimage.extend(entry_index_in_batch.to_le_bytes());
                 preimage.extend(swapout.sighash().ok()?);
                 let hash = preimage.hash(Some(HashTag::SwapoutEntryID));
+                Some(hash)
+            }
+            Entry::Config(config) => {
+                let mut preimage = Vec::<u8>::new();
+                preimage.extend(batch_height.to_le_bytes());
+                preimage.extend(entry_index_in_batch.to_le_bytes());
+                preimage.extend(config.sighash().ok()?);
+                let hash = preimage.hash(Some(HashTag::ConfigEntryID));
                 Some(hash)
             }
         }

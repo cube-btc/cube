@@ -5,5 +5,6 @@ pub mod register_contract_error;
 pub mod update_account_bls_key_error;
 pub mod update_account_call_counter_and_last_activity_timestamp_error;
 pub mod update_account_flame_config_error;
+pub mod update_account_projector_config_error;
 pub mod update_account_secondary_aggregation_key_error;
 pub mod update_contract_call_counter_and_last_activity_timestamp_error;

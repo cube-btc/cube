@@ -27,6 +27,9 @@ impl Entry {
             Entry::Swapout(swapout) => swapout
                 .encode_sbe()
                 .map_err(EntrySBEEncodeError::SwapoutSBEEncodeError),
+            Entry::Config(config) => config
+                .encode_sbe()
+                .map_err(EntrySBEEncodeError::ConfigSBEEncodeError),
         }
     }
 }

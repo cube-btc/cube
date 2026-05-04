@@ -97,6 +97,24 @@ impl Entry {
                     .map_err(EntryAPEEncodeError::SwapoutAPEEncodeError)?;
                 bits.extend(swapout_bits);
             }
+            Entry::Config(config) => {
+                // 2.d.1 Push 11101 for the `Config` entry type.
+                bits.push(true);
+                bits.push(true);
+                bits.push(true);
+                bits.push(false);
+                bits.push(true);
+
+                let config_bits = config
+                    .encode_ape(
+                        execution_batch_height,
+                        registery,
+                        encode_account_rank_as_longval,
+                    )
+                    .await
+                    .map_err(EntryAPEEncodeError::ConfigAPEEncodeError)?;
+                bits.extend(config_bits);
+            }
         }
 
         // 3 Return the `Entry` APE bit vector.

@@ -2,6 +2,7 @@ use crate::communicative::peer::peer::PEER;
 use crate::inscriptive::archival_manager::archival_manager::ARCHIVAL_MANAGER;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
 use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
+use crate::inscriptive::flame_manager::flame_config::flame_config::FMAccountFlameConfig;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 use crate::inscriptive::params_manager::params_manager::PARAMS_MANAGER;
 use crate::inscriptive::privileges_manager::privileges_manager::PRIVILEGES_MANAGER;
@@ -529,6 +530,32 @@ pub async fn run_node_cli(
                 )
                 .await;
             }
+            "config" => {
+                let parsed = match parse_config_fields(&parts[1..]) {
+                    Some(v) => v,
+                    None => {
+                        eprintln!(
+                            "{}",
+                            "Usage: config [sak <secondary_aggregation_key_hex>] [pc <projector_config_32b_hex>] [fc <flame_config_hex_bytes>].".yellow()
+                        );
+                        continue;
+                    }
+                };
+                let (sak, pc, fc) = parsed;
+
+                node_commands::config::config_command(
+                    sak,
+                    pc,
+                    fc,
+                    key_holder,
+                    sync_manager,
+                    registery,
+                    coin_manager,
+                    params_manager,
+                    engine_conn,
+                )
+                .await;
+            }
             _ => eprintln!("{}", format!("Unknown commmand.").yellow()),
         }
     }
@@ -574,4 +601,45 @@ fn parse_32_byte_hex(s: &str) -> Option<[u8; 32]> {
     let s = s.trim_start_matches("0x");
     let bytes = hex::decode(s).ok()?;
     bytes.try_into().ok()
+}
+
+fn parse_config_fields(
+    args: &[String],
+) -> Option<(Option<Vec<u8>>, Option<[u8; 32]>, Option<FMAccountFlameConfig>)> {
+    let mut sak: Option<Vec<u8>> = None;
+    let mut pc: Option<[u8; 32]> = None;
+    let mut fc: Option<FMAccountFlameConfig> = None;
+
+    let mut i = 0usize;
+    while i < args.len() {
+        let key = args.get(i)?.as_str();
+        let value = args.get(i + 1)?;
+        match key {
+            "sak" => {
+                let bytes = hex::decode(value.trim_start_matches("0x")).ok()?;
+                sak = Some(bytes);
+            }
+            "pc" => {
+                let bytes = hex::decode(value.trim_start_matches("0x")).ok()?;
+                let arr: [u8; 32] = bytes.try_into().ok()?;
+                pc = Some(arr);
+            }
+            "fc" => {
+                let bytes = hex::decode(value.trim_start_matches("0x")).ok()?;
+                let flame_config = FMAccountFlameConfig::from_bytes(&bytes)?;
+                fc = Some(flame_config);
+            }
+            _ => return None,
+        }
+        i += 2;
+    }
+
+    if i != args.len() {
+        return None;
+    }
+    if sak.is_none() && pc.is_none() && fc.is_none() {
+        return None;
+    }
+
+    Some((sak, pc, fc))
 }

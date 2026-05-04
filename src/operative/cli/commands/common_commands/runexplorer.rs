@@ -742,10 +742,6 @@ fn explorer_format_coins_u64(n: u64) -> String {
     format!("¢ {}", explorer_format_u64_commas(n))
 }
 
-fn explorer_format_coins_u128(n: u128) -> String {
-    format!("¢ {}", explorer_format_u64_dec_groups(&n.to_string()))
-}
-
 /// Human-readable refill period for the VIP meter suffix (e.g. 600 → "10 minutes").
 fn explorer_format_period_for_bar(secs: u64) -> String {
     if secs == 0 {
@@ -1080,6 +1076,7 @@ async fn page_account_section(
             Entry::Call(_) => "📞 Call",
             Entry::Liftup(_) => "🛗 Liftup",
             Entry::Swapout(_) => "🚪 Swapout",
+            Entry::Config(_) => "⚙️ Config",
         };
         history_rows.push_str(&format!(
             r#"<tr><td>{1}</td><td><a class="row-link" href="/entry/{0}"><code class="mono">{0}</code></a></td><td><a class="row-link" href="/batch/height/{2}">#{2}</a></td><td>{3}</td></tr>"#,
@@ -1141,8 +1138,8 @@ async fn page_account_section(
         cm.get_account_body(account_key)
             .map(|body| {
                 serde_json::json!({
-                    "balance": explorer_format_coins_u64(body.balance),
-                    "global_shadow_allocs_sum": explorer_format_coins_u128(body.global_shadow_allocs_sum),
+                    "balance": body.balance.to_string(),
+                    "global_shadow_allocs_sum": body.global_shadow_allocs_sum.to_string(),
                 })
             })
             .unwrap_or(serde_json::Value::Null)
@@ -1450,6 +1447,7 @@ async fn page_entry_by_id(
         Entry::Move(_) => "💰 Move",
         Entry::Call(_) => "📞 Call",
         Entry::Swapout(_) => "🚪 Swapout",
+        Entry::Config(_) => "⚙️ Config",
     };
     let entry_accounts_html = match &entry {
         Entry::Move(move_entry) => format!(
@@ -1468,6 +1466,10 @@ async fn page_entry_by_id(
         Entry::Call(call) => format!(
             r#"<dt>Account</dt><dd>{}</dd>"#,
             account_link(call.account.account_key())
+        ),
+        Entry::Config(config) => format!(
+            r#"<dt>Account</dt><dd>{}</dd>"#,
+            account_link(config.root_account.account_key())
         ),
     };
     let collected_bits_html = match collected_bits {

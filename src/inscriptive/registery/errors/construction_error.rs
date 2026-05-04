@@ -21,6 +21,7 @@ pub enum RMConstructionError {
     UnableToDeserializeAccountPrimaryBLSKeyBytesFromTreeValue(AccountKey, Vec<u8>),
     UnableToDeserializeAccountSecondaryAggregationKeyBytesFromTreeValue(AccountKey, Vec<u8>),
     UnableToDeserializeAccountFlameConfigBytesFromTreeValue(AccountKey, Vec<u8>),
+    UnableToDeserializeAccountProjectorConfigBytesFromTreeValue(AccountKey, Vec<u8>),
     InvalidAccountDbKeyByte(AccountKey, Vec<u8>),
 
     /// Contract related errors.
