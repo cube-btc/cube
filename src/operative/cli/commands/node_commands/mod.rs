@@ -1,5 +1,6 @@
 pub mod batchrecord;
 pub mod coins;
+pub mod comp;
 pub mod conn;
 pub mod config;
 pub mod deploy;

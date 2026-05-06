@@ -8,12 +8,16 @@ use crate::executive::{
 };
 use serde_json::to_string_pretty;
 
+fn parse_hex_bytes(hex_str: &str) -> Result<Vec<u8>, hex::FromHexError> {
+    hex::decode(hex_str.trim().trim_start_matches("0x"))
+}
+
 /// Prints the current set of lifts in the wallet.
 pub fn decompile_command(parts: Vec<&str>) {
     match parts.get(1) {
         Some(part) => match part.to_owned() {
-            "executable" => decomp_executable(parts),
-            "method" => decomp_method(parts),
+            "program" | "executable" => decomp_program(parts),
+            "programmethod" | "method" => decomp_programmethod(parts),
             "script" => decomp_script(parts),
             _ => eprintln!("Unknown command."),
         },
@@ -21,39 +25,39 @@ pub fn decompile_command(parts: Vec<&str>) {
     }
 }
 
-/// Decompiles an executable from bytes.
-fn decomp_executable(parts: Vec<&str>) {
-    let executable_bytes_str = match parts.get(2) {
-        Some(executable_bytes_str) => executable_bytes_str,
+/// Decompiles a program from bytes.
+fn decomp_program(parts: Vec<&str>) {
+    let program_bytes_str = match parts.get(2) {
+        Some(program_bytes_str) => program_bytes_str,
         None => {
             eprintln!("Incorrect usage.");
             return;
         }
     };
 
-    let mut executable_bytestream = match hex::decode(executable_bytes_str) {
-        Ok(executable_bytes) => executable_bytes.into_iter(),
+    let mut program_bytestream = match parse_hex_bytes(program_bytes_str) {
+        Ok(program_bytes) => program_bytes.into_iter(),
         Err(_) => {
-            eprintln!("Invalid executable bytes.");
+            eprintln!("Invalid program bytes.");
             return;
         }
     };
 
-    let executable = match Executable::decompile(&mut executable_bytestream) {
-        Ok(executable) => executable,
+    let program = match Executable::decompile(&mut program_bytestream) {
+        Ok(program) => program,
         Err(e) => {
             eprintln!("{}", e);
             return;
         }
     };
 
-    let pretty_json = to_string_pretty(&executable.json()).unwrap();
+    let pretty_json = to_string_pretty(&program.json()).unwrap();
 
     println!("{}", pretty_json);
 }
 
-/// Decompiles a method from bytes.
-fn decomp_method(parts: Vec<&str>) {
+/// Decompiles a program method from bytes.
+fn decomp_programmethod(parts: Vec<&str>) {
     let method_bytes_str = match parts.get(2) {
         Some(method_bytes_str) => method_bytes_str,
         None => {
@@ -62,7 +66,7 @@ fn decomp_method(parts: Vec<&str>) {
         }
     };
 
-    let mut method_bytestream = match hex::decode(method_bytes_str) {
+    let mut method_bytestream = match parse_hex_bytes(method_bytes_str) {
         Ok(method_bytes) => method_bytes.into_iter(),
         Err(_) => {
             eprintln!("Invalid method bytes.");
@@ -92,7 +96,7 @@ fn decomp_script(parts: Vec<&str>) {
         }
     };
 
-    let mut opcode_bytestream = match hex::decode(script_bytes_str) {
+    let mut opcode_bytestream = match parse_hex_bytes(script_bytes_str) {
         Ok(opcode_bytes) => opcode_bytes.into_iter(),
         Err(_) => {
             eprintln!("Invalid opcode bytes.");

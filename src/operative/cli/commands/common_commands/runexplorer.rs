@@ -157,15 +157,17 @@ enum AccountExplorerSection {
 enum ContractExplorerSection {
     Registery,
     Privileges,
+    CoinManager,
 }
 
 impl ContractExplorerSection {
-    const ALL: [Self; 2] = [Self::Registery, Self::Privileges];
+    const ALL: [Self; 3] = [Self::Registery, Self::Privileges, Self::CoinManager];
 
     fn from_slug(s: &str) -> Option<Self> {
         match s.trim() {
             "registery" => Some(Self::Registery),
             "privileges" => Some(Self::Privileges),
+            "coin-manager" => Some(Self::CoinManager),
             _ => None,
         }
     }
@@ -174,6 +176,7 @@ impl ContractExplorerSection {
         match self {
             Self::Registery => "registery",
             Self::Privileges => "privileges",
+            Self::CoinManager => "coin-manager",
         }
     }
 
@@ -181,6 +184,7 @@ impl ContractExplorerSection {
         match self {
             Self::Registery => "Registery",
             Self::Privileges => "Privileges",
+            Self::CoinManager => "Coin Manager",
         }
     }
 
@@ -188,6 +192,7 @@ impl ContractExplorerSection {
         match self {
             Self::Registery => "Registery",
             Self::Privileges => "Privileges",
+            Self::CoinManager => "Coin manager",
         }
     }
 }
@@ -1412,7 +1417,7 @@ async fn page_account_section(
 <dl class="summary">
 <dt>Account key (hex)</dt><dd><div class="summary-copy-row"><code class="mono">{}</code><button type="button" class="copy-btn" data-copy-value="{}" aria-label="Copy account key hex" title="Copy account key hex">&#128203;</button></div></dd>
 <dt>Account npub</dt><dd><div class="summary-copy-row"><code class="mono">{}</code><button type="button" class="copy-btn" data-copy-value="{}" aria-label="Copy account npub" title="Copy account npub">&#128203;</button></div></dd>
-<dt>Last active</dt><dd>{}</dd>
+<dt>Last time called</dt><dd>{}</dd>
 <dt>Registery index</dt><dd>{}</dd>
 <dt>Call counter</dt><dd>{}</dd>
 <dt>Coins</dt><dd>{}</dd>
@@ -1496,7 +1501,7 @@ async fn page_contract_section(
             Html(layout(
                 "Contract — Cube explorer",
                 &format!(
-                    r#"<h1>Unknown contract section</h1><p>No tab <code class="mono">{}</code>. Use <code>registery</code> or <code>privileges</code>.</p><p><a class="row-link" href="/contracts">← Contracts</a></p>"#,
+                    r#"<h1>Unknown contract section</h1><p>No tab <code class="mono">{}</code>. Use <code>registery</code>, <code>privileges</code>, or <code>coin-manager</code>.</p><p><a class="row-link" href="/contracts">← Contracts</a></p>"#,
                     html_escape(section_slug.trim()),
                 ),
                 "",
@@ -1552,6 +1557,28 @@ async fn page_contract_section(
     };
     let privileges_pretty =
         serde_json::to_string_pretty(&privileges_json).unwrap_or_else(|_| "null".to_string());
+    let contract_coin_balance_text = {
+        let cm = st.coin_manager.lock().await;
+        cm.get_contract_balance(contract_key)
+            .map(explorer_format_coins_u64)
+            .unwrap_or_else(|| "N/A".to_string())
+    };
+    let contract_coin_manager_json_pretty = {
+        let cm = st.coin_manager.lock().await;
+        let v = cm
+            .get_contract_body(contract_key)
+            .map(|body| {
+                serde_json::json!({
+                    "balance": body.balance.to_string(),
+                    "shadow_space_allocs_sum": body.shadow_space.allocs_sum.to_string(),
+                    "allocs": body.shadow_space.allocs.iter().map(|(k, v)| {
+                        (hex::encode(k), serde_json::Value::String(v.to_string()))
+                    }).collect::<serde_json::Map<String, serde_json::Value>>(),
+                })
+            })
+            .unwrap_or(serde_json::Value::Null);
+        serde_json::to_string_pretty(&v).unwrap_or_else(|_| "null".to_string())
+    };
 
     let nav_html = contract_explorer_nav(contract_id.trim(), section);
     let section_block = match section {
@@ -1569,6 +1596,13 @@ async fn page_contract_section(
 </article>"#,
             html_escape(&privileges_pretty),
         ),
+        ContractExplorerSection::CoinManager => format!(
+            r#"<article class="account-section-page" id="contract-section-coin-manager" aria-labelledby="contract-section-coin-manager-heading">
+<h2 id="contract-section-coin-manager-heading">Coin Manager Contract Body</h2>
+<pre class="reg-json">{}</pre>
+</article>"#,
+            html_escape(&contract_coin_manager_json_pretty),
+        ),
     };
 
     let body = format!(
@@ -1577,7 +1611,7 @@ async fn page_contract_section(
 <div class="account-card-header">
 <section class="account-header-row">
 <div class="account-header-main">
-<div class="account-avatar" aria-label="Contract icon">📦</div>
+<div class="account-avatar" aria-label="Contract icon">📁</div>
 <div class="account-header-left">
 <h1>Contract</h1>
 <div class="account-head-row"><span class="account-npub-title">{}</span></div>
@@ -1589,10 +1623,11 @@ async fn page_contract_section(
 <section class="account-summary-wrap">
 <dl class="summary">
 <dt>Contract ID</dt><dd><div class="summary-copy-row"><code class="mono">{}</code><button type="button" class="copy-btn" data-copy-value="{}" aria-label="Copy contract id" title="Copy contract id">&#128203;</button></div></dd>
-<dt>Program</dt><dd>{}</dd>
+<dt>Program name</dt><dd>{}</dd>
 <dt>Last active</dt><dd>{}</dd>
 <dt>Registery index</dt><dd>{}</dd>
 <dt>Call counter</dt><dd>{}</dd>
+<dt>Coins</dt><dd>{}</dd>
 </dl>
 </section>
 </div>
@@ -1612,6 +1647,7 @@ async fn page_contract_section(
         explorer_timestamp_html(contract_body.last_activity_timestamp),
         contract_body.registery_index,
         contract_body.call_counter,
+        html_escape(&contract_coin_balance_text),
         nav_html,
         section_block,
     );
@@ -1689,7 +1725,7 @@ async fn page_contracts(State(st): State<ExplorerState>) -> Html<String> {
         "Contracts — Cube explorer",
         &format!(r#"<h1>Contracts</h1>
 <p class="muted">Contracts indexed by registery order.</p>
-<table class="entries-table"><thead><tr><th class="num">Index</th><th>Program</th><th>Contract ID</th><th class="num">Call counter</th><th>Last activity</th></tr></thead><tbody>{}</tbody></table>"#, table_rows),
+<table class="entries-table"><thead><tr><th class="num">Index</th><th>Program name</th><th>Contract ID</th><th class="num">Call counter</th><th>Last time called</th></tr></thead><tbody>{}</tbody></table>"#, table_rows),
         "",
     ))
 }
@@ -1978,7 +2014,8 @@ fn render_batch_page(chain: Chain, record: &BatchRecord) -> String {
             Entry::Move(move_entry) => explorer_format_coins_u64(move_entry.amount as u64),
             Entry::Liftup(liftup) => explorer_format_coins_u64(liftup.liftup_sum_value_in_satoshis()),
             Entry::Swapout(swapout) => explorer_format_coins_u64(swapout.amount as u64),
-            Entry::Call(_) | Entry::Deploy(_) | Entry::Config(_) => "N/A".to_string(),
+            Entry::Deploy(deploy) => explorer_format_coins_u64(deploy.initial_balance as u64),
+            Entry::Call(_) | Entry::Config(_) => "N/A".to_string(),
         };
         let account_cell = match entry {
             Entry::Move(move_entry) => format!(

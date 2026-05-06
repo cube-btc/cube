@@ -416,6 +416,10 @@ pub async fn run_node_cli(
                 let parts_ref: Vec<&str> = parts.iter().map(String::as_str).collect();
                 node_commands::decompile::decompile_command(parts_ref);
             }
+            "comp" => {
+                let parts_ref: Vec<&str> = parts.iter().map(String::as_str).collect();
+                node_commands::comp::comp_command(parts_ref);
+            }
             "account" => {
                 match (
                     parts.get(1).map(String::as_str),
@@ -625,13 +629,51 @@ fn parse_cli_parts(line: Result<String, io::Error>) -> Option<Vec<String>> {
         }
     };
 
-    // 2 Split the CLI input into parts.
-    let parts: Vec<String> = line.split_whitespace().map(str::to_string).collect();
+    // 2 Split the CLI input into parts with double-quote support.
+    // Example: comp program "my first program" 0x 1 0x...
+    let parts = match split_cli_args_with_quotes(&line) {
+        Some(parts) => parts,
+        None => {
+            eprintln!("{}", "Invalid line: unterminated quote.".yellow());
+            return None;
+        }
+    };
     if parts.is_empty() {
         return None;
     }
 
     Some(parts)
+}
+
+fn split_cli_args_with_quotes(input: &str) -> Option<Vec<String>> {
+    let mut out = Vec::<String>::new();
+    let mut cur = String::new();
+    let mut in_quotes = false;
+
+    for ch in input.chars() {
+        match ch {
+            '"' => {
+                in_quotes = !in_quotes;
+            }
+            c if c.is_whitespace() && !in_quotes => {
+                if !cur.is_empty() {
+                    out.push(cur.clone());
+                    cur.clear();
+                }
+            }
+            _ => cur.push(ch),
+        }
+    }
+
+    if in_quotes {
+        return None;
+    }
+
+    if !cur.is_empty() {
+        out.push(cur);
+    }
+
+    Some(out)
 }
 
 fn parse_account_key(account_key_str: &str) -> Option<[u8; 32]> {
