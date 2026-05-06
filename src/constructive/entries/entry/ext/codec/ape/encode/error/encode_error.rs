@@ -1,5 +1,6 @@
 use crate::constructive::entry::entry_kinds::call::ape::encode::error::encode_error::CallAPEEncodeError;
 use crate::constructive::entry::entry_kinds::config::ext::codec::ape::encode::error::encode_error::ConfigAPEEncodeError;
+use crate::constructive::entry::entry_kinds::deploy::ext::codec::ape::encode::error::encode_error::DeployAPEEncodeError;
 use crate::constructive::entry::entry_kinds::liftup::ext::codec::ape::encode::error::encode_error::LiftupAPEEncodeError;
 use crate::constructive::entry::entry_kinds::r#move::ext::codec::ape::encode::error::encode_error::MoveAPEEncodeError;
 use crate::constructive::entry::entry_kinds::swapout::ext::codec::ape::encode::error::encode_error::SwapoutAPEEncodeError;
@@ -11,5 +12,6 @@ pub enum EntryAPEEncodeError {
     CallAPEEncodeError(CallAPEEncodeError),
     LiftupAPEEncodeError(LiftupAPEEncodeError),
     SwapoutAPEEncodeError(SwapoutAPEEncodeError),
+    DeployAPEEncodeError(DeployAPEEncodeError),
     ConfigAPEEncodeError(ConfigAPEEncodeError),
 }

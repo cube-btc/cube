@@ -39,6 +39,15 @@ pub enum EntryFees {
         projector_config_updated: bool,
         flame_config_updated: bool,
     },
+    Deploy {
+        base_fee: u64,
+        total_pre_subsidy: u64,
+        /// `Some` when a PM exemption row existed and subsidy was applied; `None` when there was no row.
+        subsidy_breakdown: Option<ExemptionSubsidyBreakdown>,
+        initial_balance: u64,
+        program_bytes_len: u64,
+        contract_id: [u8; 32],
+    },
 }
 
 impl EntryFees {
@@ -157,6 +166,40 @@ impl EntryFees {
                 obj.insert(
                     "flame_config_updated".to_string(),
                     Value::Bool(*flame_config_updated),
+                );
+            }
+            EntryFees::Deploy {
+                base_fee,
+                total_pre_subsidy,
+                subsidy_breakdown,
+                initial_balance,
+                program_bytes_len,
+                contract_id,
+            } => {
+                obj.insert("entry_kind".to_string(), Value::String("deploy".to_string()));
+                obj.insert("base_fee".to_string(), Value::Number((*base_fee).into()));
+                obj.insert(
+                    "total_pre_subsidy".to_string(),
+                    Value::Number((*total_pre_subsidy).into()),
+                );
+                obj.insert(
+                    "subsidy_breakdown".to_string(),
+                    match subsidy_breakdown {
+                        Some(b) => b.json(),
+                        None => Value::Null,
+                    },
+                );
+                obj.insert(
+                    "initial_balance".to_string(),
+                    Value::Number((*initial_balance).into()),
+                );
+                obj.insert(
+                    "program_bytes_len".to_string(),
+                    Value::Number((*program_bytes_len).into()),
+                );
+                obj.insert(
+                    "contract_id".to_string(),
+                    Value::String(hex::encode(contract_id)),
                 );
             }
         }

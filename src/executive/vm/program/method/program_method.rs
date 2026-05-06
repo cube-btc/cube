@@ -19,9 +19,9 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-/// A method of an executable.
+/// A method of a program.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ExecutableMethod {
+pub struct ProgramMethod {
     /// The method name.
     method_name: String,
     /// The type of method.
@@ -32,7 +32,7 @@ pub struct ExecutableMethod {
     script: Vec<Opcode>,
 }
 
-impl ExecutableMethod {
+impl ProgramMethod {
     /// Create a new method.
     pub fn new(
         method_name: String,
@@ -270,3 +270,5 @@ impl ExecutableMethod {
         Value::Object(obj)
     }
 }
+
+pub type ExecutableMethod = ProgramMethod;

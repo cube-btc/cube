@@ -2,7 +2,7 @@ use crate::constructive::entity::account::account::account::Account;
 use crate::constructive::entity::account::account::registered_account::registered_account::RegisteredAccount;
 use crate::constructive::entity::contract::contract::Contract;
 use crate::constructive::entity::contract::deployed_contract::deployed_contract::DeployedContract;
-use crate::executive::executable::compiler::compiler::ExecutableCompiler;
+use crate::executive::executable::compiler::compiler::ProgramCompiler;
 use crate::executive::executable::executable::Executable;
 use crate::inscriptive::flame_manager::flame_config::flame_config::FMAccountFlameConfig;
 use crate::inscriptive::registery::bodies::account_body::account_body::RMAccountBody;
@@ -298,7 +298,7 @@ impl Registery {
             let mut last_activity_timestamp = 0;
 
             // 5.5 Construct a placeholder executable.
-            let mut executable = Executable::placeholder_executable();
+            let mut executable = Executable::placeholder_program();
 
             // 5.5 Open the tree associated with the contract.
             let tree = contracts_db
@@ -354,10 +354,7 @@ impl Registery {
                         // Decompile the executable from bytecode and update the executable.
                         executable = Executable::decompile(&mut program_bytes.into_iter())
                             .map_err(|e| {
-                                RMConstructionError::ContractExecutableDecompileError(
-                                    contract_id,
-                                    e,
-                                )
+                                RMConstructionError::ContractProgramDecompileError(contract_id, e)
                             })?;
                     }
                     // 0x05 key byte represents the last activity timestamp.
@@ -563,10 +560,7 @@ impl Registery {
 
     /// Returns the last activity timestamp for a given account (ephemeral updates, then pending
     /// registration, then persisted in-memory body).
-    pub fn get_account_last_activity_timestamp(
-        &self,
-        account_key: AccountKey,
-    ) -> Option<u64> {
+    pub fn get_account_last_activity_timestamp(&self, account_key: AccountKey) -> Option<u64> {
         if let Some(ts) = self
             .delta
             .updated_account_last_activity_timestamps
@@ -838,6 +832,7 @@ impl Registery {
     pub fn register_contract(
         &mut self,
         contract_id: ContractId,
+        last_activity_timestamp: u64,
         executable: Executable,
     ) -> Result<(), RMRegisterContractError> {
         // 1 Check if the contract has just been epheremally registered in the delta.
@@ -856,7 +851,7 @@ impl Registery {
 
         // 3 Epheremally register the contract in the delta.
         self.delta
-            .epheremally_register_contract(contract_id, executable);
+            .epheremally_register_contract(contract_id, last_activity_timestamp, executable);
 
         // 4 Return the result.
         Ok(())
@@ -1022,7 +1017,8 @@ impl Registery {
         )?;
 
         // 2 Get the existing projector config if it was set before.
-        let previous_projector_config: Option<AccountProjectorConfig> = account_body.projector_config;
+        let previous_projector_config: Option<AccountProjectorConfig> =
+            account_body.projector_config;
 
         // 3 Update the projector config in the delta, and return an error if it has already been epheremally updated in the same execution.
         if let Some(existing_projector_config) = self
@@ -1224,7 +1220,7 @@ impl Registery {
         }
 
         // 2 Register new contracts.
-        for (index, (contract_id, executable)) in
+        for (index, (contract_id, registery_timestamp, executable)) in
             self.delta.new_contracts_to_register.iter().enumerate()
         {
             // 2.1 Calculate the registery index for the new contract.
@@ -1233,13 +1229,10 @@ impl Registery {
             // 2.2 Initial call counter value is set to zero.
             let initial_call_counter = 0u64;
 
-            // 2.3 Initial last activity timestamp value is set to zero.
-            let initial_last_activity_timestamp = 0u64;
-
             // 2.4 Compile the executable to bytes.
             let program_bytes = executable
                 .compile()
-                .map_err(|e| RMApplyChangesError::ExecutableCompileError(*contract_id, e))?;
+                .map_err(|e| RMApplyChangesError::ProgramCompileError(*contract_id, e))?;
 
             // 2.5 On-disk insertion.
             {
@@ -1278,12 +1271,12 @@ impl Registery {
                 // 2.5.4 Insert the last activity timestamp on-disk.
                 tree.insert(
                     LAST_ACTIVITY_TIMESTAMP_SPECIAL_DB_KEY,
-                    initial_last_activity_timestamp.to_le_bytes().to_vec(),
+                    registery_timestamp.to_le_bytes().to_vec(),
                 )
                 .map_err(|e| {
                     RMApplyChangesError::ContractLastActivityTimestampInsertError(
                         *contract_id,
-                        initial_last_activity_timestamp,
+                        *registery_timestamp,
                         e,
                     )
                 })?;
@@ -1301,7 +1294,7 @@ impl Registery {
                 let contract_body = RMContractBody::new(
                     registery_index,
                     initial_call_counter,
-                    initial_last_activity_timestamp,
+                    *registery_timestamp,
                     executable.clone(),
                 );
 

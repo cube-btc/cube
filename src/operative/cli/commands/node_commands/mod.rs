@@ -2,6 +2,7 @@ pub mod batchrecord;
 pub mod coins;
 pub mod conn;
 pub mod config;
+pub mod deploy;
 pub mod decompile;
 pub mod rank;
 pub mod liftaddr;

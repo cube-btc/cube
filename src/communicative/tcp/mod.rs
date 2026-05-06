@@ -27,6 +27,10 @@ pub use protocol::liftup_v1::{
 pub use protocol::r#move::{
     ExecMoveInPoolError, MoveRequestBody, MoveResponseBody, MoveResponseError, MoveSuccessBody,
 };
+pub use protocol::deploy::{
+    DeployRequestBody, DeployResponseBody, DeployResponseError, DeploySuccessBody,
+    ExecDeployInPoolError,
+};
 pub use protocol::swapout::{
     ExecSwapoutInPoolError, SwapoutRequestBody, SwapoutResponseBody, SwapoutResponseError,
     SwapoutSuccessBody,

@@ -1,4 +1,4 @@
-use crate::executive::executable::compiler::compiler_error::ExecutableDecompileError;
+use crate::executive::executable::compiler::compiler_error::ProgramDecompileError;
 
 /// Account Key.
 type AccountKey = [u8; 32];
@@ -33,6 +33,6 @@ pub enum RMConstructionError {
     UnableToDeserializeContractRegisteryIndexBytesFromTreeValue(ContractId, Vec<u8>),
     UnableToDeserializeContractCallCounterBytesFromTreeValue(ContractId, Vec<u8>),
     UnableToDeserializeContractLastActivityTimestampBytesFromTreeValue(ContractId, Vec<u8>),
-    ContractExecutableDecompileError(ContractId, ExecutableDecompileError),
+    ContractProgramDecompileError(ContractId, ProgramDecompileError),
     InvalidContractDbKeyByte(ContractId, Vec<u8>),
 }

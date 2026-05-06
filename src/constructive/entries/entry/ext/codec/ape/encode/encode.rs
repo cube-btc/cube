@@ -97,8 +97,26 @@ impl Entry {
                     .map_err(EntryAPEEncodeError::SwapoutAPEEncodeError)?;
                 bits.extend(swapout_bits);
             }
+            Entry::Deploy(deploy) => {
+                // 2.d.1 Push 11100 for the `Deploy` entry type.
+                bits.push(true);
+                bits.push(true);
+                bits.push(true);
+                bits.push(false);
+                bits.push(false);
+
+                let deploy_bits = deploy
+                    .encode_ape(
+                        execution_batch_height,
+                        registery,
+                        encode_account_rank_as_longval,
+                    )
+                    .await
+                    .map_err(EntryAPEEncodeError::DeployAPEEncodeError)?;
+                bits.extend(deploy_bits);
+            }
             Entry::Config(config) => {
-                // 2.d.1 Push 11101 for the `Config` entry type.
+                // 2.e.1 Push 11101 for the `Config` entry type.
                 bits.push(true);
                 bits.push(true);
                 bits.push(true);

@@ -5,6 +5,7 @@ use crate::constructive::core_types::valtypes::val::short_val::short_val::ShortV
 use crate::constructive::entry::entry::entry::Entry;
 use crate::constructive::entry::entry_fees::entry_fees::EntryFees;
 use crate::constructive::entry::entry_kinds::config::config::Config;
+use crate::constructive::entry::entry_kinds::deploy::deploy::Deploy;
 use crate::constructive::txn::ext::OutpointExt;
 use crate::constructive::txout_types::payload::payload::Payload;
 use crate::constructive::txout_types::projector::projector::Projector;
@@ -26,6 +27,7 @@ use crate::{
     constructive::entry::entry_kinds::r#move::r#move::Move,
     constructive::entry::entry_kinds::swapout::swapout::Swapout,
     executive::entry_executions::config_execution::error::config_execution_error::ConfigExecutionError,
+    executive::entry_executions::deploy_execution::error::deploy_execution_error::DeployExecutionError,
     executive::entry_executions::liftup_execution::error::liftup_execution_error::LiftupExecutionError,
     executive::entry_executions::move_execution::error::move_execution_error::MoveExecutionError,
     executive::entry_executions::swapout_execution::error::swapout_execution_error::SwapoutExecutionError,
@@ -674,6 +676,23 @@ impl ExecCtx {
                         Err(error) => return Err(BatchExecutionError::SwapoutExecutionError(error)),
                     }
                 }
+                Entry::Deploy(deploy) => {
+                    match self.execute_deploy_internal(&deploy, batch_timestamp).await {
+                        Ok(fees) => {
+                            executed_entries.push(Entry::new_deploy(deploy.clone()));
+                            executed_entry_fees.push(fees);
+                            if let Some(all_collected_bits) = collected_entry_ape_bits.as_mut() {
+                                all_collected_bits.push(collected_bits_text.clone());
+                            }
+                            let sighash = deploy
+                                .sighash()
+                                .map_err(BatchExecutionError::DeploySighashError)?;
+                            executed_entry_sighashes.push(sighash);
+                            executed_entry_account_bls_keys.push(deploy.root_account.bls_key());
+                        }
+                        Err(error) => return Err(BatchExecutionError::DeployExecutionError(error)),
+                    }
+                }
                 Entry::Config(config) => {
                     match self.execute_config_internal(&config, batch_timestamp).await {
                         Ok(fees) => {
@@ -799,6 +818,20 @@ impl ExecCtx {
             .await
         {
             Ok(_) => Ok(Entry::new_config(config.clone())),
+            Err(error) => Err(error),
+        }
+    }
+
+    pub async fn execute_deploy(
+        &mut self,
+        deploy: &Deploy,
+        execution_timestamp: u64,
+    ) -> Result<Entry, DeployExecutionError> {
+        match self
+            .execute_deploy_internal(deploy, execution_timestamp)
+            .await
+        {
+            Ok(_) => Ok(Entry::new_deploy(deploy.clone())),
             Err(error) => Err(error),
         }
     }

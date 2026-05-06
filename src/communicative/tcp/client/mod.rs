@@ -26,6 +26,10 @@ pub use crate::communicative::tcp::protocol::r#move::{
 pub use crate::communicative::tcp::protocol::config::{
     ExecConfigInPoolError, ConfigRequestBody, ConfigResponseBody, ConfigResponseError, ConfigSuccessBody,
 };
+pub use crate::communicative::tcp::protocol::deploy::{
+    DeployRequestBody, DeployResponseBody, DeployResponseError, DeploySuccessBody,
+    ExecDeployInPoolError,
+};
 pub use crate::communicative::tcp::protocol::swapout::{
     ExecSwapoutInPoolError, SwapoutRequestBody, SwapoutResponseBody, SwapoutResponseError,
     SwapoutSuccessBody,

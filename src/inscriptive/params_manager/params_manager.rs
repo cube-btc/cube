@@ -14,6 +14,8 @@ const IN_CALL_PPM_LIQUIDITY_FEE_SPECIAL_DB_KEY: [u8; 1] = [0x08; 1];
 const SWAPOUT_ENTRY_BASE_FEE_SPECIAL_DB_KEY: [u8; 1] = [0x09; 1];
 const CONFIG_ENTRY_BASE_FEE_SPECIAL_DB_KEY: [u8; 1] = [0x0A; 1];
 const CONFIG_ENTRY_PER_CONFIG_BYTE_FEE_SPECIAL_DB_KEY: [u8; 1] = [0x0B; 1];
+const DEPLOY_ENTRY_BASE_FEE_SPECIAL_DB_KEY: [u8; 1] = [0x0C; 1];
+const DEPLOY_ENTRY_PER_PROGRAM_BYTE_FEE_SPECIAL_DB_KEY: [u8; 1] = [0x0D; 1];
 
 const PARAMS_HOLDER_TREE_NAME: [u8; 13] = *b"params_holder";
 
@@ -118,6 +120,16 @@ impl ParamsManager {
                         params_holder.config_entry_per_config_byte_fee = u64::from_le_bytes(bytes);
                     }
                 }
+                DEPLOY_ENTRY_BASE_FEE_SPECIAL_DB_KEY => {
+                    if let Ok(bytes) = value.as_ref().try_into() {
+                        params_holder.deploy_entry_base_fee = u64::from_le_bytes(bytes);
+                    }
+                }
+                DEPLOY_ENTRY_PER_PROGRAM_BYTE_FEE_SPECIAL_DB_KEY => {
+                    if let Ok(bytes) = value.as_ref().try_into() {
+                        params_holder.deploy_entry_per_program_byte_fee = u64::from_le_bytes(bytes);
+                    }
+                }
                 MOVE_PPM_LIQUIDITY_FEE_SPECIAL_DB_KEY => {
                     if let Ok(bytes) = value.as_ref().try_into() {
                         params_holder.move_ppm_liquidity_fee = u64::from_le_bytes(bytes);
@@ -216,6 +228,15 @@ impl ParamsManager {
             .config_entry_per_config_byte_fee = value;
     }
 
+    pub fn set_deploy_entry_per_program_byte_fee(&mut self, value: u64) {
+        self.get_mut_ephemeral_params_holder()
+            .deploy_entry_per_program_byte_fee = value;
+    }
+
+    pub fn set_deploy_entry_base_fee(&mut self, value: u64) {
+        self.get_mut_ephemeral_params_holder().deploy_entry_base_fee = value;
+    }
+
     pub fn set_move_ppm_liquidity_fee(&mut self, value: u64) {
         self.get_mut_ephemeral_params_holder()
             .move_ppm_liquidity_fee = value;
@@ -311,6 +332,20 @@ impl ParamsManager {
                 CONFIG_ENTRY_PER_CONFIG_BYTE_FEE_SPECIAL_DB_KEY,
                 ephemeral_params_holder
                     .config_entry_per_config_byte_fee
+                    .to_le_bytes()
+                    .to_vec(),
+            )?;
+            tree.insert(
+                DEPLOY_ENTRY_BASE_FEE_SPECIAL_DB_KEY,
+                ephemeral_params_holder
+                    .deploy_entry_base_fee
+                    .to_le_bytes()
+                    .to_vec(),
+            )?;
+            tree.insert(
+                DEPLOY_ENTRY_PER_PROGRAM_BYTE_FEE_SPECIAL_DB_KEY,
+                ephemeral_params_holder
+                    .deploy_entry_per_program_byte_fee
                     .to_le_bytes()
                     .to_vec(),
             )?;

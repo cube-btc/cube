@@ -13,6 +13,7 @@ pub enum PackageKind {
     InFlightSyncProtocol,
     BatchContainerProtocol,
     BatchContainerByPrevOutpointProtocol,
+    DeployProtocol,
 }
 
 impl PackageKind {
@@ -27,6 +28,7 @@ impl PackageKind {
             PackageKind::BatchContainerByPrevOutpointProtocol => 0x06,
             PackageKind::SwapoutProtocol => 0x07,
             PackageKind::ConfigProtocol => 0x08,
+            PackageKind::DeployProtocol => 0x09,
         }
     }
     pub fn from_bytecode(bytecode: u8) -> Option<Self> {
@@ -40,6 +42,7 @@ impl PackageKind {
             0x06 => Some(PackageKind::BatchContainerByPrevOutpointProtocol),
             0x07 => Some(PackageKind::SwapoutProtocol),
             0x08 => Some(PackageKind::ConfigProtocol),
+            0x09 => Some(PackageKind::DeployProtocol),
             _ => None,
         }
     }

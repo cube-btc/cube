@@ -76,6 +76,8 @@ pub async fn runexplorer_command(
         .route("/entry/:entry_id", get(page_entry_by_id))
         .route("/account/:account_id/:section", get(page_account_section))
         .route("/account/:account_id", get(page_account_root_redirect))
+        .route("/contract/:contract_id/:section", get(page_contract_section))
+        .route("/contract/:contract_id", get(page_contract_root_redirect))
         .with_state(state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
@@ -135,6 +137,10 @@ fn account_url(account_key: [u8; 32]) -> String {
     format!("/account/{}/history", hex::encode(account_key))
 }
 
+fn contract_url(contract_id: [u8; 32]) -> String {
+    format!("/contract/{}/registery", hex::encode(contract_id))
+}
+
 /// Account explorer subpages under `/account/:account_id/:section`.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum AccountExplorerSection {
@@ -144,6 +150,75 @@ enum AccountExplorerSection {
     Privileges,
     Vtxo,
     CoinManager,
+}
+
+/// Contract explorer subpages under `/contract/:contract_id/:section`.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ContractExplorerSection {
+    Registery,
+    Privileges,
+}
+
+impl ContractExplorerSection {
+    const ALL: [Self; 2] = [Self::Registery, Self::Privileges];
+
+    fn from_slug(s: &str) -> Option<Self> {
+        match s.trim() {
+            "registery" => Some(Self::Registery),
+            "privileges" => Some(Self::Privileges),
+            _ => None,
+        }
+    }
+
+    fn slug(self) -> &'static str {
+        match self {
+            Self::Registery => "registery",
+            Self::Privileges => "privileges",
+        }
+    }
+
+    fn nav_label(self) -> &'static str {
+        match self {
+            Self::Registery => "Registery",
+            Self::Privileges => "Privileges",
+        }
+    }
+
+    fn document_title(self) -> &'static str {
+        match self {
+            Self::Registery => "Registery",
+            Self::Privileges => "Privileges",
+        }
+    }
+}
+
+fn contract_explorer_nav(contract_id: &str, current: ContractExplorerSection) -> String {
+    let mut parts = Vec::with_capacity(ContractExplorerSection::ALL.len());
+    for s in ContractExplorerSection::ALL {
+        let active = s == current;
+        let cls = if active {
+            r#" class="tab-btn active""#
+        } else {
+            r#" class="tab-btn""#
+        };
+        let aria = if active {
+            r#" aria-current="page""#
+        } else {
+            ""
+        };
+        parts.push(format!(
+            r#"<a{}{} href="/contract/{}/{}">{}</a>"#,
+            cls,
+            aria,
+            contract_id,
+            s.slug(),
+            html_escape(s.nav_label()),
+        ));
+    }
+    format!(
+        r#"<nav class="tab-menu" aria-label="Contract sections">{}</nav>"#,
+        parts.join("\n")
+    )
 }
 
 impl AccountExplorerSection {
@@ -981,6 +1056,13 @@ async fn search_batch(
         if is_account {
             return Redirect::to(&account_url(key32)).into_response();
         }
+        let is_contract = {
+            let r = st.registery.lock().await;
+            r.get_contract_body_by_contract_id(key32).is_some()
+        };
+        if is_contract {
+            return Redirect::to(&contract_url(key32)).into_response();
+        }
     }
 
     if let Some(account_key) = q_trim.as_str().from_npub() {
@@ -1165,6 +1247,7 @@ async fn page_account_section(
             Entry::Call(_) => "📞 Call",
             Entry::Liftup(_) => "🛗 Liftup",
             Entry::Swapout(_) => "🚪 Swapout",
+            Entry::Deploy(_) => "🏗 Deploy",
             Entry::Config(_) => "⚙️ Config",
         };
         history_rows.push_str(&format!(
@@ -1365,22 +1448,248 @@ async fn page_account_section(
     Html(layout(&page_title, &body, &account_id)).into_response()
 }
 
+async fn page_contract_root_redirect(
+    State(_st): State<ExplorerState>,
+    Path(contract_id): Path<String>,
+) -> impl IntoResponse {
+    let trimmed = contract_id.trim();
+    if parse_entry_id_hex(trimmed).is_none() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Html(layout(
+                "Contract — Cube explorer",
+                &format!(
+                    r#"<h1>Invalid contract id</h1><p>Expected 32-byte hex; got <code class="mono">{}</code>.</p><p><a class="row-link" href="/contracts">← Contracts</a></p>"#,
+                    html_escape(trimmed),
+                ),
+                "",
+            )),
+        )
+            .into_response();
+    }
+    let dest = format!("/contract/{}/registery", trimmed);
+    Redirect::temporary(dest.as_str()).into_response()
+}
+
+async fn page_contract_section(
+    State(st): State<ExplorerState>,
+    Path((contract_id, section_slug)): Path<(String, String)>,
+) -> impl IntoResponse {
+    let Some(contract_key) = parse_entry_id_hex(&contract_id) else {
+        return (
+            StatusCode::BAD_REQUEST,
+            Html(layout(
+                "Contract — Cube explorer",
+                &format!(
+                    r#"<h1>Invalid contract id</h1><p>Expected 32-byte hex; got <code class="mono">{}</code>.</p><p><a class="row-link" href="/contracts">← Contracts</a></p>"#,
+                    html_escape(contract_id.trim()),
+                ),
+                "",
+            )),
+        )
+            .into_response();
+    };
+
+    let Some(section) = ContractExplorerSection::from_slug(&section_slug) else {
+        return (
+            StatusCode::NOT_FOUND,
+            Html(layout(
+                "Contract — Cube explorer",
+                &format!(
+                    r#"<h1>Unknown contract section</h1><p>No tab <code class="mono">{}</code>. Use <code>registery</code> or <code>privileges</code>.</p><p><a class="row-link" href="/contracts">← Contracts</a></p>"#,
+                    html_escape(section_slug.trim()),
+                ),
+                "",
+            )),
+        )
+            .into_response();
+    };
+
+    let contract_body = {
+        let r = st.registery.lock().await;
+        r.get_contract_body_by_contract_id(contract_key)
+    };
+    let Some(contract_body) = contract_body else {
+        return (
+            StatusCode::NOT_FOUND,
+            Html(layout(
+                "Contract — Cube explorer",
+                &format!(
+                    r#"<h1>Contract not found</h1><p>No contract found for <code class="mono">{}</code>.</p><p><a class="row-link" href="/contracts">← Contracts</a></p>"#,
+                    html_escape(&contract_id),
+                ),
+                "",
+            )),
+        )
+            .into_response();
+    };
+
+    let privilege_body = match st.privileges_manager.as_ref() {
+        Some(pm) => {
+            let p = pm.lock().await;
+            p.get_contract_body_by_contract_id(contract_key)
+        }
+        None => None,
+    };
+
+    let contract_hex = hex::encode(contract_key);
+    let contract_short = truncated_head_tail(&contract_hex, 8, 6);
+    let registery_pretty =
+        serde_json::to_string_pretty(&contract_body.json()).unwrap_or_else(|_| "null".to_string());
+    let privileges_json = if let Some(ref pb) = privilege_body {
+        let liveness_flag = match &pb.liveness_flag {
+            crate::inscriptive::privileges_manager::elements::liveness_flag::liveness_flag::LivenessFlag::Operational => "operational",
+            crate::inscriptive::privileges_manager::elements::liveness_flag::liveness_flag::LivenessFlag::ToBeFrozen(_) => "to_be_frozen",
+            crate::inscriptive::privileges_manager::elements::liveness_flag::liveness_flag::LivenessFlag::ToBeDestroyed(_) => "to_be_destroyed",
+        };
+        serde_json::json!({
+            "liveness_flag": liveness_flag,
+            "immutability": pb.immutability,
+            "tax_exemptions": pb.tax_exemptions,
+        })
+    } else {
+        Value::Null
+    };
+    let privileges_pretty =
+        serde_json::to_string_pretty(&privileges_json).unwrap_or_else(|_| "null".to_string());
+
+    let nav_html = contract_explorer_nav(contract_id.trim(), section);
+    let section_block = match section {
+        ContractExplorerSection::Registery => format!(
+            r#"<article class="account-section-page" id="contract-section-registery" aria-labelledby="contract-section-registery-heading">
+<h2 id="contract-section-registery-heading">Registery Contract Body</h2>
+<pre class="reg-json">{}</pre>
+</article>"#,
+            html_escape(&registery_pretty),
+        ),
+        ContractExplorerSection::Privileges => format!(
+            r#"<article class="account-section-page" id="contract-section-privileges" aria-labelledby="contract-section-privileges-heading">
+<h2 id="contract-section-privileges-heading">Privileges</h2>
+<pre class="reg-json">{}</pre>
+</article>"#,
+            html_escape(&privileges_pretty),
+        ),
+    };
+
+    let body = format!(
+        r#"<section class="account-shell">
+<section class="account-card">
+<div class="account-card-header">
+<section class="account-header-row">
+<div class="account-header-main">
+<div class="account-avatar" aria-label="Contract icon">📦</div>
+<div class="account-header-left">
+<h1>Contract</h1>
+<div class="account-head-row"><span class="account-npub-title">{}</span></div>
+</div>
+</div>
+</section>
+ </div>
+<div class="account-card-summary">
+<section class="account-summary-wrap">
+<dl class="summary">
+<dt>Contract ID</dt><dd><div class="summary-copy-row"><code class="mono">{}</code><button type="button" class="copy-btn" data-copy-value="{}" aria-label="Copy contract id" title="Copy contract id">&#128203;</button></div></dd>
+<dt>Program</dt><dd>{}</dd>
+<dt>Last active</dt><dd>{}</dd>
+<dt>Registery index</dt><dd>{}</dd>
+<dt>Call counter</dt><dd>{}</dd>
+</dl>
+</section>
+</div>
+</section>
+<section class="account-card">
+<div class="account-card-body">
+{}
+{}
+<p class="account-subpage-footer"><a class="row-link" href="/contracts">← Contracts</a></p>
+</div>
+</section>
+</section>"#,
+        html_escape(&contract_short),
+        html_escape(&contract_hex),
+        html_escape(&contract_hex),
+        html_escape(contract_body.executable.program_name()),
+        explorer_timestamp_html(contract_body.last_activity_timestamp),
+        contract_body.registery_index,
+        contract_body.call_counter,
+        nav_html,
+        section_block,
+    );
+    let page_title = format!("Contract — {} — Cube explorer", section.document_title());
+    Html(layout(&page_title, &body, &contract_id)).into_response()
+}
+
 async fn page_contracts(State(st): State<ExplorerState>) -> Html<String> {
-    let contracts_json = {
+    let mut rows: Vec<(u64, [u8; 32], String, u64, u64)> = {
         let g = st.registery.lock().await;
         let full = g.json();
-        full.get("contracts")
-            .cloned()
-            .unwrap_or(Value::Null)
+        let mut parsed = Vec::new();
+        if let Some(contracts_obj) = full.get("contracts").and_then(|v| v.as_object()) {
+            for (contract_id_hex, body) in contracts_obj {
+                let Some(bytes_vec) = hex::decode(contract_id_hex).ok() else {
+                    continue;
+                };
+                let Ok(contract_id): Result<[u8; 32], _> = bytes_vec.try_into() else {
+                    continue;
+                };
+                let registery_index = body
+                    .get("registery_index")
+                    .and_then(|v| v.as_str())
+                    .and_then(|v| v.parse::<u64>().ok())
+                    .unwrap_or(0);
+                let call_counter = body
+                    .get("call_counter")
+                    .and_then(|v| v.as_str())
+                    .and_then(|v| v.parse::<u64>().ok())
+                    .unwrap_or(0);
+                let last_activity_timestamp = body
+                    .get("last_activity_timestamp")
+                    .and_then(|v| v.as_str())
+                    .and_then(|v| v.parse::<u64>().ok())
+                    .unwrap_or(0);
+                let program_name = body
+                    .get("executable")
+                    .and_then(|v| v.get("program_name"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("N/A")
+                    .to_string();
+                parsed.push((
+                    registery_index,
+                    contract_id,
+                    program_name,
+                    call_counter,
+                    last_activity_timestamp,
+                ));
+            }
+        }
+        parsed
     };
-    let pretty =
-        serde_json::to_string_pretty(&contracts_json).unwrap_or_else(|_| "{}".to_string());
+    rows.sort_by_key(|(registery_index, _, _, _, _)| *registery_index);
+
+    let mut table_rows = String::new();
+    for (registery_index, contract_id, program_name, call_counter, last_activity_timestamp) in rows {
+        let contract_id_hex = hex::encode(contract_id);
+        let contract_id_short = truncated_head_tail(&contract_id_hex, 8, 6);
+        let row_href = contract_url(contract_id);
+        table_rows.push_str(&format!(
+            r#"<tr class="entry-row-btn" data-row-href="{}" tabindex="0" role="link" aria-label="Open contract details"><td class="num">{}</td><td>{}</td><td><code class="mono">{}</code></td><td class="num">{}</td><td>{}</td></tr>"#,
+            html_escape(&row_href),
+            registery_index,
+            html_escape(&program_name),
+            html_escape(&contract_id_short),
+            call_counter,
+            batch_table_relative_time_html(last_activity_timestamp),
+        ));
+    }
+    if table_rows.is_empty() {
+        table_rows = r#"<tr><td colspan="5">No contracts in registery.</td></tr>"#.to_string();
+    }
+
     Html(layout(
         "Contracts — Cube explorer",
-        &format!(
-            r#"<h1>Contracts</h1><p class="muted" style="font-size:0.9rem">Registery <code>contracts</code> map (JSON).</p><pre class="reg-json">{}</pre>"#,
-            html_escape(&pretty)
-        ),
+        &format!(r#"<h1>Contracts</h1>
+<p class="muted">Contracts indexed by registery order.</p>
+<table class="entries-table"><thead><tr><th class="num">Index</th><th>Program</th><th>Contract ID</th><th class="num">Call counter</th><th>Last activity</th></tr></thead><tbody>{}</tbody></table>"#, table_rows),
         "",
     ))
 }
@@ -1554,6 +1863,7 @@ async fn page_entry_by_id(
         Entry::Move(_) => "💰 Move",
         Entry::Call(_) => "📞 Call",
         Entry::Swapout(_) => "🚪 Swapout",
+        Entry::Deploy(_) => "🏗 Deploy",
         Entry::Config(_) => "⚙️ Config",
     };
     let entry_accounts_html = match &entry {
@@ -1573,6 +1883,10 @@ async fn page_entry_by_id(
         Entry::Call(call) => format!(
             r#"<dt>Account</dt><dd>{}</dd>"#,
             account_link(call.account.account_key())
+        ),
+        Entry::Deploy(deploy) => format!(
+            r#"<dt>Account</dt><dd>{}</dd>"#,
+            account_link(deploy.root_account.account_key())
         ),
         Entry::Config(config) => format!(
             r#"<dt>Account</dt><dd>{}</dd>"#,
@@ -1657,13 +1971,14 @@ fn render_batch_page(chain: Chain, record: &BatchRecord) -> String {
             Entry::Call(_) => "📞 Call",
             Entry::Liftup(_) => "🛗 Liftup",
             Entry::Swapout(_) => "🚪 Swapout",
+            Entry::Deploy(_) => "🏗 Deploy",
             Entry::Config(_) => "⚙️ Config",
         };
         let amount_cell = match entry {
             Entry::Move(move_entry) => explorer_format_coins_u64(move_entry.amount as u64),
             Entry::Liftup(liftup) => explorer_format_coins_u64(liftup.liftup_sum_value_in_satoshis()),
             Entry::Swapout(swapout) => explorer_format_coins_u64(swapout.amount as u64),
-            Entry::Call(_) | Entry::Config(_) => "N/A".to_string(),
+            Entry::Call(_) | Entry::Deploy(_) | Entry::Config(_) => "N/A".to_string(),
         };
         let account_cell = match entry {
             Entry::Move(move_entry) => format!(
@@ -1674,6 +1989,7 @@ fn render_batch_page(chain: Chain, record: &BatchRecord) -> String {
             Entry::Liftup(liftup) => account_link_npub_truncated(liftup.root_account.account_key()),
             Entry::Swapout(swapout) => account_link_npub_truncated(swapout.root_account.account_key()),
             Entry::Call(call) => account_link_npub_truncated(call.account.account_key()),
+            Entry::Deploy(deploy) => account_link_npub_truncated(deploy.root_account.account_key()),
             Entry::Config(config) => account_link_npub_truncated(config.root_account.account_key()),
         };
         entries_rows_html.push_str(&format!(

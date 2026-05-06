@@ -3,7 +3,7 @@ use crate::{
     executive::{
         executable::method::{
             compiler::compiler_error::{MethodCompileError, MethodDecompileError},
-            method::ExecutableMethod,
+            program_method::ProgramMethod,
             method_type::MethodType,
         },
         opcode::{compiler::compiler::OpcodeCompiler, opcode::Opcode},
@@ -15,12 +15,12 @@ pub trait MethodCompiler {
     /// Compiles the method into a bytecode.
     fn compile(&self) -> Result<Vec<u8>, MethodCompileError>;
     /// Decompiles a method from a bytecode stream.
-    fn decompile<I>(bytecode_stream: &mut I) -> Result<ExecutableMethod, MethodDecompileError>
+    fn decompile<I>(bytecode_stream: &mut I) -> Result<ProgramMethod, MethodDecompileError>
     where
         I: Iterator<Item = u8>;
 }
 
-impl MethodCompiler for ExecutableMethod {
+impl MethodCompiler for ProgramMethod {
     fn compile(&self) -> Result<Vec<u8>, MethodCompileError> {
         // Compile the script.
         let mut method_bytes = Vec::<u8>::new();
@@ -61,7 +61,7 @@ impl MethodCompiler for ExecutableMethod {
         Ok(method_bytes)
     }
 
-    fn decompile<I>(mut bytecode_stream: &mut I) -> Result<ExecutableMethod, MethodDecompileError>
+    fn decompile<I>(mut bytecode_stream: &mut I) -> Result<ProgramMethod, MethodDecompileError>
     where
         I: Iterator<Item = u8>,
     {
@@ -125,7 +125,7 @@ impl MethodCompiler for ExecutableMethod {
         }
 
         // Construct the method.
-        let method = ExecutableMethod::new(method_name, method_type, calldata_element_types, opcodes)
+        let method = ProgramMethod::new(method_name, method_type, calldata_element_types, opcodes)
             .map_err(|e| MethodDecompileError::MethodConstructError(e))?;
 
         // Return the method.

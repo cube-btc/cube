@@ -1,5 +1,6 @@
 use crate::{constructive::entry::entry_kinds::call::call::Call, transmutative::hash::Hash};
 use crate::constructive::entry::entry_kinds::config::config::Config;
+use crate::constructive::entry::entry_kinds::deploy::deploy::Deploy;
 use crate::constructive::entry::entry_kinds::liftup::liftup::Liftup;
 use crate::constructive::entry::entry_kinds::r#move::r#move::Move;
 use crate::constructive::entry::entry_kinds::swapout::swapout::Swapout;
@@ -18,7 +19,7 @@ pub enum Entry {
     //Sub(SubEntry),
     Liftup(Liftup),
     Swapout(Swapout),
-    //Deploy(DeployEntry),
+    Deploy(Deploy),
     Config(Config),
     //Nop(NopEntry),
     //Fail(FailEntry),
@@ -44,6 +45,10 @@ impl Entry {
         Self::Swapout(swapout)
     }
 
+    pub fn new_deploy(deploy: Deploy) -> Self {
+        Self::Deploy(deploy)
+    }
+
     pub fn new_config(config: Config) -> Self {
         Self::Config(config)
     }
@@ -55,6 +60,7 @@ impl Entry {
             Entry::Call(call) => call.json(),
             Entry::Liftup(liftup) => liftup.json(),
             Entry::Swapout(swapout) => swapout.json(),
+            Entry::Deploy(deploy) => deploy.json(),
             Entry::Config(config) => config.json(),
         }
     }
@@ -109,6 +115,14 @@ impl Entry {
                 preimage.extend(entry_index_in_batch.to_le_bytes());
                 preimage.extend(swapout.sighash().ok()?);
                 let hash = preimage.hash(Some(HashTag::SwapoutEntryID));
+                Some(hash)
+            }
+            Entry::Deploy(deploy) => {
+                let mut preimage = Vec::<u8>::new();
+                preimage.extend(batch_height.to_le_bytes());
+                preimage.extend(entry_index_in_batch.to_le_bytes());
+                preimage.extend(deploy.sighash().ok()?);
+                let hash = preimage.hash(Some(HashTag::DeployEntryID));
                 Some(hash)
             }
             Entry::Config(config) => {

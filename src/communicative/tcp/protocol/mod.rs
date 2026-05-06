@@ -9,3 +9,4 @@ pub mod r#move;
 pub mod ping;
 pub mod config;
 pub mod swapout;
+pub mod deploy;

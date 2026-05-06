@@ -2,12 +2,14 @@ use crate::communicative::tcp::protocol::batchrecord::BatchRecordResponseBody;
 use crate::communicative::tcp::protocol::batchcontainer::BatchContainerResponseBody;
 use crate::communicative::tcp::protocol::batchcontainer_by_prevoutpoint::BatchContainerByPrevOutpointResponseBody;
 use crate::communicative::tcp::protocol::config::ConfigResponseBody;
+use crate::communicative::tcp::protocol::deploy::DeployResponseBody;
 use crate::communicative::tcp::protocol::in_flight_sync::InFlightSyncResponseBody;
 use crate::communicative::tcp::protocol::liftup_v1::LiftupV1ResponseBody;
 use crate::communicative::tcp::protocol::r#move::MoveResponseBody;
 use crate::communicative::tcp::protocol::swapout::SwapoutResponseBody;
 use crate::communicative::tcp::request_error::RequestError;
 use crate::constructive::entry::entry_kinds::config::config::Config;
+use crate::constructive::entry::entry_kinds::deploy::deploy::Deploy;
 use crate::constructive::entry::entry_kinds::liftup::liftup::Liftup;
 use crate::constructive::entry::entry_kinds::r#move::r#move::Move;
 use crate::constructive::entry::entry_kinds::swapout::swapout::Swapout;
@@ -38,6 +40,11 @@ pub trait TCPClient {
         config: &Config,
         config_bls_signature: [u8; 96],
     ) -> Result<(ConfigResponseBody, Duration), RequestError>;
+    async fn request_deploy(
+        &self,
+        deploy: &Deploy,
+        deploy_bls_signature: [u8; 96],
+    ) -> Result<(DeployResponseBody, Duration), RequestError>;
     async fn request_batchrecord(
         &self,
         batch_height: u64,

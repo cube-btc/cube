@@ -1,4 +1,4 @@
-use crate::executive::executable::executable_error::ExecutableConstructionError;
+use crate::executive::executable::program_error::ProgramConstructionError;
 use crate::executive::executable::method::compiler::compiler_error::{
     MethodCompileError, MethodDecompileError,
 };
@@ -6,15 +6,15 @@ use std::fmt;
 
 /// The error that occurs when compiling a program.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ExecutableCompileError {
+pub enum ProgramCompileError {
     /// The method compile error.
     MethodCompileError(MethodCompileError),
 }
 
-impl fmt::Display for ExecutableCompileError {
+impl fmt::Display for ProgramCompileError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ExecutableCompileError::MethodCompileError(err) => {
+            ProgramCompileError::MethodCompileError(err) => {
                 write!(f, "Method compile error: {}", err)
             }
         }
@@ -23,42 +23,55 @@ impl fmt::Display for ExecutableCompileError {
 
 /// The error that occurs when decompiling a executable.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ExecutableDecompileError {
+pub enum ProgramDecompileError {
     /// The program name length byte collect error.
     NameLengthByteCollectError,
-    /// The executable name bytes collect error.
-    ExecutableNameBytesCollectError,
-    /// The deployed by bytes collect error.
-    DeployedByBytesCollectError,
+    /// The program name bytes collect error.
+    ProgramNameBytesCollectError,
+    /// The metadata presence flag byte collect error.
+    MetadataFlagByteCollectError,
+    /// The metadata length bytes collect error.
+    MetadataLengthBytesCollectError,
+    /// The metadata bytes collect error.
+    MetadataBytesCollectError,
     /// The method count byte collect error.
     MethodCountByteCollectError,
     /// The method decompile error.
     MethodDecompileError(MethodDecompileError),
-    /// The executable construct error.
-    ExecutableConstructError(ExecutableConstructionError),
+    /// The program construct error.
+    ProgramConstructError(ProgramConstructionError),
 }
 
-impl fmt::Display for ExecutableDecompileError {
+impl fmt::Display for ProgramDecompileError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ExecutableDecompileError::NameLengthByteCollectError => {
-                write!(f, "Failed to collect executable name length byte")
+            ProgramDecompileError::NameLengthByteCollectError => {
+                write!(f, "Failed to collect program name length byte")
             }
-            ExecutableDecompileError::ExecutableNameBytesCollectError => {
-                write!(f, "Failed to collect executable name bytes")
+            ProgramDecompileError::ProgramNameBytesCollectError => {
+                write!(f, "Failed to collect program name bytes")
             }
-            ExecutableDecompileError::DeployedByBytesCollectError => {
-                write!(f, "Failed to collect deployed by bytes")
+            ProgramDecompileError::MetadataFlagByteCollectError => {
+                write!(f, "Failed to collect metadata flag byte")
             }
-            ExecutableDecompileError::MethodCountByteCollectError => {
+            ProgramDecompileError::MetadataLengthBytesCollectError => {
+                write!(f, "Failed to collect metadata length bytes")
+            }
+            ProgramDecompileError::MetadataBytesCollectError => {
+                write!(f, "Failed to collect metadata bytes")
+            }
+            ProgramDecompileError::MethodCountByteCollectError => {
                 write!(f, "Failed to collect method count byte")
             }
-            ExecutableDecompileError::MethodDecompileError(err) => {
+            ProgramDecompileError::MethodDecompileError(err) => {
                 write!(f, "Method decompile error: {}", err)
             }
-            ExecutableDecompileError::ExecutableConstructError(err) => {
-                write!(f, "Executable construction error: {}", err)
+            ProgramDecompileError::ProgramConstructError(err) => {
+                write!(f, "Program construction error: {}", err)
             }
         }
     }
 }
+
+pub type ExecutableCompileError = ProgramCompileError;
+pub type ExecutableDecompileError = ProgramDecompileError;

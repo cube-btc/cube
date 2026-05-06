@@ -556,6 +556,51 @@ pub async fn run_node_cli(
                 )
                 .await;
             }
+            "deploy" => {
+                let initial_balance: u32 = match parts.get(1).and_then(|s| s.parse().ok()) {
+                    Some(value) => value,
+                    None => {
+                        eprintln!(
+                            "{}",
+                            "Usage: deploy <initial_balance> <0x_program_bytes>.".yellow()
+                        );
+                        continue;
+                    }
+                };
+
+                let program_bytes = match parts.get(2) {
+                    Some(program_hex) => match parse_hex_bytes(program_hex) {
+                        Some(bytes) if !bytes.is_empty() => bytes,
+                        _ => {
+                            eprintln!(
+                                "{}",
+                                "Invalid program bytes: expected hex (optionally 0x-prefixed)."
+                                    .yellow()
+                            );
+                            continue;
+                        }
+                    },
+                    None => {
+                        eprintln!(
+                            "{}",
+                            "Usage: deploy <initial_balance> <0x_program_bytes>.".yellow()
+                        );
+                        continue;
+                    }
+                };
+
+                node_commands::deploy::deploy_command(
+                    initial_balance,
+                    program_bytes,
+                    key_holder,
+                    sync_manager,
+                    registery,
+                    coin_manager,
+                    params_manager,
+                    engine_conn,
+                )
+                .await;
+            }
             _ => eprintln!("{}", format!("Unknown commmand.").yellow()),
         }
     }
@@ -601,6 +646,10 @@ fn parse_32_byte_hex(s: &str) -> Option<[u8; 32]> {
     let s = s.trim_start_matches("0x");
     let bytes = hex::decode(s).ok()?;
     bytes.try_into().ok()
+}
+
+fn parse_hex_bytes(s: &str) -> Option<Vec<u8>> {
+    hex::decode(s.trim_start_matches("0x")).ok()
 }
 
 fn parse_config_fields(

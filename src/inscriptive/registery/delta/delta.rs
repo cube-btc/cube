@@ -59,7 +59,7 @@ pub struct RMDelta {
     // CONTRACT RELATED VALUES ///
     /// ------------------------------------------------------------
     // New contracts to register.
-    pub new_contracts_to_register: Vec<(ContractId, Executable)>,
+    pub new_contracts_to_register: Vec<(ContractId, ActivityTimestamp, Executable)>,
 
     // Updated contract call counters for a given contract.
     pub updated_contract_call_counters: HashMap<ContractId, CallCounterDelta>,
@@ -110,7 +110,7 @@ impl RMDelta {
     pub fn is_contract_epheremally_registered(&self, contract_id: ContractId) -> bool {
         self.new_contracts_to_register
             .iter()
-            .any(|(id, _)| id == &contract_id)
+            .any(|(id, _, _)| id == &contract_id)
     }
 
     /// Epheremally registers an account in the delta.
@@ -137,10 +137,11 @@ impl RMDelta {
     pub fn epheremally_register_contract(
         &mut self,
         contract_id: ContractId,
+        last_activity_timestamp: ActivityTimestamp,
         executable: Executable,
     ) {
         self.new_contracts_to_register
-            .push((contract_id, executable));
+            .push((contract_id, last_activity_timestamp, executable));
     }
 
     /// Epheremally increments the call counter delta of an account by one.

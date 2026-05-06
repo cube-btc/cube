@@ -1,4 +1,5 @@
 use crate::constructive::entry::entry_kinds::config::ext::codec::sbe::encode::error::ConfigSBEEncodeError;
+use crate::constructive::entry::entry_kinds::deploy::ext::codec::sbe::encode::error::DeploySBEEncodeError;
 use crate::constructive::entry::entry_kinds::liftup::ext::codec::sbe::encode::error::LiftupSBEEncodeError;
 use crate::constructive::entry::entry_kinds::r#move::ext::codec::sbe::encode::error::encode_error::MoveSBEEncodeError;
 use crate::constructive::entry::entry_kinds::swapout::ext::codec::sbe::encode::error::encode_error::SwapoutSBEEncodeError;
@@ -9,6 +10,7 @@ pub enum EntrySBEEncodeError {
     MoveSBEEncodeError(MoveSBEEncodeError),
     LiftupSBEEncodeError(LiftupSBEEncodeError),
     SwapoutSBEEncodeError(SwapoutSBEEncodeError),
+    DeploySBEEncodeError(DeploySBEEncodeError),
     ConfigSBEEncodeError(ConfigSBEEncodeError),
 
 }

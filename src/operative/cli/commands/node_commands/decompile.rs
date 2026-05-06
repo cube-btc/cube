@@ -1,8 +1,8 @@
 use crate::executive::{
     executable::{
-        compiler::compiler::ExecutableCompiler,
+        compiler::compiler::ProgramCompiler,
         executable::Executable,
-        method::{compiler::compiler::MethodCompiler, method::ExecutableMethod},
+        method::{compiler::compiler::MethodCompiler, program_method::ProgramMethod},
     },
     opcode::{compiler::compiler::OpcodeCompiler, opcode::Opcode},
 };
@@ -70,7 +70,7 @@ fn decomp_method(parts: Vec<&str>) {
         }
     };
 
-    let method = match ExecutableMethod::decompile(&mut method_bytestream) {
+    let method = match ProgramMethod::decompile(&mut method_bytestream) {
         Ok(method) => method,
         Err(e) => {
             eprintln!("{}", e);

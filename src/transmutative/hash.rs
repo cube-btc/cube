@@ -32,11 +32,13 @@ pub enum HashTag {
     SwapoutEntrySighash,
     MoveEntrySighash,
     ConfigEntrySighash,
+    DeployEntrySighash,
     // Entry ID tags
     LiftupEntryID,
     SwapoutEntryID,
     MoveEntryID,
     ConfigEntryID,
+    DeployEntryID,
 }
 
 impl HashTag {
@@ -66,11 +68,13 @@ impl HashTag {
             HashTag::SwapoutEntrySighash => format!("{}/{}/{}/{}", baked::PROJECT_TAG, "sighash", "entry", "swapout"),
             HashTag::MoveEntrySighash => format!("{}/{}/{}/{}", baked::PROJECT_TAG, "sighash", "entry", "move"),
             HashTag::ConfigEntrySighash => format!("{}/{}/{}/{}", baked::PROJECT_TAG, "sighash", "entry", "config"),
+            HashTag::DeployEntrySighash => format!("{}/{}/{}/{}", baked::PROJECT_TAG, "sighash", "entry", "deploy"),
             // Entry IDs
             HashTag::LiftupEntryID => format!("{}/{}/{}/{}", baked::PROJECT_TAG, "id", "entry", "liftup"),
             HashTag::SwapoutEntryID => format!("{}/{}/{}/{}", baked::PROJECT_TAG, "id", "entry", "swapout"),
             HashTag::MoveEntryID => format!("{}/{}/{}/{}", baked::PROJECT_TAG, "id", "entry", "move"),
             HashTag::ConfigEntryID => format!("{}/{}/{}/{}", baked::PROJECT_TAG, "id", "entry", "config"),
+            HashTag::DeployEntryID => format!("{}/{}/{}/{}", baked::PROJECT_TAG, "id", "entry", "deploy"),
         }
     }
 }
