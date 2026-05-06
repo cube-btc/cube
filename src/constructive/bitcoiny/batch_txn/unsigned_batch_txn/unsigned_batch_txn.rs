@@ -46,10 +46,16 @@ impl UnsignedBatchTxn {
         new_projector_txout: Option<TxOut>,
         // Swapout outputs
         swapout_tx_outputs: Vec<TxOut>,
-        // Bitcoin transaction fee
-        bitcoin_transaction_fee: u64,
+        // Bitcoin transaction feerate (sats per vbyte)
+        bitcoin_transaction_feerate: u64,
     ) -> Result<UnsignedBatchTxn, UnsignedBatchTxnConstructError> {
-        println!("bitcoin_transaction_fee: {}", bitcoin_transaction_fee);
+        println!(
+            "bitcoin_transaction_feerate: {}",
+            bitcoin_transaction_feerate
+        );
+
+        // Keep rough input-kind counts for transaction vsize estimation.
+        let lift_tx_inputs_len = lift_tx_inputs.len();
 
         // Initialzie the tx inputs.
         let mut tx_inputs = Vec::new();
@@ -87,6 +93,56 @@ impl UnsignedBatchTxn {
 
         // Initialize the swapout tx outputs.
         let _swapout_tx_outputs = swapout_tx_outputs;
+
+        let transaction_roughly_vbytesize = {
+            // Rough virtual-size estimator:
+            // - Input base: 40 vbytes per input (prevout+sequence+empty scriptsig framing).
+            // - Payload input witness: rough script-path witness
+            //   (sig + selector + tapscript(payload bytes) + control block).
+            // - Lift input witness: rough script-path witness (sig + tapscript + control block).
+            // - Output base: 43 vbytes per output.
+            const TX_OVERHEAD_VBYTES: u64 = 11;
+            const TXIN_BASE_VBYTES: u64 = 40;
+            const TXOUT_BASE_VBYTES: u64 = 43;
+            const PAYLOAD_WITNESS_BASE_ROUGH_VBYTES: u64 = 50;
+            const LIFT_WITNESS_ROUGH_VBYTES: u64 = 41;
+
+            let payload_script_bytes_len =
+                prev_payload_tx_input.1.script_pubkey.as_bytes().len() as u64;
+            let payload_witness_rough_vbytes =
+                PAYLOAD_WITNESS_BASE_ROUGH_VBYTES + payload_script_bytes_len;
+            let lift_inputs_count = lift_tx_inputs_len as u64;
+            let tx_inputs_count = tx_inputs.len() as u64;
+
+            let tx_outputs_count = {
+                let mut n = 1u64; // change/payload output
+                if new_projector_txout.is_some() {
+                    n += 1;
+                }
+                n + _swapout_tx_outputs.len() as u64
+            };
+
+            TX_OVERHEAD_VBYTES
+                + (tx_inputs_count * TXIN_BASE_VBYTES)
+                + payload_witness_rough_vbytes
+                + (lift_inputs_count * LIFT_WITNESS_ROUGH_VBYTES)
+                + (tx_outputs_count * TXOUT_BASE_VBYTES)
+        };
+        println!(
+            "transaction_roughly_vbytesize (estimated): {}",
+            transaction_roughly_vbytesize
+        );
+
+        // Determine rough full transaction fee from feerate and estimated virtual bytesize.
+        let bitcoin_transaction_fee = bitcoin_transaction_feerate
+            .checked_mul(transaction_roughly_vbytesize)
+            .ok_or(
+                UnsignedBatchTxnConstructError::BitcoinTransactionFeeFromFeerateCheckedMulError,
+            )?;
+        println!(
+            "bitcoin_transaction_fee (estimated): {}",
+            bitcoin_transaction_fee
+        );
 
         // Calculate the change value.
         let change_value = {

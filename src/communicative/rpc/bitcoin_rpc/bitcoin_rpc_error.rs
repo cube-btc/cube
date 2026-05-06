@@ -13,6 +13,11 @@ pub enum BitcoinRPCGetChainTipError {
 }
 
 #[derive(Debug)]
+pub enum BitcoinRPCGetMempoolFeeRateError {
+    RPCErr(bitcoincore_rpc::Error),
+}
+
+#[derive(Debug)]
 pub enum BitcoinRPCRetrieveBlockError {
     RPCErr(bitcoincore_rpc::Error),
 }
@@ -38,6 +43,14 @@ impl fmt::Display for BitcoinRPCGetChainTipError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             BitcoinRPCGetChainTipError::RPCErr(err) => write!(f, "RPC error: {}", err),
+        }
+    }
+}
+
+impl fmt::Display for BitcoinRPCGetMempoolFeeRateError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            BitcoinRPCGetMempoolFeeRateError::RPCErr(err) => write!(f, "RPC error: {}", err),
         }
     }
 }

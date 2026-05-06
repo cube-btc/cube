@@ -92,7 +92,11 @@ impl UnregisteredAccount {
             let privileges_manager_account_body = PrivilegesManagerAccountBody::new(
                 LivenessFlag::new_operational(),
                 AccountHierarchy::new_pleb(),
-                Exemption::new(PeriodicResource::new(0, 0, 0), 0, 0),
+                Exemption::new(
+                    Some((PeriodicResource::new(0, 0, 0), u64::MAX)),
+                    Some((0, u64::MAX)),
+                    Some((0, u64::MAX)),
+                ),
                 0,
                 0,
                 TimedSwitchBool::new(params_holder.account_can_initially_deploy_liquidity, None),

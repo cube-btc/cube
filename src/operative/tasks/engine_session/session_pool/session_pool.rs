@@ -44,7 +44,7 @@ pub type BatchTimestamp = u64;
 pub type EntryId = [u8; 32];
 
 /// A type alias for the Bitcoin transaction fee.
-type BitcoinTransactionFee = u64;
+type BitcoinTransactionFeeRate = u64;
 
 /// A type alias for a vector of bytes.
 type Bytes = Vec<u8>;
@@ -75,7 +75,7 @@ pub struct SessionPool {
     pub state: SessionPoolState,
 
     // The batch height.
-    pub batch_info: Option<(BatchHeight, BatchTimestamp, BitcoinTransactionFee)>,
+    pub batch_info: Option<(BatchHeight, BatchTimestamp, BitcoinTransactionFeeRate)>,
 
     // The engine key.
     pub engine_key: [u8; 32],
@@ -206,13 +206,13 @@ impl SessionPool {
         &mut self,
         batch_height: u64,
         batch_timestamp: u64,
-        bitcoin_transaction_fee: u64,
+        bitcoin_transaction_feerate: u64,
     ) {
         // 1 Set the state of the session pool to active.
         self.state = SessionPoolState::Active;
 
         // 2 Set the batch info.
-        self.batch_info = Some((batch_height, batch_timestamp, bitcoin_transaction_fee));
+        self.batch_info = Some((batch_height, batch_timestamp, bitcoin_transaction_feerate));
     }
 
     /// Suspends the session of the `SessionPool`.
@@ -250,7 +250,7 @@ impl SessionPool {
         engine_keyholder: &KeyHolder,
     ) -> Result<BatchContainer, IntoBatchContainerError> {
         // 1 Get the batch info.
-        let (batch_height, batch_timestamp, bitcoin_transaction_fee) = self
+        let (batch_height, batch_timestamp, bitcoin_transaction_feerate) = self
             .batch_info
             .ok_or(IntoBatchContainerError::BatchInfoNotFoundError)?;
 
@@ -369,7 +369,7 @@ impl SessionPool {
             executed_entries,
             new_payload,
             new_projector,
-            bitcoin_transaction_fee,
+            bitcoin_transaction_feerate,
             engine_keyholder,
         )
         .map_err(|err| IntoBatchContainerError::SignedBatchTxnConstructError(err))?;

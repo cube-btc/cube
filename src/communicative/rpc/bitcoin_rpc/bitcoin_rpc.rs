@@ -1,6 +1,6 @@
 use crate::communicative::rpc::bitcoin_rpc::bitcoin_rpc_error::{
     BitcoinRPCBroadcastRawTransactionError, BitcoinRPCGetChainTipError, BitcoinRPCRetrieveBlockError,
-    BitcoinRPCValidateRPCError,
+    BitcoinRPCGetMempoolFeeRateError, BitcoinRPCValidateRPCError,
 };
 use crate::communicative::rpc::bitcoin_rpc::bitcoin_rpc_holder::BitcoinRPCHolder;
 use crate::operative::run_args::chain::Chain;
@@ -80,6 +80,34 @@ pub fn get_chain_tip(
 
     // Return chain height.
     Ok((chain_height, is_synced))
+}
+
+/// Returns mempool minimum fee rate in sat/vbyte.
+pub fn get_mempool_min_fee_rate(
+    rpc_holder: &BitcoinRPCHolder,
+) -> Result<u64, BitcoinRPCGetMempoolFeeRateError> {
+    let rpc_url = rpc_holder.url();
+    let rpc_user = rpc_holder.user();
+    let rpc_password = rpc_holder.password();
+
+    // Create RPC client.
+    let rpc_client = match Client::new(&rpc_url, Auth::UserPass(rpc_user, rpc_password)) {
+        Ok(client) => client,
+        Err(err) => return Err(BitcoinRPCGetMempoolFeeRateError::RPCErr(err)),
+    };
+
+    // Get mempool info.
+    let mempool_info = match rpc_client.get_mempool_info() {
+        Ok(result) => result,
+        Err(err) => return Err(BitcoinRPCGetMempoolFeeRateError::RPCErr(err)),
+    };
+
+    // Bitcoin Core returns mempool minimum fee as BTC/kvB.
+    // Convert BTC/kvB -> sat/kvB -> sat/vbyte, rounded up to avoid underpaying.
+    let mempool_min_fee_sat_per_kvb = mempool_info.mempool_min_fee.to_sat();
+    let mempool_min_fee_sat_per_vbyte = ((mempool_min_fee_sat_per_kvb + 999) / 1000).max(1);
+
+    Ok(mempool_min_fee_sat_per_vbyte)
 }
 
 /// Returns the block at the given height.

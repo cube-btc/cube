@@ -49,8 +49,8 @@ impl SignedBatchTxn {
         // Tx outputs
         new_payload: Payload,
         new_projector: Option<Projector>,
-        // Tx fee
-        bitcoin_transaction_fee: u64,
+        // Tx feerate (sats per vbyte)
+        bitcoin_transaction_feerate: u64,
         // Engine key
         engine_keyholder: &KeyHolder,
     ) -> Result<SignedBatchTxn, SignedBatchTxnConstructError> {
@@ -131,7 +131,7 @@ impl SignedBatchTxn {
             new_payload_txout,
             new_projector_txout,
             swapout_tx_outputs,
-            bitcoin_transaction_fee,
+            bitcoin_transaction_feerate,
         )
         .map_err(SignedBatchTxnConstructError::UnsignedBatchTxnConstructError)?;
 

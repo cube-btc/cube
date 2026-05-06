@@ -91,7 +91,11 @@ impl UnregisteredRootAccount {
             let privileges_manager_account_body = PrivilegesManagerAccountBody::new(
                 LivenessFlag::new_operational(),
                 AccountHierarchy::new_pleb(),
-                Exemption::new(PeriodicResource::new(240, 50, 50), 40, 20),
+                Exemption::new(
+                    Some((PeriodicResource::new(21600, 50, 50), u64::MAX)),
+                    Some((40, u64::MAX)),
+                    Some((20, u64::MAX)),
+                ),
                 0x03,
                 0x00,
                 TimedSwitchBool::new(params_holder.account_can_initially_deploy_liquidity, None),

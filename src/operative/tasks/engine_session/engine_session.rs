@@ -1,4 +1,5 @@
 use crate::communicative::rpc::bitcoin_rpc::bitcoin_rpc::broadcast_raw_transaction;
+use crate::communicative::rpc::bitcoin_rpc::bitcoin_rpc::get_mempool_min_fee_rate;
 use crate::communicative::rpc::bitcoin_rpc::bitcoin_rpc_holder::BitcoinRPCHolder;
 use crate::executive::exec_ctx::exec_ctx::ExecCtx;
 use crate::inscriptive::archival_manager::archival_manager::ARCHIVAL_MANAGER;
@@ -63,9 +64,23 @@ pub async fn engine_batch_builder_background_task(
             current_execution_batch_height, current_execution_timestamp
         );
 
-        // 4 TODO: Construct the bitcoin transaction fee.
-        // Currently hardcoded to 500 satoshis as a placeholder.
-        let bitcoin_transaction_fee = 1_000;
+        // 4 Retrieve mempool minimum fee rate (sat/vbyte).
+        let bitcoin_transaction_feerate = match get_mempool_min_fee_rate(rpc_holder) {
+            Ok(feerate) => feerate,
+            Err(error) => {
+                eprintln!(
+                    "Failed to retrieve mempool minimum feerate: {}. Retrying in 5 seconds.",
+                    error
+                );
+                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                continue;
+            }
+        };
+
+        println!(
+            "Mempool minimum feerate: {} sat/vbyte",
+            bitcoin_transaction_feerate
+        );
 
         // 5 Begin the session.
         {
@@ -76,7 +91,7 @@ pub async fn engine_batch_builder_background_task(
             _session_pool.begin_session(
                 current_execution_batch_height,
                 current_execution_timestamp,
-                bitcoin_transaction_fee,
+                bitcoin_transaction_feerate,
             );
         }
 
@@ -122,7 +137,7 @@ pub async fn engine_batch_builder_background_task(
             match batch_container_result {
                 Ok(batch_container) => batch_container,
                 Err(error) => {
-                    eprintln!("Failed to get the batch container during batch builder background task: {:?} at batch height: #{}, timestamp: {}, and bitcoin transaction fee: {}.", error, current_execution_batch_height, current_execution_timestamp, bitcoin_transaction_fee);
+                    eprintln!("Failed to get the batch container during batch builder background task: {:?} at batch height: #{}, timestamp: {}, and bitcoin transaction feerate: {}.", error, current_execution_batch_height, current_execution_timestamp, bitcoin_transaction_feerate);
 
                     // End the session.
                     {
@@ -188,7 +203,7 @@ pub async fn engine_batch_builder_background_task(
                 );
             }
             Err(error) => {
-                eprintln!("Failed to execute the batch container during batch builder background task: {:?} at batch height: #{}, timestamp: {}, and bitcoin transaction fee: {}.", error, current_execution_batch_height, current_execution_timestamp, bitcoin_transaction_fee);
+                eprintln!("Failed to execute the batch container during batch builder background task: {:?} at batch height: #{}, timestamp: {}, and bitcoin transaction feerate: {}.", error, current_execution_batch_height, current_execution_timestamp, bitcoin_transaction_feerate);
                 continue;
             }
         }

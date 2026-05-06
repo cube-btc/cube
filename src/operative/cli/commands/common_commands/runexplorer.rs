@@ -5,6 +5,7 @@ use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
 use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
 use crate::inscriptive::privileges_manager::elements::account_hierarchy::account_hierarchy::AccountHierarchy;
 use crate::inscriptive::privileges_manager::elements::exemption::exemption::Exemption;
+use crate::inscriptive::privileges_manager::elements::exemption::periodic_resource::periodic_resource::PeriodicResource;
 use crate::inscriptive::privileges_manager::privileges_manager::PRIVILEGES_MANAGER;
 use crate::inscriptive::registery::registery::REGISTERY;
 use crate::operative::run_args::chain::Chain;
@@ -813,11 +814,16 @@ fn explorer_vip_tab_inner(
     } else {
         ("💎", "diamond", "vip-card-diamond")
     };
-    let pr = &txfee.periodic_credit;
+    let default_periodic = PeriodicResource::new(0, 0, 0);
+    let pr = txfee
+        .periodic_credit
+        .as_ref()
+        .map(|(periodic, _)| periodic)
+        .unwrap_or(&default_periodic);
     let period_label = explorer_format_period_for_bar(pr.period);
     let suffix = format!("/ per {}", period_label);
-    let discount_label = explorer_vip_discount_percent_label(txfee.discount);
-    let direct_coins = explorer_format_coins_u64(txfee.direct_credit);
+    let discount_label = explorer_vip_discount_percent_label(txfee.discount.map(|v| v.0).unwrap_or(0));
+    let direct_coins = explorer_format_coins_u64(txfee.direct_credit.map(|v| v.0).unwrap_or(0));
     let limit_coins = explorer_format_coins_u64(pr.limit);
     format!(
         r#"<div class="vip-tier-root">
