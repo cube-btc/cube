@@ -128,17 +128,22 @@ impl UnsignedBatchTxn {
                 + (lift_inputs_count * LIFT_WITNESS_ROUGH_VBYTES)
                 + (tx_outputs_count * TXOUT_BASE_VBYTES)
         };
+
         println!(
             "transaction_roughly_vbytesize (estimated): {}",
             transaction_roughly_vbytesize
         );
 
         // Determine rough full transaction fee from feerate and estimated virtual bytesize.
-        let bitcoin_transaction_fee = bitcoin_transaction_feerate
+        // bitcoin_transaction_feerate plus 1 for safety.
+        // Plus 20 for extra tip.
+        let bitcoin_transaction_fee = (bitcoin_transaction_feerate + 1)
             .checked_mul(transaction_roughly_vbytesize)
             .ok_or(
                 UnsignedBatchTxnConstructError::BitcoinTransactionFeeFromFeerateCheckedMulError,
-            )?;
+            )?
+            + 20;
+
         println!(
             "bitcoin_transaction_fee (estimated): {}",
             bitcoin_transaction_fee

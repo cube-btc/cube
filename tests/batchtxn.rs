@@ -201,7 +201,7 @@ mod batchtxn_test {
             vec![liftup_entry],
             new_payload,
             None,
-            500,
+            1,
             &engine_key_holder,
         )
         .expect("Failed to construct signed batch transaction.");

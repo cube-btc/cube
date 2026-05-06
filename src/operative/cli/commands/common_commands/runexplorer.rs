@@ -139,6 +139,7 @@ fn account_url(account_key: [u8; 32]) -> String {
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum AccountExplorerSection {
     History,
+    Registery,
     Vip,
     Privileges,
     Vtxo,
@@ -146,8 +147,9 @@ enum AccountExplorerSection {
 }
 
 impl AccountExplorerSection {
-    const ALL: [Self; 5] = [
+    const ALL: [Self; 6] = [
         Self::History,
+        Self::Registery,
         Self::Vip,
         Self::Privileges,
         Self::Vtxo,
@@ -157,6 +159,7 @@ impl AccountExplorerSection {
     fn from_slug(s: &str) -> Option<Self> {
         match s.trim() {
             "history" => Some(Self::History),
+            "registery" => Some(Self::Registery),
             "vip" => Some(Self::Vip),
             "privileges" => Some(Self::Privileges),
             "vtxo" => Some(Self::Vtxo),
@@ -168,6 +171,7 @@ impl AccountExplorerSection {
     fn slug(self) -> &'static str {
         match self {
             Self::History => "history",
+            Self::Registery => "registery",
             Self::Vip => "vip",
             Self::Privileges => "privileges",
             Self::Vtxo => "vtxo",
@@ -178,6 +182,7 @@ impl AccountExplorerSection {
     fn nav_label(self) -> &'static str {
         match self {
             Self::History => "Transaction History",
+            Self::Registery => "Registery",
             Self::Vip => "V.I.P.",
             Self::Privileges => "Privileges",
             Self::Vtxo => "VTXO Set",
@@ -188,6 +193,7 @@ impl AccountExplorerSection {
     fn document_title(self) -> &'static str {
         match self {
             Self::History => "History",
+            Self::Registery => "Registery",
             Self::Vip => "V.I.P.",
             Self::Privileges => "Privileges",
             Self::Vtxo => "VTXO set",
@@ -291,6 +297,20 @@ fn account_link(account_key: [u8; 32]) -> String {
         r#"<a class="row-link" href="{}"><code class="mono">{}</code></a>"#,
         html_escape(&account_url(account_key)),
         html_escape(&npub)
+    )
+}
+
+fn account_link_npub_truncated(account_key: [u8; 32]) -> String {
+    let npub = account_key.to_npub().unwrap_or_else(|| "n/a".to_string());
+    let label = if npub.len() > 16 {
+        format!("{}...{}", &npub[..8], &npub[npub.len() - 5..])
+    } else {
+        npub.clone()
+    };
+    format!(
+        r#"<a class="row-link" href="{}"><code class="mono">{}</code></a>"#,
+        html_escape(&account_url(account_key)),
+        html_escape(&label)
     )
 }
 
@@ -452,6 +472,49 @@ th, td { text-align: left; padding: 0.55rem 0.65rem; border-bottom: 1px solid #e
 th { color: #5c6670; font-weight: 600; }
 td.mono, th.mono { font-family: ui-monospace, monospace; font-size: 0.82rem; }
 th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.entries-table {
+  border-collapse: separate;
+  border-spacing: 0 0.48rem;
+}
+.entries-table thead th {
+  border-bottom: 0;
+  padding-bottom: 0.25rem;
+}
+.entries-table .entry-row-btn {
+  cursor: pointer;
+}
+.entries-table .entry-row-btn td {
+  background: linear-gradient(180deg, #fffefc 0%, #fbf7ee 100%);
+  border-bottom: 0;
+  border-top: 1px solid #efe6d6;
+  border-bottom: 1px solid #e8dec9;
+  box-shadow: 0 1px 3px rgba(31, 35, 40, 0.05), inset 0 1px 0 rgba(255,255,255,0.6);
+  transition: box-shadow 0.14s ease, border-color 0.14s ease, background 0.14s ease;
+}
+.entries-table .entry-row-btn td:first-child {
+  border-left: 1px solid #eadfca;
+  border-top-left-radius: 10px;
+  border-bottom-left-radius: 10px;
+}
+.entries-table .entry-row-btn td:last-child {
+  border-right: 1px solid #eadfca;
+  border-top-right-radius: 10px;
+  border-bottom-right-radius: 10px;
+}
+.entries-table .entry-row-btn:hover td {
+  background: linear-gradient(180deg, #fffefc 0%, #f8f2e6 100%);
+  border-top-color: #e7dbc4;
+  border-bottom-color: #e0d1b3;
+  box-shadow: 0 2px 6px rgba(31, 35, 40, 0.07), inset 0 1px 0 rgba(255,255,255,0.7);
+}
+.entries-table .entry-row-btn:active td {
+  box-shadow: 0 1px 4px rgba(31, 35, 40, 0.06), inset 0 1px 0 rgba(255,255,255,0.65);
+}
+.entries-table .entry-row-btn:focus-visible td {
+  outline: 2px solid #bfae88;
+  outline-offset: -2px;
+  background: linear-gradient(180deg, #fffefc 0%, #f6efdf 100%);
+}
 a.row-link { color: #0550ae; }
 a.row-link:hover { text-decoration: underline; }
 .summary { display: grid; grid-template-columns: 9.5rem 1fr; gap: 0.35rem 1rem; margin-bottom: 1.5rem; font-size: 0.92rem; }
@@ -647,6 +710,23 @@ fn layout(title: &str, body: &str, search_value: &str) -> String {
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{}</title>{}</head>
 <body>{}<main>{}</main>{}<script>
 (function () {{
+  const rowLinks = Array.from(document.querySelectorAll('[data-row-href]'));
+  rowLinks.forEach((row) => {{
+    const href = row.getAttribute('data-row-href');
+    if (!href) return;
+    row.addEventListener('click', (ev) => {{
+      const target = ev.target;
+      if (target && target.closest && target.closest('a,button,input,textarea,select,label')) return;
+      window.location.href = href;
+    }});
+    row.addEventListener('keydown', (ev) => {{
+      if (ev.key !== 'Enter' && ev.key !== ' ') return;
+      const target = ev.target;
+      if (target && target.closest && target.closest('a,button,input,textarea,select,label')) return;
+      ev.preventDefault();
+      window.location.href = href;
+    }});
+  }});
   const buttons = Array.from(document.querySelectorAll('[data-expand-target]'));
   buttons.forEach((button) => {{
     const targetId = button.getAttribute('data-expand-target');
@@ -961,12 +1041,14 @@ async fn page_accounts(State(st): State<ExplorerState>) -> Html<String> {
 
     let mut table_rows = String::new();
     for (registery_index, account_key, call_counter, last_activity_timestamp) in rows {
+        let row_href = account_url(account_key);
         table_rows.push_str(&format!(
-            r#"<tr><td class="num">{}</td><td>{}</td><td class="num">{}</td><td>{}</td></tr>"#,
+            r#"<tr class="entry-row-btn" data-row-href="{}" tabindex="0" role="link" aria-label="Open account details"><td class="num">{}</td><td>{}</td><td class="num">{}</td><td>{}</td></tr>"#,
+            html_escape(&row_href),
             registery_index,
             account_link(account_key),
             call_counter,
-            explorer_timestamp_html(last_activity_timestamp),
+            batch_table_relative_time_html(last_activity_timestamp),
         ));
     }
     if table_rows.is_empty() {
@@ -976,7 +1058,7 @@ async fn page_accounts(State(st): State<ExplorerState>) -> Html<String> {
     let body = format!(
         r#"<h1>Accounts</h1>
 <p class="muted">Search by account key hex or npub to open details.</p>
-<table><thead><tr><th class="num">Index</th><th>Account</th><th class="num">Call counter</th><th>Last activity</th></tr></thead><tbody>{}</tbody></table>"#,
+<table class="entries-table"><thead><tr><th class="num">Index</th><th>Account</th><th class="num">Call counter</th><th>Last activity</th></tr></thead><tbody>{}</tbody></table>"#,
         table_rows
     );
     Html(layout("Accounts — Cube explorer", &body, ""))
@@ -1030,7 +1112,7 @@ async fn page_account_section(
             Html(layout(
                 "Account — Cube explorer",
                 &format!(
-                    r#"<h1>Unknown account section</h1><p>No tab <code class="mono">{}</code>. Use <code>history</code>, <code>vip</code>, <code>privileges</code>, <code>vtxo</code>, or <code>coin-manager</code>.</p><p><a class="row-link" href="/accounts">← Accounts</a></p>"#,
+                    r#"<h1>Unknown account section</h1><p>No tab <code class="mono">{}</code>. Use <code>history</code>, <code>registery</code>, <code>vip</code>, <code>privileges</code>, <code>vtxo</code>, or <code>coin-manager</code>.</p><p><a class="row-link" href="/accounts">← Accounts</a></p>"#,
                     html_escape(section_slug.trim()),
                 ),
                 "",
@@ -1077,6 +1159,7 @@ async fn page_account_section(
     let mut history_rows = String::new();
     for (batch_height, _batch_txid, batch_ts, entry_id, entry) in history.iter().rev() {
         let entry_id_hex = hex::encode(entry_id);
+        let entry_href = format!("/entry/{}", entry_id_hex);
         let entry_kind = match entry {
             Entry::Move(_) => "💰 Move",
             Entry::Call(_) => "📞 Call",
@@ -1085,9 +1168,11 @@ async fn page_account_section(
             Entry::Config(_) => "⚙️ Config",
         };
         history_rows.push_str(&format!(
-            r#"<tr><td>{1}</td><td><a class="row-link" href="/entry/{0}"><code class="mono">{0}</code></a></td><td><a class="row-link" href="/batch/height/{2}">#{2}</a></td><td>{3}</td></tr>"#,
-            html_escape(&entry_id_hex),
+            r#"<tr class="entry-row-btn" data-row-href="{}" tabindex="0" role="link" aria-label="Open entry details"><td>{}</td><td><code class="mono">{}</code></td><td><a class="row-link" href="/batch/height/{}">#{}</a></td><td>{}</td></tr>"#,
+            html_escape(&entry_href),
             entry_kind,
+            html_escape(&entry_id_hex),
+            batch_height,
             batch_height,
             batch_table_relative_time_html(*batch_ts),
         ));
@@ -1097,9 +1182,14 @@ async fn page_account_section(
     }
 
     let privileges_json = if let Some(ref pb) = privilege_body {
+        let liveness_flag = match &pb.liveness_flag {
+            crate::inscriptive::privileges_manager::elements::liveness_flag::liveness_flag::LivenessFlag::Operational => "operational",
+            crate::inscriptive::privileges_manager::elements::liveness_flag::liveness_flag::LivenessFlag::ToBeFrozen(_) => "to_be_frozen",
+            crate::inscriptive::privileges_manager::elements::liveness_flag::liveness_flag::LivenessFlag::ToBeDestroyed(_) => "to_be_destroyed",
+        };
         serde_json::json!({
-            "liveness_flag": pb.liveness_flag,
-            "hierarchy": pb.hierarchy.to_string(),
+            "liveness_flag": liveness_flag,
+            "hierarchy": pb.hierarchy.to_string().to_lowercase(),
             "txfee_exemptions": pb.txfee_exemptions,
             "reserved_flag_1": pb.reserved_flag_1,
             "reserved_flag_2": pb.reserved_flag_2,
@@ -1111,6 +1201,8 @@ async fn page_account_section(
     };
     let privileges_pretty =
         serde_json::to_string_pretty(&privileges_json).unwrap_or_else(|_| "null".to_string());
+    let registery_pretty =
+        serde_json::to_string_pretty(&account_body.json()).unwrap_or_else(|_| "null".to_string());
 
     let vtxo_json = {
         let fm = st.flame_manager.lock().await;
@@ -1175,9 +1267,16 @@ async fn page_account_section(
         AccountExplorerSection::History => format!(
             r#"<article class="account-section-page" id="account-section-history" aria-labelledby="account-section-history-heading">
 <h2 id="account-section-history-heading">Transaction History</h2>
-<table><thead><tr><th>Entry Kind</th><th>Entry ID</th><th>Batch</th><th>Seen</th></tr></thead><tbody>{}</tbody></table>
+<table class="entries-table"><thead><tr><th>Entry Kind</th><th>Entry ID</th><th>Batch</th><th>Seen</th></tr></thead><tbody>{}</tbody></table>
 </article>"#,
             history_rows,
+        ),
+        AccountExplorerSection::Registery => format!(
+            r#"<article class="account-section-page" id="account-section-registery" aria-labelledby="account-section-registery-heading">
+<h2 id="account-section-registery-heading">Registery Account Body</h2>
+<pre class="reg-json">{}</pre>
+</article>"#,
+            html_escape(&registery_pretty),
         ),
         AccountExplorerSection::Vip => format!(
             r#"<article class="account-section-page" id="account-section-vip" aria-label="V.I.P.">
@@ -1308,19 +1407,21 @@ async fn page_batches(State(st): State<ExplorerState>) -> Html<String> {
     let mut table_rows = String::new();
     for (height, ts, txid, num_entries) in rows {
         let ts_html = batch_table_relative_time_html(ts);
+        let row_href = format!("/batch/height/{}", height);
         table_rows.push_str(&format!(
-            r#"<tr><td><a class="row-link" href="/batch/height/{0}">#{0}</a></td><td>{1}</td><td class="mono"><a class="row-link" href="/batch/tx/{3}">{2}</a></td><td class="num">{4}</td></tr>"#,
+            r#"<tr class="entry-row-btn" data-row-href="{5}" tabindex="0" role="link" aria-label="Open batch details"><td><span class="mono">#{0}</span></td><td class="mono"><a class="row-link" href="/batch/tx/{3}">{2}</a></td><td class="num">{4}</td><td>{1}</td></tr>"#,
             height,
             ts_html,
             html_escape(&txid),
             html_escape(&txid),
-            num_entries
+            num_entries,
+            html_escape(&row_href),
         ));
     }
 
     let body = format!(
         r#"<h1><span class="badge">{}</span> Latest batches</h1>
-<table><thead><tr><th>Height</th><th>Seen</th><th>Txid</th><th class="num">Number of Entries</th></tr></thead><tbody>{}</tbody></table>"#,
+<table class="entries-table"><thead><tr><th>Height</th><th>Txid</th><th class="num">Number of Entries</th><th>Seen</th></tr></thead><tbody>{}</tbody></table>"#,
         st.chain.to_string(),
         if table_rows.is_empty() {
             r#"<tr><td colspan="4">No batches in archival storage yet.</td></tr>"#.to_string()
@@ -1478,6 +1579,13 @@ async fn page_entry_by_id(
             account_link(config.root_account.account_key())
         ),
     };
+    let entry_coins_html = match &entry {
+        Entry::Move(move_entry) => format!(
+            r#"<dt>Coins</dt><dd>{}</dd>"#,
+            html_escape(&explorer_format_coins_u64(move_entry.amount as u64))
+        ),
+        _ => String::new(),
+    };
     let collected_bits_html = match collected_bits {
         Some(bits) => {
             expandable_mono_html(&bits, 28, 16, "ape-bits")
@@ -1486,7 +1594,9 @@ async fn page_entry_by_id(
     };
 
     let body = format!(
-        r#"<h1>{}</h1>
+        r#"<section class="account-card">
+<div class="account-card-header"><h1>{}</h1></div>
+<div class="account-card-summary">
 <dl class="summary">
 <dt>Entry id</dt><dd><code class="mono">{}</code></dd>
 <dt>Batch height</dt><dd><a class="row-link" href="/batch/height/{}">#{}</a></dd>
@@ -1494,10 +1604,13 @@ async fn page_entry_by_id(
 <dt>Batch timestamp</dt><dd>{}</dd>
 <dt>APE bitstream</dt><dd>{}</dd>
 {}
+{}
 </dl>
-<h2 style="font-size:1.1rem;margin:1.25rem 0 0.65rem">Entry fees</h2>
-<pre class="reg-json">{}</pre>
+</div>
+</section>
 <h2 style="font-size:1.1rem;margin:1.25rem 0 0.65rem">Entry data</h2>
+<pre class="reg-json">{}</pre>
+<h2 style="font-size:1.1rem;margin:1.25rem 0 0.65rem">Entry fees</h2>
 <pre class="reg-json">{}</pre>
 <p style="margin-top:1.25rem"><a class="row-link" href="/batch/height/{}">← Batch #{}</a> · <a class="row-link" href="/batches">All batches</a></p>"#,
         entry_kind_title,
@@ -1508,8 +1621,9 @@ async fn page_entry_by_id(
         ts_html,
         collected_bits_html,
         entry_accounts_html,
-        html_escape(&entry_fees_json),
+        entry_coins_html,
         html_escape(&entry_json),
+        html_escape(&entry_fees_json),
         batch_height,
         batch_height,
     );
@@ -1525,66 +1639,91 @@ async fn page_entry_by_id(
 fn render_batch_page(chain: Chain, record: &BatchRecord) -> String {
     let ts_html = explorer_timestamp_html(record.batch_timestamp);
     let txid = record.batch_container.signed_batch_txn.txid().to_string();
-    let txid_cell = match mempool_tx_url(chain, &txid) {
+    let txid_cell = format!(r#"<code class="mono">{}</code>"#, html_escape(&txid));
+    let mempool_button_html = match mempool_tx_url(chain, &txid) {
         Some(url) => format!(
-            r#"<a class="row-link" href="{}" target="_blank" rel="noopener"><code class="mono">{}</code></a>"#,
+            r#"<a class="action-btn" href="{}" target="_blank" rel="noopener">View on mempool.space ↗</a>"#,
             html_escape(&url),
-            html_escape(&txid)
         ),
-        None => format!(r#"<code class="mono">{}</code>"#, html_escape(&txid)),
+        None => String::new(),
     };
 
-    let mut entries_html = String::new();
-    for (i, (entry_id, entry)) in record.entries.iter().enumerate() {
+    let mut entries_rows_html = String::new();
+    for (entry_id, entry) in record.entries.iter() {
         let eid = hex::encode(entry_id);
-        let eid_short = format!("{}…", &eid[..24]);
-        let json_pretty = serde_json::to_string_pretty(&entry.json()).unwrap_or_else(|_| "{}".into());
-        let fees_pretty = serde_json::to_string_pretty(
-            &record
-                .entry_fees
-                .get(i)
-                .map(|f| f.json())
-                .unwrap_or(serde_json::Value::Null),
-        )
-        .unwrap_or_else(|_| "null".to_string());
-        entries_html.push_str(&format!(
-            r#"<div class="entry-card" id="entry-{1}"><h3>Entry {0} — <a class="row-link" href="/entry/{1}" title="{2}"><code class="mono">{3}</code></a></h3><p class="muted" style="margin-bottom:0.35rem"><strong>Fees</strong></p><pre>{4}</pre><p class="muted" style="margin-top:0.75rem;margin-bottom:0.35rem"><strong>Entry data</strong></p><pre>{5}</pre></div>"#,
-            i + 1,
-            eid,
-            html_escape(&eid),
-            html_escape(&eid_short),
-            html_escape(&fees_pretty),
-            html_escape(&json_pretty)
+        let entry_href = format!("/entry/{}", eid);
+        let entry_kind = match entry {
+            Entry::Move(_) => "💰 Move",
+            Entry::Call(_) => "📞 Call",
+            Entry::Liftup(_) => "🛗 Liftup",
+            Entry::Swapout(_) => "🚪 Swapout",
+            Entry::Config(_) => "⚙️ Config",
+        };
+        let amount_cell = match entry {
+            Entry::Move(move_entry) => explorer_format_coins_u64(move_entry.amount as u64),
+            Entry::Liftup(liftup) => explorer_format_coins_u64(liftup.liftup_sum_value_in_satoshis()),
+            Entry::Swapout(swapout) => explorer_format_coins_u64(swapout.amount as u64),
+            Entry::Call(_) | Entry::Config(_) => "N/A".to_string(),
+        };
+        let account_cell = match entry {
+            Entry::Move(move_entry) => format!(
+                "{} → {}",
+                account_link_npub_truncated(move_entry.from.account_key()),
+                account_link_npub_truncated(move_entry.to.account_key())
+            ),
+            Entry::Liftup(liftup) => account_link_npub_truncated(liftup.root_account.account_key()),
+            Entry::Swapout(swapout) => account_link_npub_truncated(swapout.root_account.account_key()),
+            Entry::Call(call) => account_link_npub_truncated(call.account.account_key()),
+            Entry::Config(config) => account_link_npub_truncated(config.root_account.account_key()),
+        };
+        entries_rows_html.push_str(&format!(
+            r#"<tr class="entry-row-btn" data-row-href="{}" tabindex="0" role="link" aria-label="Open entry details"><td>{}</td><td>{}</td><td class="mono">{}</td></tr>"#,
+            html_escape(&entry_href),
+            entry_kind,
+            account_cell,
+            html_escape(&amount_cell),
         ));
     }
 
-    if entries_html.is_empty() {
-        entries_html = r#"<p class="muted">No entries in this batch.</p>"#.into();
+    if entries_rows_html.is_empty() {
+        entries_rows_html =
+            r#"<tr><td colspan="3">No entries in this batch.</td></tr>"#.to_string();
     }
 
     let body = format!(
-        r#"<h1>📦 Batch #{}</h1>
+        r#"<section class="account-card">
+<div class="account-card-header">
+<section class="account-header-row">
+<div class="account-header-main"><h1>📦 Batch #{}</h1></div>
+{}
+</section>
+</div>
+<div class="account-card-summary">
 <dl class="summary">
-<dt>Height</dt><dd>#{}</dd>
+<dt>Height</dt><dd><span class="mono">#{}</span></dd>
 <dt>Timestamp</dt><dd>{}</dd>
-<dt>Txid</dt><dd>{}</dd>
+<dt>Txid</dt><dd><div class="summary-copy-row">{}<button type="button" class="copy-btn" data-copy-value="{}" aria-label="Copy batch txid" title="Copy batch txid">&#128203;</button></div></dd>
 <dt>BLS agg sig</dt><dd>{}</dd>
-<dt>Payload version</dt><dd>{}</dd>
-<dt>Entries</dt><dd>{}</dd>
+<dt>Payload version</dt><dd><span class="mono">{}</span></dd>
+<dt>Entries</dt><dd><span class="mono">{}</span></dd>
 </dl>
-<section class="entries"><h2 style="font-size:1.1rem;margin-bottom:0.75rem">Entries</h2>{}</section>
+</div>
+</section>
+<section class="entries"><h2 style="font-size:1.1rem;margin-bottom:0.75rem">Entries</h2><table class="entries-table"><thead><tr><th>Entry Kind</th><th>Account(s)</th><th>Amount</th></tr></thead><tbody>{}</tbody></table></section>
 <p><a class="row-link" href="/batches">← All batches</a></p>"#,
         record.batch_height,
+        mempool_button_html,
         record.batch_height,
         ts_html,
         txid_cell,
+        txid,
         {
             let bls_full = hex::encode(&record.aggregate_bls_signature);
             expandable_mono_html(&bls_full, 28, 16, "bls-agg-sig")
         },
         record.payload_version,
         record.entries.len(),
-        entries_html
+        entries_rows_html
     );
 
     layout(

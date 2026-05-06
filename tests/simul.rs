@@ -61,8 +61,8 @@ mod simul_tests {
         let (
             this_execution_batch_height,
             this_execution_timestamp,
-            this_execution_bitcoin_transaction_fee,
-        ) = (1, 1776015147, 500);
+            this_execution_bitcoin_transaction_feerate,
+        ) = (1, 1776015147, 1);
 
         // 3 Construct self secret key.
         let secret_key: [u8; 32] =
@@ -237,7 +237,7 @@ mod simul_tests {
             _session_pool.begin_session(
                 this_execution_batch_height,
                 this_execution_timestamp,
-                this_execution_bitcoin_transaction_fee,
+                this_execution_bitcoin_transaction_feerate,
             );
         }
 
