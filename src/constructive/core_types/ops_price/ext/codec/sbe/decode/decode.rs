@@ -5,15 +5,15 @@ use super::error::decode_error::OpsPriceSBEDecodeError;
 impl OpsPrice {
     /// Decodes an `OpsPrice` from Structural Byte-scope Encoding (SBE) bytes produced by [`OpsPrice::encode_sbe`].
     ///
-    /// The buffer must be exactly four bytes (little-endian `u32` `ops_price_ppm`).
+    /// The buffer must be exactly eight bytes (little-endian `u64` `ops_price_ppm`).
     pub fn decode_sbe(bytes: &[u8]) -> Result<OpsPrice, OpsPriceSBEDecodeError> {
-        let arr: [u8; 4] =
+        let arr: [u8; 8] =
             bytes
                 .try_into()
                 .map_err(|_| OpsPriceSBEDecodeError::OpsPriceSBEInvalidPayloadLength {
                     got: bytes.len(),
                 })?;
 
-        Ok(OpsPrice::new(u32::from_le_bytes(arr)))
+        Ok(OpsPrice::new(u64::from_le_bytes(arr)))
     }
 }

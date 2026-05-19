@@ -1,13 +1,13 @@
-use crate::constructive::core_types::valtypes::val::short_val::ape::decode::error::decode_error::ShortValAPEDecodeError;
+use crate::constructive::core_types::valtypes::val::long_val::ape::decode::error::decode_error::LongValAPEDecodeError;
 
 /// Errors that can occur when decoding an `OpsPrice` from an APE bit stream.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum OpsPriceAPEDecodeError {
     UnexpectedEndOfBitstream,
-    ShortValAPEDecodeError(ShortValAPEDecodeError),
-    /// `base_ops_price + overhead` does not fit in a `u32`.
+    LongValAPEDecodeError(LongValAPEDecodeError),
+    /// `base_ops_price + overhead` does not fit in a `u64`.
     OpsPriceTotalOverflow {
-        base_ops_price: u32,
-        overhead: u32,
+        base_ops_price: u64,
+        overhead: u64,
     },
 }
