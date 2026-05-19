@@ -1,4 +1,4 @@
-use crate::constructive::entry::entry_kinds::call::ape::decode::error::decode_error::CallEntryAPEDecodeError;
+use crate::constructive::entry::entry_kinds::call::ext::codec::ape::decode::error::decode_error::CallEntryAPEDecodeError;
 use crate::constructive::entry::entry_kinds::config::ext::codec::ape::decode::error::decode_error::ConfigAPEDecodeError;
 use crate::constructive::entry::entry_kinds::deploy::ext::codec::ape::decode::error::decode_error::DeployAPEDecodeError;
 use crate::constructive::entry::entry_kinds::liftup::ext::codec::ape::decode::error::decode_error::LiftupAPEDecodeError;

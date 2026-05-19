@@ -91,7 +91,7 @@ impl ProgramExecCtx {
         };
 
         // Check if the base ops price is the same as the base ops price of the call.
-        if call.ops_price_base() != self.base_ops_price {
+        if call.ops_price_total() != self.base_ops_price {
             return Err(ExecutionError::BaseOpsPriceMismatchError);
         }
 

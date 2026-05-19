@@ -9,16 +9,6 @@ use bit_vec::BitVec;
 
 impl Contract {
     /// Encodes a `Contract` as an Airly Payload Encoding (APE) bit vector.
-    ///
-    /// This function encodes a `Contract` as an Airly Payload Encoding (APE) bit vector.
-    /// The `Contract` can be either deployed or undeployed.
-    /// If the `Contract` is deployed, the rank value is encoded as a `LongVal` or a `ShortVal`.
-    /// If the `Contract` is undeployed, the public key is encoded as a bit vector.
-    ///
-    /// # Arguments
-    /// * `&self` - The `Contract` to encode.
-    /// * `registery` - The guarded `Registery` to get the `Contract`'s rank value.
-    /// * `encode_rank_as_longval` - Whether to encode the `Contract`'s rank value as a `LongVal` or a `ShortVal`.
     pub async fn encode_ape(
         &self,
         registery: &REGISTERY,

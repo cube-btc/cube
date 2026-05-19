@@ -1,4 +1,8 @@
-use crate::constructive::calldata::calldata_elements::calldata_elements::CalldataElement;
+use crate::constructive::calldata::calldata_elements::calldata_element::CalldataElement;
+use crate::constructive::core_types::method_index::method_index::MethodIndex;
+use crate::constructive::core_types::ops_budget::ops_budget::OpsBudget;
+use crate::constructive::core_types::ops_price::ops_price::OpsPrice;
+use crate::constructive::core_types::target::target::Target;
 use crate::constructive::entity::account::root_account::root_account::RootAccount;
 use crate::constructive::entity::contract::contract::Contract;
 use serde::{Deserialize, Serialize};
@@ -9,18 +13,24 @@ use serde_json::{Map, Value};
 pub struct Call {
     /// The account.
     pub account: RootAccount,
+
     /// The contract id.
     pub contract: Contract,
+
     /// The method index.
-    pub method_index: u8,
+    pub method_index: MethodIndex,
+
     /// The arguments.
     pub calldata_elements: Vec<CalldataElement>,
+
     /// The ops budget.
-    pub ops_budget: Option<u32>,
-    /// The base ops price.
-    pub ops_price_base: u32,
-    /// The extra ops price.
-    pub ops_price_overhead: Option<u32>,
+    pub ops_budget: OpsBudget,
+
+    /// The ops price.
+    pub ops_price: OpsPrice,
+
+    /// The target.
+    pub target: Target,
 }
 
 impl Call {
@@ -28,11 +38,11 @@ impl Call {
     pub fn new(
         account: RootAccount,
         contract: Contract,
-        method_index: u8,
+        method_index: MethodIndex,
         calldata_elements: Vec<CalldataElement>,
-        ops_budget: Option<u32>,
-        ops_price_base: u32,
-        ops_price_overhead: Option<u32>,
+        ops_budget: OpsBudget,
+        ops_price: OpsPrice,
+        target: Target,
     ) -> Self {
         Self {
             account,
@@ -40,8 +50,8 @@ impl Call {
             method_index,
             calldata_elements,
             ops_budget,
-            ops_price_base,
-            ops_price_overhead,
+            ops_price,
+            target,
         }
     }
 
@@ -50,14 +60,14 @@ impl Call {
         &self.account
     }
 
-    /// Returns the `Contract`.
+    /// Returns the contract.
     pub fn contract(&self) -> &Contract {
         &self.contract
     }
 
     /// Returns the method index.
-    pub fn method_index(&self) -> u8 {
-        self.method_index
+    pub fn method_index(&self) -> u16 {
+        self.method_index.index()
     }
 
     /// Returns the arguments.
@@ -65,69 +75,58 @@ impl Call {
         self.calldata_elements.clone()
     }
 
-    /// Returns the ops budget.
+    /// Returns the ops budget, if set.
     pub fn ops_budget(&self) -> Option<u32> {
-        self.ops_budget
+        self.ops_budget.ops_budget
     }
 
-    /// Returns the base ops price.
-    pub fn ops_price_base(&self) -> u32 {
-        self.ops_price_base
+    /// Returns the ops price.
+    pub fn ops_price(&self) -> &OpsPrice {
+        &self.ops_price
     }
 
-    /// Returns the extra ops price.
-    pub fn ops_price_overhead(&self) -> Option<u32> {
-        self.ops_price_overhead
+    /// Returns the ops price in ppm.
+    pub fn ops_price_ppm(&self) -> u64 {
+        self.ops_price.ops_price_ppm
     }
 
-    /// Returns the total ops price.
+    /// Returns the ops price used at execution time (ppm as `u32`).
     pub fn ops_price_total(&self) -> u32 {
-        self.ops_price_base + self.ops_price_overhead.unwrap_or(0)
+        self.ops_price.ops_price_ppm as u32
     }
 
     /// Returns the call entry as a JSON object.
     pub fn json(&self) -> Value {
-        // 1 Construct the JSON object.
         let mut obj = Map::new();
 
-        // 2 Insert the entry kind.
         obj.insert("entry_kind".to_string(), Value::String("call".to_string()));
-
-        // 3 Insert the account.
         obj.insert("root_account".to_string(), self.account.json());
-
-        // 4 Insert the contract.
         obj.insert("contract".to_string(), self.contract.json());
-
-        // 5 Insert the method index.
         obj.insert(
             "method_index".to_string(),
-            Value::Number((self.method_index as u64).into()),
+            Value::Number((self.method_index.index() as u64).into()),
         );
-
-        // 7 Insert the calldata elements.
         obj.insert(
             "calldata_elements".to_string(),
             serde_json::to_value(&self.calldata_elements)
                 .expect("CalldataElement vector must serialize to JSON"),
         );
-
-        // 8 Insert the ops budget.
         obj.insert(
             "ops_budget".to_string(),
-            match self.ops_budget {
+            match self.ops_budget.ops_budget {
                 Some(n) => Value::Number(n.into()),
                 None => Value::Null,
             },
         );
-
-        // 9 Insert the ops price total.
         obj.insert(
-            "ops_price_total".to_string(),
-            Value::Number(self.ops_price_total().into()),
+            "ops_price_ppm".to_string(),
+            Value::Number(self.ops_price.ops_price_ppm.into()),
+        );
+        obj.insert(
+            "target".to_string(),
+            Value::Number(self.target.targeted_at_batch_height.into()),
         );
 
-        // 10 Return the JSON object.
         Value::Object(obj)
     }
 

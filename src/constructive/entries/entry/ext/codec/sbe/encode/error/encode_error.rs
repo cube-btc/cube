@@ -1,3 +1,4 @@
+use crate::constructive::entry::entry_kinds::call::ext::codec::sbe::encode::error::encode_error::CallSBEEncodeError;
 use crate::constructive::entry::entry_kinds::config::ext::codec::sbe::encode::error::ConfigSBEEncodeError;
 use crate::constructive::entry::entry_kinds::deploy::ext::codec::sbe::encode::error::DeploySBEEncodeError;
 use crate::constructive::entry::entry_kinds::liftup::ext::codec::sbe::encode::error::LiftupSBEEncodeError;
@@ -8,6 +9,7 @@ use crate::constructive::entry::entry_kinds::swapout::ext::codec::sbe::encode::e
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum EntrySBEEncodeError {
     MoveSBEEncodeError(MoveSBEEncodeError),
+    CallSBEEncodeError(CallSBEEncodeError),
     LiftupSBEEncodeError(LiftupSBEEncodeError),
     SwapoutSBEEncodeError(SwapoutSBEEncodeError),
     DeploySBEEncodeError(DeploySBEEncodeError),

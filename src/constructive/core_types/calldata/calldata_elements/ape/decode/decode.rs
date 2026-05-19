@@ -3,7 +3,7 @@ use crate::constructive::core_types::calldata::calldata_elements::ape::decode::e
     CalldataElementAPEDecodeError, PayableAPEDecodeError, U16APEDecodeError, U32APEDecodeError,
     U64APEDecodeError, U8APEDecodeError, VarbytesAPEDecodeError,
 };
-use crate::constructive::core_types::calldata::calldata_elements::calldata_elements::CalldataElement;
+use crate::constructive::core_types::calldata::calldata_elements::calldata_element::CalldataElement;
 use crate::constructive::core_types::calldata::element_type::CalldataElementType;
 use crate::constructive::core_types::entities::account::account::account::Account;
 use crate::constructive::core_types::entities::contract::contract::Contract;

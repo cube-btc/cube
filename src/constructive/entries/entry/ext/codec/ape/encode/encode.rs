@@ -13,6 +13,7 @@ impl Entry {
         registery: &REGISTERY,
         encode_account_rank_as_longval: bool,
         encode_contract_rank_as_longval: bool,
+        base_ops_price: u32,
     ) -> Result<BitVec, EntryAPEEncodeError> {
         // 1 Initialize the `Entry` APE bit vector.
         let mut bits = BitVec::new();
@@ -48,9 +49,11 @@ impl Entry {
                 // 2.a.2 Encode the `Call`.
                 let call_bits = call
                     .encode_ape(
+                        execution_batch_height,
                         registery,
                         encode_account_rank_as_longval,
                         encode_contract_rank_as_longval,
+                        base_ops_price,
                     )
                     .await
                     .map_err(|e| EntryAPEEncodeError::CallAPEEncodeError(e))?;

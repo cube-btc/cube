@@ -75,6 +75,7 @@ impl Entry {
                         // 2.a.2.b.1 Decode the `Call` entry.
                         let call_entry: Call = Call::decode_ape(
                             bit_stream,
+                            execution_batch_height,
                             base_ops_price,
                             decode_account_rank_as_longval,
                             decode_contract_rank_as_longval,

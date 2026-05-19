@@ -1,4 +1,5 @@
 use crate::constructive::entry::entry::entry::Entry;
+use crate::constructive::entry::entry_kinds::call::call::Call;
 use crate::constructive::entry::entry_kinds::config::config::Config;
 use crate::constructive::entry::entry_kinds::deploy::deploy::Deploy;
 use crate::constructive::entry::entry_kinds::liftup::liftup::Liftup;
@@ -28,11 +29,10 @@ impl Entry {
                 Ok(Entry::Move(move_entry))
             }
 
-            // 3.b `Call` (`0x01`) — SBE not implemented.
             0x01 => {
-                panic!(
-                    "Entry::decode_sbe: Call SBE is not implemented (discriminant 0x01 reserved)"
-                );
+                let call = Call::decode_sbe(bytes)
+                    .map_err(EntrySBEDecodeError::CallSBEDecodeError)?;
+                Ok(Entry::Call(call))
             }
 
             // 3.c `Liftup` (`0x04`): decode from the full buffer (`Liftup::decode_sbe` consumes the tag).

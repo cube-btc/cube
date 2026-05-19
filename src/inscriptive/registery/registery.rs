@@ -1,7 +1,6 @@
 use crate::constructive::entity::account::account::account::Account;
 use crate::constructive::entity::account::account::registered_account::registered_account::RegisteredAccount;
 use crate::constructive::entity::contract::contract::Contract;
-use crate::constructive::entity::contract::deployed_contract::deployed_contract::DeployedContract;
 use crate::executive::executable::compiler::compiler::ProgramCompiler;
 use crate::executive::executable::executable::Executable;
 use crate::inscriptive::flame_manager::flame_config::flame_config::FMAccountFlameConfig;
@@ -720,21 +719,18 @@ impl Registery {
 
     /// Returns the contract by its id.
     pub fn get_contract_by_contract_id(&self, contract_id: [u8; 32]) -> Option<Contract> {
-        // 1 Get the contract body by its id.
         let contract_body = self.get_contract_body_by_contract_id(contract_id)?;
 
-        // 2 Construct the deployed contract.
-        let deployed_contract = DeployedContract::new(
-            contract_id,
-            contract_body.executable,
-            contract_body.registery_index,
-        );
+        Some(Contract::new(contract_id, contract_body.registery_index))
+    }
 
-        // 3 Construct the contract.
-        let contract = Contract::DeployedContract(deployed_contract);
-
-        // 4 Return the contract.
-        Some(contract)
+    /// Returns the number of methods on a contract's executable.
+    pub fn get_contract_methods_len_by_contract_id(
+        &self,
+        contract_id: [u8; 32],
+    ) -> Option<usize> {
+        self.get_contract_body_by_contract_id(contract_id)
+            .map(|body| body.executable.methods_len())
     }
 
     /// Returns the account by its rank.

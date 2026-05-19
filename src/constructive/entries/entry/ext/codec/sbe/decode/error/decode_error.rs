@@ -1,3 +1,4 @@
+use crate::constructive::entry::entry_kinds::call::ext::codec::sbe::decode::error::decode_error::CallSBEDecodeError;
 use crate::constructive::entry::entry_kinds::config::ext::codec::sbe::decode::error::decode_error::ConfigSBEDecodeError;
 use crate::constructive::entry::entry_kinds::deploy::ext::codec::sbe::decode::error::decode_error::DeploySBEDecodeError;
 use crate::constructive::entry::entry_kinds::liftup::ext::codec::sbe::decode::error::LiftupSBEDecodeError;
@@ -16,6 +17,10 @@ pub enum EntrySBEDecodeError {
     // `Move` SBE (full buffer, leading `0x00` is part of `Move` SBE).
     /// Decoding the `Move` SBE bytes failed.
     MoveSBEDecodeError(MoveSBEDecodeError),
+
+    // `Call` SBE (full buffer, leading `0x01` is part of `Call` SBE).
+    /// Decoding the `Call` SBE bytes failed.
+    CallSBEDecodeError(CallSBEDecodeError),
 
     // `Liftup` SBE (full buffer, leading `0x04` is part of `Liftup` SBE).
     /// Decoding the `Liftup` SBE bytes failed.

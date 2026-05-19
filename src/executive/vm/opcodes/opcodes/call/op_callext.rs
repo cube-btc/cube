@@ -17,7 +17,7 @@ pub const CALLEXT_OPS: u32 = 50;
 /// Contract id to be called.
 type ContractIdToBeCalled = [u8; 32];
 /// Method index to be called.
-type MethodIndexToBeCalled = u8;
+type MethodIndexToBeCalled = u16;
 /// Call arguments.
 type CallArguments = Vec<StackItem>;
 
@@ -29,7 +29,7 @@ impl OP_CALLEXT {
     ) -> Result<(ContractIdToBeCalled, MethodIndexToBeCalled, CallArguments), StackError> {
         // If this is not the active execution, return immediately.
         if !stack_holder.active_execution() {
-            return Ok(([0xff; 32], 0xff, vec![]));
+            return Ok(([0xff; 32], 0xffff, vec![]));
         }
 
         // Pop the contract id from the stack.
@@ -65,12 +65,12 @@ impl OP_CALLEXT {
             None => return Err(StackError::CallError(CallError::InvalidMethodIndex)),
         };
 
-        // Convert the method index to a u8.
-        let method_index_as_u8: u8 = match method_index_as_u32 {
-            u32_value if u32_value > u8::MAX as u32 => {
+        // Convert the method index to a u16.
+        let method_index_as_u16: u16 = match method_index_as_u32 {
+            u32_value if u32_value > u16::MAX as u32 => {
                 return Err(StackError::CallError(CallError::InvalidMethodIndex))
             }
-            u32_value => u32_value as u8,
+            u32_value => u32_value as u16,
         };
 
         // Initialize a vector to store the arguments.
@@ -84,7 +84,7 @@ impl OP_CALLEXT {
         // Increment the ops counter.
         stack_holder.increment_ops(CALLEXT_OPS)?;
 
-        Ok((contract_id_bytes, method_index_as_u8, arguments))
+        Ok((contract_id_bytes, method_index_as_u16, arguments))
     }
 
     /// Returns the bytecode for the `OP_CALLEXT` opcode (0xbf).

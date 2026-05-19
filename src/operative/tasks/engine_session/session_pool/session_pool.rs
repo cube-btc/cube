@@ -344,6 +344,7 @@ impl SessionPool {
                     &self.registery,
                     encode_account_rank_as_longval,
                     encode_contract_rank_as_longval,
+                    100,
                 )
                 .await
                 .map_err(IntoBatchContainerError::EntryAPEEncodeError)?;

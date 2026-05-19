@@ -97,16 +97,15 @@ impl Program {
             .position(|method| method.method_name() == method_name)
     }
 
-    /// Returns the method given the u8 index.
-    /// Up to 256 methods are supported per program.
-    pub fn method_by_index(&self, index: u8) -> Option<ProgramMethod> {
+    /// Returns the method at the given index.
+    pub fn method_by_index(&self, index: u16) -> Option<ProgramMethod> {
         self.methods.get(index as usize).cloned()
     }
 
     /// Returns the method by given `AtomicVal` index, rather than a u8.
     pub fn method_by_call_method(&self, call_method: AtomicVal) -> Option<ProgramMethod> {
         let method_index = call_method.value();
-        self.method_by_index(method_index)
+        self.method_by_index(method_index.into())
     }
 
     /// Orders the methods by prioritizing callable methods first.

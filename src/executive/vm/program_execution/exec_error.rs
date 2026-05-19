@@ -7,7 +7,7 @@ pub enum ExecutionError {
     /// Executable not found error.
     ExecutableNotFoundError([u8; 32]),
     /// Method not found at index error.
-    MethodNotFoundAtIndexError(u8),
+    MethodNotFoundAtIndexError(u16),
     /// Read only call error.
     ReadOnlyCallEncounteredError,
     /// Internal call caller is not the contract error.

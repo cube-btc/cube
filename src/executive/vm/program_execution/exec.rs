@@ -108,7 +108,7 @@ pub async fn execute(
     // The contract id of the called contract.
     contract_id: [u8; 32],
     // The method index of the called contract.
-    method_index: u8,
+    method_index: u16,
     // The stack items to be passed as arguments to the called contract.
     arg_values: Vec<StackItem>,
     // The timestamp.

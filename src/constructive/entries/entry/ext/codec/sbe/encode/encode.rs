@@ -15,10 +15,9 @@ impl Entry {
                 .encode_sbe()
                 .map_err(EntrySBEEncodeError::MoveSBEEncodeError),
 
-            // 1.a The `Entry` is a `Call` — SBE not implemented.
-            Entry::Call(_) => panic!(
-                "Entry::encode_sbe: Call SBE is not implemented (discriminant 0x01 reserved)"
-            ),
+            Entry::Call(call) => call
+                .encode_sbe()
+                .map_err(EntrySBEEncodeError::CallSBEEncodeError),
 
             // 1.b The `Entry` is a `Liftup` — SBE is the `Liftup` encoding (leading `0x04` is inside `Liftup::encode_sbe`).
             Entry::Liftup(liftup) => liftup

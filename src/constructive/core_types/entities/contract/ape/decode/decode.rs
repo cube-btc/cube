@@ -5,17 +5,9 @@ use crate::constructive::valtype::val::short_val::short_val::ShortVal;
 use crate::inscriptive::registery::registery::REGISTERY;
 
 impl Contract {
-    /// Decodes a `Contract` as an Airly Payload Encoding (APE) bit vector.
+    /// Decodes a `Contract` from an Airly Payload Encoding (APE) bit vector.
     ///
-    /// This function decodes a `Contract` as an Airly Payload Encoding (APE) bit vector.
-    /// The `Contract` can be either deployed or undeployed.
-    /// If the `Contract` is deployed, the rank value is decoded as a `LongVal` or a `ShortVal`.
-    /// If the `Contract` is undeployed, the public key is decoded as a bit vector.
-    ///
-    /// # Arguments
-    /// * `bit_stream` - The APE bitstream.
-    /// * `registery_manager` - The `Registery Manager`.
-    /// * `decode_rank_as_longval` - Whether to decode the rank value as a `LongVal` or a `ShortVal`.
+    /// The rank value is decoded as a `LongVal` or a `ShortVal`, then resolved via the registery.
     pub async fn decode_ape<'a>(
         bit_stream: &mut bit_vec::Iter<'a>,
         registery: &REGISTERY,
@@ -46,18 +38,15 @@ impl Contract {
             }
         };
 
-        // 2 Retrieve the `Contract` from the `Registery Manager` by its rank.
-        let contract = {
-            // 2.a Lock the `Registery`.
+        // 2 Retrieve the `Contract` from the registery by its rank.
+        let cube = {
             let _registery = registery.lock().await;
 
-            // 2.b Retrieve the `Contract` from the `Registery` by its rank.
             _registery.get_contract_by_rank(rank).ok_or(
                 ContractAPEDecodeError::ContractNotFoundInRegisteryWithRank(rank),
             )?
         };
 
-        // 3 Return the decoded `Contract`.
-        return Ok(contract);
+        Ok(cube)
     }
 }
