@@ -6,51 +6,51 @@ type Bytes = Vec<u8>;
 
 const CALL_ENTRY_KIND_BYTE: u8 = 0x01;
 
-fn push_length_prefixed(
-    out: &mut Bytes,
-    payload: &[u8],
-    too_large: fn(usize) -> CallSBEEncodeError,
-) -> Result<(), CallSBEEncodeError> {
-    let len_u32 = u32::try_from(payload.len()).map_err(|_| too_large(payload.len()))?;
-    out.extend_from_slice(&len_u32.to_le_bytes());
-    out.extend_from_slice(payload);
-    Ok(())
-}
-
 impl Call {
     /// Structural Byte-scope Encoding (SBE) for `Call`.
     ///
     /// Layout: `0x01` tag, length-prefixed `RootAccount` SBE, length-prefixed `Contract` SBE (40),
-    /// `MethodIndex` SBE (2 bytes), length-prefixed calldata list SBE, `OpsBudget` SBE (5),
+    /// `MethodIndex` SBE (2 bytes), length-prefixed calldata list SBE, variable-length `OpsBudget` SBE,
     /// `OpsPrice` SBE (8), `Target` SBE (8).
     pub fn encode_sbe(&self) -> Result<Bytes, CallSBEEncodeError> {
+        // 1 Encode nested payloads.
         let account_bytes = self.account.encode_sbe();
-
         let contract_bytes = self.contract.encode_sbe();
+        let calldata_bytes = encode_calldata_elements_sbe(&self.calldata_elements)
+            .map_err(CallSBEEncodeError::CalldataElementSBEEncodeError)?;
 
-        let calldata_bytes = encode_calldata_elements_sbe(&self.calldata_elements);
+        // 2 Ensure payload lengths fit `u32` length prefixes.
+        let account_len_u32 = u32::try_from(account_bytes.len()).map_err(|_| {
+            CallSBEEncodeError::CallSBERootAccountPayloadTooLargeForU32LengthPrefix {
+                len: account_bytes.len(),
+            }
+        })?;
+        let contract_len_u32 = u32::try_from(contract_bytes.len()).map_err(|_| {
+            CallSBEEncodeError::CallSBEContractPayloadTooLargeForU32LengthPrefix {
+                len: contract_bytes.len(),
+            }
+        })?;
+        let calldata_len_u32 = u32::try_from(calldata_bytes.len()).map_err(|_| {
+            CallSBEEncodeError::CallSBECalldataPayloadTooLargeForU32LengthPrefix {
+                len: calldata_bytes.len(),
+            }
+        })?;
 
+        // 3 Initialize bytes and write layout.
         let mut bytes = Bytes::new();
         bytes.push(CALL_ENTRY_KIND_BYTE);
-
-        push_length_prefixed(&mut bytes, &account_bytes, |len| {
-            CallSBEEncodeError::CallSBERootAccountPayloadTooLargeForU32LengthPrefix { len }
-        })?;
-
-        push_length_prefixed(&mut bytes, &contract_bytes, |len| {
-            CallSBEEncodeError::CallSBEContractPayloadTooLargeForU32LengthPrefix { len }
-        })?;
-
+        bytes.extend_from_slice(&account_len_u32.to_le_bytes());
+        bytes.extend_from_slice(&account_bytes);
+        bytes.extend_from_slice(&contract_len_u32.to_le_bytes());
+        bytes.extend_from_slice(&contract_bytes);
         bytes.extend_from_slice(&self.method_index.encode_sbe());
-
-        push_length_prefixed(&mut bytes, &calldata_bytes, |len| {
-            CallSBEEncodeError::CallSBECalldataPayloadTooLargeForU32LengthPrefix { len }
-        })?;
-
+        bytes.extend_from_slice(&calldata_len_u32.to_le_bytes());
+        bytes.extend_from_slice(&calldata_bytes);
         bytes.extend_from_slice(&self.ops_budget.encode_sbe());
         bytes.extend_from_slice(&self.ops_price.encode_sbe());
         bytes.extend_from_slice(&self.target.encode_sbe());
 
+        // 4 Return bytes.
         Ok(bytes)
     }
 }

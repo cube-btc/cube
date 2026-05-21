@@ -1,3 +1,6 @@
+use crate::constructive::core_types::calldata::calldata_elements::validation::{
+    CalldataElementValidationError, MAX_BYTES_LEN, MAX_VARBYTES_LEN, MIN_BYTES_LEN,
+};
 use crate::constructive::core_types::calldata::element_type::CalldataElementType;
 use crate::constructive::core_types::entities::account::account::account::Account;
 use crate::constructive::core_types::entities::contract::contract::Contract;
@@ -21,7 +24,34 @@ pub enum CalldataElement {
 }
 
 impl CalldataElement {
+    /// Checks payload invariants for [`Bytes`] and [`Varbytes`] variants.
+    pub fn validate(&self) -> Result<(), CalldataElementValidationError> {
+        match self {
+            CalldataElement::Bytes(bytes) => {
+                if bytes.len() < MIN_BYTES_LEN {
+                    return Err(CalldataElementValidationError::EmptyBytes);
+                }
+                if bytes.len() > MAX_BYTES_LEN {
+                    return Err(CalldataElementValidationError::BytesLengthOutOfRange {
+                        len: bytes.len(),
+                    });
+                }
+            }
+            CalldataElement::Varbytes(bytes) => {
+                if bytes.len() > MAX_VARBYTES_LEN {
+                    return Err(CalldataElementValidationError::VarbytesLengthExceedsMax {
+                        len: bytes.len(),
+                    });
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
     /// Returns the type of the element.
+    ///
+    /// For [`CalldataElement::Bytes`], the vector must satisfy [`Self::validate`] (length 1–256).
     pub fn element_type(&self) -> CalldataElementType {
         // Match on the element type.
         match self {

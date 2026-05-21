@@ -4,8 +4,6 @@ use super::error::decode_error::OpsPriceSBEDecodeError;
 
 impl OpsPrice {
     /// Decodes an `OpsPrice` from Structural Byte-scope Encoding (SBE) bytes produced by [`OpsPrice::encode_sbe`].
-    ///
-    /// The buffer must be exactly eight bytes (little-endian `u64` `ops_price_ppm`).
     pub fn decode_sbe(bytes: &[u8]) -> Result<OpsPrice, OpsPriceSBEDecodeError> {
         let arr: [u8; 8] =
             bytes

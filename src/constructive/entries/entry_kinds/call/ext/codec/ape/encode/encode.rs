@@ -30,12 +30,14 @@ impl Call {
             .map_err(CallAPEEncodeError::ContractAPEEncodeError)?;
         bits.extend(contract_bit_vector);
 
+        let contract_id = self.contract.contract_id();
+
         let methods_len = {
             let _registery = registery.lock().await;
             _registery
-                .get_contract_methods_len_by_contract_id(self.contract.contract_id())
+                .get_contract_methods_len_by_contract_id(contract_id)
                 .ok_or(CallAPEEncodeError::UnableToRetrieveContractMethodsLenFromRegistery(
-                    self.contract.contract_id(),
+                    contract_id,
                 ))?
         };
 
@@ -45,11 +47,35 @@ impl Call {
                 .map_err(CallAPEEncodeError::MethodIndexAPEEncodeError)?,
         );
 
+        let arg_types = {
+            let _registery = registery.lock().await;
+            _registery
+                .get_contract_method_arg_types_by_contract_id_and_method_index(
+                    contract_id,
+                    self.method_index.index(),
+                )
+                .ok_or(CallAPEEncodeError::UnableToRetrieveMethodArgTypesFromRegistery {
+                    contract_id,
+                    method_index: self.method_index.index(),
+                })?
+        };
+
+        if self.calldata_elements.len() != arg_types.len() {
+            return Err(CallAPEEncodeError::CalldataCountMismatch {
+                expected: arg_types.len(),
+                got: self.calldata_elements.len(),
+            });
+        }
+
         bits.extend(
             ShortVal::new(self.calldata_elements.len() as u32).encode_ape(),
         );
 
         for calldata_element in self.calldata_elements.iter() {
+            calldata_element
+                .validate()
+                .map_err(CallAPEEncodeError::CalldataElementValidationError)?;
+
             let calldata_element_bits = calldata_element
                 .encode_ape(
                     registery,

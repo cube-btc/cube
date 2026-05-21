@@ -24,7 +24,9 @@ impl CalldataElement {
         encode_account_rank_as_longval: bool,
         encode_contract_rank_as_longval: bool,
     ) -> Result<BitVec, CalldataElementAPEEncodeError> {
-        // Match on the element type.
+        self.validate()
+            .map_err(CalldataElementAPEEncodeError::ValidationError)?;
+
         match self {
             CalldataElement::U8(u8_value) => {
                 // Get the u8 value.
@@ -105,10 +107,8 @@ impl CalldataElement {
                 Ok(bits)
             }
             CalldataElement::Varbytes(bytes) => {
-                // Initialize bit vector to fill with length plus data.
                 let mut bits = BitVec::new();
 
-                // Get the byte length value.
                 let byte_length = bytes.len() as u16;
 
                 // Byte length as 2 bytes.

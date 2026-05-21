@@ -23,7 +23,7 @@ pub enum CalldataElementType {
     // Supported byte-length range: 1-256 bytes
     Bytes(u8),
     // Represents a byte array with an unknown length.
-    // Supported byte-length range: 0-4096 bytes
+    // Supported byte-length range: 0-4095 bytes
     Varbytes,
     // Represents a payable value.
     Payable,

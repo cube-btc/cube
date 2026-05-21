@@ -1,4 +1,5 @@
 use crate::constructive::calldata::calldata_elements::ape::encode::error::encode_error::CalldataElementAPEEncodeError;
+use crate::constructive::calldata::calldata_elements::validation::CalldataElementValidationError;
 use crate::constructive::core_types::method_index::ext::codec::ape::encode::error::encode_error::MethodIndexAPEEncodeError;
 use crate::constructive::core_types::ops_price::ext::codec::ape::encode::error::encode_error::OpsPriceAPEEncodeError;
 use crate::constructive::core_types::target::ext::codec::ape::encode::error::encode_error::TargetAPEEncodeError;
@@ -11,8 +12,17 @@ pub enum CallAPEEncodeError {
     AccountAPEEncodeError(RootAccountAPEEncodeError),
     ContractAPEEncodeError(ContractAPEEncodeError),
     UnableToRetrieveContractMethodsLenFromRegistery([u8; 32]),
+    UnableToRetrieveMethodArgTypesFromRegistery {
+        contract_id: [u8; 32],
+        method_index: u16,
+    },
+    CalldataCountMismatch {
+        expected: usize,
+        got: usize,
+    },
     MethodIndexAPEEncodeError(MethodIndexAPEEncodeError),
     CalldataElementAPEEncodeError(CalldataElementAPEEncodeError),
+    CalldataElementValidationError(CalldataElementValidationError),
     OpsPriceAPEEncodeError(OpsPriceAPEEncodeError),
     TargetAPEEncodeError(TargetAPEEncodeError),
 }

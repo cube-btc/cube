@@ -733,6 +733,17 @@ impl Registery {
             .map(|body| body.executable.methods_len())
     }
 
+    /// Returns calldata argument types for a contract method.
+    pub fn get_contract_method_arg_types_by_contract_id_and_method_index(
+        &self,
+        contract_id: [u8; 32],
+        method_index: u16,
+    ) -> Option<Vec<crate::constructive::calldata::element_type::CalldataElementType>> {
+        self.get_contract_body_by_contract_id(contract_id)
+            .and_then(|body| body.executable.method_by_index(method_index))
+            .map(|method| method.arg_types())
+    }
+
     /// Returns the account by its rank.
     pub fn get_account_by_rank(&self, rank: u64) -> Option<Account> {
         // 1 Get the account key by its rank.

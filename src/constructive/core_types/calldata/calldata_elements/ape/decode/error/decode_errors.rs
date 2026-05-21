@@ -1,4 +1,5 @@
 use crate::constructive::{
+    core_types::calldata::calldata_elements::validation::CalldataElementValidationError,
     entity::{
         account::account::ext::codec::ape::decode::error::decode_error::AccountAPEDecodeError,
         contract::ape::decode::error::decode_error::ContractAPEDecodeError,
@@ -15,6 +16,7 @@ type VarbytesByteLength = u16;
 /// Enum to represent errors that can occur when decoding a `CallElement` from an Airly Payload Encoding (APE) bit stream.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CalldataElementAPEDecodeError {
+    ValidationError(CalldataElementValidationError),
     U8(U8APEDecodeError),
     U16(U16APEDecodeError),
     U32(U32APEDecodeError),

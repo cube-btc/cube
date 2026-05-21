@@ -89,7 +89,14 @@ impl Entry {
                 // 6 Return the hash.
                 Some(hash)
             }
-            Entry::Call(_) => panic!("Not implemented yet."),
+            Entry::Call(call) => {
+                let mut preimage = Vec::<u8>::new();
+                preimage.extend(batch_height.to_le_bytes());
+                preimage.extend(entry_index_in_batch.to_le_bytes());
+                preimage.extend(call.sighash().ok()?);
+                let hash = preimage.hash(Some(HashTag::CallEntryID));
+                Some(hash)
+            }
             Entry::Liftup(liftup) => {
                 // 1 Initialize the preimage.
                 let mut preimage = Vec::<u8>::new();

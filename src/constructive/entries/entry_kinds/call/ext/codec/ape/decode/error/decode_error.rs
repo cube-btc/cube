@@ -13,6 +13,14 @@ pub enum CallEntryAPEDecodeError {
     AccountAPEDecodeError(RootAccountAPEDecodeError),
     ContractAPEDecodeError(ContractAPEDecodeError),
     UnableToRetrieveContractMethodsLenFromRegistery([u8; 32]),
+    UnableToRetrieveMethodArgTypesFromRegistery {
+        contract_id: [u8; 32],
+        method_index: u16,
+    },
+    CalldataCountMismatch {
+        expected: usize,
+        got: usize,
+    },
     CalldataCountAPEDecodeError(ShortValAPEDecodeError),
     MethodIndexAPEDecodeError(MethodIndexAPEDecodeError),
     CalldataElementAPEDecodeError(CalldataElementAPEDecodeError),

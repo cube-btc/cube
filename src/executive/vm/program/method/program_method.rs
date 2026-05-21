@@ -173,7 +173,7 @@ impl ProgramMethod {
                     }
                 }
                 CalldataElementType::Varbytes => {
-                    if arg.len() > 4096 {
+                    if arg.len() > 4095 {
                         return false;
                     }
                 }

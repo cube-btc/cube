@@ -9,9 +9,7 @@ use crate::constructive::entry::entry_kinds::call::call::Call;
 use crate::constructive::entry::entry_kinds::call::ext::codec::sbe::decode::error::decode_error::CallSBEDecodeError;
 
 const CALL_ENTRY_KIND_BYTE: u8 = 0x01;
-
 const METHOD_INDEX_SBE_LEN: usize = 2;
-const OPS_BUDGET_SBE_LEN: usize = 5;
 const OPS_PRICE_SBE_LEN: usize = 8;
 const TARGET_SBE_LEN: usize = 8;
 
@@ -22,9 +20,11 @@ fn read_u32_len_prefix(
     if bytes.len() < 4 {
         return Err(insufficient(bytes.len()));
     }
-    let len = u32::from_le_bytes(bytes[0..4].try_into().map_err(|_| {
-        CallSBEDecodeError::CallSBELengthPrefixBytesConversionError
-    })?);
+    let len = u32::from_le_bytes(
+        bytes[0..4]
+            .try_into()
+            .map_err(|_| CallSBEDecodeError::CallSBELengthPrefixBytesConversionError)?,
+    );
     Ok((len, &bytes[4..]))
 }
 
@@ -46,9 +46,11 @@ impl Call {
     /// Decodes a `Call` from Structural Byte-scope Encoding (SBE) bytes.
     pub fn decode_sbe(bytes: &[u8]) -> Result<Call, CallSBEDecodeError> {
         if bytes.is_empty() {
-            return Err(CallSBEDecodeError::CallSBEInsufficientBytesForRootAccountLengthPrefix {
-                got_total: 0,
-            });
+            return Err(
+                CallSBEDecodeError::CallSBEInsufficientBytesForRootAccountLengthPrefix {
+                    got_total: 0,
+                },
+            );
         }
         if bytes[0] != CALL_ENTRY_KIND_BYTE {
             return Err(CallSBEDecodeError::InvalidEntryKindByteError {
@@ -74,7 +76,9 @@ impl Call {
 
         let (contract_slice, rest) = take_length_prefixed(
             rest,
-            |got_total| CallSBEDecodeError::CallSBEInsufficientBytesForContractLengthPrefix { got_total },
+            |got_total| CallSBEDecodeError::CallSBEInsufficientBytesForContractLengthPrefix {
+                got_total,
+            },
             |contract_len, got_after_prefix| {
                 CallSBEDecodeError::CallSBEContractLengthPrefixExceedsPayload {
                     contract_len,
@@ -82,8 +86,8 @@ impl Call {
                 }
             },
         )?;
-        let contract = Contract::decode_sbe(contract_slice)
-            .map_err(CallSBEDecodeError::CallSBEContract)?;
+        let contract =
+            Contract::decode_sbe(contract_slice).map_err(CallSBEDecodeError::CallSBEContract)?;
 
         if rest.len() < METHOD_INDEX_SBE_LEN {
             return Err(CallSBEDecodeError::CallSBEInsufficientBytesForMethodIndex {
@@ -96,7 +100,9 @@ impl Call {
 
         let (calldata_slice, rest) = take_length_prefixed(
             rest,
-            |got_total| CallSBEDecodeError::CallSBEInsufficientBytesForCalldataLengthPrefix { got_total },
+            |got_total| CallSBEDecodeError::CallSBEInsufficientBytesForCalldataLengthPrefix {
+                got_total,
+            },
             |calldata_len, got_after_prefix| {
                 CallSBEDecodeError::CallSBECalldataLengthPrefixExceedsPayload {
                     calldata_len,
@@ -107,14 +113,8 @@ impl Call {
         let calldata_elements = decode_calldata_elements_sbe(calldata_slice)
             .map_err(CallSBEDecodeError::CallSBECalldata)?;
 
-        if rest.len() < OPS_BUDGET_SBE_LEN {
-            return Err(CallSBEDecodeError::CallSBEInsufficientBytesForOpsBudget {
-                got_total: bytes.len(),
-            });
-        }
-        let ops_budget = OpsBudget::decode_sbe(&rest[0..OPS_BUDGET_SBE_LEN])
-            .map_err(CallSBEDecodeError::CallSBEOpsBudget)?;
-        let rest = &rest[OPS_BUDGET_SBE_LEN..];
+        let (ops_budget, rest) =
+            OpsBudget::decode_sbe(rest).map_err(CallSBEDecodeError::CallSBEOpsBudget)?;
 
         if rest.len() < OPS_PRICE_SBE_LEN {
             return Err(CallSBEDecodeError::CallSBEInsufficientBytesForOpsPrice {

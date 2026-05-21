@@ -1,6 +1,7 @@
+use super::error::encode_error::MoveSBEEncodeError;
 use crate::constructive::entry::entry_kinds::r#move::r#move::Move;
 
-use super::error::encode_error::MoveSBEEncodeError;
+const MOVE_ENTRY_KIND_BYTE: u8 = 0x00;
 
 /// A type alias for a vector of bytes.
 type Bytes = Vec<u8>;
@@ -26,7 +27,7 @@ impl Move {
 
         // 3 Initialize bytes and write layout.
         let mut bytes = Bytes::new();
-        bytes.push(0x00);
+        bytes.push(MOVE_ENTRY_KIND_BYTE);
         bytes.extend_from_slice(&from_len_u32.to_le_bytes());
         bytes.extend_from_slice(&from_bytes);
         bytes.extend_from_slice(&to_len_u32.to_le_bytes());

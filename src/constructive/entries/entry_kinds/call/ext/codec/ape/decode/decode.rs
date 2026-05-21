@@ -1,11 +1,12 @@
-use crate::constructive::core_types::calldata::calldata_elements::calldata_element::CalldataElement;
 use crate::constructive::calldata::element_type::CalldataElementType;
+use crate::constructive::core_types::calldata::calldata_elements::calldata_element::CalldataElement;
 use crate::constructive::core_types::method_index::method_index::MethodIndex;
 use crate::constructive::core_types::ops_budget::ops_budget::OpsBudget;
 use crate::constructive::core_types::ops_price::ops_price::OpsPrice;
 use crate::constructive::core_types::target::target::Target;
 use crate::constructive::entity::account::root_account::root_account::RootAccount;
 use crate::constructive::entity::contract::contract::Contract;
+use crate::constructive::calldata::element::ape::decode::error::decode_errors::CalldataElementAPEDecodeError;
 use crate::constructive::entry::entry_kinds::call::ext::codec::ape::decode::error::decode_error::CallEntryAPEDecodeError;
 use crate::constructive::entry::entry_kinds::call::call::Call;
 use crate::constructive::valtype::val::short_val::short_val::ShortVal;
@@ -34,13 +35,15 @@ impl Call {
                 .await
                 .map_err(CallEntryAPEDecodeError::ContractAPEDecodeError)?;
 
+        let contract_id = contract.contract_id();
+
         let methods_len = {
             let _registery = registery.lock().await;
             _registery
-                .get_contract_methods_len_by_contract_id(contract.contract_id())
+                .get_contract_methods_len_by_contract_id(contract_id)
                 .ok_or(
                     CallEntryAPEDecodeError::UnableToRetrieveContractMethodsLenFromRegistery(
-                        contract.contract_id(),
+                        contract_id,
                     ),
                 )?
         };
@@ -48,28 +51,57 @@ impl Call {
         let method_index = MethodIndex::decode_ape(bit_stream, methods_len)
             .map_err(CallEntryAPEDecodeError::MethodIndexAPEDecodeError)?;
 
+        let arg_types = {
+            let _registery = registery.lock().await;
+            _registery
+                .get_contract_method_arg_types_by_contract_id_and_method_index(
+                    contract_id,
+                    method_index.index(),
+                )
+                .ok_or(CallEntryAPEDecodeError::UnableToRetrieveMethodArgTypesFromRegistery {
+                    contract_id,
+                    method_index: method_index.index(),
+                })?
+        };
+
         let calldata_count = ShortVal::decode_ape(bit_stream)
             .map_err(CallEntryAPEDecodeError::CalldataCountAPEDecodeError)?
             .value() as usize;
 
-        let calldata_elements: Vec<CalldataElement> = {
-            let mut calldata_elements: Vec<CalldataElement> = Vec::new();
+        if calldata_count != arg_types.len() {
+            return Err(CallEntryAPEDecodeError::CalldataCountMismatch {
+                expected: arg_types.len(),
+                got: calldata_count,
+            });
+        }
 
-            for _ in 0..calldata_count {
-                let calldata_element: CalldataElement = CalldataElement::decode_ape(
-                    bit_stream,
-                    CalldataElementType::U8,
-                    registery,
-                    false,
-                )
-                .await
-                .map_err(CallEntryAPEDecodeError::CalldataElementAPEDecodeError)?;
+        let mut calldata_elements = Vec::with_capacity(calldata_count);
+        for arg_type in arg_types {
+            let decode_rank_as_longval = match arg_type {
+                CalldataElementType::Account => decode_account_rank_as_longval,
+                CalldataElementType::Contract => decode_contract_rank_as_longval,
+                _ => false,
+            };
 
-                calldata_elements.push(calldata_element);
-            }
+            let calldata_element = CalldataElement::decode_ape(
+                bit_stream,
+                arg_type,
+                registery,
+                decode_rank_as_longval,
+            )
+            .await
+            .map_err(CallEntryAPEDecodeError::CalldataElementAPEDecodeError)?;
 
-            calldata_elements
-        };
+            calldata_element
+                .validate()
+                .map_err(|e| {
+                    CallEntryAPEDecodeError::CalldataElementAPEDecodeError(
+                        CalldataElementAPEDecodeError::ValidationError(e),
+                    )
+                })?;
+
+            calldata_elements.push(calldata_element);
+        }
 
         let ops_budget = OpsBudget::decode_ape(bit_stream)
             .map_err(CallEntryAPEDecodeError::OpsBudgetAPEDecodeError)?;
