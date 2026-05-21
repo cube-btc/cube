@@ -36,15 +36,13 @@ pub enum U16SBEDecodeError {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum U32SBEDecodeError {
     InsufficientPayloadBytes { got: usize },
-    InvalidTierByte(u8),
-    InvalidCompactBytes,
+    BytesConversionError,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum U64SBEDecodeError {
     InsufficientPayloadBytes { got: usize },
-    InvalidTierByte(u8),
-    InvalidCompactBytes,
+    BytesConversionError,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -79,8 +77,7 @@ pub enum VarbytesSBEDecodeError {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum PayableSBEDecodeError {
     InsufficientPayloadBytes { got: usize },
-    InvalidTierByte(u8),
-    InvalidCompactBytes,
+    BytesConversionError,
 }
 
 /// Errors that can occur when decoding a calldata element list from SBE bytes.

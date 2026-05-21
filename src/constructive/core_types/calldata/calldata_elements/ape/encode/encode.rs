@@ -1,5 +1,8 @@
 use crate::constructive::core_types::calldata::calldata_elements::ape::encode::error::encode_error::CalldataElementAPEEncodeError;
 use crate::constructive::core_types::calldata::calldata_elements::calldata_element::CalldataElement;
+use crate::constructive::core_types::valtypes::maybe_common::maybe_common::maybe_common::MaybeCommon;
+use crate::constructive::core_types::valtypes::val::long_val::long_val::LongVal;
+use crate::constructive::core_types::valtypes::val::short_val::short_val::ShortVal;
 use crate::inscriptive::registery::registery::REGISTERY;
 use bit_vec::BitVec;
 
@@ -49,18 +52,16 @@ impl CalldataElement {
                 // Return the bits.
                 Ok(bits)
             }
-            CalldataElement::U32(short_val) => {
-                // Encode the `ShortVal`.
-                let bits = short_val.encode_ape();
-
-                // Return the bits.
+            CalldataElement::U32(value) => {
+                let bits = MaybeCommon::new(ShortVal::new(*value))
+                    .encode_ape()
+                    .map_err(CalldataElementAPEEncodeError::MaybeCommonAPEEncodeError)?;
                 Ok(bits)
             }
-            CalldataElement::U64(long_val) => {
-                // Encode the `LongVal`.
-                let bits = long_val.encode_ape();
-
-                // Return the bits.
+            CalldataElement::U64(value) => {
+                let bits = MaybeCommon::new(LongVal::new(*value))
+                    .encode_ape()
+                    .map_err(CalldataElementAPEEncodeError::MaybeCommonAPEEncodeError)?;
                 Ok(bits)
             }
             CalldataElement::Bool(value) => {
@@ -131,11 +132,10 @@ impl CalldataElement {
                 // Return the bits.
                 Ok(bits)
             }
-            CalldataElement::Payable(short_val) => {
-                // Encode the `ShortVal`.
-                let bits = short_val.encode_ape();
-
-                // Return the bits.
+            CalldataElement::Payable(value) => {
+                let bits = MaybeCommon::new(ShortVal::new(*value))
+                    .encode_ape()
+                    .map_err(CalldataElementAPEEncodeError::MaybeCommonAPEEncodeError)?;
                 Ok(bits)
             }
         }

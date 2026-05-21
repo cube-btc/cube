@@ -8,74 +8,8 @@ use crate::constructive::calldata::element_type::CalldataElementType;
 use crate::constructive::entity::account::account::account::Account;
 use crate::constructive::entity::contract::contract::Contract;
 use crate::constructive::entity::contract::ext::codec::sbe::encode::encode::CONTRACT_SBE_LEN;
-use crate::constructive::core_types::valtypes::val::long_val::long_val::LongVal;
-use crate::constructive::core_types::valtypes::val::short_val::short_val::ShortVal;
 
 const MAX_VARBYTES_LEN: u16 = 4095;
-
-fn short_val_compact_len(tier: u8) -> Option<usize> {
-    match tier {
-        0..=3 => Some((tier as usize) + 1),
-        _ => None,
-    }
-}
-
-fn long_val_compact_len(tier: u8) -> Option<usize> {
-    match tier {
-        0..=7 => Some((tier as usize) + 1),
-        _ => None,
-    }
-}
-
-fn decode_short_val_sbe(
-    payload: &[u8],
-) -> Result<(ShortVal, usize), CalldataElementSBEDecodeError> {
-    if payload.is_empty() {
-        return Err(CalldataElementSBEDecodeError::U32(U32SBEDecodeError::InsufficientPayloadBytes {
-            got: 0,
-        }));
-    }
-
-    let compact_len = short_val_compact_len(payload[0]).ok_or(
-        CalldataElementSBEDecodeError::U32(U32SBEDecodeError::InvalidTierByte(payload[0])),
-    )?;
-
-    if payload.len() < 1 + compact_len {
-        return Err(CalldataElementSBEDecodeError::U32(U32SBEDecodeError::InsufficientPayloadBytes {
-            got: payload.len(),
-        }));
-    }
-
-    let short_val = ShortVal::from_compact_bytes(&payload[1..1 + compact_len]).ok_or(
-        CalldataElementSBEDecodeError::U32(U32SBEDecodeError::InvalidCompactBytes),
-    )?;
-
-    Ok((short_val, 1 + compact_len))
-}
-
-fn decode_long_val_sbe(payload: &[u8]) -> Result<(LongVal, usize), CalldataElementSBEDecodeError> {
-    if payload.is_empty() {
-        return Err(CalldataElementSBEDecodeError::U64(U64SBEDecodeError::InsufficientPayloadBytes {
-            got: 0,
-        }));
-    }
-
-    let compact_len = long_val_compact_len(payload[0]).ok_or(
-        CalldataElementSBEDecodeError::U64(U64SBEDecodeError::InvalidTierByte(payload[0])),
-    )?;
-
-    if payload.len() < 1 + compact_len {
-        return Err(CalldataElementSBEDecodeError::U64(U64SBEDecodeError::InsufficientPayloadBytes {
-            got: payload.len(),
-        }));
-    }
-
-    let long_val = LongVal::from_compact_bytes(&payload[1..1 + compact_len]).ok_or(
-        CalldataElementSBEDecodeError::U64(U64SBEDecodeError::InvalidCompactBytes),
-    )?;
-
-    Ok((long_val, 1 + compact_len))
-}
 
 fn parse_element_type(bytes: &[u8]) -> Result<(CalldataElementType, usize), CalldataElementSBEDecodeError> {
     if bytes.is_empty() {
@@ -111,8 +45,6 @@ fn account_sbe_payload_len(account: &Account) -> usize {
 
 impl CalldataElement {
     /// Decodes a `CalldataElement` from SBE bytes produced by [`CalldataElement::encode_sbe`].
-    ///
-    /// Returns the decoded element and the unconsumed suffix of `bytes`.
     pub fn decode_sbe(bytes: &[u8]) -> Result<(Self, &[u8]), CalldataElementSBEDecodeError> {
         let (element_type, header_len) = parse_element_type(bytes)?;
         let payload = &bytes[header_len..];
@@ -140,12 +72,30 @@ impl CalldataElement {
                 (CalldataElement::U16(value), 2)
             }
             CalldataElementType::U32 => {
-                let (short_val, consumed) = decode_short_val_sbe(payload)?;
-                (CalldataElement::U32(short_val), consumed)
+                if payload.len() < 4 {
+                    return Err(CalldataElementSBEDecodeError::U32(U32SBEDecodeError::InsufficientPayloadBytes {
+                        got: payload.len(),
+                    }));
+                }
+                let value = u32::from_le_bytes(
+                    payload[0..4].try_into().map_err(|_| {
+                        CalldataElementSBEDecodeError::U32(U32SBEDecodeError::BytesConversionError)
+                    })?,
+                );
+                (CalldataElement::U32(value), 4)
             }
             CalldataElementType::U64 => {
-                let (long_val, consumed) = decode_long_val_sbe(payload)?;
-                (CalldataElement::U64(long_val), consumed)
+                if payload.len() < 8 {
+                    return Err(CalldataElementSBEDecodeError::U64(U64SBEDecodeError::InsufficientPayloadBytes {
+                        got: payload.len(),
+                    }));
+                }
+                let value = u64::from_le_bytes(
+                    payload[0..8].try_into().map_err(|_| {
+                        CalldataElementSBEDecodeError::U64(U64SBEDecodeError::BytesConversionError)
+                    })?,
+                );
+                (CalldataElement::U64(value), 8)
             }
             CalldataElementType::Bool => {
                 if payload.is_empty() {
@@ -224,19 +174,19 @@ impl CalldataElement {
                 )
             }
             CalldataElementType::Payable => {
-                let (short_val, consumed) = decode_short_val_sbe(payload).map_err(|e| match e {
-                    CalldataElementSBEDecodeError::U32(inner) => {
-                        CalldataElementSBEDecodeError::Payable(match inner {
-                            U32SBEDecodeError::InsufficientPayloadBytes { got } => {
-                                PayableSBEDecodeError::InsufficientPayloadBytes { got }
-                            }
-                            U32SBEDecodeError::InvalidTierByte(b) => PayableSBEDecodeError::InvalidTierByte(b),
-                            U32SBEDecodeError::InvalidCompactBytes => PayableSBEDecodeError::InvalidCompactBytes,
-                        })
-                    }
-                    other => other,
-                })?;
-                (CalldataElement::Payable(short_val), consumed)
+                if payload.len() < 4 {
+                    return Err(CalldataElementSBEDecodeError::Payable(
+                        PayableSBEDecodeError::InsufficientPayloadBytes {
+                            got: payload.len(),
+                        },
+                    ));
+                }
+                let value = u32::from_le_bytes(
+                    payload[0..4].try_into().map_err(|_| {
+                        CalldataElementSBEDecodeError::Payable(PayableSBEDecodeError::BytesConversionError)
+                    })?,
+                );
+                (CalldataElement::Payable(value), 4)
             }
         };
 

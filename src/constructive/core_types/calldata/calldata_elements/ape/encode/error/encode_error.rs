@@ -1,9 +1,11 @@
 use crate::constructive::core_types::entities::account::account::ext::codec::ape::encode::error::encode_error::AccountAPEEncodeError;
 use crate::constructive::core_types::entities::contract::ape::encode::error::encode_error::ContractAPEEncodeError;
+use crate::constructive::core_types::valtypes::maybe_common::maybe_common::ape::encode::error::encode_error::MaybeCommonAPEEncodeError;
 
 /// Enum to represent errors that can occur when encoding a `CallElement` as an Airly Payload Encoding (APE) bit vector.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum CalldataElementAPEEncodeError {
+    MaybeCommonAPEEncodeError(MaybeCommonAPEEncodeError),
     AccountAPEEncodeError(AccountAPEEncodeError),
     ContractAPEEncodeError(ContractAPEEncodeError),
 }

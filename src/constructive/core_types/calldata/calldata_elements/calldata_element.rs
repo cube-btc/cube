@@ -1,8 +1,6 @@
 use crate::constructive::core_types::calldata::element_type::CalldataElementType;
 use crate::constructive::core_types::entities::account::account::account::Account;
 use crate::constructive::core_types::entities::contract::contract::Contract;
-use crate::constructive::core_types::valtypes::val::long_val::long_val::LongVal;
-use crate::constructive::core_types::valtypes::val::short_val::short_val::ShortVal;
 use crate::executive::stack::stack_item::StackItem;
 use crate::executive::stack::stack_uint::{SafeConverter, StackItemUintExt, StackUint};
 use serde::{Deserialize, Serialize};
@@ -12,14 +10,14 @@ use serde::{Deserialize, Serialize};
 pub enum CalldataElement {
     U8(u8),
     U16(u16),
-    U32(ShortVal),
-    U64(LongVal),
+    U32(u32),
+    U64(u64),
     Bool(bool),
     Account(Account),
     Contract(Contract),
     Bytes(Vec<u8>),
     Varbytes(Vec<u8>),
-    Payable(ShortVal),
+    Payable(u32),
 }
 
 impl CalldataElement {
@@ -79,7 +77,7 @@ impl CalldataElement {
             // 0-4 bytes in stack.
             CalldataElement::U32(value) => {
                 // Convert the value to a `StackUint`.
-                let value_as_stack_uint = StackUint::from_u32(value.value());
+                let value_as_stack_uint = StackUint::from_u32(*value);
 
                 // Convert the value to a `StackItem`.
                 let value_as_stack_item = StackItem::from_stack_uint(value_as_stack_uint);
@@ -90,7 +88,7 @@ impl CalldataElement {
             // 0-8 bytes in stack.
             CalldataElement::U64(value) => {
                 // Convert the value to a `StackUint`.
-                let value_as_stack_uint = StackUint::from_u64(value.value());
+                let value_as_stack_uint = StackUint::from_u64(*value);
 
                 // Convert the value to a `StackItem`.
                 let value_as_stack_item = StackItem::from_stack_uint(value_as_stack_uint);
@@ -111,12 +109,12 @@ impl CalldataElement {
             CalldataElement::Contract(value) => StackItem::new(value.contract_id().to_vec()),
             // 1-256 bytes in stack.
             CalldataElement::Bytes(bytes) => StackItem::new(bytes.clone()),
-            // 0-4096 bytes in stack.
+            // 0-4095 bytes in stack.
             CalldataElement::Varbytes(bytes) => StackItem::new(bytes.clone()),
             // 0-4 bytes in stack.
             CalldataElement::Payable(value) => {
                 // Convert the value to a `StackUint`.
-                let value_as_stack_uint = StackUint::from_u32(value.value());
+                let value_as_stack_uint = StackUint::from_u32(*value);
 
                 // Convert the value to a `StackItem`.
                 let value_as_stack_item = StackItem::from_stack_uint(value_as_stack_uint);

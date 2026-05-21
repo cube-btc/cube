@@ -90,16 +90,16 @@ impl CalldataElement {
             // Decode the u32.
             CalldataElementType::U32 => {
                 // Decode the `ShortVal` from `MaybeCommon<ShortVal>`.
-                let short_val = MaybeCommon::<ShortVal>::decode_ape(bit_stream)
+                let value = MaybeCommon::<ShortVal>::decode_ape(bit_stream)
                     .map_err(|e| {
                         CalldataElementAPEDecodeError::U32(
                             U32APEDecodeError::MaybeCommonShortValAPEDecodingError(e),
                         )
                     })?
+                    .value()
                     .value();
 
-                // Construct the `CalldataElement`.
-                let element = CalldataElement::U32(short_val);
+                let element = CalldataElement::U32(value);
 
                 // Return the element.
                 Ok(element)
@@ -108,15 +108,16 @@ impl CalldataElement {
             // Decode the u64.
             CalldataElementType::U64 => {
                 // Decode the `LongVal` from `MaybeCommon<LongVal>`.
-                let long_val = MaybeCommon::<LongVal>::decode_ape(bit_stream)
+                let value = MaybeCommon::<LongVal>::decode_ape(bit_stream)
                     .map_err(|e| {
                         CalldataElementAPEDecodeError::U64(
                             U64APEDecodeError::MaybeCommonLongValAPEDecodingError(e),
                         )
                     })?
+                    .value()
                     .value();
 
-                let element = CalldataElement::U64(long_val);
+                let element = CalldataElement::U64(value);
 
                 // Return the element.
                 Ok(element)
@@ -267,16 +268,16 @@ impl CalldataElement {
             // Decode the `Payable`.
             CalldataElementType::Payable => {
                 // Decode the `ShortVal` from `MaybeCommon<ShortVal>`.
-                let short_val = MaybeCommon::<ShortVal>::decode_ape(bit_stream)
+                let value = MaybeCommon::<ShortVal>::decode_ape(bit_stream)
                     .map_err(|e| {
                         CalldataElementAPEDecodeError::Payable(
                             PayableAPEDecodeError::MaybeCommonShortValAPEDecodingError(e),
                         )
                     })?
+                    .value()
                     .value();
 
-                // Construct the `CalldataElement`.
-                let element = CalldataElement::Payable(short_val);
+                let element = CalldataElement::Payable(value);
 
                 // Return the element.
                 Ok(element)
