@@ -1,7 +1,7 @@
 # Calldata
 Cube supports 10 calldata types that `Contracts` can accept as parameters:
 
-| Calldata Type    | Decoded As              | Description                                                                                 | CPE Bitsize   | Stack Bytesize |
+| Calldata Type    | Decoded As              | Description                                                                                 | APE Bitsize   | Stack Bytesize |
 |:-----------------|:------------------------|:--------------------------------------------------------------------------------------------|:--------------|:---------------|
 | U8               | u8                      | Represents values ranging from 0 to 255.                                                    | 8 bits        | 0-1 bytes      |
 | U16              | u16                     | Represents values ranging from 0 to 65,535.                                                 | 16 bits       | 0-2 bytes      |
