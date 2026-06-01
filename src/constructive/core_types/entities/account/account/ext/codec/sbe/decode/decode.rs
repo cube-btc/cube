@@ -67,26 +67,26 @@ impl Account {
                     .try_into()
                     .map_err(|_| AccountSBEDecodeError::RegisteredAccountSBEAccountKeyBytesConversionError)?;
 
-                // 4.b.3 Ensure the payload holds the 8-byte little-endian registery index after the key.
+                // 4.b.3 Ensure the payload holds the 8-byte little-endian registry index after the key.
                 if payload.len() < 32 + 8 {
                     return Err(
-                        AccountSBEDecodeError::RegisteredAccountSBEInsufficientBytesForRegisteryIndex {
+                        AccountSBEDecodeError::RegisteredAccountSBEInsufficientBytesForRegistryIndex {
                             got_total: payload.len(),
                         },
                     );
                 }
 
-                // 4.b.4 Decode the registery index.
-                let registery_index = u64::from_le_bytes(
+                // 4.b.4 Decode the registry index.
+                let registry_index = u64::from_le_bytes(
                     payload[32..40]
                         .try_into()
-                        .map_err(|_| AccountSBEDecodeError::RegisteredAccountSBERegisteryIndexBytesConversionError)?,
+                        .map_err(|_| AccountSBEDecodeError::RegisteredAccountSBERegistryIndexBytesConversionError)?,
                 );
 
-                // 4.b.5 Ensure no trailing bytes after the registery index.
+                // 4.b.5 Ensure no trailing bytes after the registry index.
                 if payload.len() != 32 + 8 {
                     return Err(
-                        AccountSBEDecodeError::RegisteredAccountSBETrailingBytesAfterRegisteryIndex {
+                        AccountSBEDecodeError::RegisteredAccountSBETrailingBytesAfterRegistryIndex {
                             trailing: payload.len() - (32 + 8),
                         },
                     );
@@ -95,7 +95,7 @@ impl Account {
                 // 4.b.6 Construct and return the registered `Account`.
                 Ok(Account::RegisteredAccount(RegisteredAccount::new(
                     account_key,
-                    registery_index,
+                    registry_index,
                 )))
             }
 

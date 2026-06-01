@@ -18,7 +18,7 @@ use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 use crate::inscriptive::params_manager::params_manager::PARAMS_MANAGER;
 use crate::inscriptive::privileges_manager::privileges_manager::PRIVILEGES_MANAGER;
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registry::registry::REGISTRY;
 use crate::inscriptive::state_manager::state_manager::STATE_MANAGER;
 use crate::inscriptive::sync_manager::sync_manager::SYNC_MANAGER;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
@@ -88,8 +88,8 @@ pub struct SessionPool {
     // The utxo set.
     pub utxo_set: UTXO_SET,
 
-    // The registery.
-    pub registery: REGISTERY,
+    // The registry.
+    pub registry: REGISTRY,
 
     // The graveyard.
     pub graveyard: GRAVEYARD,
@@ -129,7 +129,7 @@ impl SessionPool {
         engine_key: [u8; 32],
         sync_manager: &SYNC_MANAGER,
         utxo_set: &UTXO_SET,
-        registery: &REGISTERY,
+        registry: &REGISTRY,
         graveyard: &GRAVEYARD,
         coin_manager: &COIN_MANAGER,
         flame_manager: &FLAME_MANAGER,
@@ -143,7 +143,7 @@ impl SessionPool {
             engine_key,
             Arc::clone(sync_manager),
             Arc::clone(utxo_set),
-            Arc::clone(registery),
+            Arc::clone(registry),
             Arc::clone(graveyard),
             Arc::clone(coin_manager),
             Arc::clone(flame_manager),
@@ -160,7 +160,7 @@ impl SessionPool {
             engine_key,
             sync_manager: Arc::clone(sync_manager),
             utxo_set: Arc::clone(utxo_set),
-            registery: Arc::clone(registery),
+            registry: Arc::clone(registry),
             graveyard: Arc::clone(graveyard),
             coin_manager: Arc::clone(coin_manager),
             flame_manager: Arc::clone(flame_manager),
@@ -341,7 +341,7 @@ impl SessionPool {
             let entry_ape_bits = entry
                 .encode_ape(
                     batch_height,
-                    &self.registery,
+                    &self.registry,
                     encode_account_rank_as_longval,
                     encode_contract_rank_as_longval,
                     100,
@@ -426,7 +426,7 @@ impl SessionPool {
                     self.engine_key,
                     batch_height,
                     &self.utxo_set,
-                    &self.registery,
+                    &self.registry,
                     &self.graveyard,
                     liftup_bls_signature,
                 )
@@ -522,7 +522,7 @@ impl SessionPool {
             move_entry
                 .validate_overall(
                     batch_height,
-                    &self.registery,
+                    &self.registry,
                     &self.graveyard,
                     &self.coin_manager,
                 )
@@ -596,7 +596,7 @@ impl SessionPool {
         swapout
             .validate_overall(
                 batch_height,
-                &self.registery,
+                &self.registry,
                 &self.graveyard,
                 &self.coin_manager,
                 swapout_bls_signature,
@@ -662,7 +662,7 @@ impl SessionPool {
 
         config
             .root_account
-            .validate_root_account(&self.registery, &self.graveyard)
+            .validate_root_account(&self.registry, &self.graveyard)
             .await
             .map_err(|err| ExecConfigInPoolError::ConfigValidateRootAccountError(format!("{err:?}")))?;
 
@@ -738,7 +738,7 @@ impl SessionPool {
 
         deploy
             .root_account
-            .validate_root_account(&self.registery, &self.graveyard)
+            .validate_root_account(&self.registry, &self.graveyard)
             .await
             .map_err(|err| ExecDeployInPoolError::DeployValidateRootAccountError(format!("{err:?}")))?;
 

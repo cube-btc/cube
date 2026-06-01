@@ -12,7 +12,7 @@ impl Account {
     ///
     /// Layout:
     /// - `0x00` — `UnregisteredAccount`: 32-byte Schnorr account key (`account_key_to_be_registered`).
-    /// - `0x01` — `RegisteredAccount`: 32-byte Schnorr account key, then 8-byte little-endian `registery_index`.
+    /// - `0x01` — `RegisteredAccount`: 32-byte Schnorr account key, then 8-byte little-endian `registry_index`.
     pub fn encode_sbe(&self) -> Bytes {
         // 1 Initialize the byte vector.
         let mut bytes = Bytes::new();
@@ -36,8 +36,8 @@ impl Account {
                 // 2.b.2 Encode the Schnorr account key.
                 bytes.extend_from_slice(&registered_account.account_key);
 
-                // 2.b.3 Encode the registery index as little-endian `u64`.
-                bytes.extend_from_slice(&registered_account.registery_index.to_le_bytes());
+                // 2.b.3 Encode the registry index as little-endian `u64`.
+                bytes.extend_from_slice(&registered_account.registry_index.to_le_bytes());
             }
         }
 

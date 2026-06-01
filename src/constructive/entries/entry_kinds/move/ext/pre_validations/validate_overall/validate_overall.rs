@@ -3,14 +3,14 @@ use crate::constructive::entry::entry_kinds::r#move::r#move::Move;
 use crate::constructive::entity::account::root_account::root_account::RootAccount;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registry::registry::REGISTRY;
 
 impl Move {
     /// Used by the `Engine` to validate the `Move` end-to-end as a pre-validation step before executing it.
     pub async fn validate_overall(
         &self,
         execution_batch_height: u64,
-        registery: &REGISTERY,
+        registry: &REGISTRY,
         graveyard: &GRAVEYARD,
         coin_manager: &COIN_MANAGER,
     ) -> Result<(), MoveValidateOverallError> {
@@ -30,13 +30,13 @@ impl Move {
 
         // 3 Validate the sender root account.
         self.from
-            .validate_root_account(registery, graveyard)
+            .validate_root_account(registry, graveyard)
             .await
             .map_err(MoveValidateOverallError::ValidateRootAccountError)?;
 
         // 4 Validate the receiver account.
         self.to
-            .validate_account(registery, graveyard)
+            .validate_account(registry, graveyard)
             .await
             .map_err(MoveValidateOverallError::ValidateAccountError)?;
 

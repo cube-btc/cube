@@ -8,5 +8,5 @@ pub enum GraveyardApplyChangesError {
     RedemptionAmountResetDBError(AccountKey, sled::Error),
 
     /// Error when inserting buried account on disk.
-    BurriedAccountInsertDBError(AccountKey, sled::Error),
+    BuriedAccountInsertDBError(AccountKey, sled::Error),
 }

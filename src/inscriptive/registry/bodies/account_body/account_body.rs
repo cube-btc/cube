@@ -10,11 +10,11 @@ type AccountSecondaryAggregationKey = Vec<u8>;
 /// Projector config key of an account.
 type AccountProjectorConfig = [u8; 32];
 
-// A struct for containing the registery index and call counter of an account.
+// A struct for containing the registry index and call counter of an account.
 #[derive(Clone)]
 pub struct RMAccountBody {
-    // Assigned registery index of an account.
-    pub registery_index: u64,
+    // Assigned registry index of an account.
+    pub registry_index: u64,
 
     // Ever-increasing call counter of an account. 
     pub call_counter: u64,
@@ -38,7 +38,7 @@ pub struct RMAccountBody {
 impl RMAccountBody {
     /// Constructs a fresh new account body.
     pub fn new(
-        registery_index: u64,
+        registry_index: u64,
         call_counter: u64,
         last_activity_timestamp: u64,
         primary_bls_key: Option<AccountBLSKey>,
@@ -47,7 +47,7 @@ impl RMAccountBody {
         flame_config: Option<FMAccountFlameConfig>,
     ) -> Self {
         Self {
-            registery_index,
+            registry_index,
             call_counter,
             last_activity_timestamp,
             primary_bls_key,
@@ -62,10 +62,10 @@ impl RMAccountBody {
         // 1 Construct the account body JSON object.
         let mut obj = Map::new();
 
-        // 2 Insert the registery index.
+        // 2 Insert the registry index.
         obj.insert(
-            "registery_index".to_string(),
-            Value::String(self.registery_index.to_string()),
+            "registry_index".to_string(),
+            Value::String(self.registry_index.to_string()),
         );
 
         // 3 Insert the call counter.

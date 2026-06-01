@@ -1,1 +1,1 @@
-pub mod sync_with_registery;
+pub mod sync_with_registry;

@@ -41,8 +41,8 @@ impl ExecCtx {
             .ok_or(ConfigExecutionError::ConfigTotalPreSubsidyOverflow)?;
 
         let latest_activity_timestamp = {
-            let _registery = self.registery.lock().await;
-            _registery
+            let _registry = self.registry.lock().await;
+            _registry
                 .get_account_last_activity_timestamp(account_key)
                 .unwrap_or(0)
         };
@@ -67,10 +67,10 @@ impl ExecCtx {
                 }
 
                 registered_but_unconfigured_root_account
-                    .sync_with_registery(execution_timestamp, &self.registery)
+                    .sync_with_registry(execution_timestamp, &self.registry)
                     .await
                     .map_err(
-                        ConfigExecutionError::RegisteredButUnconfiguredRootAccountSyncWithRegisteryError,
+                        ConfigExecutionError::RegisteredButUnconfiguredRootAccountSyncWithRegistryError,
                     )?;
                 self.apply_subsidy_config(
                     account_key,
@@ -84,10 +84,10 @@ impl ExecCtx {
                 registered_and_configured_root_account,
             ) => {
                 registered_and_configured_root_account
-                    .sync_with_registery(execution_timestamp, &self.registery)
+                    .sync_with_registry(execution_timestamp, &self.registry)
                     .await
                     .map_err(
-                        ConfigExecutionError::RegisteredAndConfiguredRootAccountSyncWithRegisteryError,
+                        ConfigExecutionError::RegisteredAndConfiguredRootAccountSyncWithRegistryError,
                     )?;
                 self.apply_subsidy_config(
                     account_key,
@@ -108,29 +108,29 @@ impl ExecCtx {
             .map_err(ConfigExecutionError::CoinManagerAccountBalanceDownError)?;
 
         {
-            let mut registery = self.registery.lock().await;
+            let mut registry = self.registry.lock().await;
 
             if let Some(secondary_aggregation_key) = &config.secondary_aggregation_key {
-                registery
+                registry
                     .set_or_update_account_secondary_aggregation_key(
                         account_key,
                         secondary_aggregation_key.clone(),
                     )
                     .map_err(
-                        ConfigExecutionError::RegisterySetOrUpdateSecondaryAggregationKeyError,
+                        ConfigExecutionError::RegistrySetOrUpdateSecondaryAggregationKeyError,
                     )?;
             }
 
             if let Some(projector_config) = config.projector_config {
-                registery
+                registry
                     .set_or_update_account_projector_config(account_key, projector_config)
-                    .map_err(ConfigExecutionError::RegisterySetOrUpdateProjectorConfigError)?;
+                    .map_err(ConfigExecutionError::RegistrySetOrUpdateProjectorConfigError)?;
             }
 
             if let Some(flame_config) = &config.flame_config {
-                registery
+                registry
                     .set_or_update_account_flame_config(account_key, flame_config.clone())
-                    .map_err(ConfigExecutionError::RegisterySetOrUpdateFlameConfigError)?;
+                    .map_err(ConfigExecutionError::RegistrySetOrUpdateFlameConfigError)?;
             }
         }
 

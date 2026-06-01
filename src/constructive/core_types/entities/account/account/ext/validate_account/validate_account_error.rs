@@ -1,12 +1,12 @@
-/// Errors associated with validating an `Account` against the `Registery` and `Graveyard`.
+/// Errors associated with validating an `Account` against the `Registry` and `Graveyard`.
 #[derive(Debug, Clone)]
 pub enum AccountValidateAccountError {
     // --- `UnregisteredAccount`
     UnregisteredValidateSchnorrKeyError,
-    UnregisteredAccountBurriedInGraveyardError,
-    UnregisteredAccountRegisteredInRegisteryError,
+    UnregisteredAccountBuriedInGraveyardError,
+    UnregisteredAccountRegisteredInRegistryError,
 
     // --- `RegisteredAccount`
-    RegisteredAccountNotRegisteredInRegisteryError,
-    RegisteredRegisteryIndexMismatchError,
+    RegisteredAccountNotRegisteredInRegistryError,
+    RegisteredRegistryIndexMismatchError,
 }

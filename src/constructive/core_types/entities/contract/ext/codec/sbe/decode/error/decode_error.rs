@@ -3,5 +3,5 @@
 pub enum ContractSBEDecodeError {
     ContractSBEInvalidPayloadLength { got: usize, expected: usize },
     ContractSBEContractIdBytesConversionError,
-    ContractSBERegisteryIndexBytesConversionError,
+    ContractSBERegistryIndexBytesConversionError,
 }

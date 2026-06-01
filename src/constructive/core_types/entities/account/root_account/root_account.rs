@@ -2,7 +2,7 @@ use crate::{constructive::entity::account::root_account::registered_but_unconfig
 use crate::constructive::entity::account::root_account::registered_and_configured_root_account::registered_and_configured_root_account::RegisteredAndConfiguredRootAccount;
 use crate::constructive::entity::account::root_account::unregistered_root_account::unregistered_root_account::UnregisteredRootAccount;
 use crate::transmutative::key::KeyHolder;
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registry::registry::REGISTRY;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use crate::transmutative::hash::Hash;
@@ -25,9 +25,9 @@ pub enum RootAccount {
 
 impl RootAccount {
     /// Returns the `RootAccount` for the given `KeyHolder`.
-    pub async fn self_root_account_from_registery(
+    pub async fn self_root_account_from_registry(
         keyholder: &KeyHolder,
-        registery: &REGISTERY,
+        registry: &REGISTRY,
     ) -> RootAccount {
         // 1 Get the self account key.
         let self_account_key: [u8; 32] = keyholder.secp_public_key_bytes();
@@ -41,17 +41,17 @@ impl RootAccount {
 
         // 4 Retrieve the account info if its registered.
         let account_info = {
-            // 4.1 Lock the registery.
-            let _registery = registery.lock().await;
+            // 4.1 Lock the registry.
+            let _registry = registry.lock().await;
 
             // 4.2 Get account info by account key.
-            _registery.get_account_info_by_account_key(self_account_key)
+            _registry.get_account_info_by_account_key(self_account_key)
         };
 
         // 5 Match on whether the account is registered or not.
         match account_info {
             // 5.a The account is registered.
-            Some((_, bls_key, registery_index, _)) => {
+            Some((_, bls_key, registry_index, _)) => {
                 // 5.a.1 Match on whether the BLS key is configured or not.
                 match bls_key {
                     // 5.a.1.a The BLS key is configured.
@@ -60,7 +60,7 @@ impl RootAccount {
                         let registered_and_configured_root_account =
                             RegisteredAndConfiguredRootAccount::new(
                                 self_account_key,
-                                registery_index,
+                                registry_index,
                                 bls_key,
                             );
 
@@ -88,7 +88,7 @@ impl RootAccount {
                         let registered_but_unconfigured_root_account =
                             RegisteredButUnconfiguredRootAccount::new(
                                 self_account_key,
-                                registery_index,
+                                registry_index,
                                 self_bls_key,
                                 self_flame_config,
                                 authorization_signature,

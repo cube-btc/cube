@@ -4,14 +4,14 @@ use crate::constructive::{
     },
     valtype::val::{long_val::long_val::LongVal, short_val::short_val::ShortVal},
 };
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registry::registry::REGISTRY;
 use bit_vec::BitVec;
 
 impl Contract {
     /// Encodes a `Contract` as an Airly Payload Encoding (APE) bit vector.
     pub async fn encode_ape(
         &self,
-        registery: &REGISTERY,
+        registry: &REGISTRY,
         encode_rank_as_longval: bool,
     ) -> Result<BitVec, ContractAPEEncodeError> {
         // 1 Initialize the bit vector.
@@ -20,14 +20,14 @@ impl Contract {
         // 2 Get the contract id.
         let contract_id = self.contract_id();
 
-        // 3 Retrieve the rank value from the registery.
+        // 3 Retrieve the rank value from the registry.
         let rank: u64 = {
-            // 3.1 Lock the registery.
-            let _registery = registery.lock().await;
+            // 3.1 Lock the registry.
+            let _registry = registry.lock().await;
 
-            // 3.2 Retrieve the rank value from the registery.
-            _registery.get_rank_by_contract_id(contract_id).ok_or(
-                ContractAPEEncodeError::UnableToRetrieveRankValueFromRegistery(contract_id),
+            // 3.2 Retrieve the rank value from the registry.
+            _registry.get_rank_by_contract_id(contract_id).ok_or(
+                ContractAPEEncodeError::UnableToRetrieveRankValueFromRegistry(contract_id),
             )?
         };
 

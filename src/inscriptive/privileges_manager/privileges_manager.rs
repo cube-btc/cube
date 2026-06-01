@@ -422,13 +422,13 @@ impl PrivilegesManager {
     }
 
     /// Returns whether account has just been ephemerally registered.
-    pub fn is_account_epheremally_registered(&self, account_key: AccountKey) -> bool {
-        self.delta.is_account_epheremally_registered(account_key)
+    pub fn is_account_ephemerally_registered(&self, account_key: AccountKey) -> bool {
+        self.delta.is_account_ephemerally_registered(account_key)
     }
 
     /// Returns whether contract has just been ephemerally registered.
-    pub fn is_contract_epheremally_registered(&self, contract_id: ContractId) -> bool {
-        self.delta.is_contract_epheremally_registered(contract_id)
+    pub fn is_contract_ephemerally_registered(&self, contract_id: ContractId) -> bool {
+        self.delta.is_contract_ephemerally_registered(contract_id)
     }
 
     /// Ephemerally registers a new account.
@@ -437,7 +437,7 @@ impl PrivilegesManager {
         account_key: AccountKey,
         account_body: PrivilegesManagerAccountBody,
     ) -> Result<(), PMRegisterAccountError> {
-        if self.is_account_epheremally_registered(account_key) {
+        if self.is_account_ephemerally_registered(account_key) {
             return Err(PMRegisterAccountError::AccountHasJustBeenEphemerallyRegistered(
                 account_key,
             ));
@@ -450,7 +450,7 @@ impl PrivilegesManager {
         }
 
         self.delta
-            .epheremally_register_account(account_key, account_body);
+            .ephemerally_register_account(account_key, account_body);
         Ok(())
     }
 
@@ -460,7 +460,7 @@ impl PrivilegesManager {
         contract_id: ContractId,
         contract_body: PrivilegesManagerContractBody,
     ) -> Result<(), PMRegisterContractError> {
-        if self.is_contract_epheremally_registered(contract_id) {
+        if self.is_contract_ephemerally_registered(contract_id) {
             return Err(PMRegisterContractError::ContractHasJustBeenEphemerallyRegistered(
                 contract_id,
             ));
@@ -473,7 +473,7 @@ impl PrivilegesManager {
         }
 
         self.delta
-            .epheremally_register_contract(contract_id, contract_body);
+            .ephemerally_register_contract(contract_id, contract_body);
         Ok(())
     }
 
@@ -825,12 +825,12 @@ impl PrivilegesManager {
         Ok(())
     }
 
-    /// Reverts the epheremal changes associated with the last execution.
+    /// Reverts the ephemeral changes associated with the last execution.
     pub fn rollback_last(&mut self) {
         self.restore_delta();
     }
 
-    /// Applies all epheremal changes from delta into permanent in-memory and on-disk state.
+    /// Applies all ephemeral changes from delta into permanent in-memory and on-disk state.
     pub fn apply_changes(&mut self) -> Result<(), sled::Error> {
         // 1 Register new accounts.
         for (account_key, account_body) in self.delta.new_accounts_to_register.iter() {
@@ -1035,7 +1035,7 @@ impl PrivilegesManager {
         Ok(())
     }
 
-    /// Clears all epheremal changes from delta and backup.
+    /// Clears all ephemeral changes from delta and backup.
     pub fn flush_delta(&mut self) {
         self.delta.flush();
         self.backup_of_delta.flush();

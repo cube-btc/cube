@@ -43,8 +43,8 @@ impl ExecCtx {
             .ok_or(DeployExecutionError::DeployTotalPreSubsidyOverflow)?;
 
         let latest_activity_timestamp = {
-            let _registery = self.registery.lock().await;
-            _registery
+            let _registry = self.registry.lock().await;
+            _registry
                 .get_account_last_activity_timestamp(account_key)
                 .unwrap_or(0)
         };
@@ -69,10 +69,10 @@ impl ExecCtx {
                 }
 
                 registered_but_unconfigured_root_account
-                    .sync_with_registery(execution_timestamp, &self.registery)
+                    .sync_with_registry(execution_timestamp, &self.registry)
                     .await
                     .map_err(
-                        DeployExecutionError::RegisteredButUnconfiguredRootAccountSyncWithRegisteryError,
+                        DeployExecutionError::RegisteredButUnconfiguredRootAccountSyncWithRegistryError,
                     )?;
                 self.apply_subsidy_deploy(
                     account_key,
@@ -86,10 +86,10 @@ impl ExecCtx {
                 registered_and_configured_root_account,
             ) => {
                 registered_and_configured_root_account
-                    .sync_with_registery(execution_timestamp, &self.registery)
+                    .sync_with_registry(execution_timestamp, &self.registry)
                     .await
                     .map_err(
-                        DeployExecutionError::RegisteredAndConfiguredRootAccountSyncWithRegisteryError,
+                        DeployExecutionError::RegisteredAndConfiguredRootAccountSyncWithRegistryError,
                     )?;
                 self.apply_subsidy_deploy(
                     account_key,
@@ -112,10 +112,10 @@ impl ExecCtx {
         let contract_id = deploy.program.contract_id();
 
         {
-            let mut registery = self.registery.lock().await;
-            registery
+            let mut registry = self.registry.lock().await;
+            registry
                 .register_contract(contract_id, execution_timestamp, deploy.program.clone())
-                .map_err(DeployExecutionError::RegisteryRegisterContractError)?;
+                .map_err(DeployExecutionError::RegistryRegisterContractError)?;
         }
 
         {

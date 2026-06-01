@@ -7,7 +7,7 @@ use crate::inscriptive::privileges_manager::elements::account_hierarchy::account
 use crate::inscriptive::privileges_manager::elements::exemption::exemption::Exemption;
 use crate::inscriptive::privileges_manager::elements::exemption::periodic_resource::periodic_resource::PeriodicResource;
 use crate::inscriptive::privileges_manager::privileges_manager::PRIVILEGES_MANAGER;
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registry::registry::REGISTRY;
 use crate::operative::run_args::chain::Chain;
 use crate::transmutative::key::{FromNostrKeyStr, ToNostrKeyStr};
 use axum::{
@@ -32,7 +32,7 @@ use std::sync::Arc;
 struct ExplorerState {
     chain: Chain,
     archival: ARCHIVAL_MANAGER,
-    registery: REGISTERY,
+    registry: REGISTRY,
     privileges_manager: Option<PRIVILEGES_MANAGER>,
     coin_manager: COIN_MANAGER,
     flame_manager: FLAME_MANAGER,
@@ -43,7 +43,7 @@ pub async fn runexplorer_command(
     chain: Chain,
     port: u16,
     archival: Option<&ARCHIVAL_MANAGER>,
-    registery: &REGISTERY,
+    registry: &REGISTRY,
     privileges_manager: Option<&PRIVILEGES_MANAGER>,
     coin_manager: &COIN_MANAGER,
     flame_manager: &FLAME_MANAGER,
@@ -59,7 +59,7 @@ pub async fn runexplorer_command(
     let state = ExplorerState {
         chain,
         archival: Arc::clone(archival),
-        registery: Arc::clone(registery),
+        registry: Arc::clone(registry),
         privileges_manager: privileges_manager.map(Arc::clone),
         coin_manager: Arc::clone(coin_manager),
         flame_manager: Arc::clone(flame_manager),
@@ -138,14 +138,14 @@ fn account_url(account_key: [u8; 32]) -> String {
 }
 
 fn contract_url(contract_id: [u8; 32]) -> String {
-    format!("/contract/{}/registery", hex::encode(contract_id))
+    format!("/contract/{}/registry", hex::encode(contract_id))
 }
 
 /// Account explorer subpages under `/account/:account_id/:section`.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum AccountExplorerSection {
     History,
-    Registery,
+    Registry,
     Vip,
     Privileges,
     Vtxo,
@@ -155,17 +155,17 @@ enum AccountExplorerSection {
 /// Contract explorer subpages under `/contract/:contract_id/:section`.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum ContractExplorerSection {
-    Registery,
+    Registry,
     Privileges,
     CoinManager,
 }
 
 impl ContractExplorerSection {
-    const ALL: [Self; 3] = [Self::Registery, Self::Privileges, Self::CoinManager];
+    const ALL: [Self; 3] = [Self::Registry, Self::Privileges, Self::CoinManager];
 
     fn from_slug(s: &str) -> Option<Self> {
         match s.trim() {
-            "registery" => Some(Self::Registery),
+            "registry" => Some(Self::Registry),
             "privileges" => Some(Self::Privileges),
             "coin-manager" => Some(Self::CoinManager),
             _ => None,
@@ -174,7 +174,7 @@ impl ContractExplorerSection {
 
     fn slug(self) -> &'static str {
         match self {
-            Self::Registery => "registery",
+            Self::Registry => "registry",
             Self::Privileges => "privileges",
             Self::CoinManager => "coin-manager",
         }
@@ -182,7 +182,7 @@ impl ContractExplorerSection {
 
     fn nav_label(self) -> &'static str {
         match self {
-            Self::Registery => "Registery",
+            Self::Registry => "Registry",
             Self::Privileges => "Privileges",
             Self::CoinManager => "Coin Manager",
         }
@@ -190,7 +190,7 @@ impl ContractExplorerSection {
 
     fn document_title(self) -> &'static str {
         match self {
-            Self::Registery => "Registery",
+            Self::Registry => "Registry",
             Self::Privileges => "Privileges",
             Self::CoinManager => "Coin manager",
         }
@@ -229,7 +229,7 @@ fn contract_explorer_nav(contract_id: &str, current: ContractExplorerSection) ->
 impl AccountExplorerSection {
     const ALL: [Self; 6] = [
         Self::History,
-        Self::Registery,
+        Self::Registry,
         Self::Vip,
         Self::Privileges,
         Self::Vtxo,
@@ -239,7 +239,7 @@ impl AccountExplorerSection {
     fn from_slug(s: &str) -> Option<Self> {
         match s.trim() {
             "history" => Some(Self::History),
-            "registery" => Some(Self::Registery),
+            "registry" => Some(Self::Registry),
             "vip" => Some(Self::Vip),
             "privileges" => Some(Self::Privileges),
             "vtxo" => Some(Self::Vtxo),
@@ -251,7 +251,7 @@ impl AccountExplorerSection {
     fn slug(self) -> &'static str {
         match self {
             Self::History => "history",
-            Self::Registery => "registery",
+            Self::Registry => "registry",
             Self::Vip => "vip",
             Self::Privileges => "privileges",
             Self::Vtxo => "vtxo",
@@ -262,7 +262,7 @@ impl AccountExplorerSection {
     fn nav_label(self) -> &'static str {
         match self {
             Self::History => "Transaction History",
-            Self::Registery => "Registery",
+            Self::Registry => "Registry",
             Self::Vip => "V.I.P.",
             Self::Privileges => "Privileges",
             Self::Vtxo => "VTXO Set",
@@ -273,7 +273,7 @@ impl AccountExplorerSection {
     fn document_title(self) -> &'static str {
         match self {
             Self::History => "History",
-            Self::Registery => "Registery",
+            Self::Registry => "Registry",
             Self::Vip => "V.I.P.",
             Self::Privileges => "Privileges",
             Self::Vtxo => "VTXO set",
@@ -1055,14 +1055,14 @@ async fn search_batch(
             return Redirect::to(&format!("/entry/{}", hex::encode(key32))).into_response();
         }
         let is_account = {
-            let r = st.registery.lock().await;
+            let r = st.registry.lock().await;
             r.get_account_body_by_account_key(key32).is_some()
         };
         if is_account {
             return Redirect::to(&account_url(key32)).into_response();
         }
         let is_contract = {
-            let r = st.registery.lock().await;
+            let r = st.registry.lock().await;
             r.get_contract_body_by_contract_id(key32).is_some()
         };
         if is_contract {
@@ -1072,7 +1072,7 @@ async fn search_batch(
 
     if let Some(account_key) = q_trim.as_str().from_npub() {
         let is_account = {
-            let r = st.registery.lock().await;
+            let r = st.registry.lock().await;
             r.get_account_body_by_account_key(account_key).is_some()
         };
         if is_account {
@@ -1093,7 +1093,7 @@ async fn search_batch(
 
 async fn page_accounts(State(st): State<ExplorerState>) -> Html<String> {
     let mut rows: Vec<(u64, [u8; 32], u64, u64)> = {
-        let g = st.registery.lock().await;
+        let g = st.registry.lock().await;
         let full = g.json();
         let mut parsed = Vec::new();
         if let Some(accounts_obj) = full.get("accounts").and_then(|v| v.as_object()) {
@@ -1104,8 +1104,8 @@ async fn page_accounts(State(st): State<ExplorerState>) -> Html<String> {
                 let Ok(account_key): Result<[u8; 32], _> = bytes_vec.try_into() else {
                     continue;
                 };
-                let registery_index = body
-                    .get("registery_index")
+                let registry_index = body
+                    .get("registry_index")
                     .and_then(|v| v.as_str())
                     .and_then(|v| v.parse::<u64>().ok())
                     .unwrap_or(0);
@@ -1119,27 +1119,27 @@ async fn page_accounts(State(st): State<ExplorerState>) -> Html<String> {
                     .and_then(|v| v.as_str())
                     .and_then(|v| v.parse::<u64>().ok())
                     .unwrap_or(0);
-                parsed.push((registery_index, account_key, call_counter, last_activity_timestamp));
+                parsed.push((registry_index, account_key, call_counter, last_activity_timestamp));
             }
         }
         parsed
     };
-    rows.sort_by_key(|(registery_index, _, _, _)| *registery_index);
+    rows.sort_by_key(|(registry_index, _, _, _)| *registry_index);
 
     let mut table_rows = String::new();
-    for (registery_index, account_key, call_counter, last_activity_timestamp) in rows {
+    for (registry_index, account_key, call_counter, last_activity_timestamp) in rows {
         let row_href = account_url(account_key);
         table_rows.push_str(&format!(
             r#"<tr class="entry-row-btn" data-row-href="{}" tabindex="0" role="link" aria-label="Open account details"><td class="num">{}</td><td>{}</td><td class="num">{}</td><td>{}</td></tr>"#,
             html_escape(&row_href),
-            registery_index,
+            registry_index,
             account_link(account_key),
             call_counter,
             batch_table_relative_time_html(last_activity_timestamp),
         ));
     }
     if table_rows.is_empty() {
-        table_rows = r#"<tr><td colspan="5">No accounts in registery.</td></tr>"#.to_string();
+        table_rows = r#"<tr><td colspan="5">No accounts in registry.</td></tr>"#.to_string();
     }
 
     let body = format!(
@@ -1199,7 +1199,7 @@ async fn page_account_section(
             Html(layout(
                 "Account — Cube explorer",
                 &format!(
-                    r#"<h1>Unknown account section</h1><p>No tab <code class="mono">{}</code>. Use <code>history</code>, <code>registery</code>, <code>vip</code>, <code>privileges</code>, <code>vtxo</code>, or <code>coin-manager</code>.</p><p><a class="row-link" href="/accounts">← Accounts</a></p>"#,
+                    r#"<h1>Unknown account section</h1><p>No tab <code class="mono">{}</code>. Use <code>history</code>, <code>registry</code>, <code>vip</code>, <code>privileges</code>, <code>vtxo</code>, or <code>coin-manager</code>.</p><p><a class="row-link" href="/accounts">← Accounts</a></p>"#,
                     html_escape(section_slug.trim()),
                 ),
                 "",
@@ -1209,7 +1209,7 @@ async fn page_account_section(
     };
 
     let account_body = {
-        let r = st.registery.lock().await;
+        let r = st.registry.lock().await;
         r.get_account_body_by_account_key(account_key)
     };
     let Some(account_body) = account_body else {
@@ -1289,7 +1289,7 @@ async fn page_account_section(
     };
     let privileges_pretty =
         serde_json::to_string_pretty(&privileges_json).unwrap_or_else(|_| "null".to_string());
-    let registery_pretty =
+    let registry_pretty =
         serde_json::to_string_pretty(&account_body.json()).unwrap_or_else(|_| "null".to_string());
 
     let vtxo_json = {
@@ -1359,12 +1359,12 @@ async fn page_account_section(
 </article>"#,
             history_rows,
         ),
-        AccountExplorerSection::Registery => format!(
-            r#"<article class="account-section-page" id="account-section-registery" aria-labelledby="account-section-registery-heading">
-<h2 id="account-section-registery-heading">Registery Account Body</h2>
+        AccountExplorerSection::Registry => format!(
+            r#"<article class="account-section-page" id="account-section-registry" aria-labelledby="account-section-registry-heading">
+<h2 id="account-section-registry-heading">Registry Account Body</h2>
 <pre class="reg-json">{}</pre>
 </article>"#,
-            html_escape(&registery_pretty),
+            html_escape(&registry_pretty),
         ),
         AccountExplorerSection::Vip => format!(
             r#"<article class="account-section-page" id="account-section-vip" aria-label="V.I.P.">
@@ -1418,7 +1418,7 @@ async fn page_account_section(
 <dt>Account key (hex)</dt><dd><div class="summary-copy-row"><code class="mono">{}</code><button type="button" class="copy-btn" data-copy-value="{}" aria-label="Copy account key hex" title="Copy account key hex">&#128203;</button></div></dd>
 <dt>Account npub</dt><dd><div class="summary-copy-row"><code class="mono">{}</code><button type="button" class="copy-btn" data-copy-value="{}" aria-label="Copy account npub" title="Copy account npub">&#128203;</button></div></dd>
 <dt>Last time called</dt><dd>{}</dd>
-<dt>Registery index</dt><dd>{}</dd>
+<dt>Registry index</dt><dd>{}</dd>
 <dt>Call counter</dt><dd>{}</dd>
 <dt>Coins</dt><dd>{}</dd>
 </dl>
@@ -1443,7 +1443,7 @@ async fn page_account_section(
         html_escape(&npub),
         html_escape(&npub),
         explorer_timestamp_html(account_body.last_activity_timestamp),
-        account_body.registery_index,
+        account_body.registry_index,
         account_body.call_counter,
         html_escape(&coin_balance_text),
         nav_html,
@@ -1472,7 +1472,7 @@ async fn page_contract_root_redirect(
         )
             .into_response();
     }
-    let dest = format!("/contract/{}/registery", trimmed);
+    let dest = format!("/contract/{}/registry", trimmed);
     Redirect::temporary(dest.as_str()).into_response()
 }
 
@@ -1501,7 +1501,7 @@ async fn page_contract_section(
             Html(layout(
                 "Contract — Cube explorer",
                 &format!(
-                    r#"<h1>Unknown contract section</h1><p>No tab <code class="mono">{}</code>. Use <code>registery</code>, <code>privileges</code>, or <code>coin-manager</code>.</p><p><a class="row-link" href="/contracts">← Contracts</a></p>"#,
+                    r#"<h1>Unknown contract section</h1><p>No tab <code class="mono">{}</code>. Use <code>registry</code>, <code>privileges</code>, or <code>coin-manager</code>.</p><p><a class="row-link" href="/contracts">← Contracts</a></p>"#,
                     html_escape(section_slug.trim()),
                 ),
                 "",
@@ -1511,7 +1511,7 @@ async fn page_contract_section(
     };
 
     let contract_body = {
-        let r = st.registery.lock().await;
+        let r = st.registry.lock().await;
         r.get_contract_body_by_contract_id(contract_key)
     };
     let Some(contract_body) = contract_body else {
@@ -1539,7 +1539,7 @@ async fn page_contract_section(
 
     let contract_hex = hex::encode(contract_key);
     let contract_short = truncated_head_tail(&contract_hex, 8, 6);
-    let registery_pretty =
+    let registry_pretty =
         serde_json::to_string_pretty(&contract_body.json()).unwrap_or_else(|_| "null".to_string());
     let privileges_json = if let Some(ref pb) = privilege_body {
         let liveness_flag = match &pb.liveness_flag {
@@ -1582,12 +1582,12 @@ async fn page_contract_section(
 
     let nav_html = contract_explorer_nav(contract_id.trim(), section);
     let section_block = match section {
-        ContractExplorerSection::Registery => format!(
-            r#"<article class="account-section-page" id="contract-section-registery" aria-labelledby="contract-section-registery-heading">
-<h2 id="contract-section-registery-heading">Registery Contract Body</h2>
+        ContractExplorerSection::Registry => format!(
+            r#"<article class="account-section-page" id="contract-section-registry" aria-labelledby="contract-section-registry-heading">
+<h2 id="contract-section-registry-heading">Registry Contract Body</h2>
 <pre class="reg-json">{}</pre>
 </article>"#,
-            html_escape(&registery_pretty),
+            html_escape(&registry_pretty),
         ),
         ContractExplorerSection::Privileges => format!(
             r#"<article class="account-section-page" id="contract-section-privileges" aria-labelledby="contract-section-privileges-heading">
@@ -1625,7 +1625,7 @@ async fn page_contract_section(
 <dt>Contract ID</dt><dd><div class="summary-copy-row"><code class="mono">{}</code><button type="button" class="copy-btn" data-copy-value="{}" aria-label="Copy contract id" title="Copy contract id">&#128203;</button></div></dd>
 <dt>Program name</dt><dd>{}</dd>
 <dt>Last active</dt><dd>{}</dd>
-<dt>Registery index</dt><dd>{}</dd>
+<dt>Registry index</dt><dd>{}</dd>
 <dt>Call counter</dt><dd>{}</dd>
 <dt>Coins</dt><dd>{}</dd>
 </dl>
@@ -1645,7 +1645,7 @@ async fn page_contract_section(
         html_escape(&contract_hex),
         html_escape(contract_body.executable.program_name()),
         explorer_timestamp_html(contract_body.last_activity_timestamp),
-        contract_body.registery_index,
+        contract_body.registry_index,
         contract_body.call_counter,
         html_escape(&contract_coin_balance_text),
         nav_html,
@@ -1657,7 +1657,7 @@ async fn page_contract_section(
 
 async fn page_contracts(State(st): State<ExplorerState>) -> Html<String> {
     let mut rows: Vec<(u64, [u8; 32], String, u64, u64)> = {
-        let g = st.registery.lock().await;
+        let g = st.registry.lock().await;
         let full = g.json();
         let mut parsed = Vec::new();
         if let Some(contracts_obj) = full.get("contracts").and_then(|v| v.as_object()) {
@@ -1668,8 +1668,8 @@ async fn page_contracts(State(st): State<ExplorerState>) -> Html<String> {
                 let Ok(contract_id): Result<[u8; 32], _> = bytes_vec.try_into() else {
                     continue;
                 };
-                let registery_index = body
-                    .get("registery_index")
+                let registry_index = body
+                    .get("registry_index")
                     .and_then(|v| v.as_str())
                     .and_then(|v| v.parse::<u64>().ok())
                     .unwrap_or(0);
@@ -1690,7 +1690,7 @@ async fn page_contracts(State(st): State<ExplorerState>) -> Html<String> {
                     .unwrap_or("N/A")
                     .to_string();
                 parsed.push((
-                    registery_index,
+                    registry_index,
                     contract_id,
                     program_name,
                     call_counter,
@@ -1700,17 +1700,17 @@ async fn page_contracts(State(st): State<ExplorerState>) -> Html<String> {
         }
         parsed
     };
-    rows.sort_by_key(|(registery_index, _, _, _, _)| *registery_index);
+    rows.sort_by_key(|(registry_index, _, _, _, _)| *registry_index);
 
     let mut table_rows = String::new();
-    for (registery_index, contract_id, program_name, call_counter, last_activity_timestamp) in rows {
+    for (registry_index, contract_id, program_name, call_counter, last_activity_timestamp) in rows {
         let contract_id_hex = hex::encode(contract_id);
         let contract_id_short = truncated_head_tail(&contract_id_hex, 8, 6);
         let row_href = contract_url(contract_id);
         table_rows.push_str(&format!(
             r#"<tr class="entry-row-btn" data-row-href="{}" tabindex="0" role="link" aria-label="Open contract details"><td class="num">{}</td><td>{}</td><td><code class="mono">{}</code></td><td class="num">{}</td><td>{}</td></tr>"#,
             html_escape(&row_href),
-            registery_index,
+            registry_index,
             html_escape(&program_name),
             html_escape(&contract_id_short),
             call_counter,
@@ -1718,13 +1718,13 @@ async fn page_contracts(State(st): State<ExplorerState>) -> Html<String> {
         ));
     }
     if table_rows.is_empty() {
-        table_rows = r#"<tr><td colspan="5">No contracts in registery.</td></tr>"#.to_string();
+        table_rows = r#"<tr><td colspan="5">No contracts in registry.</td></tr>"#.to_string();
     }
 
     Html(layout(
         "Contracts — Cube explorer",
         &format!(r#"<h1>Contracts</h1>
-<p class="muted">Contracts indexed by registery order.</p>
+<p class="muted">Contracts indexed by registry order.</p>
 <table class="entries-table"><thead><tr><th class="num">Index</th><th>Program name</th><th>Contract ID</th><th class="num">Call counter</th><th>Last time called</th></tr></thead><tbody>{}</tbody></table>"#, table_rows),
         "",
     ))

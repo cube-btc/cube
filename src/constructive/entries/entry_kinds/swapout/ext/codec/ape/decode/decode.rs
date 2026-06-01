@@ -3,7 +3,7 @@ use crate::constructive::entity::account::root_account::root_account::RootAccoun
 use crate::constructive::entry::entry_kinds::swapout::ext::codec::ape::decode::error::decode_error::SwapoutAPEDecodeError;
 use crate::constructive::entry::entry_kinds::swapout::swapout::Swapout;
 use crate::constructive::txout_types::pinless_self::PinlessSelf;
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registry::registry::REGISTRY;
 use bitcoin::{OutPoint, TxOut};
 
 impl Swapout {
@@ -13,9 +13,9 @@ impl Swapout {
         bit_stream: &mut bit_vec::Iter<'_>,
         tx_outputs_iter: &mut impl Iterator<Item = (OutPoint, TxOut)>,
         decode_account_rank_as_longval: bool,
-        registery: &REGISTERY,
+        registry: &REGISTRY,
     ) -> Result<Self, SwapoutAPEDecodeError> {
-        let root_account = RootAccount::decode_ape(bit_stream, decode_account_rank_as_longval, registery)
+        let root_account = RootAccount::decode_ape(bit_stream, decode_account_rank_as_longval, registry)
             .await
             .map_err(|_| SwapoutAPEDecodeError::RootAccountAPEDecodeError)?;
         let target = Target::decode_ape(bit_stream, execution_batch_height)

@@ -2,14 +2,14 @@ use crate::constructive::core_types::entities::account::account::account::Accoun
 use crate::constructive::core_types::entities::account::account::ext::codec::ape::encode::error::encode_error::AccountAPEEncodeError;
 use crate::constructive::core_types::valtypes::val::long_val::long_val::LongVal;
 use crate::constructive::core_types::valtypes::val::short_val::short_val::ShortVal;
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registry::registry::REGISTRY;
 use bit_vec::BitVec;
 
 impl Account {
     /// Encodes an `Account` as an Airly Payload Encoding (APE) bit vector.
     pub async fn encode_ape(
         &self,
-        registery: &REGISTERY,
+        registry: &REGISTRY,
         encode_rank_as_longval: bool,
     ) -> Result<BitVec, AccountAPEEncodeError> {
         // 1 Initialize the APE bit vector.
@@ -27,14 +27,14 @@ impl Account {
 
                 // 2.a.1 Get the rank value.
                 let rank = {
-                    // 2.a.1.1 Lock the `Registery`.
-                    let _registery = registery.lock().await;
+                    // 2.a.1.1 Lock the `Registry`.
+                    let _registry = registry.lock().await;
 
-                    // 2.a.1.2 Get the `Account`'s rank value from the `Registery`.
-                    _registery
+                    // 2.a.1.2 Get the `Account`'s rank value from the `Registry`.
+                    _registry
                         .get_rank_by_account_key(self.account_key())
                         .ok_or(
-                            AccountAPEEncodeError::UnableToRetrieveRankValueFromRegistery(
+                            AccountAPEEncodeError::UnableToRetrieveRankValueFromRegistry(
                                 self.account_key(),
                             ),
                         )?
@@ -66,7 +66,7 @@ impl Account {
             false => {
                 //
                 // When the `Account` is not registered, we encode a zero rank value as a `LongVal` or a `ShortVal` to indicate that the `Account` is unregistered.
-                // and right afterwards we encode the full 256 public key bits of the `Account`'s public key to register it with the `RegisteryManager`.
+                // and right afterwards we encode the full 256 public key bits of the `Account`'s public key to register it with the `RegistryManager`.
                 //
 
                 // 2.b.1 Match on whether to encode the zero rank value as a `LongVal` or a `ShortVal`.

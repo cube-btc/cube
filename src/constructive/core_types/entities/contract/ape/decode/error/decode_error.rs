@@ -11,5 +11,5 @@ type Rank = u64;
 pub enum ContractAPEDecodeError {
     FailedToDecodeRankValueAsLongVal(LongValAPEDecodeError),
     FailedToDecodeRankValueAsShortVal(ShortValAPEDecodeError),
-    ContractNotFoundInRegisteryWithRank(Rank),
+    ContractNotFoundInRegistryWithRank(Rank),
 }

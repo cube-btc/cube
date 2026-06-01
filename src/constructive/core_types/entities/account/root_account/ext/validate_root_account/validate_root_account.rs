@@ -1,13 +1,13 @@
 use crate::constructive::entity::account::root_account::ext::validate_root_account::validate_root_account_error::RootAccountValidateRootAccountError;
 use crate::constructive::entity::account::root_account::root_account::RootAccount;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registry::registry::REGISTRY;
 
 impl RootAccount {
     /// Validates a `RootAccount`.
     pub async fn validate_root_account(
         &self,
-        registery: &REGISTERY,
+        registry: &REGISTRY,
         graveyard: &GRAVEYARD,
     ) -> Result<(), RootAccountValidateRootAccountError> {
         // 1 Match on the `RootAccount` variant.
@@ -28,35 +28,35 @@ impl RootAccount {
                     );
                 }
 
-                // 1.a.3 Ensure the account is not burried in the graveyard.
+                // 1.a.3 Ensure the account is not buried in the graveyard.
                 {
                     // 1.a.3.1 Lock the graveyard.
                     let _graveyard = graveyard.lock().await;
 
-                    // 1.a.3.2 Reject if burried.
+                    // 1.a.3.2 Reject if buried.
                     if _graveyard
-                        .is_account_burried(unregistered_root_account.account_key_to_be_registered)
+                        .is_account_buried(unregistered_root_account.account_key_to_be_registered)
                     {
                         return Err(
-                            RootAccountValidateRootAccountError::UnregisteredAccountBurriedInGraveyardError,
+                            RootAccountValidateRootAccountError::UnregisteredAccountBuriedInGraveyardError,
                         );
                     }
                 }
 
-                // 1.a.4 Ensure the account is not present in the registery.
+                // 1.a.4 Ensure the account is not present in the registry.
                 {
-                    // 1.a.4.1 Lock the registery.
-                    let _registery = registery.lock().await;
+                    // 1.a.4.1 Lock the registry.
+                    let _registry = registry.lock().await;
 
                     // 1.a.4.2 Reject if registered.
-                    if _registery
+                    if _registry
                         .get_account_info_by_account_key(
                             unregistered_root_account.account_key_to_be_registered,
                         )
                         .is_some()
                     {
                         return Err(
-                            RootAccountValidateRootAccountError::UnregisteredAccountRegisteredInRegisteryError,
+                            RootAccountValidateRootAccountError::UnregisteredAccountRegisteredInRegistryError,
                         );
                     }
                 }
@@ -83,36 +83,36 @@ impl RootAccount {
                     );
                 }
 
-                // 1.b.3 Check registery state: registered, index matches, BLS not configured yet.
+                // 1.b.3 Check registry state: registered, index matches, BLS not configured yet.
                 {
-                    // 1.b.3.1 Lock the registery.
-                    let _registery = registery.lock().await;
+                    // 1.b.3.1 Lock the registry.
+                    let _registry = registry.lock().await;
 
                     // 1.b.3.2 Get account info by account key.
-                    let account_info = _registery
+                    let account_info = _registry
                         .get_account_info_by_account_key(registered_but_unconfigured_root_account.account_key);
 
                     // 1.b.3.3 Match on account info.
                     match account_info {
                         // 1.b.3.3.a Not registered.
                         None => Err(
-                            RootAccountValidateRootAccountError::RegisteredButUnconfiguredAccountNotRegisteredInRegisteryError,
+                            RootAccountValidateRootAccountError::RegisteredButUnconfiguredAccountNotRegisteredInRegistryError,
                         ),
 
                         // 1.b.3.3.b Registered.
-                        Some((_account_key, primary_bls_key, registery_index, _rank)) => {
-                            // 1.b.3.3.b.1 Registery index must match.
-                            if registery_index != registered_but_unconfigured_root_account.registery_index {
+                        Some((_account_key, primary_bls_key, registry_index, _rank)) => {
+                            // 1.b.3.3.b.1 Registry index must match.
+                            if registry_index != registered_but_unconfigured_root_account.registry_index {
                                 return Err(
-                                    RootAccountValidateRootAccountError::RegisteredButUnconfiguredRegisteryIndexMismatchError,
+                                    RootAccountValidateRootAccountError::RegisteredButUnconfiguredRegistryIndexMismatchError,
                                 );
                             }
 
-                            // 1.b.3.3.b.2 Primary BLS key must still be unset in the registery.
+                            // 1.b.3.3.b.2 Primary BLS key must still be unset in the registry.
                             match primary_bls_key {
                                 // 1.b.3.3.b.2.a Already configured — inconsistent with this variant.
                                 Some(_) => Err(
-                                    RootAccountValidateRootAccountError::RegisteredButUnconfiguredBLSKeyAlreadyConfiguredInRegisteryError,
+                                    RootAccountValidateRootAccountError::RegisteredButUnconfiguredBLSKeyAlreadyConfiguredInRegistryError,
                                 ),
 
                                 // 1.b.3.3.b.2.b Not configured — expected.
@@ -132,28 +132,28 @@ impl RootAccount {
                     );
                 }
 
-                // 1.c.2 Check registery state: registered, index matches, BLS configured and matches.
+                // 1.c.2 Check registry state: registered, index matches, BLS configured and matches.
                 {
-                    // 1.c.2.1 Lock the registery.
-                    let _registery = registery.lock().await;
+                    // 1.c.2.1 Lock the registry.
+                    let _registry = registry.lock().await;
 
                     // 1.c.2.2 Get account info by account key.
-                    let account_info = _registery
+                    let account_info = _registry
                         .get_account_info_by_account_key(registered_and_configured_root_account.account_key);
 
                     // 1.c.2.3 Match on account info.
                     match account_info {
                         // 1.c.2.3.a Not registered.
                         None => Err(
-                            RootAccountValidateRootAccountError::RegisteredAndConfiguredAccountNotRegisteredInRegisteryError,
+                            RootAccountValidateRootAccountError::RegisteredAndConfiguredAccountNotRegisteredInRegistryError,
                         ),
 
                         // 1.c.2.3.b Registered.
-                        Some((_account_key, primary_bls_key, registery_index, _rank)) => {
-                            // 1.c.2.3.b.1 Registery index must match.
-                            if registery_index != registered_and_configured_root_account.registery_index {
+                        Some((_account_key, primary_bls_key, registry_index, _rank)) => {
+                            // 1.c.2.3.b.1 Registry index must match.
+                            if registry_index != registered_and_configured_root_account.registry_index {
                                 return Err(
-                                    RootAccountValidateRootAccountError::RegisteredAndConfiguredRegisteryIndexMismatchError,
+                                    RootAccountValidateRootAccountError::RegisteredAndConfiguredRegistryIndexMismatchError,
                                 );
                             }
 
@@ -161,14 +161,14 @@ impl RootAccount {
                             match primary_bls_key {
                                 // 1.c.2.3.b.2.a Not configured — inconsistent with this variant.
                                 None => Err(
-                                    RootAccountValidateRootAccountError::RegisteredAndConfiguredBLSKeyNotConfiguredInRegisteryError,
+                                    RootAccountValidateRootAccountError::RegisteredAndConfiguredBLSKeyNotConfiguredInRegistryError,
                                 ),
 
                                 // 1.c.2.3.b.2.b Configured — must match.
-                                Some(registery_bls_key) => {
-                                    if registery_bls_key != registered_and_configured_root_account.bls_key {
+                                Some(registry_bls_key) => {
+                                    if registry_bls_key != registered_and_configured_root_account.bls_key {
                                         return Err(
-                                            RootAccountValidateRootAccountError::RegisteredAndConfiguredBLSKeyMismatchWithRegisteryError,
+                                            RootAccountValidateRootAccountError::RegisteredAndConfiguredBLSKeyMismatchWithRegistryError,
                                         );
                                     }
                                     Ok(())

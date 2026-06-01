@@ -10,7 +10,7 @@ use crate::constructive::calldata::element::ape::decode::error::decode_errors::C
 use crate::constructive::entry::entry_kinds::call::ext::codec::ape::decode::error::decode_error::CallEntryAPEDecodeError;
 use crate::constructive::entry::entry_kinds::call::call::Call;
 use crate::constructive::valtype::val::short_val::short_val::ShortVal;
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registry::registry::REGISTRY;
 
 impl Call {
     /// Decodes a `Call` from an Airly Payload Encoding (APE) bit vector.
@@ -20,29 +20,29 @@ impl Call {
         base_ops_price: u32,
         decode_account_rank_as_longval: bool,
         decode_contract_rank_as_longval: bool,
-        registery: &REGISTERY,
+        registry: &REGISTRY,
     ) -> Result<Call, CallEntryAPEDecodeError> {
         let account: RootAccount = RootAccount::decode_ape(
             bit_stream,
             decode_account_rank_as_longval,
-            registery,
+            registry,
         )
         .await
         .map_err(CallEntryAPEDecodeError::AccountAPEDecodeError)?;
 
         let contract: Contract =
-            Contract::decode_ape(bit_stream, registery, decode_contract_rank_as_longval)
+            Contract::decode_ape(bit_stream, registry, decode_contract_rank_as_longval)
                 .await
                 .map_err(CallEntryAPEDecodeError::ContractAPEDecodeError)?;
 
         let contract_id = contract.contract_id();
 
         let methods_len = {
-            let _registery = registery.lock().await;
-            _registery
+            let _registry = registry.lock().await;
+            _registry
                 .get_contract_methods_len_by_contract_id(contract_id)
                 .ok_or(
-                    CallEntryAPEDecodeError::UnableToRetrieveContractMethodsLenFromRegistery(
+                    CallEntryAPEDecodeError::UnableToRetrieveContractMethodsLenFromRegistry(
                         contract_id,
                     ),
                 )?
@@ -52,13 +52,13 @@ impl Call {
             .map_err(CallEntryAPEDecodeError::MethodIndexAPEDecodeError)?;
 
         let arg_types = {
-            let _registery = registery.lock().await;
-            _registery
+            let _registry = registry.lock().await;
+            _registry
                 .get_contract_method_arg_types_by_contract_id_and_method_index(
                     contract_id,
                     method_index.index(),
                 )
-                .ok_or(CallEntryAPEDecodeError::UnableToRetrieveMethodArgTypesFromRegistery {
+                .ok_or(CallEntryAPEDecodeError::UnableToRetrieveMethodArgTypesFromRegistry {
                     contract_id,
                     method_index: method_index.index(),
                 })?
@@ -86,7 +86,7 @@ impl Call {
             let calldata_element = CalldataElement::decode_ape(
                 bit_stream,
                 arg_type,
-                registery,
+                registry,
                 decode_rank_as_longval,
             )
             .await

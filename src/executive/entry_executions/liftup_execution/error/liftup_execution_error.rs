@@ -1,5 +1,5 @@
-use crate::constructive::entity::account::root_account::registered_and_configured_root_account::ext::sync_with_registery::sync_with_registery_error::RegisteredAndConfiguredRootAccountSyncWithRegisteryError;
-use crate::constructive::entity::account::root_account::registered_but_unconfigured_root_account::ext::sync_with_registery::sync_with_registery_error::RegisteredButUnconfiguredRootAccountSyncWithRegisteryError;
+use crate::constructive::entity::account::root_account::registered_and_configured_root_account::ext::sync_with_registry::sync_with_registry_error::RegisteredAndConfiguredRootAccountSyncWithRegistryError;
+use crate::constructive::entity::account::root_account::registered_but_unconfigured_root_account::ext::sync_with_registry::sync_with_registry_error::RegisteredButUnconfiguredRootAccountSyncWithRegistryError;
 use crate::constructive::entity::account::root_account::unregistered_root_account::ext::register_with_db::register_with_db_error::UnregisteredRootAccountRegisterWithDBError;
 use crate::constructive::txo::lift::lift::Lift;
 use crate::inscriptive::coin_manager::errors::balance_update_errors::CMAccountBalanceUpError;
@@ -14,11 +14,11 @@ pub enum LiftupExecutionError {
     UnregisteredRootAccountRegisterWithDBError(UnregisteredRootAccountRegisterWithDBError),
     RegisteredButUnconfiguredRootAccountValidateBLSKeyError,
     RegisteredButUnconfiguredRootAccountInvalidAuthorizationSignatureError,
-    RegisteredButUnconfiguredRootAccountSyncWithRegisteryError(
-        RegisteredButUnconfiguredRootAccountSyncWithRegisteryError,
+    RegisteredButUnconfiguredRootAccountSyncWithRegistryError(
+        RegisteredButUnconfiguredRootAccountSyncWithRegistryError,
     ),
-    RegisteredAndConfiguredRootAccountSyncWithRegisteryError(
-        RegisteredAndConfiguredRootAccountSyncWithRegisteryError,
+    RegisteredAndConfiguredRootAccountSyncWithRegistryError(
+        RegisteredAndConfiguredRootAccountSyncWithRegistryError,
     ),
     CoinManagerAccountBalanceUpError(CMAccountBalanceUpError),
     FailedToApplyFeesSubsidy,

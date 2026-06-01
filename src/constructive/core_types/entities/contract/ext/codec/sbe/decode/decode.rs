@@ -16,12 +16,12 @@ impl Contract {
             ContractSBEDecodeError::ContractSBEContractIdBytesConversionError
         })?;
 
-        let registery_index = u64::from_le_bytes(
+        let registry_index = u64::from_le_bytes(
             bytes[32..40]
                 .try_into()
-                .map_err(|_| ContractSBEDecodeError::ContractSBERegisteryIndexBytesConversionError)?,
+                .map_err(|_| ContractSBEDecodeError::ContractSBERegistryIndexBytesConversionError)?,
         );
 
-        Ok(Contract::new(contract_id, registery_index))
+        Ok(Contract::new(contract_id, registry_index))
     }
 }

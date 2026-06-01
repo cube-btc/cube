@@ -1,23 +1,23 @@
-/// Errors associated with validating a `RootAccount` against the `Registery` and `Graveyard`.
+/// Errors associated with validating a `RootAccount` against the `Registry` and `Graveyard`.
 #[derive(Debug, Clone)]
 pub enum RootAccountValidateRootAccountError {
     // --- `UnregisteredRootAccount`
     UnregisteredValidateSchnorrAndBLSKeyError,
     UnregisteredInvalidAuthorizationSignatureError,
-    UnregisteredAccountBurriedInGraveyardError,
-    UnregisteredAccountRegisteredInRegisteryError,
+    UnregisteredAccountBuriedInGraveyardError,
+    UnregisteredAccountRegisteredInRegistryError,
 
     // --- `RegisteredButUnconfiguredRootAccount`
     RegisteredButUnconfiguredValidateBLSKeyError,
     RegisteredButUnconfiguredInvalidAuthorizationSignatureError,
-    RegisteredButUnconfiguredAccountNotRegisteredInRegisteryError,
-    RegisteredButUnconfiguredRegisteryIndexMismatchError,
-    RegisteredButUnconfiguredBLSKeyAlreadyConfiguredInRegisteryError,
+    RegisteredButUnconfiguredAccountNotRegisteredInRegistryError,
+    RegisteredButUnconfiguredRegistryIndexMismatchError,
+    RegisteredButUnconfiguredBLSKeyAlreadyConfiguredInRegistryError,
 
     // --- `RegisteredAndConfiguredRootAccount`
     RegisteredAndConfiguredValidateSchnorrAndBLSKeyError,
-    RegisteredAndConfiguredAccountNotRegisteredInRegisteryError,
-    RegisteredAndConfiguredRegisteryIndexMismatchError,
-    RegisteredAndConfiguredBLSKeyNotConfiguredInRegisteryError,
-    RegisteredAndConfiguredBLSKeyMismatchWithRegisteryError,
+    RegisteredAndConfiguredAccountNotRegisteredInRegistryError,
+    RegisteredAndConfiguredRegistryIndexMismatchError,
+    RegisteredAndConfiguredBLSKeyNotConfiguredInRegistryError,
+    RegisteredAndConfiguredBLSKeyMismatchWithRegistryError,
 }

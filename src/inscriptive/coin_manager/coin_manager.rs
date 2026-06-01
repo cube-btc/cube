@@ -389,14 +389,14 @@ impl CoinManager {
 
     /// Checks if an account is permanently registered.
     ///
-    /// NOTE: Does not check epheremal registrations in the delta.
+    /// NOTE: Does not check ephemeral registrations in the delta.
     pub fn is_account_registered(&self, account_key: AccountKey) -> bool {
         self.in_memory_accounts.contains_key(&account_key)
     }
 
     /// Checks if a contract is permanently registered.
     ///
-    /// NOTE: Does not check epheremal registrations in the delta.
+    /// NOTE: Does not check ephemeral registrations in the delta.
     pub fn is_contract_registered(&self, contract_id: ContractId) -> bool {
         self.in_memory_contracts.contains_key(&contract_id)
     }
@@ -607,10 +607,10 @@ impl CoinManager {
         contract_id: [u8; 32],
         account_key: AccountKey,
     ) -> Option<u128> {
-        // 1 Check if the account is epheremally deallocated in the delta.
+        // 1 Check if the account is ephemerally deallocated in the delta.
         if let Some(dealloc_list) = self.delta.deallocs_list.get(&contract_id) {
             if dealloc_list.contains(&account_key) {
-                // 1.1 The account is epheremally deallocated in the same execution.
+                // 1.1 The account is ephemerally deallocated in the same execution.
                 // 1.2 Therefore, there is no allocation value anymore to return.
                 return None;
             }
@@ -635,10 +635,10 @@ impl CoinManager {
         contract_id: [u8; 32],
         account_key: AccountKey,
     ) -> Option<u128> {
-        // 1 Check if the account is epheremally deallocated in the delta.
+        // 1 Check if the account is ephemerally deallocated in the delta.
         if let Some(dealloc_list) = self.delta.deallocs_list.get(&contract_id) {
             if dealloc_list.contains(&account_key) {
-                // 1.1 The account is epheremally deallocated in the same execution.
+                // 1.1 The account is ephemerally deallocated in the same execution.
                 // 1.2 Therefore, there is no allocation value anymore to return.
                 return None;
             }
@@ -745,7 +745,7 @@ impl CoinManager {
             ));
         }
 
-        // 2 Check if the account has just been epheremally registered in the delta.
+        // 2 Check if the account has just been ephemerally registered in the delta.
         if self
             .delta
             .new_accounts_to_register
@@ -778,7 +778,7 @@ impl CoinManager {
         contract_id: [u8; 32],
         initial_contract_balance: u64,
     ) -> Result<(), CMRegisterContractError> {
-        // 1 Check if the contract has just been epheremally registered in the delta.
+        // 1 Check if the contract has just been ephemerally registered in the delta.
         if self
             .delta
             .new_contracts_to_register
@@ -824,7 +824,7 @@ impl CoinManager {
 
         // 3 Epheremally update the account's balance.
         self.delta
-            .epheremally_update_account_balance(account_key, new_account_balance_in_satoshis);
+            .ephemerally_update_account_balance(account_key, new_account_balance_in_satoshis);
 
         // 4 Return the result.
         Ok(())
@@ -858,7 +858,7 @@ impl CoinManager {
 
         // 4 Epheremally update the account's balance.
         self.delta
-            .epheremally_update_account_balance(account_key, new_account_balance_in_satoshis);
+            .ephemerally_update_account_balance(account_key, new_account_balance_in_satoshis);
 
         // 5 Return the result.
         Ok(())
@@ -884,7 +884,7 @@ impl CoinManager {
 
         // 3 Epheremally update the contract's balance.
         self.delta
-            .epheremally_update_contract_balance(contract_id, new_contract_balance_in_satoshis);
+            .ephemerally_update_contract_balance(contract_id, new_contract_balance_in_satoshis);
 
         // 4 Return the result.
         Ok(())
@@ -938,7 +938,7 @@ impl CoinManager {
 
         // 6 Epheremally update the contract's balance.
         self.delta
-            .epheremally_update_contract_balance(contract_id, new_contract_balance_in_satoshis);
+            .ephemerally_update_contract_balance(contract_id, new_contract_balance_in_satoshis);
 
         // 7 Return the result.
         Ok(())
@@ -952,7 +952,7 @@ impl CoinManager {
         contract_id: [u8; 32],
         account_key: AccountKey,
     ) -> Result<(), CMContractShadowAllocAccountError> {
-        // 1 Check if the account has just been epheremally allocated in the delta.
+        // 1 Check if the account has just been ephemerally allocated in the delta.
         // 1.1 We do not allow it to be allocated again in the same execution.
         if let Some(allocs_list) = self.delta.allocs_list.get(&contract_id) {
             if allocs_list.contains(&account_key) {
@@ -965,7 +965,7 @@ impl CoinManager {
             }
         }
 
-        // 2 Check if the account has just been epheremally deallocated in the delta.
+        // 2 Check if the account has just been ephemerally deallocated in the delta.
         // 2.1 We do not allow it to be allocated after being deallocated in the same execution.
         if let Some(deallocs_list) = self.delta.deallocs_list.get(&contract_id) {
             if deallocs_list.contains(&account_key) {
@@ -996,7 +996,7 @@ impl CoinManager {
         // 4 Epheremally insert the new allocation to the shadow space.
         {
             // 4.1 Get mutable ephemeral shadow space from the delta.
-            let mut_epheremal_shadow_space = self
+            let mut_ephemeral_shadow_space = self
                 .get_mut_ephemeral_contract_shadow_space(contract_id)
                 .ok_or(
                     CMContractShadowAllocAccountError::UnableToGetMutEphemeralShadowSpace(
@@ -1005,12 +1005,12 @@ impl CoinManager {
                 )?;
 
             // 4.2 Epheremally insert the new allocation with value initially set to zero.
-            mut_epheremal_shadow_space.insert_update_alloc(account_key, 0);
+            mut_ephemeral_shadow_space.insert_update_alloc(account_key, 0);
         }
 
         // 5 Epheremally insert the allocation record to the allocs list.
         self.delta
-            .epheremally_insert_alloc(contract_id, account_key);
+            .ephemerally_insert_alloc(contract_id, account_key);
 
         // 6 Return the result.
         Ok(())
@@ -1024,7 +1024,7 @@ impl CoinManager {
         contract_id: [u8; 32],
         account_key: AccountKey,
     ) -> Result<(), CMContractShadowDeallocAccountError> {
-        // 1 Check if the account has just been epheremally allocated in the delta.
+        // 1 Check if the account has just been ephemerally allocated in the delta.
         // 1.1 We do not allow it to be deallocated if it is just allocated in the same execution.
         if let Some(allocs_list) = self.delta.allocs_list.get(&contract_id) {
             if allocs_list.contains(&account_key) {
@@ -1037,7 +1037,7 @@ impl CoinManager {
             }
         }
 
-        // 2 Check if the account has just been epheremally deallocated in the delta.
+        // 2 Check if the account has just been ephemerally deallocated in the delta.
         if let Some(deallocs_list) = self.delta.deallocs_list.get(&contract_id) {
             if deallocs_list.contains(&account_key) {
                 return Err(
@@ -1073,7 +1073,7 @@ impl CoinManager {
         // 5 Epheremally remove the account from the shadow space.
         {
             // 5.1 Get mutable ephemeral shadow space from the delta.
-            let mut_epheremal_shadow_space = self
+            let mut_ephemeral_shadow_space = self
                 .get_mut_ephemeral_contract_shadow_space(contract_id)
                 .ok_or(
                     CMContractShadowDeallocAccountError::UnableToGetMutEphemeralShadowSpace(
@@ -1082,12 +1082,12 @@ impl CoinManager {
                 )?;
 
             // 5.2 Epheremally remove the account key from the shadow space.
-            mut_epheremal_shadow_space.remove_alloc(account_key);
+            mut_ephemeral_shadow_space.remove_alloc(account_key);
         }
 
         // 6 Epheremally insert the deallocation record to the deallocs list.
         self.delta
-            .epheremally_insert_dealloc(contract_id, account_key);
+            .ephemerally_insert_dealloc(contract_id, account_key);
 
         // 7 Return the result.
         Ok(())
@@ -1114,7 +1114,7 @@ impl CoinManager {
 
         // 3 Epheremally update the account's global shadow allocs sum.
         self.delta
-            .epheremally_update_account_global_shadow_allocs_sum(
+            .ephemerally_update_account_global_shadow_allocs_sum(
                 account_key,
                 new_account_global_shadow_allocs_sum_in_sati_satoshis,
             );
@@ -1155,7 +1155,7 @@ impl CoinManager {
 
         // 4 Epheremally update the account's global shadow allocs sum.
         self.delta
-            .epheremally_update_account_global_shadow_allocs_sum(
+            .ephemerally_update_account_global_shadow_allocs_sum(
                 account_key,
                 new_account_global_shadow_allocs_sum_in_sati_satoshis,
             );
@@ -1197,7 +1197,7 @@ impl CoinManager {
             .ok_or(CMShadowUpError::UnableToGetContractBalance(contract_id))?;
 
         // 5 Get mutable ephemeral shadow space from the delta.
-        let mut_epheremal_shadow_space = self
+        let mut_ephemeral_shadow_space = self
             .get_mut_ephemeral_contract_shadow_space(contract_id)
             .ok_or(CMShadowUpError::UnableToGetMutEphemeralShadowSpace(
                 contract_id,
@@ -1205,7 +1205,7 @@ impl CoinManager {
 
         // 6 Calculate the contract's new shadow allocs sum value.
         let new_contract_allocs_sum_value_in_satoshis: u64 =
-            mut_epheremal_shadow_space.allocs_sum + up_value_in_satoshis;
+            mut_ephemeral_shadow_space.allocs_sum + up_value_in_satoshis;
 
         // 7 Check if the contract's new shadow allocs sum value exceeds the contract balance.
         if new_contract_allocs_sum_value_in_satoshis > contract_balance_in_satoshis {
@@ -1217,11 +1217,11 @@ impl CoinManager {
         }
 
         // 8 Epheremally update the account's shadow alloc value.
-        mut_epheremal_shadow_space
+        mut_ephemeral_shadow_space
             .insert_update_alloc(account_key, new_account_shadow_alloc_value_in_sati_satoshis);
 
         // 9 Epheremally update the contract's shadow allocs sum value.
-        mut_epheremal_shadow_space.update_allocs_sum(new_contract_allocs_sum_value_in_satoshis);
+        mut_ephemeral_shadow_space.update_allocs_sum(new_contract_allocs_sum_value_in_satoshis);
 
         // 10 Update the account global shadow allocs sum value.
         {
@@ -1273,14 +1273,14 @@ impl CoinManager {
             account_shadow_alloc_value_in_sati_satoshis - down_value_in_sati_satoshis;
 
         // 5 Get mutable ephemeral shadow space from the delta.
-        let mut_epheremal_shadow_space = self
+        let mut_ephemeral_shadow_space = self
             .get_mut_ephemeral_contract_shadow_space(contract_id)
             .ok_or(CMShadowDownError::UnableToGetMutEphemeralShadowSpace(
                 contract_id,
             ))?;
 
         // 5 Get the contract's existing shadow allocs sum value.
-        let contract_shadow_allocs_sum_in_satoshis: u64 = mut_epheremal_shadow_space.allocs_sum;
+        let contract_shadow_allocs_sum_in_satoshis: u64 = mut_ephemeral_shadow_space.allocs_sum;
 
         // 6 Check if the decrease would make the contract's shadow allocs sum to go below zero.
         // NOTE: This is unlikely to happen, but we are checking for it just in case.
@@ -1297,11 +1297,11 @@ impl CoinManager {
             contract_shadow_allocs_sum_in_satoshis - down_value_in_satoshis;
 
         // 8 Epheremally update the account's shadow alloc value.
-        mut_epheremal_shadow_space
+        mut_ephemeral_shadow_space
             .insert_update_alloc(account_key, new_account_shadow_alloc_value_in_sati_satoshis);
 
         // 9 Epheremally update the contract's shadow allocs sum value.
-        mut_epheremal_shadow_space.update_allocs_sum(new_contract_allocs_sum_value_in_satoshis);
+        mut_ephemeral_shadow_space.update_allocs_sum(new_contract_allocs_sum_value_in_satoshis);
 
         // 10 Epheremally update the account global shadow allocs sum value.
         {
@@ -1362,21 +1362,21 @@ impl CoinManager {
         }
 
         // 6 Get the mutable ephemeral shadow space from the delta.
-        let mut_epheremal_shadow_space = self
+        let mut_ephemeral_shadow_space = self
             .get_mut_ephemeral_contract_shadow_space(contract_id)
             .ok_or(CMShadowUpAllError::UnableToGetMutEphemeralShadowSpace(
                 contract_id,
             ))?;
 
         // 7 Update the allocs_sum immediately (for validation in subsequent operations).
-        mut_epheremal_shadow_space.update_allocs_sum(new_contract_allocs_sum_value_in_satoshis);
+        mut_ephemeral_shadow_space.update_allocs_sum(new_contract_allocs_sum_value_in_satoshis);
 
         // 8 Accumulate the deferred proportional change (positive value for up_all).
-        mut_epheremal_shadow_space.add_deferred_proportional_change(up_value_in_satoshis as i64);
+        mut_ephemeral_shadow_space.add_deferred_proportional_change(up_value_in_satoshis as i64);
 
         // 9 Get the number of affected accounts (for return value).
         // 9.1 Count accounts that are not ephemerally deallocated.
-        let num_affected_accounts = mut_epheremal_shadow_space.allocs.len() as u64;
+        let num_affected_accounts = mut_ephemeral_shadow_space.allocs.len() as u64;
 
         // 10 Return the number of affected accounts.
         Ok(num_affected_accounts)
@@ -1434,22 +1434,22 @@ impl CoinManager {
         }
 
         // 7 Get the mutable ephemeral shadow space from the delta.
-        let mut_epheremal_shadow_space = self
+        let mut_ephemeral_shadow_space = self
             .get_mut_ephemeral_contract_shadow_space(contract_id)
             .ok_or(CMShadowDownAllError::UnableToGetMutEphemeralShadowSpace(
                 contract_id,
             ))?;
 
         // 8 Update the allocs_sum immediately (for validation in subsequent operations).
-        mut_epheremal_shadow_space.update_allocs_sum(new_contract_allocs_sum_value_in_satoshis);
+        mut_ephemeral_shadow_space.update_allocs_sum(new_contract_allocs_sum_value_in_satoshis);
 
         // 9 Accumulate the deferred proportional change (negative value for down_all).
-        mut_epheremal_shadow_space
+        mut_ephemeral_shadow_space
             .add_deferred_proportional_change(-(down_value_in_satoshis as i64));
 
         // 10 Get the number of affected accounts (for return value).
         // 10.1 Count accounts that are not ephemerally deallocated.
-        let num_affected_accounts = mut_epheremal_shadow_space.allocs.len() as u64;
+        let num_affected_accounts = mut_ephemeral_shadow_space.allocs.len() as u64;
 
         // 11 Return the number of affected accounts.
         Ok(num_affected_accounts)
@@ -1460,13 +1460,13 @@ impl CoinManager {
         self.delta.coingap_accounts_list()
     }
 
-    /// Reverts the epheremal changes associated with the last execution.
+    /// Reverts the ephemeral changes associated with the last execution.
     pub fn rollback_last(&mut self) {
         // Restore the ephemeral states from the backup.
         self.restore_delta();
     }
 
-    /// Applies all epheremal changes from the delta into the permanent in-memory & on-disk.
+    /// Applies all ephemeral changes from the delta into the permanent in-memory & on-disk.
     pub fn apply_changes(&mut self) -> Result<(), CMApplyChangesError> {
         // 1 Register new accounts in-memory and on-disk.
         for (account_key, initial_account_balance) in self.delta.new_accounts_to_register.iter() {
@@ -1804,7 +1804,7 @@ impl CoinManager {
         // 5.2 Apply all account global shadow allocs sum updates to delta (outside the borrow of updated_shadow_spaces).
         for (account_key, new_value) in account_global_shadow_allocs_sum_updates {
             self.delta
-                .epheremally_update_account_global_shadow_allocs_sum(account_key, new_value);
+                .ephemerally_update_account_global_shadow_allocs_sum(account_key, new_value);
         }
 
         // 6 Save account's updated global shadow allocs sum values.
@@ -2007,7 +2007,7 @@ impl CoinManager {
         Some(account_overall_owned_and_owed_value_in_satoshis)
     }
 
-    /// Clears all epheremal changes from the delta.
+    /// Clears all ephemeral changes from the delta.
     pub fn flush_delta(&mut self) {
         // Clear the ephemeral states.
         self.delta.flush();

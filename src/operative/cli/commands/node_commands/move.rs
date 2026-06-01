@@ -4,7 +4,7 @@ use crate::constructive::core_types::entities::account::account::account::Accoun
 use crate::constructive::core_types::entities::account::root_account::root_account::RootAccount;
 use crate::constructive::core_types::target::target::Target;
 use crate::constructive::entry::entry_kinds::r#move::r#move::Move;
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registry::registry::REGISTRY;
 use crate::inscriptive::sync_manager::sync_manager::SYNC_MANAGER;
 use crate::transmutative::key::KeyHolder;
 use colored::Colorize;
@@ -16,11 +16,11 @@ pub async fn move_command(
     to_account_key: [u8; 32],
     key_holder: &KeyHolder,
     sync_manager: &SYNC_MANAGER,
-    registery: &REGISTERY,
+    registry: &REGISTRY,
     engine_peer: &PEER,
 ) {
     // 1 Construct sender root account.
-    let from = RootAccount::self_root_account_from_registery(key_holder, registery).await;
+    let from = RootAccount::self_root_account_from_registry(key_holder, registry).await;
 
     // 2 Reject self-transfer in CLI (`from` and `to` keys must be different).
     if from.account_key() == to_account_key {
@@ -31,8 +31,8 @@ pub async fn move_command(
         return;
     }
 
-    // 3 Construct receiver account from registery state.
-    let to = Account::account_from_registery(to_account_key, registery).await;
+    // 3 Construct receiver account from registry state.
+    let to = Account::account_from_registry(to_account_key, registry).await;
 
     // 4 Get the current cube batch height tip from sync manager.
     let batch_height_tip: u64 = {

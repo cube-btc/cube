@@ -28,9 +28,9 @@ mod simul_tests {
     use cube::inscriptive::privileges_manager::privileges_manager::erase_privileges_manager;
     use cube::inscriptive::privileges_manager::privileges_manager::PrivilegesManager;
     use cube::inscriptive::privileges_manager::privileges_manager::PRIVILEGES_MANAGER;
-    use cube::inscriptive::registery::registery::erase_registery;
-    use cube::inscriptive::registery::registery::Registery;
-    use cube::inscriptive::registery::registery::REGISTERY;
+    use cube::inscriptive::registry::registry::erase_registry;
+    use cube::inscriptive::registry::registry::Registry;
+    use cube::inscriptive::registry::registry::REGISTRY;
     use cube::inscriptive::state_manager::state_manager::erase_state_manager;
     use cube::inscriptive::state_manager::state_manager::StateManager;
     use cube::inscriptive::state_manager::state_manager::STATE_MANAGER;
@@ -100,9 +100,9 @@ mod simul_tests {
         erase_utxo_set(chain);
         let utxo_set: UTXO_SET = UTXOSet::new(chain).expect("Failed to create utxo set.");
 
-        // 10 Erase and construct the registery.
-        erase_registery(chain);
-        let registery: REGISTERY = Registery::new(chain).expect("Failed to create registery.");
+        // 10 Erase and construct the registry.
+        erase_registry(chain);
+        let registry: REGISTRY = Registry::new(chain).expect("Failed to create registry.");
 
         // 11 Erase and construct the graveyard.
         erase_graveyard(chain);
@@ -167,7 +167,7 @@ mod simul_tests {
         let liftup: Liftup = {
             // 15.1 Construct the Root Account.
             let root_account =
-                RootAccount::self_root_account_from_registery(&key_holder, &registery).await;
+                RootAccount::self_root_account_from_registry(&key_holder, &registry).await;
 
             // 15.2 Get the current batch sync height tip.
             // If not in-flight, retrieve this from Engine instead of sync manager as that will be more accurate.
@@ -198,10 +198,10 @@ mod simul_tests {
                 to_string_pretty(&liftup.json()).expect("serde_json::Value should serialize")
             );
 
-            // Print the registery json nice.
+            // Print the registry json nice.
             println!(
-                "Registery: {}",
-                to_string_pretty(&registery.lock().await.json())
+                "Registry: {}",
+                to_string_pretty(&registry.lock().await.json())
                     .expect("serde_json::Value should serialize")
             );
 
@@ -218,7 +218,7 @@ mod simul_tests {
             engine_key,
             &Arc::clone(&sync_manager),
             &Arc::clone(&utxo_set),
-            &Arc::clone(&registery),
+            &Arc::clone(&registry),
             &Arc::clone(&graveyard),
             &Arc::clone(&coin_manager),
             &Arc::clone(&flame_manager),
@@ -290,7 +290,7 @@ mod simul_tests {
             engine_key,
             Arc::clone(&sync_manager),
             Arc::clone(&utxo_set),
-            Arc::clone(&registery),
+            Arc::clone(&registry),
             Arc::clone(&graveyard),
             Arc::clone(&coin_manager),
             Arc::clone(&flame_manager),
@@ -320,8 +320,8 @@ mod simul_tests {
         {
             println!("Post-execution Manager Prints:");
             println!(
-                "Registery: {}",
-                to_string_pretty(&registery.lock().await.json())
+                "Registry: {}",
+                to_string_pretty(&registry.lock().await.json())
                     .expect("serde_json::Value should serialize")
             );
             println!(

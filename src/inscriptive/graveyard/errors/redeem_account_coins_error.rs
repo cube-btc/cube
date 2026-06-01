@@ -11,8 +11,8 @@ type MinimumRedemptionAmount = u64;
 #[derive(Debug, Clone)]
 pub enum GraveyardRedeemAccountCoinsError {
     AccountCoinsHasJustBeenEphemerallyRedeemed(AccountKey),
-    ThisAccountHasJustBeenEphemerallyBurried(AccountKey),
-    CouldNotRetrieveRedemptionAmountBecauseTheAccountIsNotBurried(AccountKey),
+    ThisAccountHasJustBeenEphemerallyBuried(AccountKey),
+    CouldNotRetrieveRedemptionAmountBecauseTheAccountIsNotBuried(AccountKey),
     RedemptionAmountIsLessThanTheMinimumLimit(
         AccountKey,
         SatoshiRedemptionAmount,

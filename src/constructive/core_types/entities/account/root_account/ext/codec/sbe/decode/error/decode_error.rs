@@ -41,11 +41,11 @@ pub enum RootAccountSBEDecodeError {
     /// Failed to assemble the 32-byte Schnorr account key from the SBE payload.
     RegisteredButUnconfiguredRootAccountSBEAccountKeyBytesConversionError,
 
-    // RegisteredButUnconfiguredRootAccount — registery index (8 bytes).
-    /// The payload after `0x01` ended before the 8-byte little-endian registery index.
-    RegisteredButUnconfiguredRootAccountSBEInsufficientBytesForRegisteryIndex { got_total: usize },
-    /// Failed to assemble the 8-byte registery index from the SBE payload.
-    RegisteredButUnconfiguredRootAccountSBERegisteryIndexBytesConversionError,
+    // RegisteredButUnconfiguredRootAccount — registry index (8 bytes).
+    /// The payload after `0x01` ended before the 8-byte little-endian registry index.
+    RegisteredButUnconfiguredRootAccountSBEInsufficientBytesForRegistryIndex { got_total: usize },
+    /// Failed to assemble the 8-byte registry index from the SBE payload.
+    RegisteredButUnconfiguredRootAccountSBERegistryIndexBytesConversionError,
 
     // RegisteredButUnconfiguredRootAccount — BLS public key (48 bytes).
     /// The payload after `0x01` ended before the 48-byte BLS key to be configured.
@@ -74,15 +74,15 @@ pub enum RootAccountSBEDecodeError {
     RegisteredButUnconfiguredRootAccountSBEFlamePresentAuthorizationSignatureBytesConversionError,
 
     // RegisteredAndConfiguredRootAccount — fixed payload after `0x02`.
-    /// The payload after `0x02` was not exactly 88 bytes (`32` account + `8` registery index + `48` BLS key).
+    /// The payload after `0x02` was not exactly 88 bytes (`32` account + `8` registry index + `48` BLS key).
     RegisteredAndConfiguredRootAccountSBEPayloadLengthError {
         got_payload: usize,
         expected_payload: usize,
     },
     /// Failed to assemble the 32-byte Schnorr account key from the registered-and-configured SBE payload.
     RegisteredAndConfiguredRootAccountSBEAccountKeyBytesConversionError,
-    /// Failed to assemble the 8-byte little-endian registery index from the registered-and-configured SBE payload.
-    RegisteredAndConfiguredRootAccountSBERegisteryIndexBytesConversionError,
+    /// Failed to assemble the 8-byte little-endian registry index from the registered-and-configured SBE payload.
+    RegisteredAndConfiguredRootAccountSBERegistryIndexBytesConversionError,
     /// Failed to assemble the 48-byte BLS key from the registered-and-configured SBE payload.
     RegisteredAndConfiguredRootAccountSBEBlsKeyBytesConversionError,
 }

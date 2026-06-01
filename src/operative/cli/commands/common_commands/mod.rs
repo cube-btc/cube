@@ -3,7 +3,7 @@ pub mod clear;
 pub mod engine;
 pub mod flamemanager;
 pub mod graveyard;
-pub mod registery;
+pub mod registry;
 pub mod rootaccount;
 pub mod runexplorer;
 pub mod tip;

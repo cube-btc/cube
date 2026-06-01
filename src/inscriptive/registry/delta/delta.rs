@@ -23,7 +23,7 @@ type CallCounterDelta = u16;
 /// Activity timestamp.
 type ActivityTimestamp = u64;
 
-/// A struct for containing epheremal state differences to be applied for 'RegisteryManager'.
+/// A struct for containing ephemeral state differences to be applied for 'RegistryManager'.
 #[derive(Clone)]
 pub struct RMDelta {
     // ACCOUNT RELATED VALUES ///
@@ -69,7 +69,7 @@ pub struct RMDelta {
 }
 
 impl RMDelta {
-    /// Constructs a fresh new registery manager delta.
+    /// Constructs a fresh new registry manager delta.
     pub fn fresh_new() -> Self {
         Self {
             new_accounts_to_register: Vec::new(),
@@ -99,22 +99,22 @@ impl RMDelta {
         self.updated_contract_last_activity_timestamps.clear();
     }
 
-    /// Checks if an account has just been epheremally registered in the delta.
-    pub fn is_account_epheremally_registered(&self, account_key: AccountKey) -> bool {
+    /// Checks if an account has just been ephemerally registered in the delta.
+    pub fn is_account_ephemerally_registered(&self, account_key: AccountKey) -> bool {
         self.new_accounts_to_register
             .iter()
             .any(|(key, _, _, _, _, _)| key == &account_key)
     }
 
-    /// Checks if a contract has just been epheremally registered in the delta.
-    pub fn is_contract_epheremally_registered(&self, contract_id: ContractId) -> bool {
+    /// Checks if a contract has just been ephemerally registered in the delta.
+    pub fn is_contract_ephemerally_registered(&self, contract_id: ContractId) -> bool {
         self.new_contracts_to_register
             .iter()
             .any(|(id, _, _)| id == &contract_id)
     }
 
     /// Epheremally registers an account in the delta.
-    pub fn epheremally_register_account(
+    pub fn ephemerally_register_account(
         &mut self,
         account_key: AccountKey,
         last_activity_timestamp: ActivityTimestamp,
@@ -134,7 +134,7 @@ impl RMDelta {
     }
 
     /// Epheremally registers a contract in the delta.
-    pub fn epheremally_register_contract(
+    pub fn ephemerally_register_contract(
         &mut self,
         contract_id: ContractId,
         last_activity_timestamp: ActivityTimestamp,
@@ -145,7 +145,7 @@ impl RMDelta {
     }
 
     /// Epheremally increments the call counter delta of an account by one.
-    pub fn epheremally_increment_account_call_counter_delta_by_one(
+    pub fn ephemerally_increment_account_call_counter_delta_by_one(
         &mut self,
         account_key: AccountKey,
     ) {
@@ -169,7 +169,7 @@ impl RMDelta {
     }
 
     /// Epheremally increments the call counter delta of a contract by one.
-    pub fn epheremally_increment_contract_call_counter_delta_by_one(
+    pub fn ephemerally_increment_contract_call_counter_delta_by_one(
         &mut self,
         contract_id: ContractId,
     ) {
@@ -193,7 +193,7 @@ impl RMDelta {
     }
 
     /// Epheremally sets an account's BLS key.
-    pub fn epheremally_set_account_bls_key(
+    pub fn ephemerally_set_account_bls_key(
         &mut self,
         account_key: AccountKey,
         bls_key: AccountBLSKey,
@@ -202,7 +202,7 @@ impl RMDelta {
     }
 
     /// Epheremally sets or updates an account's secondary aggregation key.
-    pub fn epheremally_set_or_update_account_secondary_aggregation_key(
+    pub fn ephemerally_set_or_update_account_secondary_aggregation_key(
         &mut self,
         account_key: AccountKey,
         secondary_aggregation_key: AccountSecondaryAggregationKey,
@@ -212,7 +212,7 @@ impl RMDelta {
     }
 
     /// Epheremally sets or updates an account projector config.
-    pub fn epheremally_set_or_update_account_projector_config(
+    pub fn ephemerally_set_or_update_account_projector_config(
         &mut self,
         account_key: AccountKey,
         projector_config: AccountProjectorConfig,
@@ -222,7 +222,7 @@ impl RMDelta {
     }
 
     /// Epheremally updates an account's last activity timestamp.
-    pub fn epheremally_update_account_last_activity_timestamp(
+    pub fn ephemerally_update_account_last_activity_timestamp(
         &mut self,
         account_key: AccountKey,
         last_activity_timestamp: ActivityTimestamp,
@@ -232,7 +232,7 @@ impl RMDelta {
     }
 
     /// Epheremally updates a contract's last activity timestamp.
-    pub fn epheremally_update_contract_last_activity_timestamp(
+    pub fn ephemerally_update_contract_last_activity_timestamp(
         &mut self,
         contract_id: ContractId,
         last_activity_timestamp: ActivityTimestamp,
@@ -242,7 +242,7 @@ impl RMDelta {
     }
 
     /// Epheremally sets or updates an account flame config.
-    pub fn epheremally_set_or_update_account_flame_config(
+    pub fn ephemerally_set_or_update_account_flame_config(
         &mut self,
         account_key: AccountKey,
         flame_config: FMAccountFlameConfig,

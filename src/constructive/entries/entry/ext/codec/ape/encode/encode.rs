@@ -1,6 +1,6 @@
 use crate::constructive::entry::entry::ext::codec::ape::encode::error::encode_error::EntryAPEEncodeError;
 use crate::constructive::entry::entry::entry::Entry;
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registry::registry::REGISTRY;
 use bit_vec::BitVec;
 
 impl Entry {
@@ -10,7 +10,7 @@ impl Entry {
     pub async fn encode_ape(
         &self,
         execution_batch_height: u64,
-        registery: &REGISTERY,
+        registry: &REGISTRY,
         encode_account_rank_as_longval: bool,
         encode_contract_rank_as_longval: bool,
         base_ops_price: u32,
@@ -30,7 +30,7 @@ impl Entry {
                 let move_bits = move_entry
                     .encode_ape(
                         execution_batch_height,
-                        registery,
+                        registry,
                         encode_account_rank_as_longval,
                     )
                     .await
@@ -50,7 +50,7 @@ impl Entry {
                 let call_bits = call
                     .encode_ape(
                         execution_batch_height,
-                        registery,
+                        registry,
                         encode_account_rank_as_longval,
                         encode_contract_rank_as_longval,
                         base_ops_price,
@@ -74,7 +74,7 @@ impl Entry {
                 let liftup_bits = liftup
                     .encode_ape(
                         execution_batch_height,
-                        registery,
+                        registry,
                         encode_account_rank_as_longval,
                     )
                     .await
@@ -93,7 +93,7 @@ impl Entry {
                 let swapout_bits = swapout
                     .encode_ape(
                         execution_batch_height,
-                        registery,
+                        registry,
                         encode_account_rank_as_longval,
                     )
                     .await
@@ -111,7 +111,7 @@ impl Entry {
                 let deploy_bits = deploy
                     .encode_ape(
                         execution_batch_height,
-                        registery,
+                        registry,
                         encode_account_rank_as_longval,
                     )
                     .await
@@ -129,7 +129,7 @@ impl Entry {
                 let config_bits = config
                     .encode_ape(
                         execution_batch_height,
-                        registery,
+                        registry,
                         encode_account_rank_as_longval,
                     )
                     .await

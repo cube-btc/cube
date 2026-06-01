@@ -1,7 +1,7 @@
 use crate::constructive::entry::entry_kinds::call::ext::codec::ape::encode::error::encode_error::CallAPEEncodeError;
 use crate::constructive::entry::entry_kinds::call::call::Call;
 use crate::constructive::valtype::val::short_val::short_val::ShortVal;
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registry::registry::REGISTRY;
 use bit_vec::BitVec;
 
 impl Call {
@@ -9,7 +9,7 @@ impl Call {
     pub async fn encode_ape(
         &self,
         execution_batch_height: u64,
-        registery: &REGISTERY,
+        registry: &REGISTRY,
         encode_account_rank_as_longval: bool,
         encode_contract_rank_as_longval: bool,
         base_ops_price: u32,
@@ -18,14 +18,14 @@ impl Call {
 
         let account_bit_vector = self
             .account
-            .encode_ape(registery, encode_account_rank_as_longval)
+            .encode_ape(registry, encode_account_rank_as_longval)
             .await
             .map_err(CallAPEEncodeError::AccountAPEEncodeError)?;
         bits.extend(account_bit_vector);
 
         let contract_bit_vector = self
             .contract
-            .encode_ape(registery, encode_contract_rank_as_longval)
+            .encode_ape(registry, encode_contract_rank_as_longval)
             .await
             .map_err(CallAPEEncodeError::ContractAPEEncodeError)?;
         bits.extend(contract_bit_vector);
@@ -33,10 +33,10 @@ impl Call {
         let contract_id = self.contract.contract_id();
 
         let methods_len = {
-            let _registery = registery.lock().await;
-            _registery
+            let _registry = registry.lock().await;
+            _registry
                 .get_contract_methods_len_by_contract_id(contract_id)
-                .ok_or(CallAPEEncodeError::UnableToRetrieveContractMethodsLenFromRegistery(
+                .ok_or(CallAPEEncodeError::UnableToRetrieveContractMethodsLenFromRegistry(
                     contract_id,
                 ))?
         };
@@ -48,13 +48,13 @@ impl Call {
         );
 
         let arg_types = {
-            let _registery = registery.lock().await;
-            _registery
+            let _registry = registry.lock().await;
+            _registry
                 .get_contract_method_arg_types_by_contract_id_and_method_index(
                     contract_id,
                     self.method_index.index(),
                 )
-                .ok_or(CallAPEEncodeError::UnableToRetrieveMethodArgTypesFromRegistery {
+                .ok_or(CallAPEEncodeError::UnableToRetrieveMethodArgTypesFromRegistry {
                     contract_id,
                     method_index: self.method_index.index(),
                 })?
@@ -78,7 +78,7 @@ impl Call {
 
             let calldata_element_bits = calldata_element
                 .encode_ape(
-                    registery,
+                    registry,
                     encode_account_rank_as_longval,
                     encode_contract_rank_as_longval,
                 )

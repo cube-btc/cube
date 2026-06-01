@@ -6,7 +6,7 @@ use crate::inscriptive::flame_manager::errors::apply_changes_error::FMApplyChang
 use crate::inscriptive::flame_manager::errors::construction_error::FMConstructionError;
 use crate::inscriptive::flame_manager::errors::register_account_error::FMRegisterAccountError;
 use crate::inscriptive::flame_manager::flame::flame::Flame;
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registry::registry::REGISTRY;
 use crate::operative::run_args::chain::Chain;
 use serde_json::{Map, Value};
 use std::collections::{HashMap, HashSet};
@@ -192,8 +192,8 @@ impl FlameManager {
         }
 
         // 2 Epheremally register the account in the delta.
-        if !self.delta.epheremally_register_account(account_key) {
-            // 2.1 Return an error if the account has just been epheremally registered in the delta.
+        if !self.delta.ephemerally_register_account(account_key) {
+            // 2.1 Return an error if the account has just been ephemerally registered in the delta.
             return Err(
                 FMRegisterAccountError::AccountHasJustBeenEphemerallyRegistered(account_key),
             );
@@ -203,11 +203,11 @@ impl FlameManager {
         Ok(())
     }
 
-    /// Reverts the epheremal changes associated with the last execution.
+    /// Reverts the ephemeral changes associated with the last execution.
     ///
     /// NOTE: Used by the Engine.
     pub fn rollback_last(&mut self) {
-        // Restore the epheremal changes from the backup.
+        // Restore the ephemeral changes from the backup.
         self.restore_delta();
     }
 
@@ -215,7 +215,7 @@ impl FlameManager {
     pub async fn apply_changes(
         &mut self,
         coin_manager: &COIN_MANAGER,
-        registery: &REGISTERY,
+        registry: &REGISTRY,
         new_projector_height: ProjectorHeight,
         projector_expiry_height: ProjectorHeight,
     ) -> Result<FlameProjectionTemplate, FMApplyChangesError> {
@@ -298,8 +298,8 @@ impl FlameManager {
             'coingap_accounts_loop: for account_key in coingap_accounts_list {
                 // 5.2.1 Get the account flame config.
                 let account_flame_config = {
-                    let _registery = registery.lock().await;
-                    _registery.get_account_flame_config(account_key)
+                    let _registry = registry.lock().await;
+                    _registry.get_account_flame_config(account_key)
                 };
                 let account_flame_config = match account_flame_config {
                     // 5.2.1.a The account flame config is set.
@@ -469,12 +469,12 @@ impl FlameManager {
         Ok(sorted_new_flames_to_insert)
     }
 
-    /// Clears all epheremal changes from the delta.
+    /// Clears all ephemeral changes from the delta.
     pub fn flush_delta(&mut self) {
-        // Clear the epheremal changes from the delta.
+        // Clear the ephemeral changes from the delta.
         self.delta.flush();
 
-        // Clear the epheremal changes from the backup.
+        // Clear the ephemeral changes from the backup.
         self.backup_of_delta.flush();
     }
 

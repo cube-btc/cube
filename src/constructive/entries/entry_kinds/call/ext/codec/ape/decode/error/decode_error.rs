@@ -12,8 +12,8 @@ use crate::constructive::valtype::val::short_val::ape::decode::error::decode_err
 pub enum CallEntryAPEDecodeError {
     AccountAPEDecodeError(RootAccountAPEDecodeError),
     ContractAPEDecodeError(ContractAPEDecodeError),
-    UnableToRetrieveContractMethodsLenFromRegistery([u8; 32]),
-    UnableToRetrieveMethodArgTypesFromRegistery {
+    UnableToRetrieveContractMethodsLenFromRegistry([u8; 32]),
+    UnableToRetrieveMethodArgTypesFromRegistry {
         contract_id: [u8; 32],
         method_index: u16,
     },

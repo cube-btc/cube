@@ -5,7 +5,7 @@ use crate::constructive::{
     entity::account::root_account::root_account::RootAccount,
     entry::entry_kinds::liftup::liftup::Liftup, txo::lift::lift::Lift,
 };
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registry::registry::REGISTRY;
 use crate::inscriptive::sync_manager::sync_manager::SYNC_MANAGER;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
 use crate::transmutative::key::KeyHolder;
@@ -20,7 +20,7 @@ pub async fn liftup_command(
     key_holder: &KeyHolder,
     sync_manager: &SYNC_MANAGER,
     utxo_set: &UTXO_SET,
-    registery: &REGISTERY,
+    registry: &REGISTRY,
     engine_peer: &PEER,
 ) {
     // 1 Scan the UTXO set and collect the self owned lifts.
@@ -36,7 +36,7 @@ pub async fn liftup_command(
     }
 
     // 3 Construct the Root Account.
-    let root_account = RootAccount::self_root_account_from_registery(key_holder, registery).await;
+    let root_account = RootAccount::self_root_account_from_registry(key_holder, registry).await;
 
     // 4 Get the current cube batch height tip from the sync manager.
     let batch_height_tip: u64 = {

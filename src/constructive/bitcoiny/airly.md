@@ -7,7 +7,7 @@
 | VM Type | Encoding                        | Scope      | Indexing        | Nonce     | Gas Price/Limit | Calldata     | Signature      | Error-handling |
 |:--------|:--------------------------------|:-----------|:----------------|-----------|:----------------|:-------------|:---------------|:---------------|
 | Cube    | Airly Payload Encoding (APE)    | Bit-level  | Rank-based      | -         | Negligible      | Non-prefixed | BLS-aggregated | Assertions     |
-| zkEVM   | Recursive-length prefix (RLP)   | Byte-level | Registery-based | Present   | Present         | Prefixed     | ZK-aggregated  | Failures       |
+| zkEVM   | Recursive-length prefix (RLP)   | Byte-level | Registry-based | Present   | Present         | Prefixed     | ZK-aggregated  | Failures       |
 | EVM     | Recursive-length prefix (RLP)   | Byte-level | -               | Present   | Present         | Prefixed     | 65 bytes       | Failures       |
 
 `Airly Compression` is composed of 9 key techniques:
@@ -31,7 +31,7 @@ Cube indexes `Accounts` and `Contracts` based on how frequently they transact, r
 
 This rank-based indexing system is cached and managed at the memory level, ensuring that frequently used contracts—such as AMM pools or Tether—consume only ~1 byte, compared to zkEVM’s 4 bytes and EVM’s 20 bytes.
 
-See [Registery Manager](https://github.com/cube-btc/cube/tree/main/src/inscriptive/registery).
+See [Registry Manager](https://github.com/cube-btc/cube/tree/main/src/inscriptive/registry).
 
 #### 4. Non-prefixed Calldata
 Cube maps calldata items directly to pre-defined types with known lengths, eliminating the prefix overhead for calldata. In contrast, the EVM requires calldata to be prefixed with an `RLP` encoding, adding 1-2 bytes overhead.

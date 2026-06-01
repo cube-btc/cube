@@ -10,7 +10,7 @@ use crate::constructive::core_types::entities::contract::contract::Contract;
 use crate::constructive::core_types::valtypes::maybe_common::maybe_common::maybe_common::MaybeCommon;
 use crate::constructive::core_types::valtypes::val::long_val::long_val::LongVal;
 use crate::constructive::core_types::valtypes::val::short_val::short_val::ShortVal;
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registry::registry::REGISTRY;
 
 use bit_vec::BitVec;
 
@@ -23,12 +23,12 @@ impl CalldataElement {
     /// # Arguments
     /// * `bit_stream` - The APE bitstream.
     /// * `element_type` - The type of the `CallElement`.
-    /// * `registery_manager` - The `Registery Manager`.
+    /// * `registry_manager` - The `Registry Manager`.
     /// * `decode_rank_as_longval` - Whether to decode the rank value as a `LongVal` or a `ShortVal`.
     pub async fn decode_ape<'a>(
         bit_stream: &mut bit_vec::Iter<'_>,
         element_type: CalldataElementType,
-        registery: &REGISTERY,
+        registry: &REGISTRY,
         decode_rank_as_longval: bool,
     ) -> Result<Self, CalldataElementAPEDecodeError> {
         // Match on the calldata element type.
@@ -142,7 +142,7 @@ impl CalldataElement {
             // Decode the `Account`.
             CalldataElementType::Account => {
                 // Decode the `Account`.
-                let account = Account::decode_ape(bit_stream, &registery, decode_rank_as_longval)
+                let account = Account::decode_ape(bit_stream, &registry, decode_rank_as_longval)
                     .await
                     .map_err(|e| {
                         CalldataElementAPEDecodeError::Account(
@@ -160,7 +160,7 @@ impl CalldataElement {
             // Decode the `Contract`.
             CalldataElementType::Contract => {
                 // Decode the `Contract`.
-                let contract = Contract::decode_ape(bit_stream, &registery, decode_rank_as_longval)
+                let contract = Contract::decode_ape(bit_stream, &registry, decode_rank_as_longval)
                     .await
                     .map_err(|e| {
                         CalldataElementAPEDecodeError::Contract(

@@ -6,7 +6,7 @@ use crate::constructive::entry::entry_kinds::swapout::swapout::{Swapout, DUST_SW
 use crate::constructive::txout_types::pinless_self::PinlessSelf;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
 use crate::inscriptive::params_manager::params_manager::PARAMS_MANAGER;
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registry::registry::REGISTRY;
 use crate::inscriptive::sync_manager::sync_manager::SYNC_MANAGER;
 use crate::transmutative::key::KeyHolder;
 use colored::Colorize;
@@ -17,7 +17,7 @@ pub async fn swapout_command(
     amount: u32,
     key_holder: &KeyHolder,
     sync_manager: &SYNC_MANAGER,
-    registery: &REGISTERY,
+    registry: &REGISTRY,
     coin_manager: &COIN_MANAGER,
     params_manager: &PARAMS_MANAGER,
     engine_peer: &PEER,
@@ -34,7 +34,7 @@ pub async fn swapout_command(
         return;
     }
 
-    let root_account = RootAccount::self_root_account_from_registery(key_holder, registery).await;
+    let root_account = RootAccount::self_root_account_from_registry(key_holder, registry).await;
     let account_key = root_account.account_key();
 
     let swapout_base_fee = {
