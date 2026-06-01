@@ -58,15 +58,15 @@ impl ExecCtx {
         // 6 Account key (same for all `RootAccount` variants on this entry).
         let account_key = root_account.account_key();
 
-        // 6.1 Last activity before this entry (read before `sync_with_registery`, which bumps it to `execution_timestamp`).
+        // 6.1 Last activity before this entry (read before `sync_with_registry`, which bumps it to `execution_timestamp`).
         let latest_activity_timestamp = {
-            let _registery = self.registery.lock().await;
-            _registery
+            let _registry = self.registry.lock().await;
+            _registry
                 .get_account_last_activity_timestamp(account_key)
                 .unwrap_or(0)
         };
 
-        // 7 Registery / registration first; fee subsidy only for registered roots and only when PM exemptions exist.
+        // 7 Registry / registration first; fee subsidy only for registered roots and only when PM exemptions exist.
         let mut subsidy_breakdown: Option<ExemptionSubsidyBreakdown> = None;
 
         match root_account {
@@ -89,7 +89,7 @@ impl ExecCtx {
                 unregistered_root_account
                     .register_with_db(
                         execution_timestamp,
-                        &self.registery,
+                        &self.registry,
                         &self.coin_manager,
                         &self.flame_manager,
                         &self.privileges_manager,
@@ -116,10 +116,10 @@ impl ExecCtx {
                 }
 
                 registered_but_unconfigured_root_account
-                    .sync_with_registery(execution_timestamp, &self.registery)
+                    .sync_with_registry(execution_timestamp, &self.registry)
                     .await
                     .map_err(|e| {
-                        LiftupExecutionError::RegisteredButUnconfiguredRootAccountSyncWithRegisteryError(e)
+                        LiftupExecutionError::RegisteredButUnconfiguredRootAccountSyncWithRegistryError(e)
                     })?;
 
                 let (fees_after_subsidy, bd) = self
@@ -148,10 +148,10 @@ impl ExecCtx {
                 registered_and_configured_root_account,
             ) => {
                 registered_and_configured_root_account
-                    .sync_with_registery(execution_timestamp, &self.registery)
+                    .sync_with_registry(execution_timestamp, &self.registry)
                     .await
                     .map_err(|e| {
-                        LiftupExecutionError::RegisteredAndConfiguredRootAccountSyncWithRegisteryError(e)
+                        LiftupExecutionError::RegisteredAndConfiguredRootAccountSyncWithRegistryError(e)
                     })?;
 
                 let (fees_after_subsidy, bd) = self

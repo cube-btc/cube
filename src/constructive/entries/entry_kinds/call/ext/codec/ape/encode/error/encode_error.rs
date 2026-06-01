@@ -11,8 +11,8 @@ use crate::constructive::entity::contract::ape::encode::error::encode_error::Con
 pub enum CallAPEEncodeError {
     AccountAPEEncodeError(RootAccountAPEEncodeError),
     ContractAPEEncodeError(ContractAPEEncodeError),
-    UnableToRetrieveContractMethodsLenFromRegistery([u8; 32]),
-    UnableToRetrieveMethodArgTypesFromRegistery {
+    UnableToRetrieveContractMethodsLenFromRegistry([u8; 32]),
+    UnableToRetrieveMethodArgTypesFromRegistry {
         contract_id: [u8; 32],
         method_index: u16,
     },

@@ -4,7 +4,7 @@ use crate::constructive::entry::entry_kinds::liftup::ext::codec::ape::decode::er
 use crate::constructive::entry::entry_kinds::liftup::liftup::Liftup;
 use crate::constructive::txo::lift::lift::Lift;
 use crate::constructive::valtype::val::short_val::short_val::ShortVal;
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registry::registry::REGISTRY;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
 use bitcoin::OutPoint;
 
@@ -17,11 +17,11 @@ impl Liftup {
         tx_inputs_iter: &mut impl Iterator<Item = OutPoint>,
         decode_account_rank_as_longval: bool,
         utxo_set: &UTXO_SET,
-        registery: &REGISTERY,
+        registry: &REGISTRY,
     ) -> Result<Liftup, LiftupAPEDecodeError> {
         // 1 Decode the `RootAccount` from the bitstream.
         let root_account: RootAccount =
-            RootAccount::decode_ape(bit_stream, decode_account_rank_as_longval, registery)
+            RootAccount::decode_ape(bit_stream, decode_account_rank_as_longval, registry)
                 .await
                 .map_err(|e| LiftupAPEDecodeError::RootAccountAPEDecodeError(e))?;
 

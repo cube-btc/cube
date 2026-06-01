@@ -17,7 +17,7 @@ type SatoshiAmount = u64;
 #[allow(non_camel_case_types)]
 type SatiSatoshiAmount = u128;
 
-/// A struct for containing epheremal state differences to be applied for 'CoinManager'.
+/// A struct for containing ephemeral state differences to be applied for 'CoinManager'.
 #[derive(Clone)]
 pub struct CMDelta {
     /// ACCOUNT RELATED VALUES ///
@@ -80,7 +80,7 @@ impl CMDelta {
     /// ------------------------------------------------------------
 
     /// Epheremally updates an account's balance.
-    pub fn epheremally_update_account_balance(
+    pub fn ephemerally_update_account_balance(
         &mut self,
         account_key: AccountKey,
         balance: SatoshiAmount,
@@ -89,7 +89,7 @@ impl CMDelta {
     }
 
     /// Epheremally updates an account's global shadow allocs sum.
-    pub fn epheremally_update_account_global_shadow_allocs_sum(
+    pub fn ephemerally_update_account_global_shadow_allocs_sum(
         &mut self,
         account_key: AccountKey,
         global_shadow_allocs_sum: SatiSatoshiAmount,
@@ -102,7 +102,7 @@ impl CMDelta {
     /// ------------------------------------------------------------
 
     /// Epheremally updates a contract's balance.
-    pub fn epheremally_update_contract_balance(
+    pub fn ephemerally_update_contract_balance(
         &mut self,
         contract_id: ContractId,
         balance: SatoshiAmount,
@@ -111,7 +111,7 @@ impl CMDelta {
     }
 
     /// Epheremally inserts an allocation record to the allocs list.
-    pub fn epheremally_insert_alloc(&mut self, contract_id: ContractId, account_key: AccountKey) {
+    pub fn ephemerally_insert_alloc(&mut self, contract_id: ContractId, account_key: AccountKey) {
         self.allocs_list
             .entry(contract_id)
             .or_insert_with(Vec::new)
@@ -119,7 +119,7 @@ impl CMDelta {
     }
 
     /// Epheremally inserts a deallocation record to the deallocs list.
-    pub fn epheremally_insert_dealloc(&mut self, contract_id: ContractId, account_key: AccountKey) {
+    pub fn ephemerally_insert_dealloc(&mut self, contract_id: ContractId, account_key: AccountKey) {
         self.deallocs_list
             .entry(contract_id)
             .or_insert_with(Vec::new)

@@ -13,9 +13,9 @@ mod batchtxn_test {
         return_liftv1_address, return_liftv1_scriptpubkey,
     };
     use cube::constructive::txout_types::payload::payload::Payload;
-    use cube::inscriptive::registery::registery::erase_registery;
-    use cube::inscriptive::registery::registery::Registery;
-    use cube::inscriptive::registery::registery::REGISTERY;
+    use cube::inscriptive::registry::registry::erase_registry;
+    use cube::inscriptive::registry::registry::Registry;
+    use cube::inscriptive::registry::registry::REGISTRY;
     use cube::operative::run_args::chain::Chain;
     use cube::transmutative::codec::address::encode_p2tr;
     use cube::transmutative::key::KeyHolder;
@@ -75,9 +75,9 @@ mod batchtxn_test {
         // 9 Construct chain.
         let chain = Chain::Testbed;
 
-        // 10 Erase and construct the registery.
-        erase_registery(chain);
-        let registery: REGISTERY = Registery::new(chain).expect("Failed to create registery.");
+        // 10 Erase and construct the registry.
+        erase_registry(chain);
+        let registry: REGISTRY = Registry::new(chain).expect("Failed to create registry.");
 
         // 9 Construct payload bytes.
         let payload_bytes = vec![0xde, 0xad, 0xbe, 0xef];
@@ -180,7 +180,7 @@ mod batchtxn_test {
         let liftup: Liftup = {
             // 15.1 Construct the Root Account.
             let root_account =
-                RootAccount::self_root_account_from_registery(&user_key_holder, &registery).await;
+                RootAccount::self_root_account_from_registry(&user_key_holder, &registry).await;
 
             // 15.2 Construct the Target aimed at the Engine's batch height.
             let target = Target::new(0);

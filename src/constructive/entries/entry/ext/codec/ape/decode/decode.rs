@@ -6,7 +6,7 @@ use crate::constructive::entry::entry_kinds::deploy::deploy::Deploy;
 use crate::constructive::entry::entry_kinds::liftup::liftup::Liftup;
 use crate::constructive::entry::entry_kinds::r#move::r#move::Move;
 use crate::constructive::entry::entry_kinds::swapout::swapout::Swapout;
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registry::registry::REGISTRY;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
 use bitcoin::OutPoint;
 
@@ -25,7 +25,7 @@ impl Entry {
         decode_contract_rank_as_longval: bool,
         base_ops_price: u32,
         utxo_set: &UTXO_SET,
-        registery: &REGISTERY,
+        registry: &REGISTRY,
     ) -> Result<(Entry, Option<bit_vec::BitVec>), EntryAPEDecodeError> {
         let decode_start_stream = if collect_bits {
             Some(bit_stream.clone())
@@ -61,7 +61,7 @@ impl Entry {
                             execution_batch_height,
                             bit_stream,
                             decode_account_rank_as_longval,
-                            registery,
+                            registry,
                         )
                         .await
                         .map_err(EntryAPEDecodeError::MoveEntryAPEDecodeError)?;
@@ -79,7 +79,7 @@ impl Entry {
                             base_ops_price,
                             decode_account_rank_as_longval,
                             decode_contract_rank_as_longval,
-                            registery,
+                            registry,
                         )
                         .await
                         .map_err(EntryAPEDecodeError::CallEntryAPEDecodeError)?;
@@ -144,7 +144,7 @@ impl Entry {
                                             tx_inputs_iter,
                                             decode_account_rank_as_longval,
                                             utxo_set,
-                                            registery,
+                                            registry,
                                         )
                                         .await
                                         .map_err(EntryAPEDecodeError::LiftupEntryAPEDecodeError)?;
@@ -160,7 +160,7 @@ impl Entry {
                                             bit_stream,
                                             tx_outputs_iter,
                                             decode_account_rank_as_longval,
-                                            registery,
+                                            registry,
                                         )
                                         .await
                                         .map_err(EntryAPEDecodeError::SwapoutEntryAPEDecodeError)?;
@@ -193,7 +193,7 @@ impl Entry {
                                                     execution_batch_height,
                                                     bit_stream,
                                                     decode_account_rank_as_longval,
-                                                    registery,
+                                                    registry,
                                                 )
                                                 .await
                                                 .map_err(
@@ -208,7 +208,7 @@ impl Entry {
                                                     execution_batch_height,
                                                     bit_stream,
                                                     decode_account_rank_as_longval,
-                                                    registery,
+                                                    registry,
                                                 )
                                                 .await
                                                 .map_err(

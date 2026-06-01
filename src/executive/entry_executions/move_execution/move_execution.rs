@@ -44,15 +44,15 @@ impl ExecCtx {
             ));
         }
 
-        // 5.1 Last activity before this entry (read before `sync_with_registery`, which bumps it to `execution_timestamp`).
+        // 5.1 Last activity before this entry (read before `sync_with_registry`, which bumps it to `execution_timestamp`).
         let latest_activity_timestamp = {
-            let _registery = self.registery.lock().await;
-            _registery
+            let _registry = self.registry.lock().await;
+            _registry
                 .get_account_last_activity_timestamp(from_account_key)
                 .unwrap_or(0)
         };
 
-        // 6 `RootAccount::from`: sync then sender tx-fee subsidy (registery / PM; no `CoinManager` here).
+        // 6 `RootAccount::from`: sync then sender tx-fee subsidy (registry / PM; no `CoinManager` here).
         let (fees_after_subsidy, subsidy_breakdown) = match &move_entry.from {
             RootAccount::UnregisteredRootAccount(_) => {
                 return Err(MoveExecutionError::UnexpectedUnregisteredFromRootAccountError);
@@ -73,10 +73,10 @@ impl ExecCtx {
                 }
 
                 registered_but_unconfigured_root_account
-                    .sync_with_registery(execution_timestamp, &self.registery)
+                    .sync_with_registry(execution_timestamp, &self.registry)
                     .await
                     .map_err(
-                        MoveExecutionError::RegisteredButUnconfiguredRootAccountSyncWithRegisteryError,
+                        MoveExecutionError::RegisteredButUnconfiguredRootAccountSyncWithRegistryError,
                     )?;
 
                 self.apply_subsidy_move(
@@ -91,10 +91,10 @@ impl ExecCtx {
                 registered_and_configured_root_account,
             ) => {
                 registered_and_configured_root_account
-                    .sync_with_registery(execution_timestamp, &self.registery)
+                    .sync_with_registry(execution_timestamp, &self.registry)
                     .await
                     .map_err(
-                        MoveExecutionError::RegisteredAndConfiguredRootAccountSyncWithRegisteryError,
+                        MoveExecutionError::RegisteredAndConfiguredRootAccountSyncWithRegistryError,
                     )?;
 
                 self.apply_subsidy_move(
@@ -131,7 +131,7 @@ impl ExecCtx {
                 unregistered_account
                     .register_with_db(
                         execution_timestamp,
-                        &self.registery,
+                        &self.registry,
                         &self.coin_manager,
                         &self.flame_manager,
                         &self.privileges_manager,

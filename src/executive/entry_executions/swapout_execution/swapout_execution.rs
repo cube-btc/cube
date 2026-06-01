@@ -58,15 +58,15 @@ impl ExecCtx {
         let fees_pre_subsidy = base_fee;
         let account_key = swapout.root_account.account_key();
 
-        // 3.1 Last activity before this entry (read before `sync_with_registery`, which bumps it to `execution_timestamp`).
+        // 3.1 Last activity before this entry (read before `sync_with_registry`, which bumps it to `execution_timestamp`).
         let latest_activity_timestamp = {
-            let _registery = self.registery.lock().await;
-            _registery
+            let _registry = self.registry.lock().await;
+            _registry
                 .get_account_last_activity_timestamp(account_key)
                 .unwrap_or(0)
         };
 
-        // 4 `RootAccount`: sync then tx-fee subsidy (registery / PM; no `CoinManager` here).
+        // 4 `RootAccount`: sync then tx-fee subsidy (registry / PM; no `CoinManager` here).
         let (fees_after_subsidy, subsidy_breakdown) = match &swapout.root_account {
             RootAccount::UnregisteredRootAccount(_) => {
                 return Err(SwapoutExecutionError::UnexpectedUnregisteredRootAccountError);
@@ -87,10 +87,10 @@ impl ExecCtx {
                 }
 
                 registered_but_unconfigured_root_account
-                    .sync_with_registery(execution_timestamp, &self.registery)
+                    .sync_with_registry(execution_timestamp, &self.registry)
                     .await
                     .map_err(
-                        SwapoutExecutionError::RegisteredButUnconfiguredRootAccountSyncWithRegisteryError,
+                        SwapoutExecutionError::RegisteredButUnconfiguredRootAccountSyncWithRegistryError,
                     )?;
 
                 self.apply_subsidy_swapout(
@@ -105,10 +105,10 @@ impl ExecCtx {
                 registered_and_configured_root_account,
             ) => {
                 registered_and_configured_root_account
-                    .sync_with_registery(execution_timestamp, &self.registery)
+                    .sync_with_registry(execution_timestamp, &self.registry)
                     .await
                     .map_err(
-                        SwapoutExecutionError::RegisteredAndConfiguredRootAccountSyncWithRegisteryError,
+                        SwapoutExecutionError::RegisteredAndConfiguredRootAccountSyncWithRegistryError,
                     )?;
 
                 self.apply_subsidy_swapout(

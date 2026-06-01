@@ -119,13 +119,13 @@ impl StateManager {
 
     /// Returns the value of a state by contract ID and key.
     pub fn get_state_value(&self, contract_id: ContractId, key: &StateKey) -> Option<StateValue> {
-        // 1 Check if the state has just been epheremally removed in the delta.
-        if self.delta.is_state_epheremally_removed(contract_id, key) {
+        // 1 Check if the state has just been ephemerally removed in the delta.
+        if self.delta.is_state_ephemerally_removed(contract_id, key) {
             return None;
         }
 
         // 2 Try to get from the delta first.
-        if let Some(value) = self.delta.get_epheremal_state_value(contract_id, key) {
+        if let Some(value) = self.delta.get_ephemeral_state_value(contract_id, key) {
             return Some(value.clone());
         }
 
@@ -142,8 +142,8 @@ impl StateManager {
         &mut self,
         contract_id: ContractId,
     ) -> Result<(), SMRegisterContractError> {
-        // 1 Check if the contract has just ben epheremally registered in the delta.
-        if self.delta.is_contract_epheremally_registered(contract_id) {
+        // 1 Check if the contract has just ben ephemerally registered in the delta.
+        if self.delta.is_contract_ephemerally_registered(contract_id) {
             return Err(
                 SMRegisterContractError::ContractHasJustBeenEphemerallyRegistered(contract_id),
             );
@@ -157,7 +157,7 @@ impl StateManager {
         }
 
         // 3 Epheremally register the contract in the delta.
-        self.delta.epheremally_register_contract(contract_id);
+        self.delta.ephemerally_register_contract(contract_id);
 
         // 4 Return the result.
         Ok(())
@@ -185,7 +185,7 @@ impl StateManager {
             // 2.a Update the existing value.
             Some(existing_value) => {
                 // 2.a.1 Epheremally insert the updated value to the delta.
-                self.delta.epheremally_insert_new_or_updated_contract_state(
+                self.delta.ephemerally_insert_new_or_updated_contract_state(
                     contract_id,
                     key,
                     value,
@@ -197,7 +197,7 @@ impl StateManager {
             // 2.b Insert the value.
             None => {
                 // 2.b.1 Epheremally insert the new value to the delta.
-                self.delta.epheremally_insert_new_or_updated_contract_state(
+                self.delta.ephemerally_insert_new_or_updated_contract_state(
                     contract_id,
                     key,
                     value,
@@ -235,13 +235,13 @@ impl StateManager {
 
         // 3 Epheremally remove the state in the delta.
         self.delta
-            .epheremally_remove_existing_contract_state(contract_id, key);
+            .ephemerally_remove_existing_contract_state(contract_id, key);
 
         // 4 Return the result.
         Ok(())
     }
 
-    /// Reverts the epheremal changes associated with the last execution.
+    /// Reverts the ephemeral changes associated with the last execution.
     pub fn rollback_last(&mut self) {
         // Restore the ephemeral states from the backup.
         self.restore_delta();
@@ -271,7 +271,7 @@ impl StateManager {
         }
 
         // 2 Apply the new or updated states.
-        for (contract_id, epheremal_states) in self.delta.new_or_updated_contract_states.iter() {
+        for (contract_id, ephemeral_states) in self.delta.new_or_updated_contract_states.iter() {
             // 2.1 On-disk insertion FIRST (critical: apply on-disk before in-memory for atomicity).
             {
                 // 2.1.1 Open the tree.
@@ -281,13 +281,13 @@ impl StateManager {
                     .map_err(|e| SMApplyChangesError::TreeOpenError(contract_id.clone(), e))?;
 
                 // 2.1.2 Insert the states into the tree.
-                for (epheremal_state_key, epheremal_state_value) in epheremal_states.iter() {
-                    tree.insert(epheremal_state_key, epheremal_state_value.clone())
+                for (ephemeral_state_key, ephemeral_state_value) in ephemeral_states.iter() {
+                    tree.insert(ephemeral_state_key, ephemeral_state_value.clone())
                         .map_err(|e| {
                             SMApplyChangesError::TreeValueInsertError(
                                 contract_id.clone(),
-                                epheremal_state_key.clone(),
-                                epheremal_state_value.clone(),
+                                ephemeral_state_key.clone(),
+                                ephemeral_state_value.clone(),
                                 e,
                             )
                         })?;
@@ -302,9 +302,9 @@ impl StateManager {
                 )?;
 
                 // 2.2.2 Insert the states into the contract state holder.
-                for (epheremal_state_key, epheremal_state_value) in epheremal_states.iter() {
+                for (ephemeral_state_key, ephemeral_state_value) in ephemeral_states.iter() {
                     mut_contract_state_holder
-                        .insert_update_state(epheremal_state_key, epheremal_state_value);
+                        .insert_update_state(ephemeral_state_key, ephemeral_state_value);
                 }
             }
         }
@@ -349,7 +349,7 @@ impl StateManager {
         Ok(())
     }
 
-    /// Clears all epheremal changes from the delta.
+    /// Clears all ephemeral changes from the delta.
     pub fn flush_delta(&mut self) {
         // Clear the ephemeral states.
         self.delta.flush();

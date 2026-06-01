@@ -9,7 +9,7 @@ use crate::inscriptive::privileges_manager::elements::liveness_flag::liveness_fl
 use crate::inscriptive::privileges_manager::elements::timed_switch::timed_switch_bool::timed_switch_bool::TimedSwitchBool;
 use crate::inscriptive::privileges_manager::privileges_manager::PRIVILEGES_MANAGER;
 use crate::inscriptive::params_manager::params_holder::params_holder::ParamsHolder;
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registry::registry::REGISTRY;
 use crate::constructive::entity::account::root_account::unregistered_root_account::ext::register_with_db::register_with_db_error::UnregisteredRootAccountRegisterWithDBError;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 
@@ -17,7 +17,7 @@ impl UnregisteredRootAccount {
     pub async fn register_with_db(
         &self,
         execution_timestamp: u64,
-        registery: &REGISTERY,
+        registry: &REGISTRY,
         coin_manager: &COIN_MANAGER,
         flame_manager: &FLAME_MANAGER,
         privileges_manager: &PRIVILEGES_MANAGER,
@@ -25,24 +25,24 @@ impl UnregisteredRootAccount {
         graveyard: &GRAVEYARD,
         initial_account_balance_in_satoshis: u64,
     ) -> Result<(), UnregisteredRootAccountRegisterWithDBError> {
-        // 1 Check if the Account has been burried.
+        // 1 Check if the Account has been buried.
         {
             // 1.1 Lock the graveyard.
             let _graveyard = graveyard.lock().await;
 
-            // 1.2 Check if the account has already been burried.
-            if _graveyard.is_account_burried(self.account_key_to_be_registered) {
-                return Err(UnregisteredRootAccountRegisterWithDBError::AccountHasBeenBurriedError);
+            // 1.2 Check if the account has already been buried.
+            if _graveyard.is_account_buried(self.account_key_to_be_registered) {
+                return Err(UnregisteredRootAccountRegisterWithDBError::AccountHasBeenBuriedError);
             }
         }
 
-        // 2 Register the account with the registery.
+        // 2 Register the account with the registry.
         {
-            // 2.1 Lock the registery.
-            let mut _registery = registery.lock().await;
+            // 2.1 Lock the registry.
+            let mut _registry = registry.lock().await;
 
-            // 2.2 Register the account with the registery.
-            _registery
+            // 2.2 Register the account with the registry.
+            _registry
                 .register_account(
                     self.account_key_to_be_registered,
                     execution_timestamp,
@@ -52,7 +52,7 @@ impl UnregisteredRootAccount {
                     self.flame_config_to_be_configured.clone(),
                 )
                 .map_err(|e| {
-                    UnregisteredRootAccountRegisterWithDBError::RegisteryRegisterAccountError(e)
+                    UnregisteredRootAccountRegisterWithDBError::RegistryRegisterAccountError(e)
                 })?;
         }
 

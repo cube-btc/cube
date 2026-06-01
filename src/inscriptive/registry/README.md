@@ -1,4 +1,4 @@
-# Registery 👮‍♂️
+# Registry 👮‍♂️
 Local storage manager for civil registration affairs.
 
 ## Ranking

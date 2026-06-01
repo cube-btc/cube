@@ -4,19 +4,19 @@ use crate::constructive::entity::contract::contract::Contract;
 use crate::executive::executable::compiler::compiler::ProgramCompiler;
 use crate::executive::executable::executable::Executable;
 use crate::inscriptive::flame_manager::flame_config::flame_config::FMAccountFlameConfig;
-use crate::inscriptive::registery::bodies::account_body::account_body::RMAccountBody;
-use crate::inscriptive::registery::bodies::contract_body::contract_body::RMContractBody;
-use crate::inscriptive::registery::delta::delta::RMDelta;
-use crate::inscriptive::registery::errors::apply_changes_error::RMApplyChangesError;
-use crate::inscriptive::registery::errors::construction_error::RMConstructionError;
-use crate::inscriptive::registery::errors::register_account_error::RMRegisterAccountError;
-use crate::inscriptive::registery::errors::register_contract_error::RMRegisterContractError;
-use crate::inscriptive::registery::errors::update_account_bls_key_error::RMUpdateAccountBLSKeyError;
-use crate::inscriptive::registery::errors::update_account_call_counter_and_last_activity_timestamp_error::RMUpdateAccountCallCounterAndLastActivityTimestampError;
-use crate::inscriptive::registery::errors::update_account_flame_config_error::RMUpdateAccountFlameConfigError;
-use crate::inscriptive::registery::errors::update_account_projector_config_error::RMUpdateAccountProjectorConfigError;
-use crate::inscriptive::registery::errors::update_account_secondary_aggregation_key_error::RMUpdateAccountSecondaryAggregationKeyError;
-use crate::inscriptive::registery::errors::update_contract_call_counter_and_last_activity_timestamp_error::RMUpdateContractCallCounterAndLastActivityTimestampError;
+use crate::inscriptive::registry::bodies::account_body::account_body::RMAccountBody;
+use crate::inscriptive::registry::bodies::contract_body::contract_body::RMContractBody;
+use crate::inscriptive::registry::delta::delta::RMDelta;
+use crate::inscriptive::registry::errors::apply_changes_error::RMApplyChangesError;
+use crate::inscriptive::registry::errors::construction_error::RMConstructionError;
+use crate::inscriptive::registry::errors::register_account_error::RMRegisterAccountError;
+use crate::inscriptive::registry::errors::register_contract_error::RMRegisterContractError;
+use crate::inscriptive::registry::errors::update_account_bls_key_error::RMUpdateAccountBLSKeyError;
+use crate::inscriptive::registry::errors::update_account_call_counter_and_last_activity_timestamp_error::RMUpdateAccountCallCounterAndLastActivityTimestampError;
+use crate::inscriptive::registry::errors::update_account_flame_config_error::RMUpdateAccountFlameConfigError;
+use crate::inscriptive::registry::errors::update_account_projector_config_error::RMUpdateAccountProjectorConfigError;
+use crate::inscriptive::registry::errors::update_account_secondary_aggregation_key_error::RMUpdateAccountSecondaryAggregationKeyError;
+use crate::inscriptive::registry::errors::update_contract_call_counter_and_last_activity_timestamp_error::RMUpdateContractCallCounterAndLastActivityTimestampError;
 use crate::operative::run_args::chain::Chain;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
@@ -41,11 +41,11 @@ type ContractId = [u8; 32];
 /// Rank of an account or contract.
 type Rank = u64;
 
-/// Registery index of an account.
-type RegisteryIndex = u64;
+/// Registry index of an account.
+type RegistryIndex = u64;
 
-/// Special db key for the registery index (0x00..).
-const REGISTERY_INDEX_SPECIAL_DB_KEY: [u8; 1] = [0x00; 1];
+/// Special db key for the registry index (0x00..).
+const REGISTRY_INDEX_SPECIAL_DB_KEY: [u8; 1] = [0x00; 1];
 
 /// Special db key for the call counter (0x01..).
 const CALL_COUNTER_SPECIAL_DB_KEY: [u8; 1] = [0x01; 1];
@@ -68,9 +68,9 @@ const ACCOUNT_FLAME_CONFIG_SPECIAL_DB_KEY: [u8; 1] = [0x06; 1];
 /// Special db key for projector config (0x07..).
 const PROJECTOR_CONFIG_SPECIAL_DB_KEY: [u8; 1] = [0x07; 1];
 
-/// A struct for managing the registery of accounts and contracts.
+/// A struct for managing the registry of accounts and contracts.
 #[allow(dead_code)]
-pub struct Registery {
+pub struct Registry {
     // In-memory list of account & contract bodies.
     in_memory_accounts: HashMap<AccountKey, RMAccountBody>,
     in_memory_contracts: HashMap<ContractId, RMContractBody>,
@@ -90,20 +90,20 @@ pub struct Registery {
     backup_of_delta: RMDelta,
 }
 
-/// Guarded 'RegisteryManager'.
+/// Guarded 'RegistryManager'.
 #[allow(non_camel_case_types)]
-pub type REGISTERY = Arc<Mutex<Registery>>;
+pub type REGISTRY = Arc<Mutex<Registry>>;
 
-impl Registery {
-    /// Constructs a fresh new registery.
-    pub fn new(chain: Chain) -> Result<REGISTERY, RMConstructionError> {
+impl Registry {
+    /// Constructs a fresh new registry.
+    pub fn new(chain: Chain) -> Result<REGISTRY, RMConstructionError> {
         // 1 Open the accounts db.
-        let accounts_db_path = format!("storage/{}/registery/accounts", chain.to_string());
+        let accounts_db_path = format!("storage/{}/registry/accounts", chain.to_string());
         let accounts_db =
             sled::open(accounts_db_path).map_err(RMConstructionError::AccountsDBOpenError)?;
 
         // 2 Open the contracts db.
-        let contracts_db_path = format!("storage/{}/registery/contracts", chain.to_string());
+        let contracts_db_path = format!("storage/{}/registry/contracts", chain.to_string());
         let contracts_db =
             sled::open(contracts_db_path).map_err(RMConstructionError::ContractsDBOpenError)?;
 
@@ -122,8 +122,8 @@ impl Registery {
                 }
             };
 
-            // 4.2 Initialize the registery index and call counter to zero.
-            let mut registery_index = 0;
+            // 4.2 Initialize the registry index and call counter to zero.
+            let mut registry_index = 0;
 
             // 4.3 Initialize the call counter to zero.
             let mut call_counter = 0;
@@ -149,7 +149,7 @@ impl Registery {
                 .map_err(|e| RMConstructionError::AccountsTreeOpenError(account_key, e))?;
 
             // 4.4 Iterate over all items in the tree.
-            // NOTE: There should be only two iterations in the tree, one for the registery index and one for the call counter.
+            // NOTE: There should be only two iterations in the tree, one for the registry index and one for the call counter.
             for item in tree.iter() {
                 // 4.4.1 Get the key and value.
                 let (key, value) = match item {
@@ -169,15 +169,15 @@ impl Registery {
 
                 // 4.4.3 Match the db key byte.
                 match key_byte {
-                    // 0x00 key byte represents the registery index.
-                    REGISTERY_INDEX_SPECIAL_DB_KEY => {
-                        // Convert the value to a registery index bytes.
-                        let registery_index_bytes: [u8; 8] = value.as_ref().try_into().map_err(|_| {
-                        RMConstructionError::UnableToDeserializeAccountRegisteryIndexBytesFromTreeValue(account_key, value.to_vec())
+                    // 0x00 key byte represents the registry index.
+                    REGISTRY_INDEX_SPECIAL_DB_KEY => {
+                        // Convert the value to a registry index bytes.
+                        let registry_index_bytes: [u8; 8] = value.as_ref().try_into().map_err(|_| {
+                        RMConstructionError::UnableToDeserializeAccountRegistryIndexBytesFromTreeValue(account_key, value.to_vec())
                     })?;
 
-                        // Update the registery index.
-                        registery_index = u64::from_le_bytes(registery_index_bytes);
+                        // Update the registry index.
+                        registry_index = u64::from_le_bytes(registry_index_bytes);
                     }
                     // 0x01 key byte represents the call counter.
                     CALL_COUNTER_SPECIAL_DB_KEY => {
@@ -261,9 +261,9 @@ impl Registery {
                 }
             }
 
-            // 4.5 Construct the account body with the collected registery index and call counter values.
+            // 4.5 Construct the account body with the collected registry index and call counter values.
             let account_body = RMAccountBody::new(
-                registery_index,
+                registry_index,
                 call_counter,
                 last_activity_timestamp,
                 bls_key,
@@ -287,8 +287,8 @@ impl Registery {
                 }
             };
 
-            // 5.2 Initialize the registery index and call counter to zero.
-            let mut registery_index = 0;
+            // 5.2 Initialize the registry index and call counter to zero.
+            let mut registry_index = 0;
 
             // 5.3 Initialize the call counter to zero.
             let mut call_counter = 0;
@@ -305,7 +305,7 @@ impl Registery {
                 .map_err(|e| RMConstructionError::ContractsTreeOpenError(contract_id, e))?;
 
             // 5.6 Iterate over all items in the tree.
-            // NOTE: There should be only two iterations in the tree, one for the registery index and one for the call counter.
+            // NOTE: There should be only two iterations in the tree, one for the registry index and one for the call counter.
             for item in tree.iter() {
                 // 5.6.1 Get the key and value.
                 let (key, value) = match item {
@@ -325,15 +325,15 @@ impl Registery {
 
                 // 5.6.3 Match the db key byte.
                 match key_byte {
-                    // 0x00 key byte represents the registery index.
-                    REGISTERY_INDEX_SPECIAL_DB_KEY => {
-                        // Convert the value to a registery index bytes.
-                        let registery_index_bytes: [u8; 8] = value.as_ref().try_into().map_err(|_| {
-                            RMConstructionError::UnableToDeserializeContractRegisteryIndexBytesFromTreeValue(contract_id, value.to_vec())
+                    // 0x00 key byte represents the registry index.
+                    REGISTRY_INDEX_SPECIAL_DB_KEY => {
+                        // Convert the value to a registry index bytes.
+                        let registry_index_bytes: [u8; 8] = value.as_ref().try_into().map_err(|_| {
+                            RMConstructionError::UnableToDeserializeContractRegistryIndexBytesFromTreeValue(contract_id, value.to_vec())
                         })?;
 
-                        // Update the registery index.
-                        registery_index = u64::from_le_bytes(registery_index_bytes);
+                        // Update the registry index.
+                        registry_index = u64::from_le_bytes(registry_index_bytes);
                     }
                     // 0x01 key byte represents the call counter.
                     CALL_COUNTER_SPECIAL_DB_KEY => {
@@ -378,9 +378,9 @@ impl Registery {
                 }
             }
 
-            // 5.7 Construct the contract body with the collected registery index and call counter values.
+            // 5.7 Construct the contract body with the collected registry index and call counter values.
             let contract_body = RMContractBody::new(
-                registery_index,
+                registry_index,
                 call_counter,
                 last_activity_timestamp,
                 executable,
@@ -396,8 +396,8 @@ impl Registery {
         // 8 Rank contracts.
         let in_memory_contract_ranks = Self::rank_contracts(&in_memory_contracts);
 
-        // 9 Construct the registery manager.
-        let registery = Registery {
+        // 9 Construct the registry manager.
+        let registry = Registry {
             in_memory_accounts,
             in_memory_contracts,
             in_memory_account_ranks,
@@ -408,36 +408,36 @@ impl Registery {
             backup_of_delta: RMDelta::fresh_new(),
         };
 
-        // 10 Guard the registery manager.
-        let guarded_registery = Arc::new(Mutex::new(registery));
+        // 10 Guard the registry manager.
+        let guarded_registry = Arc::new(Mutex::new(registry));
 
-        // 11 Return the guarded registery manager.
-        Ok(guarded_registery)
+        // 11 Return the guarded registry manager.
+        Ok(guarded_registry)
     }
 
-    /// Ranks accounts by call counter (descending) and registery index (ascending as tiebreaker).
+    /// Ranks accounts by call counter (descending) and registry index (ascending as tiebreaker).
     /// Returns a HashMap where keys are ranks starting from 1.
     fn rank_accounts(accounts: &HashMap<AccountKey, RMAccountBody>) -> HashMap<Rank, AccountKey> {
-        // 1 Collect the ranking triples (account key, registery index, call counter).
+        // 1 Collect the ranking triples (account key, registry index, call counter).
         let mut ranking_triples: Vec<(AccountKey, u64, u64)> = accounts
             .iter()
             .map(|(account_key, account_body)| {
                 (
                     account_key.to_owned(),
-                    account_body.registery_index,
+                    account_body.registry_index,
                     account_body.call_counter,
                 )
             })
             .collect();
 
-        // 2 Sort the ranking triples by call counter (descending), then by registery index (ascending) as tiebreaker.
+        // 2 Sort the ranking triples by call counter (descending), then by registry index (ascending) as tiebreaker.
         ranking_triples.sort_by(
-            |(_, registery_index_a, call_counter_a), (_, registery_index_b, call_counter_b)| {
+            |(_, registry_index_a, call_counter_a), (_, registry_index_b, call_counter_b)| {
                 // 2.1 Primary sort: call counter (descending).
                 call_counter_b
                     .cmp(call_counter_a)
-                    // 2.2 Secondary sort: registery index (ascending) as tiebreaker.
-                    .then(registery_index_a.cmp(registery_index_b))
+                    // 2.2 Secondary sort: registry index (ascending) as tiebreaker.
+                    .then(registry_index_a.cmp(registry_index_b))
             },
         );
 
@@ -458,31 +458,31 @@ impl Registery {
         ranked_accounts
     }
 
-    /// Ranks contracts by call counter (descending) and registery index (ascending as tiebreaker).
+    /// Ranks contracts by call counter (descending) and registry index (ascending as tiebreaker).
     /// Returns a HashMap where keys are ranks starting from 1.
     fn rank_contracts(
         contracts: &HashMap<ContractId, RMContractBody>,
     ) -> HashMap<Rank, ContractId> {
-        // 1 Collect the ranking triples (contract id, registery index, call counter).
+        // 1 Collect the ranking triples (contract id, registry index, call counter).
         let mut ranking_triples: Vec<(ContractId, u64, u64)> = contracts
             .iter()
             .map(|(contract_id, contract_body)| {
                 (
                     contract_id.to_owned(),
-                    contract_body.registery_index,
+                    contract_body.registry_index,
                     contract_body.call_counter,
                 )
             })
             .collect();
 
-        // 2 Sort the ranking triples by call counter (descending), then by registery index (ascending) as tiebreaker.
+        // 2 Sort the ranking triples by call counter (descending), then by registry index (ascending) as tiebreaker.
         ranking_triples.sort_by(
-            |(_, registery_index_a, call_counter_a), (_, registery_index_b, call_counter_b)| {
+            |(_, registry_index_a, call_counter_a), (_, registry_index_b, call_counter_b)| {
                 // 2.1 Primary sort: call counter (descending).
                 call_counter_b
                     .cmp(call_counter_a)
-                    // 2.2 Secondary sort: registery index (ascending) as tiebreaker.
-                    .then(registery_index_a.cmp(registery_index_b))
+                    // 2.2 Secondary sort: registry index (ascending) as tiebreaker.
+                    .then(registry_index_a.cmp(registry_index_b))
             },
         );
 
@@ -513,7 +513,7 @@ impl Registery {
         self.delta = self.backup_of_delta.clone();
     }
 
-    /// Prepares the registery manager prior to each execution.
+    /// Prepares the registry manager prior to each execution.
     ///
     /// NOTE: Used by the Engine.
     pub fn pre_execution(&mut self) {
@@ -525,14 +525,14 @@ impl Registery {
         self.in_memory_accounts.contains_key(&account_key)
     }
 
-    /// Checks if an account has just been epheremally registered in the delta.
-    pub fn is_account_epheremally_registered(&self, account_key: [u8; 32]) -> bool {
-        self.delta.is_account_epheremally_registered(account_key)
+    /// Checks if an account has just been ephemerally registered in the delta.
+    pub fn is_account_ephemerally_registered(&self, account_key: [u8; 32]) -> bool {
+        self.delta.is_account_ephemerally_registered(account_key)
     }
 
     /// Checks if an account is registered.
     pub fn is_account_registered(&self, account_key: [u8; 32]) -> bool {
-        self.is_account_epheremally_registered(account_key)
+        self.is_account_ephemerally_registered(account_key)
             || self.is_account_permanently_registered(account_key)
     }
 
@@ -541,15 +541,15 @@ impl Registery {
         self.in_memory_contracts.contains_key(&contract_id)
     }
 
-    /// Checks if a contract has just been epheremally registered in the delta.
-    pub fn is_contract_epheremally_registered(&self, contract_id: [u8; 32]) -> bool {
-        self.delta.is_contract_epheremally_registered(contract_id)
+    /// Checks if a contract has just been ephemerally registered in the delta.
+    pub fn is_contract_ephemerally_registered(&self, contract_id: [u8; 32]) -> bool {
+        self.delta.is_contract_ephemerally_registered(contract_id)
     }
 
     /// Checks if a contract is registered.
     pub fn is_contract_registered(&self, contract_id: [u8; 32]) -> bool {
         self.is_contract_permanently_registered(contract_id)
-            || self.is_contract_epheremally_registered(contract_id)
+            || self.is_contract_ephemerally_registered(contract_id)
     }
 
     /// Returns the account body by its key.
@@ -639,7 +639,7 @@ impl Registery {
     pub fn get_account_info_by_rank(
         &self,
         rank: u64,
-    ) -> Option<(AccountKey, Option<AccountBLSKey>, RegisteryIndex, Rank)> {
+    ) -> Option<(AccountKey, Option<AccountBLSKey>, RegistryIndex, Rank)> {
         // 1 Get the account key by its rank.
         let account_key = self.get_account_key_by_rank(rank)?;
 
@@ -650,7 +650,7 @@ impl Registery {
         Some((
             account_key,
             account_body.primary_bls_key,
-            account_body.registery_index,
+            account_body.registry_index,
             rank,
         ))
     }
@@ -659,7 +659,7 @@ impl Registery {
     pub fn get_account_info_by_account_key(
         &self,
         account_key: [u8; 32],
-    ) -> Option<(AccountKey, Option<AccountBLSKey>, RegisteryIndex, Rank)> {
+    ) -> Option<(AccountKey, Option<AccountBLSKey>, RegistryIndex, Rank)> {
         // 1 Get the rank by its account key.
         let rank = self.get_rank_by_account_key(account_key)?;
 
@@ -670,7 +670,7 @@ impl Registery {
         Some((
             account_key,
             account_body.primary_bls_key,
-            account_body.registery_index,
+            account_body.registry_index,
             rank,
         ))
     }
@@ -708,7 +708,7 @@ impl Registery {
         let account_body = self.get_account_body_by_account_key(account_key)?;
 
         // 2 Construct registered account.
-        let registered_account = RegisteredAccount::new(account_key, account_body.registery_index);
+        let registered_account = RegisteredAccount::new(account_key, account_body.registry_index);
 
         // 3 Construct the account.
         let account = Account::RegisteredAccount(registered_account);
@@ -721,7 +721,7 @@ impl Registery {
     pub fn get_contract_by_contract_id(&self, contract_id: [u8; 32]) -> Option<Contract> {
         let contract_body = self.get_contract_body_by_contract_id(contract_id)?;
 
-        Some(Contract::new(contract_id, contract_body.registery_index))
+        Some(Contract::new(contract_id, contract_body.registry_index))
     }
 
     /// Returns the number of methods on a contract's executable.
@@ -796,8 +796,8 @@ impl Registery {
         projector_config: Option<AccountProjectorConfig>,
         flame_config: Option<FMAccountFlameConfig>,
     ) -> Result<(), RMRegisterAccountError> {
-        // 1 Check if the account has just been epheremally registered in the delta.
-        if self.delta.is_account_epheremally_registered(account_key) {
+        // 1 Check if the account has just been ephemerally registered in the delta.
+        if self.delta.is_account_ephemerally_registered(account_key) {
             return Err(
                 RMRegisterAccountError::AccountHasJustBeenEphemerallyRegistered(account_key),
             );
@@ -820,7 +820,7 @@ impl Registery {
         }
 
         // 3 Epheremally register the account in the delta.
-        self.delta.epheremally_register_account(
+        self.delta.ephemerally_register_account(
             account_key,
             last_activity_timestamp,
             bls_key,
@@ -842,8 +842,8 @@ impl Registery {
         last_activity_timestamp: u64,
         executable: Executable,
     ) -> Result<(), RMRegisterContractError> {
-        // 1 Check if the contract has just been epheremally registered in the delta.
-        if self.delta.is_contract_epheremally_registered(contract_id) {
+        // 1 Check if the contract has just been ephemerally registered in the delta.
+        if self.delta.is_contract_ephemerally_registered(contract_id) {
             return Err(
                 RMRegisterContractError::ContractHasJustBeenEphemerallyRegistered(contract_id),
             );
@@ -858,7 +858,7 @@ impl Registery {
 
         // 3 Epheremally register the contract in the delta.
         self.delta
-            .epheremally_register_contract(contract_id, last_activity_timestamp, executable);
+            .ephemerally_register_contract(contract_id, last_activity_timestamp, executable);
 
         // 4 Return the result.
         Ok(())
@@ -883,11 +883,11 @@ impl Registery {
 
         // 2 Epheremally increment the call counter delta of the account by one.
         self.delta
-            .epheremally_increment_account_call_counter_delta_by_one(account_key);
+            .ephemerally_increment_account_call_counter_delta_by_one(account_key);
 
         // 3 Epheremally update the last activity timestamp of the account.
         self.delta
-            .epheremally_update_account_last_activity_timestamp(
+            .ephemerally_update_account_last_activity_timestamp(
                 account_key,
                 last_activity_timestamp,
             );
@@ -915,11 +915,11 @@ impl Registery {
 
         // 2 Epheremally increment the call counter delta of the contract by one.
         self.delta
-            .epheremally_increment_contract_call_counter_delta_by_one(contract_id);
+            .ephemerally_increment_contract_call_counter_delta_by_one(contract_id);
 
         // 3 Epheremally update the last activity timestamp of the contract.
         self.delta
-            .epheremally_update_contract_last_activity_timestamp(
+            .ephemerally_update_contract_last_activity_timestamp(
                 contract_id,
                 last_activity_timestamp,
             );
@@ -959,10 +959,10 @@ impl Registery {
             );
         }
 
-        // 4 Update the BLS key in the delta, and return an error if it has already been epheremally set in the same execution.
+        // 4 Update the BLS key in the delta, and return an error if it has already been ephemerally set in the same execution.
         if let Some(existing_bls_key) = self
             .delta
-            .epheremally_set_account_bls_key(account_key, bls_key)
+            .ephemerally_set_account_bls_key(account_key, bls_key)
         {
             return Err(RMUpdateAccountBLSKeyError::BLSKeyIsAlreadyEpheremallySet(
                 account_key,
@@ -992,10 +992,10 @@ impl Registery {
         let previous_secondary_aggregation_key: Option<AccountSecondaryAggregationKey> =
             account_body.secondary_aggregation_key.to_owned();
 
-        // 3 Update the secondary aggregation key in the delta, and return an error if it has already been epheremally updated in the same execution.
+        // 3 Update the secondary aggregation key in the delta, and return an error if it has already been ephemerally updated in the same execution.
         if let Some(secondary_aggregation_key) = self
             .delta
-            .epheremally_set_or_update_account_secondary_aggregation_key(
+            .ephemerally_set_or_update_account_secondary_aggregation_key(
                 account_key,
                 secondary_aggregation_key,
             )
@@ -1027,10 +1027,10 @@ impl Registery {
         let previous_projector_config: Option<AccountProjectorConfig> =
             account_body.projector_config;
 
-        // 3 Update the projector config in the delta, and return an error if it has already been epheremally updated in the same execution.
+        // 3 Update the projector config in the delta, and return an error if it has already been ephemerally updated in the same execution.
         if let Some(existing_projector_config) = self
             .delta
-            .epheremally_set_or_update_account_projector_config(account_key, projector_config)
+            .ephemerally_set_or_update_account_projector_config(account_key, projector_config)
         {
             return Err(
                 RMUpdateAccountProjectorConfigError::ProjectorConfigIsAlreadyEpheremallyUpdated(
@@ -1057,7 +1057,7 @@ impl Registery {
             ));
         }
 
-        // 2 Check if the flame config has already been epheremally updated in the delta.
+        // 2 Check if the flame config has already been ephemerally updated in the delta.
         if self
             .delta
             .updated_account_flame_configs
@@ -1072,7 +1072,7 @@ impl Registery {
 
         // 3 Epheremally update the account's flame config in the delta.
         self.delta
-            .epheremally_set_or_update_account_flame_config(account_key, flame_config);
+            .ephemerally_set_or_update_account_flame_config(account_key, flame_config);
 
         // 4 Get the previous flame config if there is one.
         let previous_flame_config = self
@@ -1084,23 +1084,23 @@ impl Registery {
         Ok(previous_flame_config)
     }
 
-    /// Reverts the epheremal changes associated with the last execution.
+    /// Reverts the ephemeral changes associated with the last execution.
     ///
     /// NOTE: Used by the Engine.
     pub fn rollback_last(&mut self) {
-        // Restore the epheremal changes from the backup.
+        // Restore the ephemeral changes from the backup.
         self.restore_delta();
     }
 
-    /// Applies the changes to the registery manager.
+    /// Applies the changes to the registry manager.
     ///
     /// NOTE: Used by the Engine.
     pub fn apply_changes(&mut self) -> Result<(), RMApplyChangesError> {
-        // Get the current height of account registery indices.
-        let account_registery_index_height = self.in_memory_accounts.len() as u64;
+        // Get the current height of account registry indices.
+        let account_registry_index_height = self.in_memory_accounts.len() as u64;
 
-        // Get the current height of contract registery indices.
-        let contract_registery_index_height = self.in_memory_contracts.len() as u64;
+        // Get the current height of contract registry indices.
+        let contract_registry_index_height = self.in_memory_contracts.len() as u64;
 
         // 1 Register new accounts.
         for (
@@ -1115,8 +1115,8 @@ impl Registery {
             ),
         ) in self.delta.new_accounts_to_register.iter().enumerate()
         {
-            // 1.1 Calculate the registery index for the new account.
-            let registery_index = account_registery_index_height + index as u64;
+            // 1.1 Calculate the registry index for the new account.
+            let registry_index = account_registry_index_height + index as u64;
 
             // 1.2 Initial call counter value is set to zero.
             let initial_call_counter = 0u64;
@@ -1129,15 +1129,15 @@ impl Registery {
                     .open_tree(account_key)
                     .map_err(|e| RMApplyChangesError::AccountTreeOpenError(*account_key, e))?;
 
-                // 1.4.2 Insert the registery index on-disk.
+                // 1.4.2 Insert the registry index on-disk.
                 tree.insert(
-                    REGISTERY_INDEX_SPECIAL_DB_KEY,
-                    registery_index.to_le_bytes().to_vec(),
+                    REGISTRY_INDEX_SPECIAL_DB_KEY,
+                    registry_index.to_le_bytes().to_vec(),
                 )
                 .map_err(|e| {
-                    RMApplyChangesError::AccountRegisteryIndexInsertError(
+                    RMApplyChangesError::AccountRegistryIndexInsertError(
                         *account_key,
-                        registery_index,
+                        registry_index,
                         e,
                     )
                 })?;
@@ -1212,7 +1212,7 @@ impl Registery {
             {
                 // 1.5.1 Construct the account body.
                 let account_body = RMAccountBody::new(
-                    registery_index,
+                    registry_index,
                     initial_call_counter,
                     *last_activity_timestamp,
                     *bls_key,
@@ -1227,11 +1227,11 @@ impl Registery {
         }
 
         // 2 Register new contracts.
-        for (index, (contract_id, registery_timestamp, executable)) in
+        for (index, (contract_id, registry_timestamp, executable)) in
             self.delta.new_contracts_to_register.iter().enumerate()
         {
-            // 2.1 Calculate the registery index for the new contract.
-            let registery_index = contract_registery_index_height + index as u64;
+            // 2.1 Calculate the registry index for the new contract.
+            let registry_index = contract_registry_index_height + index as u64;
 
             // 2.2 Initial call counter value is set to zero.
             let initial_call_counter = 0u64;
@@ -1249,15 +1249,15 @@ impl Registery {
                     .open_tree(contract_id)
                     .map_err(|e| RMApplyChangesError::ContractTreeOpenError(*contract_id, e))?;
 
-                // 2.5.2 Insert the registery index on-disk.
+                // 2.5.2 Insert the registry index on-disk.
                 tree.insert(
-                    REGISTERY_INDEX_SPECIAL_DB_KEY,
-                    registery_index.to_le_bytes().to_vec(),
+                    REGISTRY_INDEX_SPECIAL_DB_KEY,
+                    registry_index.to_le_bytes().to_vec(),
                 )
                 .map_err(|e| {
-                    RMApplyChangesError::ContractRegisteryIndexInsertError(
+                    RMApplyChangesError::ContractRegistryIndexInsertError(
                         *contract_id,
-                        registery_index,
+                        registry_index,
                         e,
                     )
                 })?;
@@ -1278,12 +1278,12 @@ impl Registery {
                 // 2.5.4 Insert the last activity timestamp on-disk.
                 tree.insert(
                     LAST_ACTIVITY_TIMESTAMP_SPECIAL_DB_KEY,
-                    registery_timestamp.to_le_bytes().to_vec(),
+                    registry_timestamp.to_le_bytes().to_vec(),
                 )
                 .map_err(|e| {
                     RMApplyChangesError::ContractLastActivityTimestampInsertError(
                         *contract_id,
-                        *registery_timestamp,
+                        *registry_timestamp,
                         e,
                     )
                 })?;
@@ -1299,9 +1299,9 @@ impl Registery {
             {
                 // 2.6.1 Construct the contract body.
                 let contract_body = RMContractBody::new(
-                    registery_index,
+                    registry_index,
                     initial_call_counter,
-                    *registery_timestamp,
+                    *registry_timestamp,
                     executable.clone(),
                 );
 
@@ -1602,18 +1602,18 @@ impl Registery {
         Ok(())
     }
 
-    /// Clears all epheremal changes from the delta.
+    /// Clears all ephemeral changes from the delta.
     pub fn flush_delta(&mut self) {
-        // Clear the epheremal changes from the delta.
+        // Clear the ephemeral changes from the delta.
         self.delta.flush();
 
-        // Clear the epheremal changes from the backup.
+        // Clear the ephemeral changes from the backup.
         self.backup_of_delta.flush();
     }
 
-    /// Returns the registery manager as a JSON object.
+    /// Returns the registry manager as a JSON object.
     pub fn json(&self) -> Value {
-        // 1 Construct the registery manager JSON object.
+        // 1 Construct the registry manager JSON object.
         let mut obj = Map::new();
 
         // 2 Insert the in-memory accounts.
@@ -1642,21 +1642,21 @@ impl Registery {
             ),
         );
 
-        // 4 Return the registery manager JSON object.
+        // 4 Return the registry manager JSON object.
         Value::Object(obj)
     }
 }
 
-/// Erases the registery manager by db paths.
-pub fn erase_registery(chain: Chain) {
+/// Erases the registry manager by db paths.
+pub fn erase_registry(chain: Chain) {
     // Accounts db path.
-    let accounts_db_path = format!("storage/{}/registery/accounts", chain.to_string());
+    let accounts_db_path = format!("storage/{}/registry/accounts", chain.to_string());
 
     // Erase the accounts db path.
     let _ = std::fs::remove_dir_all(accounts_db_path);
 
     // Contracts db path.
-    let contracts_db_path = format!("storage/{}/registery/contracts", chain.to_string());
+    let contracts_db_path = format!("storage/{}/registry/contracts", chain.to_string());
 
     // Erase the contracts db path.
     let _ = std::fs::remove_dir_all(contracts_db_path);

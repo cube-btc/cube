@@ -1,6 +1,6 @@
 use crate::inscriptive::graveyard::delta::delta::GraveyardDelta;
 use crate::inscriptive::graveyard::errors::apply_changes_error::GraveyardApplyChangesError;
-use crate::inscriptive::graveyard::errors::burry_account_error::GraveyardBurryAccountError;
+use crate::inscriptive::graveyard::errors::bury_account_error::GraveyardBuryAccountError;
 use crate::inscriptive::graveyard::errors::construction_error::GraveyardConstructionError;
 use crate::inscriptive::graveyard::errors::redeem_account_coins_error::GraveyardRedeemAccountCoinsError;
 use crate::operative::run_args::chain::Chain;
@@ -25,11 +25,11 @@ pub const MIN_REDEMPTION_AMOUNT: u64 = 500;
 /// The amount part is the variable part of the database which is updated to zero upon redemption.
 /// Upon redemption, we reset the amount to zero, and still keep the records for historic-record-keeping so that they cannot be re-registered.
 pub struct Graveyard {
-    // In-memory burried accounts.
-    in_memory_burried_accounts: HashMap<AccountKey, RedemptionAmountInSatoshis>,
+    // In-memory buried accounts.
+    in_memory_buried_accounts: HashMap<AccountKey, RedemptionAmountInSatoshis>,
 
-    // On-disk db for storing the burried accounts.
-    on_disk_burried_accounts: sled::Db,
+    // On-disk db for storing the buried accounts.
+    on_disk_buried_accounts: sled::Db,
 
     // State differences to be applied.
     delta: GraveyardDelta,
@@ -49,11 +49,11 @@ impl Graveyard {
         let graveyard_db =
             sled::open(graveyard_db_path).map_err(GraveyardConstructionError::DBOpenError)?;
 
-        // 2 Initialize the in-memory burried accounts.
-        let mut in_memory_burried_accounts =
+        // 2 Initialize the in-memory buried accounts.
+        let mut in_memory_buried_accounts =
             HashMap::<AccountKey, RedemptionAmountInSatoshis>::new();
 
-        // 3 Iterate over all items in the graveyard db to collect the burried accounts.
+        // 3 Iterate over all items in the graveyard db to collect the buried accounts.
         for lookup in graveyard_db.iter() {
             // 3.1 Get the key and value.
             if let Ok((key, val)) = lookup {
@@ -73,15 +73,15 @@ impl Graveyard {
                         )
                     })?);
 
-                // 3.1.3 Insert the burried account into the in-memory burried accounts.
-                in_memory_burried_accounts.insert(account_key, redemption_amount);
+                // 3.1.3 Insert the buried account into the in-memory buried accounts.
+                in_memory_buried_accounts.insert(account_key, redemption_amount);
             }
         }
 
         // 4 Construct the graveyard.
         let graveyard = Graveyard {
-            in_memory_burried_accounts,
-            on_disk_burried_accounts: graveyard_db,
+            in_memory_buried_accounts,
+            on_disk_buried_accounts: graveyard_db,
             delta: GraveyardDelta::fresh_new(),
             backup_of_delta: GraveyardDelta::fresh_new(),
         };
@@ -110,15 +110,15 @@ impl Graveyard {
         self.backup_delta();
     }
 
-    /// Checks if an account is burried.
-    pub fn is_account_burried(&self, account_key: [u8; 32]) -> bool {
+    /// Checks if an account is buried.
+    pub fn is_account_buried(&self, account_key: [u8; 32]) -> bool {
         // 1 Check in the delta first.
-        if self.delta.is_account_epheremally_burried(account_key) {
+        if self.delta.is_account_ephemerally_buried(account_key) {
             return true;
         }
 
-        // 2 Check in the in-memory burried accounts.
-        if self.in_memory_burried_accounts.contains_key(&account_key) {
+        // 2 Check in the in-memory buried accounts.
+        if self.in_memory_buried_accounts.contains_key(&account_key) {
             return true;
         }
 
@@ -128,45 +128,45 @@ impl Graveyard {
 
     /// Returns the redemption amount for an account.
     pub fn get_redemption_amount(&self, account_key: [u8; 32]) -> Option<u64> {
-        // 1 If the account has just been epheremally redeemed, redemption amount is now zero.
-        if self.delta.is_account_epheremally_redeemed(account_key) {
+        // 1 If the account has just been ephemerally redeemed, redemption amount is now zero.
+        if self.delta.is_account_ephemerally_redeemed(account_key) {
             return Some(0);
         }
 
-        // 2 If the account has just been epheremally burried:
-        if self.delta.is_account_epheremally_burried(account_key) {
-            return self.delta.accounts_to_burry.get(&account_key).cloned();
+        // 2 If the account has just been ephemerally buried:
+        if self.delta.is_account_ephemerally_buried(account_key) {
+            return self.delta.accounts_to_bury.get(&account_key).cloned();
         }
 
-        // 2 Check in the in-memory burried accounts.
-        self.in_memory_burried_accounts.get(&account_key).cloned()
+        // 2 Check in the in-memory buried accounts.
+        self.in_memory_buried_accounts.get(&account_key).cloned()
     }
 
     /// Burries an account to the graveyard with their corresponding owed redemption amount in satoshis.
     ///
     /// NOTE: These changes are saved with the use of the `apply_changes` function.
-    pub fn burry_account(
+    pub fn bury_account(
         &mut self,
         account_key: [u8; 32],
         redemption_amount: u64,
-    ) -> Result<(), GraveyardBurryAccountError> {
-        // 1 Check if the account has just been epheremally burried.
-        if self.delta.is_account_epheremally_burried(account_key) {
+    ) -> Result<(), GraveyardBuryAccountError> {
+        // 1 Check if the account has just been ephemerally buried.
+        if self.delta.is_account_ephemerally_buried(account_key) {
             return Err(
-                GraveyardBurryAccountError::AccountHasJustBeenEpheremallyBurried(account_key),
+                GraveyardBuryAccountError::AccountHasJustBeenEpheremallyBuried(account_key),
             );
         }
 
-        // 2 Check if the account has already been permanently burried.
-        if self.in_memory_burried_accounts.contains_key(&account_key) {
+        // 2 Check if the account has already been permanently buried.
+        if self.in_memory_buried_accounts.contains_key(&account_key) {
             return Err(
-                GraveyardBurryAccountError::AccountIsAlreadyPermanentlyBurried(account_key),
+                GraveyardBuryAccountError::AccountIsAlreadyPermanentlyBuried(account_key),
             );
         }
 
-        // 3 Epheremally burry the account in the delta.
+        // 3 Epheremally bury the account in the delta.
         self.delta
-            .epheremally_burry_account(account_key, redemption_amount);
+            .ephemerally_bury_account(account_key, redemption_amount);
 
         // 4 Return the result.
         Ok(())
@@ -179,8 +179,8 @@ impl Graveyard {
         &mut self,
         account_key: [u8; 32],
     ) -> Result<u64, GraveyardRedeemAccountCoinsError> {
-        // 1 Check if the account has just been epheremally redeemed.
-        if self.delta.is_account_epheremally_redeemed(account_key) {
+        // 1 Check if the account has just been ephemerally redeemed.
+        if self.delta.is_account_ephemerally_redeemed(account_key) {
             return Err(
                 GraveyardRedeemAccountCoinsError::AccountCoinsHasJustBeenEphemerallyRedeemed(
                     account_key,
@@ -188,11 +188,11 @@ impl Graveyard {
             );
         }
 
-        // 2 Check if the account has just been epheremally burried.
-        // We do not allow coin redemption upon burrying the account in the same execution. Must wait for the next state transition.
-        if self.delta.is_account_epheremally_burried(account_key) {
+        // 2 Check if the account has just been ephemerally buried.
+        // We do not allow coin redemption upon burying the account in the same execution. Must wait for the next state transition.
+        if self.delta.is_account_ephemerally_buried(account_key) {
             return Err(
-                GraveyardRedeemAccountCoinsError::ThisAccountHasJustBeenEphemerallyBurried(
+                GraveyardRedeemAccountCoinsError::ThisAccountHasJustBeenEphemerallyBuried(
                     account_key,
                 ),
             );
@@ -200,11 +200,11 @@ impl Graveyard {
 
         // 3 Get the redemption amount of the account.
         let redemption_amount = self
-            .in_memory_burried_accounts
+            .in_memory_buried_accounts
             .get(&account_key)
             .cloned()
             .ok_or(
-            GraveyardRedeemAccountCoinsError::CouldNotRetrieveRedemptionAmountBecauseTheAccountIsNotBurried(
+            GraveyardRedeemAccountCoinsError::CouldNotRetrieveRedemptionAmountBecauseTheAccountIsNotBuried(
                 account_key,
             ),
         )?;
@@ -222,13 +222,13 @@ impl Graveyard {
 
         // 5 Epheremally redeem the account coins in the delta.
         self.delta
-            .epheremally_redeem_account_coins(account_key, redemption_amount);
+            .ephemerally_redeem_account_coins(account_key, redemption_amount);
 
         // 6 Return the result.
         Ok(redemption_amount)
     }
 
-    /// Reverts the epheremal changes associated with the last execution.
+    /// Reverts the ephemeral changes associated with the last execution.
     pub fn rollback_last(&mut self) {
         self.restore_delta();
     }
@@ -237,7 +237,7 @@ impl Graveyard {
     ///
     /// This persists the delta to both in-memory and on-disk storage:
     /// - Redemptions: Resets SatoshiRedemptionAmount to zero for redeemed accounts.
-    /// - New accounts: Adds accounts from `accounts_to_burry` to the buried accounts.
+    /// - New accounts: Adds accounts from `accounts_to_bury` to the buried accounts.
     pub fn apply_changes(&mut self) -> Result<(), GraveyardApplyChangesError> {
         // 1 Apply redemptions: Reset redemption amounts to zero in-memory and on-disk.
         for (account_key, _) in self.delta.redemptions.iter() {
@@ -245,27 +245,27 @@ impl Graveyard {
             let zero_redemption_amount: [u8; 8] = 0u64.to_le_bytes();
 
             // 1.2 On-disk: Reset the redemption amount to zero.
-            self.on_disk_burried_accounts
+            self.on_disk_buried_accounts
                 .insert(account_key, zero_redemption_amount.to_vec())
                 .map_err(|e| {
                     GraveyardApplyChangesError::RedemptionAmountResetDBError(*account_key, e)
                 })?;
 
             // 1.3 In-memory: Reset the redemption amount to zero.
-            self.in_memory_burried_accounts.insert(*account_key, 0);
+            self.in_memory_buried_accounts.insert(*account_key, 0);
         }
 
-        // 2 Insert new accounts to burry into in-memory and on-disk.
-        for (account_key, redemption_amount) in self.delta.accounts_to_burry.iter() {
+        // 2 Insert new accounts to bury into in-memory and on-disk.
+        for (account_key, redemption_amount) in self.delta.accounts_to_bury.iter() {
             // 2.1 On-disk: Insert the buried account.
-            self.on_disk_burried_accounts
+            self.on_disk_buried_accounts
                 .insert(account_key, redemption_amount.to_le_bytes().to_vec())
                 .map_err(|e| {
-                    GraveyardApplyChangesError::BurriedAccountInsertDBError(*account_key, e)
+                    GraveyardApplyChangesError::BuriedAccountInsertDBError(*account_key, e)
                 })?;
 
             // 2.2 In-memory: Insert the buried account.
-            self.in_memory_burried_accounts
+            self.in_memory_buried_accounts
                 .insert(*account_key, *redemption_amount);
         }
 
@@ -276,7 +276,7 @@ impl Graveyard {
         Ok(())
     }
 
-    /// Clears all epheremal changes from the delta.
+    /// Clears all ephemeral changes from the delta.
     pub fn flush_deltas(&mut self) {
         self.delta.flush();
         self.backup_of_delta.flush();
@@ -287,11 +287,11 @@ impl Graveyard {
         // 1 Construct the graveyard JSON object.
         let mut obj = Map::new();
 
-        // 2 Insert the in-memory burried accounts.
+        // 2 Insert the in-memory buried accounts.
         obj.insert(
-            "burried_accounts".to_string(),
+            "buried_accounts".to_string(),
             Value::Object(
-                self.in_memory_burried_accounts
+                self.in_memory_buried_accounts
                     .iter()
                     .map(|(account_key, redemption_amount)| {
                         (

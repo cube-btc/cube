@@ -4,7 +4,7 @@ mod graveyard_tests {
     use cube::inscriptive::graveyard::graveyard::{erase_graveyard, Graveyard, GRAVEYARD};
     use cube::operative::run_args::chain::Chain;
 
-    // 1.a First account to be burried.
+    // 1.a First account to be buried.
     const ACCOUNT_KEY_1: [u8; 32] = [
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -13,7 +13,7 @@ mod graveyard_tests {
     // 1.b Redemption amount for the first account.
     const REDEMPTION_AMOUNT_1: u64 = 1_000;
 
-    // 2.a Second account to be burried.
+    // 2.a Second account to be buried.
     const ACCOUNT_KEY_2: [u8; 32] = [
         0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -22,7 +22,7 @@ mod graveyard_tests {
     // 2.b Redemption amount for the second account.
     const REDEMPTION_AMOUNT_2: u64 = 5_000;
 
-    // 3.a Third account to be burried.
+    // 3.a Third account to be buried.
     const ACCOUNT_KEY_3: [u8; 32] = [
         0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -52,24 +52,24 @@ mod graveyard_tests {
             _graveyard.pre_execution();
         }
 
-        // 5 Burry the first account.
+        // 5 Bury the first account.
         {
             // 5.1 Lock the graveyard.
             let mut _graveyard = graveyard.lock().await;
 
-            // 5.2 Burry the first account.
+            // 5.2 Bury the first account.
             _graveyard
-                .burry_account(ACCOUNT_KEY_1, REDEMPTION_AMOUNT_1)
-                .map_err(|err| format!("Error burrying account: {:?}", err))?;
+                .bury_account(ACCOUNT_KEY_1, REDEMPTION_AMOUNT_1)
+                .map_err(|err| format!("Error burying account: {:?}", err))?;
         }
 
-        // 6 Check if the account is burried.
+        // 6 Check if the account is buried.
         {
             // 6.1 Lock the graveyard.
             let _graveyard = graveyard.lock().await;
 
-            // 6.2 Check if the account is burried.
-            assert_eq!(_graveyard.is_account_burried(ACCOUNT_KEY_1), true);
+            // 6.2 Check if the account is buried.
+            assert_eq!(_graveyard.is_account_buried(ACCOUNT_KEY_1), true);
         }
 
         // 7 Retrieve the redemption amount for the account.
@@ -90,24 +90,24 @@ mod graveyard_tests {
             assert_eq!(redemption_amount, REDEMPTION_AMOUNT_1);
         }
 
-        // 8 Burry the second account.
+        // 8 Bury the second account.
         {
             // 8.1 Lock the graveyard.
             let mut _graveyard = graveyard.lock().await;
 
-            // 8.2 Burry the second account.
+            // 8.2 Bury the second account.
             _graveyard
-                .burry_account(ACCOUNT_KEY_2, REDEMPTION_AMOUNT_2)
-                .map_err(|err| format!("Error burrying account: {:?}", err))?;
+                .bury_account(ACCOUNT_KEY_2, REDEMPTION_AMOUNT_2)
+                .map_err(|err| format!("Error burying account: {:?}", err))?;
         }
 
-        // 9 Check if the account is burried.
+        // 9 Check if the account is buried.
         {
             // 9.1 Lock the graveyard.
             let _graveyard = graveyard.lock().await;
 
-            // 9.2 Check if the account is burried.
-            assert_eq!(_graveyard.is_account_burried(ACCOUNT_KEY_2), true);
+            // 9.2 Check if the account is buried.
+            assert_eq!(_graveyard.is_account_buried(ACCOUNT_KEY_2), true);
         }
 
         // 10 Retrieve the redemption amount for the account.
@@ -128,7 +128,7 @@ mod graveyard_tests {
             assert_eq!(redemption_amount, REDEMPTION_AMOUNT_2);
         }
 
-        // 11 Try to redeem the first account coins: expect an error because the burrying was epheremal and changes were not applied yet.
+        // 11 Try to redeem the first account coins: expect an error because the burying was ephemeral and changes were not applied yet.
         {
             // 11.1 Lock the graveyard.
             let mut _graveyard = graveyard.lock().await;
@@ -143,7 +143,7 @@ mod graveyard_tests {
             // 11.4 Check if the error is correct.
             assert!(matches!(
                 result.err().unwrap(),
-                GraveyardRedeemAccountCoinsError::ThisAccountHasJustBeenEphemerallyBurried(_)
+                GraveyardRedeemAccountCoinsError::ThisAccountHasJustBeenEphemerallyBuried(_)
             ));
         }
 
@@ -220,24 +220,24 @@ mod graveyard_tests {
                 .map_err(|err| format!("Error applying changes: {:?}", err))?;
         }
 
-        // 17 Burry the third account.
+        // 17 Bury the third account.
         {
             // 17.1 Lock the graveyard.
             let mut _graveyard = graveyard.lock().await;
 
-            // 17.2 Burry the third account.
+            // 17.2 Bury the third account.
             _graveyard
-                .burry_account(ACCOUNT_KEY_3, REDEMPTION_AMOUNT_3)
-                .map_err(|err| format!("Error burrying account: {:?}", err))?;
+                .bury_account(ACCOUNT_KEY_3, REDEMPTION_AMOUNT_3)
+                .map_err(|err| format!("Error burying account: {:?}", err))?;
         }
 
-        // 18 Check if the account is burried.
+        // 18 Check if the account is buried.
         {
             // 18.1 Lock the graveyard.
             let _graveyard = graveyard.lock().await;
 
-            // 18.2 Check if the account is burried.
-            assert_eq!(_graveyard.is_account_burried(ACCOUNT_KEY_3), true);
+            // 18.2 Check if the account is buried.
+            assert_eq!(_graveyard.is_account_buried(ACCOUNT_KEY_3), true);
         }
 
         // 19 Retrieve the redemption amount for the account.

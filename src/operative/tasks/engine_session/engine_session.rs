@@ -8,7 +8,7 @@ use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 use crate::inscriptive::params_manager::params_manager::PARAMS_MANAGER;
 use crate::inscriptive::privileges_manager::privileges_manager::PRIVILEGES_MANAGER;
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registry::registry::REGISTRY;
 use crate::inscriptive::state_manager::state_manager::STATE_MANAGER;
 use crate::inscriptive::sync_manager::sync_manager::SYNC_MANAGER;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
@@ -29,7 +29,7 @@ pub async fn engine_batch_builder_background_task(
     // Exec ctx params
     engine_key: [u8; 32],
     utxo_set: &UTXO_SET,
-    registery: &REGISTERY,
+    registry: &REGISTRY,
     graveyard: &GRAVEYARD,
     coin_manager: &COIN_MANAGER,
     flame_manager: &FLAME_MANAGER,
@@ -177,7 +177,7 @@ pub async fn engine_batch_builder_background_task(
             engine_key,
             Arc::clone(sync_manager),
             Arc::clone(utxo_set),
-            Arc::clone(registery),
+            Arc::clone(registry),
             Arc::clone(graveyard),
             Arc::clone(coin_manager),
             Arc::clone(flame_manager),

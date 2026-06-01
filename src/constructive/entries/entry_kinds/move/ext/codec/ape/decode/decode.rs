@@ -4,7 +4,7 @@ use crate::constructive::entity::account::root_account::root_account::RootAccoun
 use crate::constructive::entry::entry_kinds::r#move::ext::codec::ape::decode::error::decode_error::MoveAPEDecodeError;
 use crate::constructive::entry::entry_kinds::r#move::r#move::Move;
 use crate::constructive::valtype::val::short_val::short_val::ShortVal;
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registry::registry::REGISTRY;
 
 impl Move {
     /// Decodes a `Move` as an Airly Payload Encoding (APE) bit vector.
@@ -12,15 +12,15 @@ impl Move {
         execution_batch_height: u64,
         bit_stream: &mut bit_vec::Iter<'_>,
         decode_account_rank_as_longval: bool,
-        registery: &REGISTERY,
+        registry: &REGISTRY,
     ) -> Result<Move, MoveAPEDecodeError> {
         // 1 Decode the sender `RootAccount`.
-        let from = RootAccount::decode_ape(bit_stream, decode_account_rank_as_longval, registery)
+        let from = RootAccount::decode_ape(bit_stream, decode_account_rank_as_longval, registry)
             .await
             .map_err(MoveAPEDecodeError::RootAccountAPEDecodeError)?;
 
         // 2 Decode the receiver `Account`.
-        let to = Account::decode_ape(bit_stream, registery, decode_account_rank_as_longval)
+        let to = Account::decode_ape(bit_stream, registry, decode_account_rank_as_longval)
             .await
             .map_err(MoveAPEDecodeError::AccountAPEDecodeError)?;
 

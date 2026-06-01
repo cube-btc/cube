@@ -4,7 +4,7 @@ use crate::constructive::entry::entry_kinds::config::config::Config;
 use crate::constructive::entry::entry_kinds::config::ext::codec::ape::decode::error::decode_error::ConfigAPEDecodeError;
 use crate::constructive::valtype::val::short_val::short_val::ShortVal;
 use crate::inscriptive::flame_manager::flame_config::flame_config::FMAccountFlameConfig;
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registry::registry::REGISTRY;
 use bit_vec::BitVec;
 
 impl Config {
@@ -13,9 +13,9 @@ impl Config {
         execution_batch_height: u64,
         bit_stream: &mut bit_vec::Iter<'_>,
         decode_account_rank_as_longval: bool,
-        registery: &REGISTERY,
+        registry: &REGISTRY,
     ) -> Result<Config, ConfigAPEDecodeError> {
-        let root_account = RootAccount::decode_ape(bit_stream, decode_account_rank_as_longval, registery)
+        let root_account = RootAccount::decode_ape(bit_stream, decode_account_rank_as_longval, registry)
             .await
             .map_err(ConfigAPEDecodeError::RootAccountAPEDecodeError)?;
 

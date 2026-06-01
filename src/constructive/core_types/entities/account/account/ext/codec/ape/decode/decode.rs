@@ -3,14 +3,14 @@ use crate::constructive::core_types::entities::account::account::ext::codec::ape
 use crate::constructive::core_types::entities::account::account::unregistered_account::unregistered_account::UnregisteredAccount;
 use crate::constructive::core_types::valtypes::val::long_val::long_val::LongVal;
 use crate::constructive::core_types::valtypes::val::short_val::short_val::ShortVal;
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registry::registry::REGISTRY;
 use bit_vec::BitVec;
 
 impl Account {
     /// Decodes an `Account` as an Airly Payload Encoding (APE) bit vector.  
     pub async fn decode_ape<'a>(
         bit_stream: &mut bit_vec::Iter<'a>,
-        registery: &REGISTERY,
+        registry: &REGISTRY,
         decode_rank_as_longval: bool,
     ) -> Result<Account, AccountAPEDecodeError> {
         // 1 Decode the rank value from the APE bitstream.
@@ -57,13 +57,13 @@ impl Account {
 
             // 2.b The `Account` is registered.
             _ => {
-                // 2.b.1 Retrieve the `Account` from the `Registery Manager` by its rank.
+                // 2.b.1 Retrieve the `Account` from the `Registry Manager` by its rank.
                 let account = {
-                    // 2.b.1.1 Lock the `Registery Manager`.
-                    let _registery = registery.lock().await;
+                    // 2.b.1.1 Lock the `Registry Manager`.
+                    let _registry = registry.lock().await;
 
-                    // 2.b.1.2 Retrieve the `Account` from the `Registery Manager` by its rank.
-                    _registery
+                    // 2.b.1.2 Retrieve the `Account` from the `Registry Manager` by its rank.
+                    _registry
                         .get_account_by_rank(rank)
                         .ok_or(AccountAPEDecodeError::FailedToLocateAccountGivenRank(rank))?
                 };

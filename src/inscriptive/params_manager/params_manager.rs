@@ -247,12 +247,12 @@ impl ParamsManager {
             .in_call_ppm_liquidity_fee = value;
     }
 
-    /// Reverts the epheremal changes associated with the last execution.
+    /// Reverts the ephemeral changes associated with the last execution.
     pub fn rollback_last(&mut self) {
         self.restore_delta();
     }
 
-    /// Applies all epheremal changes from delta into permanent in-memory and on-disk state.
+    /// Applies all ephemeral changes from delta into permanent in-memory and on-disk state.
     pub fn apply_changes(&mut self) -> Result<(), sled::Error> {
         if let Some(ephemeral_params_holder) = self.delta.updated_params_holder.as_ref() {
             let tree = self.on_disk_params.open_tree(PARAMS_HOLDER_TREE_NAME)?;
@@ -370,7 +370,7 @@ impl ParamsManager {
         Ok(())
     }
 
-    /// Clears all epheremal changes from delta and backup.
+    /// Clears all ephemeral changes from delta and backup.
     pub fn flush_delta(&mut self) {
         self.delta.flush();
         self.backup_of_delta.flush();

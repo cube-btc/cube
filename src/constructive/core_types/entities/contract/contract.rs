@@ -1,18 +1,18 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-/// A deployed contract registered with the registery.
+/// A deployed contract registered with the registry.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Contract {
     pub contract_id: [u8; 32],
-    pub registery_index: u64,
+    pub registry_index: u64,
 }
 
 impl Contract {
-    pub fn new(contract_id: [u8; 32], registery_index: u64) -> Self {
+    pub fn new(contract_id: [u8; 32], registry_index: u64) -> Self {
         Self {
             contract_id,
-            registery_index,
+            registry_index,
         }
     }
 
@@ -20,8 +20,8 @@ impl Contract {
         self.contract_id
     }
 
-    pub fn registery_index(&self) -> u64 {
-        self.registery_index
+    pub fn registry_index(&self) -> u64 {
+        self.registry_index
     }
 
     pub fn json(&self) -> Value {
@@ -33,8 +33,8 @@ impl Contract {
         );
 
         obj.insert(
-            "registery_index".to_string(),
-            Value::String(self.registery_index.to_string()),
+            "registry_index".to_string(),
+            Value::String(self.registry_index.to_string()),
         );
 
         Value::Object(obj)

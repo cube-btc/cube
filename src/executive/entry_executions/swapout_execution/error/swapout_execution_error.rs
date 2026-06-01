@@ -1,6 +1,6 @@
 use crate::inscriptive::coin_manager::errors::balance_update_errors::CMAccountBalanceDownError;
-use crate::constructive::entity::account::root_account::registered_and_configured_root_account::ext::sync_with_registery::sync_with_registery_error::RegisteredAndConfiguredRootAccountSyncWithRegisteryError;
-use crate::constructive::entity::account::root_account::registered_but_unconfigured_root_account::ext::sync_with_registery::sync_with_registery_error::RegisteredButUnconfiguredRootAccountSyncWithRegisteryError;
+use crate::constructive::entity::account::root_account::registered_and_configured_root_account::ext::sync_with_registry::sync_with_registry_error::RegisteredAndConfiguredRootAccountSyncWithRegistryError;
+use crate::constructive::entity::account::root_account::registered_but_unconfigured_root_account::ext::sync_with_registry::sync_with_registry_error::RegisteredButUnconfiguredRootAccountSyncWithRegistryError;
 
 #[derive(Debug, Clone)]
 pub enum SwapoutExecutionError {
@@ -13,11 +13,11 @@ pub enum SwapoutExecutionError {
     UnexpectedUnregisteredRootAccountError,
     RegisteredButUnconfiguredRootAccountValidateBLSKeyError,
     RegisteredButUnconfiguredRootAccountInvalidAuthorizationSignatureError,
-    RegisteredButUnconfiguredRootAccountSyncWithRegisteryError(
-        RegisteredButUnconfiguredRootAccountSyncWithRegisteryError,
+    RegisteredButUnconfiguredRootAccountSyncWithRegistryError(
+        RegisteredButUnconfiguredRootAccountSyncWithRegistryError,
     ),
-    RegisteredAndConfiguredRootAccountSyncWithRegisteryError(
-        RegisteredAndConfiguredRootAccountSyncWithRegisteryError,
+    RegisteredAndConfiguredRootAccountSyncWithRegistryError(
+        RegisteredAndConfiguredRootAccountSyncWithRegistryError,
     ),
     CoinManagerAccountBalanceDownError(CMAccountBalanceDownError),
     AmountPlusFeesOverflow,

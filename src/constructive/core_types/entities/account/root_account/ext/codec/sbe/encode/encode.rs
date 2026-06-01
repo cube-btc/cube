@@ -54,10 +54,10 @@ impl RootAccount {
                 // 2.b.2 Encode the account key.
                 bytes.extend(registered_but_unconfigured_root_account.account_key);
 
-                // 2.b.3 Encode the registery index.
+                // 2.b.3 Encode the registry index.
                 bytes.extend(
                     registered_but_unconfigured_root_account
-                        .registery_index
+                        .registry_index
                         .to_le_bytes(),
                 );
 
@@ -94,9 +94,9 @@ impl RootAccount {
                 // 2.c.2 Encode the account key.
                 bytes.extend(registered_and_configured_root_account.account_key);
 
-                // 2.c.3 Encode the registery index.
+                // 2.c.3 Encode the registry index.
                 bytes.extend(
-                    registered_and_configured_root_account.registery_index.to_le_bytes(),
+                    registered_and_configured_root_account.registry_index.to_le_bytes(),
                 );
 
                 // 2.c.4 Encode the BLS key.

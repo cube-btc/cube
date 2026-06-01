@@ -2,7 +2,7 @@ use crate::constructive::entry::entry_kinds::deploy::deploy::Deploy;
 use crate::constructive::entry::entry_kinds::deploy::ext::codec::ape::encode::error::encode_error::DeployAPEEncodeError;
 use crate::constructive::valtype::val::short_val::short_val::ShortVal;
 use crate::executive::executable::compiler::compiler::ProgramCompiler;
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registry::registry::REGISTRY;
 use bit_vec::BitVec;
 
 impl Deploy {
@@ -10,14 +10,14 @@ impl Deploy {
     pub async fn encode_ape(
         &self,
         execution_batch_height: u64,
-        registery: &REGISTERY,
+        registry: &REGISTRY,
         encode_account_rank_as_longval: bool,
     ) -> Result<BitVec, DeployAPEEncodeError> {
         let mut bits = BitVec::new();
 
         let root_bits = self
             .root_account
-            .encode_ape(registery, encode_account_rank_as_longval)
+            .encode_ape(registry, encode_account_rank_as_longval)
             .await
             .map_err(DeployAPEEncodeError::RootAccountAPEEncodeError)?;
         bits.extend(root_bits);

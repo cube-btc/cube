@@ -2,7 +2,7 @@ use crate::constructive::entry::entry_kinds::liftup::ext::codec::ape::encode::er
 use crate::constructive::entry::entry_kinds::liftup::liftup::Liftup;
 use crate::constructive::txo::lift::lift::Lift;
 use crate::constructive::valtype::val::short_val::short_val::ShortVal;
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registry::registry::REGISTRY;
 use bit_vec::BitVec;
 
 impl Liftup {
@@ -10,7 +10,7 @@ impl Liftup {
     pub async fn encode_ape(
         &self,
         execution_batch_height: u64,
-        registery: &REGISTERY,
+        registry: &REGISTRY,
         encode_account_rank_as_longval: bool,
     ) -> Result<BitVec, LiftupAPEEncodeError> {
         // 1 Initialize the bit vector.
@@ -21,7 +21,7 @@ impl Liftup {
             // 2.1 Encode the `RootAccount`.
             let root_account_bits = self
                 .root_account
-                .encode_ape(registery, encode_account_rank_as_longval)
+                .encode_ape(registry, encode_account_rank_as_longval)
                 .await
                 .map_err(|e| LiftupAPEEncodeError::RootAccountAPEEncodeError(e))?;
 

@@ -3,14 +3,14 @@ use crate::constructive::entry::entry_kinds::swapout::swapout::{Swapout, DUST_SW
 use crate::constructive::txout_types::pinless_self::PinlessSelf;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registry::registry::REGISTRY;
 
 impl Swapout {
     /// Used by the `Engine` to validate the `Swapout` end-to-end as a pre-validation step before executing it.
     pub async fn validate_overall(
         &self,
         execution_batch_height: u64,
-        registery: &REGISTERY,
+        registry: &REGISTRY,
         graveyard: &GRAVEYARD,
         coin_manager: &COIN_MANAGER,
         bls_signature: [u8; 96],
@@ -19,7 +19,7 @@ impl Swapout {
             .map_err(SwapoutValidateOverallError::ValidateBLSSignatureError)?;
 
         self.root_account
-            .validate_root_account(registery, graveyard)
+            .validate_root_account(registry, graveyard)
             .await
             .map_err(|_| SwapoutValidateOverallError::ValidateRootAccountError)?;
 

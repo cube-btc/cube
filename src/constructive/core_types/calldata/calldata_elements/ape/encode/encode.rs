@@ -3,7 +3,7 @@ use crate::constructive::core_types::calldata::calldata_elements::calldata_eleme
 use crate::constructive::core_types::valtypes::maybe_common::maybe_common::maybe_common::MaybeCommon;
 use crate::constructive::core_types::valtypes::val::long_val::long_val::LongVal;
 use crate::constructive::core_types::valtypes::val::short_val::short_val::ShortVal;
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registry::registry::REGISTRY;
 use bit_vec::BitVec;
 
 impl CalldataElement {
@@ -14,13 +14,13 @@ impl CalldataElement {
     ///
     /// # Arguments
     /// * `&self` - The `CallElement` to encode.
-    /// * `registery_manager` - The guarded `RegisteryManager` to get the `Account`'s rank value.
+    /// * `registry_manager` - The guarded `RegistryManager` to get the `Account`'s rank value.
     /// * `encode_rank_as_longval` - Whether to encode the rank value as a `LongVal` or a `ShortVal`.
     ///
     /// # Returns
     pub async fn encode_ape(
         &self,
-        registery: &REGISTERY,
+        registry: &REGISTRY,
         encode_account_rank_as_longval: bool,
         encode_contract_rank_as_longval: bool,
     ) -> Result<BitVec, CalldataElementAPEEncodeError> {
@@ -82,7 +82,7 @@ impl CalldataElement {
             CalldataElement::Account(account) => {
                 // Encode the `Account`.
                 let bits = account
-                    .encode_ape(registery, encode_account_rank_as_longval)
+                    .encode_ape(registry, encode_account_rank_as_longval)
                     .await
                     .map_err(|e| CalldataElementAPEEncodeError::AccountAPEEncodeError(e))?;
 
@@ -92,7 +92,7 @@ impl CalldataElement {
             CalldataElement::Contract(contract) => {
                 // Encode the `Contract`.
                 let bits = contract
-                    .encode_ape(registery, encode_contract_rank_as_longval)
+                    .encode_ape(registry, encode_contract_rank_as_longval)
                     .await
                     .map_err(|e| CalldataElementAPEEncodeError::ContractAPEEncodeError(e))?;
 

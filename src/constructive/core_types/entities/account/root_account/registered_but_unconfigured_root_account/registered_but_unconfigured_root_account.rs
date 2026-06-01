@@ -14,8 +14,8 @@ pub struct RegisteredButUnconfiguredRootAccount {
     /// The Schnorr public key of the account.
     pub account_key: [u8; 32],
 
-    /// The registery index of the account.
-    pub registery_index: u64,
+    /// The registry index of the account.
+    pub registry_index: u64,
 
     /// The BLS public key of the account.
     #[serde(
@@ -39,14 +39,14 @@ impl RegisteredButUnconfiguredRootAccount {
     /// Constructs a new registered but unconfigured root account.
     pub fn new(
         account_key: [u8; 32],
-        registery_index: u64,
+        registry_index: u64,
         bls_key_to_be_configured: [u8; 48],
         flame_config_to_be_configured: Option<FMAccountFlameConfig>,
         authorization_signature: [u8; 64],
     ) -> Self {
         Self {
             account_key,
-            registery_index,
+            registry_index,
             bls_key_to_be_configured,
             flame_config_to_be_configured,
             authorization_signature,
@@ -86,8 +86,8 @@ impl RegisteredButUnconfiguredRootAccount {
         );
 
         obj.insert(
-            "registery_index".to_string(),
-            Value::String(self.registery_index.to_string()),
+            "registry_index".to_string(),
+            Value::String(self.registry_index.to_string()),
         );
 
         obj.insert(

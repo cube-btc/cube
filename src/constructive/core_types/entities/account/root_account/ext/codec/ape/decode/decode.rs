@@ -6,7 +6,7 @@ use crate::constructive::entity::account::root_account::unregistered_root_accoun
 use crate::constructive::valtype::val::long_val::long_val::LongVal;
 use crate::constructive::valtype::val::short_val::short_val::ShortVal;
 use crate::inscriptive::flame_manager::flame_config::flame_config::FMAccountFlameConfig;
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registry::registry::REGISTRY;
 use bit_vec::BitVec;
 
 impl RootAccount {
@@ -16,12 +16,12 @@ impl RootAccount {
     ///
     /// # Arguments
     /// * `bit_stream` - The APE bitstream.
-    /// * `registery_manager` - The `Registery Manager`.
+    /// * `registry_manager` - The `Registry Manager`.
     /// * `decode_rank_as_longval` - Whether to decode the rank value as a `LongVal` or a `ShortVal`.
     pub async fn decode_ape<'a>(
         bit_stream: &mut bit_vec::Iter<'a>,
         decode_rank_as_longval: bool,
-        registery: &REGISTERY,
+        registry: &REGISTRY,
     ) -> Result<RootAccount, RootAccountAPEDecodeError> {
         // 1 Decode the rank value from the APE bitstream.
         let rank: u64 = match decode_rank_as_longval {
@@ -204,12 +204,12 @@ impl RootAccount {
             // 2.b The `RootAccount` is registered.
             _ => {
                 // 2.b.1 Get account info by rank.
-                let (account_key, bls_key, registery_index, _) = {
-                    // 2.b.1.1 Lock the `Registery`.
-                    let _registery = registery.lock().await;
+                let (account_key, bls_key, registry_index, _) = {
+                    // 2.b.1.1 Lock the `Registry`.
+                    let _registry = registry.lock().await;
 
                     // 2.b.1.2 Get RMAccountBody by rank.
-                    _registery.get_account_info_by_rank(rank).ok_or(
+                    _registry.get_account_info_by_rank(rank).ok_or(
                         RootAccountAPEDecodeError::FailedToRetrieveRMAccountBodyByRank(rank),
                     )?
                 };
@@ -222,7 +222,7 @@ impl RootAccount {
                         let registered_and_configured_root_account =
                             RegisteredAndConfiguredRootAccount::new(
                                 account_key,
-                                registery_index,
+                                registry_index,
                                 bls_key,
                             );
 
@@ -358,7 +358,7 @@ impl RootAccount {
                         let registered_but_unconfigured_root_account =
                             RegisteredButUnconfiguredRootAccount::new(
                                 account_key,
-                                registery_index,
+                                registry_index,
                                 bls_key_bytes,
                                 flame_config,
                                 authorization_signature_bytes,

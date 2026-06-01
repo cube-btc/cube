@@ -164,21 +164,21 @@ impl RootAccount {
                         RootAccountSBEDecodeError::RegisteredButUnconfiguredRootAccountSBEAccountKeyBytesConversionError
                     })?;
 
-                // 4.b.3 Ensure the payload holds the registery index.
+                // 4.b.3 Ensure the payload holds the registry index.
                 if payload.len() < 32 + 8 {
                     return Err(
-                        RootAccountSBEDecodeError::RegisteredButUnconfiguredRootAccountSBEInsufficientBytesForRegisteryIndex {
+                        RootAccountSBEDecodeError::RegisteredButUnconfiguredRootAccountSBEInsufficientBytesForRegistryIndex {
                             got_total: bytes.len(),
                         },
                     );
                 }
 
-                // 4.b.4 Decode the registery index.
-                let registery_index = u64::from_le_bytes(
+                // 4.b.4 Decode the registry index.
+                let registry_index = u64::from_le_bytes(
                     payload[32..40]
                         .try_into()
                         .map_err(|_| {
-                            RootAccountSBEDecodeError::RegisteredButUnconfiguredRootAccountSBERegisteryIndexBytesConversionError
+                            RootAccountSBEDecodeError::RegisteredButUnconfiguredRootAccountSBERegistryIndexBytesConversionError
                         })?,
                 );
 
@@ -279,7 +279,7 @@ impl RootAccount {
                 let registered_but_unconfigured_root_account =
                     RegisteredButUnconfiguredRootAccount::new(
                         account_key,
-                        registery_index,
+                        registry_index,
                         bls_key_to_be_configured,
                         flame_config_to_be_configured,
                         authorization_signature,
@@ -310,12 +310,12 @@ impl RootAccount {
                         RootAccountSBEDecodeError::RegisteredAndConfiguredRootAccountSBEAccountKeyBytesConversionError
                     })?;
 
-                // 4.c.3 Decode the registery index.
-                let registery_index = u64::from_le_bytes(
+                // 4.c.3 Decode the registry index.
+                let registry_index = u64::from_le_bytes(
                     payload[32..40]
                         .try_into()
                         .map_err(|_| {
-                            RootAccountSBEDecodeError::RegisteredAndConfiguredRootAccountSBERegisteryIndexBytesConversionError
+                            RootAccountSBEDecodeError::RegisteredAndConfiguredRootAccountSBERegistryIndexBytesConversionError
                         })?,
                 );
 
@@ -328,7 +328,7 @@ impl RootAccount {
 
                 // 4.c.5 Construct the registered and configured `RootAccount`.
                 let registered_and_configured_root_account =
-                    RegisteredAndConfiguredRootAccount::new(account_key, registery_index, bls_key);
+                    RegisteredAndConfiguredRootAccount::new(account_key, registry_index, bls_key);
 
                 // 4.c.6 Return the registered and configured `RootAccount`.
                 Ok(RootAccount::RegisteredAndConfiguredRootAccount(

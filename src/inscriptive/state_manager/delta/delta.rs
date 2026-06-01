@@ -9,7 +9,7 @@ type StateKey = Vec<u8>;
 /// A variable size state value.
 type StateValue = Vec<u8>;
 
-/// A struct for containing epheremal state differences to be applied for 'StateManager'.
+/// A struct for containing ephemeral state differences to be applied for 'StateManager'.
 #[derive(Clone)]
 pub struct SMDelta {
     // New contracts to register.
@@ -39,13 +39,13 @@ impl SMDelta {
         self.removed_contract_states.clear();
     }
 
-    /// Checks if a contract has just been epheremally registered in the delta.
-    pub fn is_contract_epheremally_registered(&self, contract_id: ContractId) -> bool {
+    /// Checks if a contract has just been ephemerally registered in the delta.
+    pub fn is_contract_ephemerally_registered(&self, contract_id: ContractId) -> bool {
         self.new_contracts_to_register.contains(&contract_id)
     }
 
-    /// Checks if a state has just been epheremally removed in the delta.
-    pub fn is_state_epheremally_removed(&self, contract_id: ContractId, key: &StateKey) -> bool {
+    /// Checks if a state has just been ephemerally removed in the delta.
+    pub fn is_state_ephemerally_removed(&self, contract_id: ContractId, key: &StateKey) -> bool {
         // 1 Check if the contract has any removed states.
         if let Some(removed_states) = self.removed_contract_states.get(&contract_id) {
             // 1.1 Check if the state key is in the removed states.
@@ -59,13 +59,13 @@ impl SMDelta {
     }
 
     /// Returns the value of a state by contract ID and key.
-    pub fn get_epheremal_state_value(
+    pub fn get_ephemeral_state_value(
         &self,
         contract_id: ContractId,
         key: &StateKey,
     ) -> Option<StateValue> {
-        // 1 Return None if the state key has just been epheremally removed.
-        if self.is_state_epheremally_removed(contract_id, key) {
+        // 1 Return None if the state key has just been ephemerally removed.
+        if self.is_state_ephemerally_removed(contract_id, key) {
             return None;
         }
 
@@ -81,22 +81,22 @@ impl SMDelta {
     }
 
     /// Epheremally registers a contract into the delta.
-    pub fn epheremally_register_contract(&mut self, contract_id: ContractId) {
+    pub fn ephemerally_register_contract(&mut self, contract_id: ContractId) {
         if !self.new_contracts_to_register.contains(&contract_id) {
             self.new_contracts_to_register.push(contract_id);
         }
     }
 
     /// Epheremally inserts a new contract state.
-    pub fn epheremally_insert_new_or_updated_contract_state(
+    pub fn ephemerally_insert_new_or_updated_contract_state(
         &mut self,
         contract_id: ContractId,
         key: &StateKey,
         value: &StateValue,
     ) {
-        // 1 Check if this key was epheremally removed.
+        // 1 Check if this key was ephemerally removed.
         if let Some(removed_state_keys) = self.removed_contract_states.get_mut(&contract_id) {
-            // 1.1 If the key was just epheremally removed, redo the removal from the removed states.
+            // 1.1 If the key was just ephemerally removed, redo the removal from the removed states.
             if removed_state_keys.contains(key) {
                 removed_state_keys.retain(|k| k != key);
             }
@@ -110,16 +110,16 @@ impl SMDelta {
     }
 
     /// Epheremally removes a contract state.   
-    pub fn epheremally_remove_existing_contract_state(
+    pub fn ephemerally_remove_existing_contract_state(
         &mut self,
         contract_id: ContractId,
         key: &StateKey,
     ) {
-        // 1 Check if this key was just epheremally inserted or updated.
+        // 1 Check if this key was just ephemerally inserted or updated.
         if let Some(new_or_updated_states) =
             self.new_or_updated_contract_states.get_mut(&contract_id)
         {
-            // 1.1 If the key was epheremally inserted or updated, remove it from the new or updated states.
+            // 1.1 If the key was ephemerally inserted or updated, remove it from the new or updated states.
             if new_or_updated_states.contains_key(key) {
                 new_or_updated_states.remove(key);
             }

@@ -15,15 +15,15 @@ pub enum AccountSBEDecodeError {
     /// Bytes remained after the 32-byte account key in an `UnregisteredAccount` payload.
     UnregisteredAccountSBETrailingBytesAfterAccountKey { trailing: usize },
 
-    // RegisteredAccount — Schnorr account key (32 bytes) + registery index (8 bytes).
+    // RegisteredAccount — Schnorr account key (32 bytes) + registry index (8 bytes).
     /// The payload after `0x01` ended before the 32-byte Schnorr account key.
     RegisteredAccountSBEInsufficientBytesForAccountKey { got_total: usize },
     /// Failed to assemble the 32-byte Schnorr account key from the SBE payload.
     RegisteredAccountSBEAccountKeyBytesConversionError,
-    /// The payload after the 32-byte account key ended before the 8-byte little-endian registery index.
-    RegisteredAccountSBEInsufficientBytesForRegisteryIndex { got_total: usize },
-    /// Failed to assemble the 8-byte registery index from the SBE payload.
-    RegisteredAccountSBERegisteryIndexBytesConversionError,
-    /// Bytes remained after the account key and registery index in a `RegisteredAccount` payload.
-    RegisteredAccountSBETrailingBytesAfterRegisteryIndex { trailing: usize },
+    /// The payload after the 32-byte account key ended before the 8-byte little-endian registry index.
+    RegisteredAccountSBEInsufficientBytesForRegistryIndex { got_total: usize },
+    /// Failed to assemble the 8-byte registry index from the SBE payload.
+    RegisteredAccountSBERegistryIndexBytesConversionError,
+    /// Bytes remained after the account key and registry index in a `RegisteredAccount` payload.
+    RegisteredAccountSBETrailingBytesAfterRegistryIndex { trailing: usize },
 }

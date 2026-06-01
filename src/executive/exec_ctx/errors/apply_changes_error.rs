@@ -2,7 +2,7 @@ use crate::inscriptive::archival_manager::errors::insert_error::ArchivalManagerI
 use crate::inscriptive::coin_manager::errors::apply_changes_errors::CMApplyChangesError;
 use crate::inscriptive::flame_manager::errors::apply_changes_error::FMApplyChangesError;
 use crate::inscriptive::graveyard::errors::apply_changes_error::GraveyardApplyChangesError;
-use crate::inscriptive::registery::errors::apply_changes_error::RMApplyChangesError;
+use crate::inscriptive::registry::errors::apply_changes_error::RMApplyChangesError;
 use crate::inscriptive::state_manager::errors::apply_changes_error::SMApplyChangesError;
 
 /// Errors associated with applying changes to the `ExecCtx`.
@@ -10,7 +10,7 @@ use crate::inscriptive::state_manager::errors::apply_changes_error::SMApplyChang
 pub enum ApplyChangesError {
     CoinManagerApplyChangesError(CMApplyChangesError),
     GraveyardApplyChangesError(GraveyardApplyChangesError),
-    RegisteryApplyChangesError(RMApplyChangesError),
+    RegistryApplyChangesError(RMApplyChangesError),
     StateManagerApplyChangesError(SMApplyChangesError),
     PrivilegesManagerApplyChangesError(sled::Error),
     FlameManagerApplyChangesError(FMApplyChangesError),

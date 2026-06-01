@@ -16,7 +16,7 @@ use crate::inscriptive::flame_manager::flame_manager::FLAME_MANAGER;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 use crate::inscriptive::params_manager::params_manager::PARAMS_MANAGER;
 use crate::inscriptive::privileges_manager::privileges_manager::PRIVILEGES_MANAGER;
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registry::registry::REGISTRY;
 use crate::inscriptive::state_manager::state_manager::STATE_MANAGER;
 use crate::inscriptive::sync_manager::sync_manager::SYNC_MANAGER;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
@@ -49,8 +49,8 @@ pub struct ExecCtx {
     // The local utxo set database of the Engine.
     pub utxo_set: UTXO_SET,
 
-    // The local registery database of the Engine.
-    pub registery: REGISTERY,
+    // The local registry database of the Engine.
+    pub registry: REGISTRY,
 
     // The local graveyard database of the Engine.
     pub graveyard: GRAVEYARD,
@@ -84,7 +84,7 @@ impl ExecCtx {
         engine_key: [u8; 32],
         sync_manager: SYNC_MANAGER,
         utxo_set: UTXO_SET,
-        registery: REGISTERY,
+        registry: REGISTRY,
         graveyard: GRAVEYARD,
         coin_manager: COIN_MANAGER,
         flame_manager: FLAME_MANAGER,
@@ -98,7 +98,7 @@ impl ExecCtx {
             engine_key,
             sync_manager,
             utxo_set,
-            registery,
+            registry,
             graveyard,
             coin_manager,
             flame_manager,
@@ -129,9 +129,9 @@ impl ExecCtx {
             self.graveyard.lock().await.pre_execution();
         }
 
-        // 4 Pre-execution registery.
+        // 4 Pre-execution registry.
         {
-            self.registery.lock().await.pre_execution();
+            self.registry.lock().await.pre_execution();
         }
 
         // 5 Pre-execution state manager.
@@ -162,9 +162,9 @@ impl ExecCtx {
             self.graveyard.lock().await.rollback_last();
         }
 
-        // 4 Rollback last registery.
+        // 4 Rollback last registry.
         {
-            self.registery.lock().await.rollback_last();
+            self.registry.lock().await.rollback_last();
         }
 
         // 5 Rollback last state manager.
@@ -195,9 +195,9 @@ impl ExecCtx {
             self.graveyard.lock().await.flush_deltas();
         }
 
-        // 4 Flush registery ephemerals.
+        // 4 Flush registry ephemerals.
         {
-            self.registery.lock().await.flush_delta();
+            self.registry.lock().await.flush_delta();
         }
 
         // 5 Flush state manager ephemerals.
@@ -239,7 +239,7 @@ impl ExecCtx {
             if let Err(error) = _flame_manager
                 .apply_changes(
                     &self.coin_manager,
-                    &self.registery,
+                    &self.registry,
                     new_batch_height,
                     projector_expiry_height,
                 )
@@ -271,14 +271,14 @@ impl ExecCtx {
             }
         }
 
-        // 9 Apply changes to the registery.
+        // 9 Apply changes to the registry.
         {
-            // 9.1 Lock the registery.
-            let mut _registery = self.registery.lock().await;
+            // 9.1 Lock the registry.
+            let mut _registry = self.registry.lock().await;
 
-            // 9.2 Apply changes to the registery.
-            if let Err(error) = _registery.apply_changes() {
-                return Err(ApplyChangesError::RegisteryApplyChangesError(error));
+            // 9.2 Apply changes to the registry.
+            if let Err(error) = _registry.apply_changes() {
+                return Err(ApplyChangesError::RegistryApplyChangesError(error));
             }
         }
 
@@ -581,7 +581,7 @@ impl ExecCtx {
                 encode_contract_rank_as_longval,
                 base_ops_price,
                 &self.utxo_set,
-                &self.registery,
+                &self.registry,
             )
             .await
             .map_err(BatchExecutionError::DecodeEntryError)?;

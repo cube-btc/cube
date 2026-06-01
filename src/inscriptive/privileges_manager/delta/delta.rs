@@ -12,7 +12,7 @@ type AccountKey = [u8; 32];
 /// Contract ID.
 type ContractId = [u8; 32];
 
-/// A struct for containing epheremal state differences to be applied for `PrivilegesManager`.
+/// A struct for containing ephemeral state differences to be applied for `PrivilegesManager`.
 #[derive(Clone)]
 pub struct PrivilegesManagerDelta {
     pub new_accounts_to_register: HashMap<AccountKey, PrivilegesManagerAccountBody>,
@@ -64,23 +64,23 @@ impl PrivilegesManagerDelta {
         self.updated_contract_tax_exemptions.clear();
     }
 
-    /// Checks if an account has just been epheremally registered in the delta.
-    pub fn is_account_epheremally_registered(&self, account_key: AccountKey) -> bool {
+    /// Checks if an account has just been ephemerally registered in the delta.
+    pub fn is_account_ephemerally_registered(&self, account_key: AccountKey) -> bool {
         self.new_accounts_to_register.contains_key(&account_key)
     }
 
-    /// Checks if a contract has just been epheremally registered in the delta.
-    pub fn is_contract_epheremally_registered(&self, contract_id: ContractId) -> bool {
+    /// Checks if a contract has just been ephemerally registered in the delta.
+    pub fn is_contract_ephemerally_registered(&self, contract_id: ContractId) -> bool {
         self.new_contracts_to_register.contains_key(&contract_id)
     }
 
     /// Epheremally registers an account in the delta.
-    pub fn epheremally_register_account(
+    pub fn ephemerally_register_account(
         &mut self,
         account_key: AccountKey,
         account_body: PrivilegesManagerAccountBody,
     ) -> bool {
-        if self.is_account_epheremally_registered(account_key) {
+        if self.is_account_ephemerally_registered(account_key) {
             return false;
         }
 
@@ -90,12 +90,12 @@ impl PrivilegesManagerDelta {
     }
 
     /// Epheremally registers a contract in the delta.
-    pub fn epheremally_register_contract(
+    pub fn ephemerally_register_contract(
         &mut self,
         contract_id: ContractId,
         contract_body: PrivilegesManagerContractBody,
     ) -> bool {
-        if self.is_contract_epheremally_registered(contract_id) {
+        if self.is_contract_ephemerally_registered(contract_id) {
             return false;
         }
 

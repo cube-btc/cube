@@ -21,8 +21,8 @@ use crate::inscriptive::params_manager::params_manager::PARAMS_MANAGER;
 use crate::inscriptive::params_manager::params_manager::ParamsManager;
 use crate::inscriptive::privileges_manager::privileges_manager::PrivilegesManager;
 use crate::inscriptive::privileges_manager::privileges_manager::PRIVILEGES_MANAGER;
-use crate::inscriptive::registery::registery::Registery;
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registry::registry::Registry;
+use crate::inscriptive::registry::registry::REGISTRY;
 use crate::inscriptive::state_manager::state_manager::StateManager;
 use crate::inscriptive::state_manager::state_manager::STATE_MANAGER;
 use crate::inscriptive::sync_manager::sync_manager::SyncManager;
@@ -79,11 +79,11 @@ pub async fn run(
     // 4 Get the engine key and self account key.
     let (engine_key, self_account_key) = (engine_key(chain), key_holder.secp_public_key_bytes());
 
-    // 5 Initialize registery.
-    let registery: REGISTERY = match Registery::new(chain) {
-        Ok(registery) => registery,
+    // 5 Initialize registry.
+    let registry: REGISTRY = match Registry::new(chain) {
+        Ok(registry) => registry,
         Err(_) => {
-            println!("{}", "Error initializing registery.".red());
+            println!("{}", "Error initializing registry.".red());
             return;
         }
     };
@@ -204,7 +204,7 @@ pub async fn run(
         let rpc_holder = rpc_holder.clone();
         let engine_conn = pre_sync_engine_conn.clone();
         let engine_key = engine_key;
-        let registery = Arc::clone(&registery);
+        let registry = Arc::clone(&registry);
         let graveyard = Arc::clone(&graveyard);
         let coin_manager = Arc::clone(&coin_manager);
         let flame_manager = Arc::clone(&flame_manager);
@@ -221,7 +221,7 @@ pub async fn run(
                     &rpc_holder,
                     &engine_conn,
                     engine_key,
-                    &registery,
+                    &registry,
                     &graveyard,
                     &coin_manager,
                     &flame_manager,
@@ -277,7 +277,7 @@ pub async fn run(
                 engine_key,
                 &sync_manager,
                 &utxo_set,
-                &registery,
+                &registry,
                 &graveyard,
                 &coin_manager,
                 &flame_manager,
@@ -294,7 +294,7 @@ pub async fn run(
                 let rpc_holder = rpc_holder.clone();
                 let engine_key = engine_key.clone();
                 let utxo_set = Arc::clone(&utxo_set);
-                let registery = Arc::clone(&registery);
+                let registry = Arc::clone(&registry);
                 let graveyard = Arc::clone(&graveyard);
                 let coin_manager = Arc::clone(&coin_manager);
                 let flame_manager = Arc::clone(&flame_manager);
@@ -312,7 +312,7 @@ pub async fn run(
                         &key_holder,
                         engine_key,
                         &utxo_set,
-                        &registery,
+                        &registry,
                         &graveyard,
                         &coin_manager,
                         &flame_manager,
@@ -342,7 +342,7 @@ pub async fn run(
                 chain,
                 resource_mode,
                 &archival_manager,
-                &registery,
+                &registry,
                 &privileges_manager,
                 &coin_manager,
                 &flame_manager,
@@ -354,7 +354,7 @@ pub async fn run(
                 &session_pool,
                 chain,
                 &sync_manager,
-                &registery,
+                &registry,
                 &graveyard,
                 &coin_manager,
                 &flame_manager,
@@ -380,7 +380,7 @@ pub async fn run(
                 let engine_conn = Arc::clone(&engine_conn);
                 let sync_manager = Arc::clone(&sync_manager);
                 let utxo_set = Arc::clone(&utxo_set);
-                let registery = Arc::clone(&registery);
+                let registry = Arc::clone(&registry);
                 let graveyard = Arc::clone(&graveyard);
                 let coin_manager = Arc::clone(&coin_manager);
                 let flame_manager = Arc::clone(&flame_manager);
@@ -395,7 +395,7 @@ pub async fn run(
                         &sync_manager,
                         engine_key,
                         &utxo_set,
-                        &registery,
+                        &registry,
                         &graveyard,
                         &coin_manager,
                         &flame_manager,
@@ -413,7 +413,7 @@ pub async fn run(
                 chain,
                 resource_mode,
                 &archival_manager,
-                &registery,
+                &registry,
                 &privileges_manager,
                 &coin_manager,
                 &flame_manager,
@@ -430,7 +430,7 @@ pub async fn run(
                 &key_holder,
                 &utxo_set,
                 &sync_manager,
-                &registery,
+                &registry,
                 &graveyard,
                 &coin_manager,
                 &flame_manager,
@@ -449,7 +449,7 @@ async fn maybe_start_explorer_from_env(
     chain: Chain,
     resource_mode: ResourceMode,
     archival_manager: &Option<ARCHIVAL_MANAGER>,
-    registery: &REGISTERY,
+    registry: &REGISTRY,
     privileges_manager: &PRIVILEGES_MANAGER,
     coin_manager: &COIN_MANAGER,
     flame_manager: &FLAME_MANAGER,
@@ -486,7 +486,7 @@ async fn maybe_start_explorer_from_env(
         chain,
         port,
         Some(am),
-        registery,
+        registry,
         Some(privileges_manager),
         coin_manager,
         flame_manager,

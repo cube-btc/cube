@@ -1,7 +1,7 @@
 use crate::constructive::entry::entry_kinds::liftup::ext::pre_validations::validate_overall::validate_overall_error::LiftupValidateOverallError;
 use crate::constructive::entry::entry_kinds::liftup::liftup::Liftup;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
-use crate::inscriptive::registery::registery::REGISTERY;
+use crate::inscriptive::registry::registry::REGISTRY;
 use crate::inscriptive::utxo_set::utxo_set::UTXO_SET;
 
 impl Liftup {
@@ -13,7 +13,7 @@ impl Liftup {
         engine_key: [u8; 32],
         execution_batch_height: u64,
         utxo_set: &UTXO_SET,
-        registery: &REGISTERY,
+        registry: &REGISTRY,
         graveyard: &GRAVEYARD,
         bls_signature: [u8; 96],
     ) -> Result<(), LiftupValidateOverallError> {
@@ -23,7 +23,7 @@ impl Liftup {
 
         // 2 Validate the root account.
         self.root_account
-            .validate_root_account(registery, graveyard)
+            .validate_root_account(registry, graveyard)
             .await
             .map_err(LiftupValidateOverallError::ValidateRootAccountError)?;
 
