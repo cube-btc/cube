@@ -109,6 +109,6 @@ impl OP_EXT_BALANCE {
 
     /// Returns the bytecode for the `OP_EXT_BALANCE` opcode (0xc0).
     pub fn bytecode() -> Vec<u8> {
-        vec![0xc0]
+        vec![0xca]
     }
 }

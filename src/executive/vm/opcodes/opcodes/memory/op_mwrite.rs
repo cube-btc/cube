@@ -79,6 +79,6 @@ impl OP_MWRITE {
 
     /// Returns the bytecode for the `OP_MWRITE` opcode (0xca).
     pub fn bytecode() -> Vec<u8> {
-        vec![0xca]
+        vec![0xd0]
     }
 }

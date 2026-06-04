@@ -156,6 +156,6 @@ impl OP_TRANSFER {
 
     /// Returns the bytecode for the `OP_TRANSFER` opcode (0xc2).
     pub fn bytecode() -> Vec<u8> {
-        vec![0xc2]
+        vec![0xcc]
     }
 }

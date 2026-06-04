@@ -52,6 +52,6 @@ impl OP_SELF_BALANCE {
 
     /// Returns the bytecode for the `OP_SELF_BALANCE` opcode (0xc1).
     pub fn bytecode() -> Vec<u8> {
-        vec![0xc1]
+        vec![0xcb]
     }
 }

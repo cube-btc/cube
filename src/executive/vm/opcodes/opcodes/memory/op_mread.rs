@@ -51,6 +51,6 @@ impl OP_MREAD {
 
     /// Returns the bytecode for the `OP_MREAD` opcode (0xcb).
     pub fn bytecode() -> Vec<u8> {
-        vec![0xcb]
+        vec![0xd1]
     }
 }
