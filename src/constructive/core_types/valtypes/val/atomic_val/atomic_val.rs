@@ -14,12 +14,12 @@ pub struct AtomicVal(Value, UpperBound);
 
 impl AtomicVal {
     /// Creates a new `AtomicVal`
-    pub fn new(value: u8, upper_bound: UpperBound) -> Self {
+    pub fn new(value: Value, upper_bound: UpperBound) -> Self {
         Self(value, upper_bound)
     }
 
     /// Returns the core u8 value.
-    pub fn value(&self) -> u8 {
+    pub fn value(&self) -> Value {
         self.0
     }
 
@@ -29,7 +29,7 @@ impl AtomicVal {
     }
 
     /// Returns the bitsize tier of `AtomicVal`.
-    pub fn bitsize(upper_bound: UpperBound) -> u8 {
+    pub fn bitsize(upper_bound: UpperBound) -> Value {
         match upper_bound {
             0..=1 => 1,
             2..=3 => 2,
