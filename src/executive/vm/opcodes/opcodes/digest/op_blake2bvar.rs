@@ -1,10 +1,10 @@
 use crate::executive::stack::stack_uint::StackItemUintExt;
-use crate::inscriptive::params_manager::params_holder::opcode_ops_params::OpcodeOpsParams;
 use crate::executive::stack::{
     stack_error::{StackError, StackUintError},
     stack_holder::StackHolder,
     stack_item::StackItem,
 };
+use crate::inscriptive::params_manager::params_holder::opcode_ops_params::OpcodeOpsParams;
 use blake2::digest::{Update, VariableOutput};
 use blake2::Blake2bVar;
 use serde::{Deserialize, Serialize};

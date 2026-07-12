@@ -57,7 +57,9 @@ impl OP_SECPSCALARMUL {
         stack_holder.push(multiplication_item)?;
 
         // Increment the ops counter.
-        stack_holder.increment_ops(OpcodeOpsParams::as_u32(stack_holder.opcode_ops().op_secpscalarmul))?;
+        stack_holder.increment_ops(OpcodeOpsParams::as_u32(
+            stack_holder.opcode_ops().op_secpscalarmul,
+        ))?;
 
         Ok(())
     }

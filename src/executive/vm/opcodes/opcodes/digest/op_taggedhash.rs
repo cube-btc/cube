@@ -1,8 +1,8 @@
 use crate::executive::stack::{
     stack_error::StackError, stack_holder::StackHolder, stack_item::StackItem,
 };
-use crate::transmutative::hash::{Hash, HashTag};
 use crate::inscriptive::params_manager::params_holder::opcode_ops_params::OpcodeOpsParams;
+use crate::transmutative::hash::{Hash, HashTag};
 use serde::{Deserialize, Serialize};
 
 /// The input is hashed with a domain separation tag.

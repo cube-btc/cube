@@ -14,7 +14,9 @@ impl OP_UPDATE_PARAM {
             return Ok(());
         }
 
-        stack_holder.increment_ops(OpcodeOpsParams::as_u32(stack_holder.opcode_ops().op_update_param))?;
+        stack_holder.increment_ops(OpcodeOpsParams::as_u32(
+            stack_holder.opcode_ops().op_update_param,
+        ))?;
 
         Ok(())
     }

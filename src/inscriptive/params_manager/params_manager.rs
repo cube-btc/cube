@@ -76,7 +76,8 @@ impl ParamsManager {
                     }
                     0x04 => {
                         if let Ok(bytes) = value.as_ref().try_into() {
-                            params_holder.call_entry_ppm_calldata_bytesize_fee = u64::from_le_bytes(bytes);
+                            params_holder.call_entry_ppm_calldata_bytesize_fee =
+                                u64::from_le_bytes(bytes);
                         }
                     }
                     0x05 => {
@@ -86,7 +87,8 @@ impl ParamsManager {
                     }
                     0x06 => {
                         if let Ok(bytes) = value.as_ref().try_into() {
-                            params_holder.liftup_entry_per_lift_base_fee = u64::from_le_bytes(bytes);
+                            params_holder.liftup_entry_per_lift_base_fee =
+                                u64::from_le_bytes(bytes);
                         }
                     }
                     0x07 => {
@@ -111,7 +113,8 @@ impl ParamsManager {
                     }
                     0x0B => {
                         if let Ok(bytes) = value.as_ref().try_into() {
-                            params_holder.config_entry_per_config_byte_fee = u64::from_le_bytes(bytes);
+                            params_holder.config_entry_per_config_byte_fee =
+                                u64::from_le_bytes(bytes);
                         }
                     }
                     0x0C => {
@@ -121,7 +124,8 @@ impl ParamsManager {
                     }
                     0x0D => {
                         if let Ok(bytes) = value.as_ref().try_into() {
-                            params_holder.deploy_entry_per_program_byte_fee = u64::from_le_bytes(bytes);
+                            params_holder.deploy_entry_per_program_byte_fee =
+                                u64::from_le_bytes(bytes);
                         }
                     }
                     _ => (),
@@ -219,7 +223,8 @@ impl ParamsManager {
                     }
                     0x12 => {
                         if let Ok(bytes) = value.as_ref().try_into() {
-                            params_holder.opcode_ops.op_pushdata_per_byte = u64::from_le_bytes(bytes);
+                            params_holder.opcode_ops.op_pushdata_per_byte =
+                                u64::from_le_bytes(bytes);
                         }
                     }
                     0x13 => {
@@ -544,7 +549,8 @@ impl ParamsManager {
                     }
                     0x53 => {
                         if let Ok(bytes) = value.as_ref().try_into() {
-                            params_holder.opcode_ops.op_greaterthanorequal = u64::from_le_bytes(bytes);
+                            params_holder.opcode_ops.op_greaterthanorequal =
+                                u64::from_le_bytes(bytes);
                         }
                     }
                     0x54 => {
@@ -609,12 +615,14 @@ impl ParamsManager {
                     }
                     0x60 => {
                         if let Ok(bytes) = value.as_ref().try_into() {
-                            params_holder.opcode_ops.op_taggedhash_per_byte_gap = u64::from_le_bytes(bytes);
+                            params_holder.opcode_ops.op_taggedhash_per_byte_gap =
+                                u64::from_le_bytes(bytes);
                         }
                     }
                     0x61 => {
                         if let Ok(bytes) = value.as_ref().try_into() {
-                            params_holder.opcode_ops.op_taggedhash_output_len = u64::from_le_bytes(bytes);
+                            params_holder.opcode_ops.op_taggedhash_output_len =
+                                u64::from_le_bytes(bytes);
                         }
                     }
                     0x62 => {
@@ -624,7 +632,8 @@ impl ParamsManager {
                     }
                     0x63 => {
                         if let Ok(bytes) = value.as_ref().try_into() {
-                            params_holder.opcode_ops.op_blake2bvar_per_byte = u64::from_le_bytes(bytes);
+                            params_holder.opcode_ops.op_blake2bvar_per_byte =
+                                u64::from_le_bytes(bytes);
                         }
                     }
                     0x64 => {
@@ -634,7 +643,8 @@ impl ParamsManager {
                     }
                     0x65 => {
                         if let Ok(bytes) = value.as_ref().try_into() {
-                            params_holder.opcode_ops.op_blake2svar_per_byte = u64::from_le_bytes(bytes);
+                            params_holder.opcode_ops.op_blake2svar_per_byte =
+                                u64::from_le_bytes(bytes);
                         }
                     }
                     0x66 => {
@@ -659,17 +669,20 @@ impl ParamsManager {
                     }
                     0x6A => {
                         if let Ok(bytes) = value.as_ref().try_into() {
-                            params_holder.opcode_ops.op_pushsecpgeneratorpoint = u64::from_le_bytes(bytes);
+                            params_holder.opcode_ops.op_pushsecpgeneratorpoint =
+                                u64::from_le_bytes(bytes);
                         }
                     }
                     0x6B => {
                         if let Ok(bytes) = value.as_ref().try_into() {
-                            params_holder.opcode_ops.op_iszerosecpscalar = u64::from_le_bytes(bytes);
+                            params_holder.opcode_ops.op_iszerosecpscalar =
+                                u64::from_le_bytes(bytes);
                         }
                     }
                     0x6C => {
                         if let Ok(bytes) = value.as_ref().try_into() {
-                            params_holder.opcode_ops.op_isinfinitesecppoint = u64::from_le_bytes(bytes);
+                            params_holder.opcode_ops.op_isinfinitesecppoint =
+                                u64::from_le_bytes(bytes);
                         }
                     }
                     0x6D => {
@@ -679,7 +692,8 @@ impl ParamsManager {
                     }
                     0x6E => {
                         if let Ok(bytes) = value.as_ref().try_into() {
-                            params_holder.opcode_ops.op_checkschnorrsigbip340 = u64::from_le_bytes(bytes);
+                            params_holder.opcode_ops.op_checkschnorrsigbip340 =
+                                u64::from_le_bytes(bytes);
                         }
                     }
                     0x6F => {
@@ -689,12 +703,14 @@ impl ParamsManager {
                     }
                     0x70 => {
                         if let Ok(bytes) = value.as_ref().try_into() {
-                            params_holder.opcode_ops.op_checkblssigagg_base = u64::from_le_bytes(bytes);
+                            params_holder.opcode_ops.op_checkblssigagg_base =
+                                u64::from_le_bytes(bytes);
                         }
                     }
                     0x71 => {
                         if let Ok(bytes) = value.as_ref().try_into() {
-                            params_holder.opcode_ops.op_checkblssigagg_per_count = u64::from_le_bytes(bytes);
+                            params_holder.opcode_ops.op_checkblssigagg_per_count =
+                                u64::from_le_bytes(bytes);
                         }
                     }
                     0x72 => {
@@ -764,12 +780,14 @@ impl ParamsManager {
                     }
                     0x7F => {
                         if let Ok(bytes) = value.as_ref().try_into() {
-                            params_holder.opcode_ops.op_shadow_has_alloc = u64::from_le_bytes(bytes);
+                            params_holder.opcode_ops.op_shadow_has_alloc =
+                                u64::from_le_bytes(bytes);
                         }
                     }
                     0x80 => {
                         if let Ok(bytes) = value.as_ref().try_into() {
-                            params_holder.opcode_ops.op_shadow_alloc_val = u64::from_le_bytes(bytes);
+                            params_holder.opcode_ops.op_shadow_alloc_val =
+                                u64::from_le_bytes(bytes);
                         }
                     }
                     0x81 => {
@@ -794,12 +812,14 @@ impl ParamsManager {
                     }
                     0x85 => {
                         if let Ok(bytes) = value.as_ref().try_into() {
-                            params_holder.opcode_ops.op_shadow_num_allocs = u64::from_le_bytes(bytes);
+                            params_holder.opcode_ops.op_shadow_num_allocs =
+                                u64::from_le_bytes(bytes);
                         }
                     }
                     0x86 => {
                         if let Ok(bytes) = value.as_ref().try_into() {
-                            params_holder.opcode_ops.op_shadow_allocs_sum = u64::from_le_bytes(bytes);
+                            params_holder.opcode_ops.op_shadow_allocs_sum =
+                                u64::from_le_bytes(bytes);
                         }
                     }
                     0x87 => {
@@ -897,19 +917,23 @@ impl ParamsManager {
         self.get_mut_ephemeral_params_holder().call_entry_base_fee = value;
     }
     pub fn set_call_entry_ppm_calldata_bytesize_fee(&mut self, value: u64) {
-        self.get_mut_ephemeral_params_holder().call_entry_ppm_calldata_bytesize_fee = value;
+        self.get_mut_ephemeral_params_holder()
+            .call_entry_ppm_calldata_bytesize_fee = value;
     }
     pub fn set_liftup_entry_base_fee(&mut self, value: u64) {
         self.get_mut_ephemeral_params_holder().liftup_entry_base_fee = value;
     }
     pub fn set_liftup_entry_per_lift_base_fee(&mut self, value: u64) {
-        self.get_mut_ephemeral_params_holder().liftup_entry_per_lift_base_fee = value;
+        self.get_mut_ephemeral_params_holder()
+            .liftup_entry_per_lift_base_fee = value;
     }
     pub fn set_move_ppm_liquidity_fee(&mut self, value: u64) {
-        self.get_mut_ephemeral_params_holder().move_ppm_liquidity_fee = value;
+        self.get_mut_ephemeral_params_holder()
+            .move_ppm_liquidity_fee = value;
     }
     pub fn set_in_call_ppm_liquidity_fee(&mut self, value: u64) {
-        self.get_mut_ephemeral_params_holder().in_call_ppm_liquidity_fee = value;
+        self.get_mut_ephemeral_params_holder()
+            .in_call_ppm_liquidity_fee = value;
     }
     pub fn set_swapout_entry_base_fee(&mut self, value: u64) {
         self.get_mut_ephemeral_params_holder()
@@ -919,13 +943,15 @@ impl ParamsManager {
         self.get_mut_ephemeral_params_holder().config_entry_base_fee = value;
     }
     pub fn set_config_entry_per_config_byte_fee(&mut self, value: u64) {
-        self.get_mut_ephemeral_params_holder().config_entry_per_config_byte_fee = value;
+        self.get_mut_ephemeral_params_holder()
+            .config_entry_per_config_byte_fee = value;
     }
     pub fn set_deploy_entry_base_fee(&mut self, value: u64) {
         self.get_mut_ephemeral_params_holder().deploy_entry_base_fee = value;
     }
     pub fn set_deploy_entry_per_program_byte_fee(&mut self, value: u64) {
-        self.get_mut_ephemeral_params_holder().deploy_entry_per_program_byte_fee = value;
+        self.get_mut_ephemeral_params_holder()
+            .deploy_entry_per_program_byte_fee = value;
     }
 
     /// Reverts the ephemeral changes associated with the last execution.

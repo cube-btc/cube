@@ -300,4 +300,3 @@ impl OpcodeOpsParams {
         value.min(u32::MAX as u64) as u32
     }
 }
-
