@@ -1,3 +1,6 @@
+[!WARNING]
+The feds are after me and the Cube project. My business partner, Enzo Caruso, turned out to be a fed, and he took over the Telegram community channel from me. They will likely take down this repository soon because I refuse to bow.
+
 ![Cube](https://i.ibb.co/KjnGsD7L/cube-text-logo.png)
 Cube is a four-elemental, fire-sampled virtual execution environment for Bitcoin.
 
