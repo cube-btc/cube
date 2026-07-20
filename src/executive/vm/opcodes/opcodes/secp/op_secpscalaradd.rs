@@ -57,7 +57,9 @@ impl OP_SECPSCALARADD {
         stack_holder.push(addition_item)?;
 
         // Increment the ops counter.
-        stack_holder.increment_ops(OpcodeOpsParams::as_u32(stack_holder.opcode_ops().op_secpscalaradd))?;
+        stack_holder.increment_ops(OpcodeOpsParams::as_u32(
+            stack_holder.opcode_ops().op_secpscalaradd,
+        ))?;
 
         Ok(())
     }

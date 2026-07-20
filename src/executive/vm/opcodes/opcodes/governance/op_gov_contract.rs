@@ -14,7 +14,9 @@ impl OP_GOV_CONTRACT {
             return Ok(());
         }
 
-        stack_holder.increment_ops(OpcodeOpsParams::as_u32(stack_holder.opcode_ops().op_gov_contract))?;
+        stack_holder.increment_ops(OpcodeOpsParams::as_u32(
+            stack_holder.opcode_ops().op_gov_contract,
+        ))?;
 
         Ok(())
     }

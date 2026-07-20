@@ -90,8 +90,8 @@ use crate::{
     },
     inscriptive::{
         coin_manager::coin_manager::COIN_MANAGER,
-        params_manager::params_holder::params_holder::ParamsHolder,
-        registry::registry::REGISTRY, state_manager::state_manager::STATE_MANAGER,
+        params_manager::params_holder::params_holder::ParamsHolder, registry::registry::REGISTRY,
+        state_manager::state_manager::STATE_MANAGER,
     },
 };
 
@@ -187,10 +187,8 @@ pub async fn execute(
                 return Err(ExecutionError::MinPayableAllocationError);
             }
 
-            // TODO: CHECK ENOUGH BALANCE.
-
             // If a payable value is allocted, the caller must also be an account.
-            let _caller_key = match caller {
+            let caller_key = match caller {
                 Caller::Account(key) => key,
                 Caller::Contract(_) => {
                     return Err(ExecutionError::PayableAllocationCallerIsNotAnAccountError);
@@ -200,6 +198,24 @@ pub async fn execute(
             // If a payable value is allocted, this cannot be an internal call.
             if internal {
                 return Err(ExecutionError::PayableWithInternalCallError);
+            }
+
+            // The caller must have enough liquid balance to cover the payable allocation.
+            let payable_allocation_in_satoshis = payable_allocation_value as u64;
+            let account_balance = {
+                let _coin_manager = coin_manager.lock().await;
+                _coin_manager.get_account_balance(caller_key).ok_or(
+                    ExecutionError::PayableAllocationAccountNotFoundError(caller_key),
+                )?
+            };
+            if account_balance < payable_allocation_in_satoshis {
+                return Err(
+                    ExecutionError::InsufficientBalanceForPayableAllocationError {
+                        account_key: caller_key,
+                        required: payable_allocation_in_satoshis,
+                        available: account_balance,
+                    },
+                );
             }
 
             // Insert the allocation into the accountant.
@@ -860,7 +876,7 @@ pub async fn execute(
             Opcode::OP_SFREE(OP_SFREE) => {
                 OP_SFREE::execute(&mut stack_holder, state_manager)
                     .await
-                    .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
+                    .map_err(ExecutionError::OpcodeExecutionError)?;
             }
 
             // Memory opcodes.
@@ -880,19 +896,19 @@ pub async fn execute(
             // Governance opcodes.
             Opcode::OP_UPDATE_PARAM(OP_UPDATE_PARAM) => {
                 OP_UPDATE_PARAM::execute(&mut stack_holder)
-                    .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
+                    .map_err(ExecutionError::OpcodeExecutionError)?;
             }
             Opcode::OP_GOV_ACCOUNT(OP_GOV_ACCOUNT) => {
                 OP_GOV_ACCOUNT::execute(&mut stack_holder)
-                    .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
+                    .map_err(ExecutionError::OpcodeExecutionError)?;
             }
             Opcode::OP_GOV_CONTRACT(OP_GOV_CONTRACT) => {
                 OP_GOV_CONTRACT::execute(&mut stack_holder)
-                    .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
+                    .map_err(ExecutionError::OpcodeExecutionError)?;
             }
             Opcode::OP_RECONSTITUTE(OP_RECONSTITUTE) => {
                 OP_RECONSTITUTE::execute(&mut stack_holder)
-                    .map_err(|error| ExecutionError::OpcodeExecutionError(error))?;
+                    .map_err(ExecutionError::OpcodeExecutionError)?;
             }
         }
     }

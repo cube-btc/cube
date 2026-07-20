@@ -2,8 +2,8 @@ use crate::executive::stack::{
     stack_error::{ShadowOpsError, StackError},
     stack_holder::StackHolder,
 };
-use crate::inscriptive::params_manager::params_holder::opcode_ops_params::OpcodeOpsParams;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
+use crate::inscriptive::params_manager::params_holder::opcode_ops_params::OpcodeOpsParams;
 use serde::{Deserialize, Serialize};
 
 /// Deallocates within the contract shadow space an account.
@@ -47,7 +47,9 @@ impl OP_SHADOW_DEALLOC {
         }
 
         // Return the result.
-        stack_holder.increment_ops(OpcodeOpsParams::as_u32(stack_holder.opcode_ops().op_shadow_dealloc))?;
+        stack_holder.increment_ops(OpcodeOpsParams::as_u32(
+            stack_holder.opcode_ops().op_shadow_dealloc,
+        ))?;
 
         Ok(())
     }

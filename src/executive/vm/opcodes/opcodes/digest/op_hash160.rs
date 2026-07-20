@@ -32,7 +32,9 @@ impl OP_HASH160 {
         let ripemd160_hash = ripemd160::Hash::hash(&sha256_hash).to_byte_array().to_vec();
 
         // Increment the ops counter.
-        stack_holder.increment_ops(OpcodeOpsParams::as_u32(stack_holder.opcode_ops().op_hash160))?;
+        stack_holder.increment_ops(OpcodeOpsParams::as_u32(
+            stack_holder.opcode_ops().op_hash160,
+        ))?;
 
         // Push the hash back to the main stack.
         stack_holder.push(StackItem::new(ripemd160_hash))?;

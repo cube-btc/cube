@@ -31,7 +31,9 @@ impl OP_HASH256 {
         let second_hash = sha256::Hash::hash(&first_hash).to_byte_array().to_vec();
 
         // Increment the ops counter.
-        stack_holder.increment_ops(OpcodeOpsParams::as_u32(stack_holder.opcode_ops().op_hash256))?;
+        stack_holder.increment_ops(OpcodeOpsParams::as_u32(
+            stack_holder.opcode_ops().op_hash256,
+        ))?;
 
         // Push the hash back to the main stack.
         stack_holder.push(StackItem::new(second_hash))?;

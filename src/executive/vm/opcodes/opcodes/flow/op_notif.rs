@@ -1,9 +1,7 @@
-use crate::executive::{
-    stack::{
-        flow::{flow_encounter::FlowEncounter, flow_status::FlowStatus},
-        stack_error::StackError,
-        stack_holder::StackHolder,
-    },
+use crate::executive::stack::{
+    flow::{flow_encounter::FlowEncounter, flow_status::FlowStatus},
+    stack_error::StackError,
+    stack_holder::StackHolder,
 };
 use crate::inscriptive::params_manager::params_holder::opcode_ops_params::OpcodeOpsParams;
 use serde::{Deserialize, Serialize};

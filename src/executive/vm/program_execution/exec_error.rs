@@ -32,6 +32,14 @@ pub enum ExecutionError {
     PayableAllocationCallerIsNotAnAccountError,
     /// Payable with internal call error.
     PayableWithInternalCallError,
+    /// Payable allocation account not found in coin manager error.
+    PayableAllocationAccountNotFoundError([u8; 32]),
+    /// Insufficient balance for payable allocation error.
+    InsufficientBalanceForPayableAllocationError {
+        account_key: [u8; 32],
+        required: u64,
+        available: u64,
+    },
     /// Invalid stack ending error.
     InvalidStackEndingError,
     /// Base ops price mismatch error.
@@ -84,6 +92,24 @@ impl fmt::Display for ExecutionError {
             }
             ExecutionError::PayableWithInternalCallError => {
                 write!(f, "Payable with internal call")
+            }
+            ExecutionError::PayableAllocationAccountNotFoundError(account_key) => {
+                write!(
+                    f,
+                    "Payable allocation account not found in coin manager: {:?}",
+                    account_key
+                )
+            }
+            ExecutionError::InsufficientBalanceForPayableAllocationError {
+                account_key,
+                required,
+                available,
+            } => {
+                write!(
+                    f,
+                    "Insufficient balance for payable allocation: account {:?}, required {}, available {}",
+                    account_key, required, available
+                )
             }
             ExecutionError::InvalidStackEndingError => {
                 write!(f, "Invalid stack ending")

@@ -43,7 +43,7 @@ impl OP_GOV_ACCOUNT {
             1 => {}
             // Expel pleb init
             2 => {}
-            // Expel pleb undo  
+            // Expel pleb undo
             3 => {}
             // Turn account resident
             4 => {}
@@ -62,7 +62,9 @@ impl OP_GOV_ACCOUNT {
             }
         }
 
-        stack_holder.increment_ops(OpcodeOpsParams::as_u32(stack_holder.opcode_ops().op_gov_account))?;
+        stack_holder.increment_ops(OpcodeOpsParams::as_u32(
+            stack_holder.opcode_ops().op_gov_account,
+        ))?;
 
         Ok(())
     }

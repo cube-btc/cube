@@ -52,7 +52,9 @@ impl OP_SECPPOINTMUL {
         stack_holder.push(multiplication_item)?;
 
         // Increment the ops counter.
-        stack_holder.increment_ops(OpcodeOpsParams::as_u32(stack_holder.opcode_ops().op_secppointmul))?;
+        stack_holder.increment_ops(OpcodeOpsParams::as_u32(
+            stack_holder.opcode_ops().op_secppointmul,
+        ))?;
 
         Ok(())
     }
