@@ -42,7 +42,9 @@ impl OP_ISZEROSECPSCALAR {
         stack_holder.push(result_item)?;
 
         // Increment the ops counter.
-        stack_holder.increment_ops(OpcodeOpsParams::as_u32(stack_holder.opcode_ops().op_iszerosecpscalar))?;
+        stack_holder.increment_ops(OpcodeOpsParams::as_u32(
+            stack_holder.opcode_ops().op_iszerosecpscalar,
+        ))?;
 
         Ok(())
     }

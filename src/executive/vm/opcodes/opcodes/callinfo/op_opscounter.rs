@@ -33,7 +33,9 @@ impl OP_OPSCOUNTER {
         stack_holder.push(ops_counter_as_stack_item)?;
 
         // Increment the ops counter.
-        stack_holder.increment_ops(OpcodeOpsParams::as_u32(stack_holder.opcode_ops().op_opscounter))?;
+        stack_holder.increment_ops(OpcodeOpsParams::as_u32(
+            stack_holder.opcode_ops().op_opscounter,
+        ))?;
 
         Ok(())
     }

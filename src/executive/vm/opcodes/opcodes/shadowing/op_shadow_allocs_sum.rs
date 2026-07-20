@@ -4,8 +4,8 @@ use crate::executive::stack::{
     stack_item::StackItem,
     stack_uint::{SafeConverter, StackItemUintExt, StackUint},
 };
-use crate::inscriptive::params_manager::params_holder::opcode_ops_params::OpcodeOpsParams;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
+use crate::inscriptive::params_manager::params_holder::opcode_ops_params::OpcodeOpsParams;
 use serde::{Deserialize, Serialize};
 
 /// Returns the sum of all shadow allocation values of the contract.
@@ -51,7 +51,9 @@ impl OP_SHADOW_ALLOCS_SUM {
         }
 
         // Return the result.
-        stack_holder.increment_ops(OpcodeOpsParams::as_u32(stack_holder.opcode_ops().op_shadow_allocs_sum))?;
+        stack_holder.increment_ops(OpcodeOpsParams::as_u32(
+            stack_holder.opcode_ops().op_shadow_allocs_sum,
+        ))?;
 
         Ok(())
     }
