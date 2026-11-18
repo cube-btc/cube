@@ -332,7 +332,7 @@ impl KeyHolder {
     /// # Panics
     ///
     /// Panics if the keypair cannot be computed (should never happen for valid keys).
-    pub fn nostr_key_pair(&self) -> nostr_sdk::Keys {
+    pub fn nostr_key_pair(&self) -> nostr_sdk::prelude::Keys {
         // 1 Get the secp256k1 secret key as bytes.
         let secret_bytes = self.secp_secret_key_bytes.expose_secret();
 
@@ -347,7 +347,7 @@ impl KeyHolder {
             .expect("Failed to convert secret key to nsec");
 
         // 4 Parse the nsec to Nostr keypair.
-        nostr_sdk::Keys::parse(&nsec).expect("Failed to parse nsec to nostr keypair")
+        nostr_sdk::prelude::Keys::parse(&nsec).expect("Failed to parse nsec to nostr keypair")
     }
 
     /// Returns the Nostr `npub` string (compatibility method).

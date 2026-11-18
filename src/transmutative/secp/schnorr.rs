@@ -1,6 +1,7 @@
 use crate::transmutative::hash::{Hash, HashTag};
 use crate::transmutative::secp::into::IntoSigTuple;
-use rand::{rngs::OsRng, RngCore};
+use rand::rngs::SysRng;
+use rand::TryRng;
 use secp::{MaybePoint, MaybeScalar, Point, Scalar};
 
 /// The signing mode of Schnorr signatures.
@@ -177,7 +178,9 @@ fn secret_nonce(secret_key: [u8; 32], message: [u8; 32]) -> MaybeScalar {
 /// Generates a random secret.
 pub fn generate_secret() -> [u8; 32] {
     let mut random_entropy = [0u8; 32];
-    OsRng.fill_bytes(&mut random_entropy);
+    SysRng
+        .try_fill_bytes(&mut random_entropy)
+        .expect("failed to read OS entropy");
 
     let secret = random_entropy.hash(Some(HashTag::SecretKey));
     let secret_scalar = match MaybeScalar::reduce_from(&secret) {

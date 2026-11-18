@@ -71,16 +71,16 @@ pub async fn runexplorer_command(
         .route("/accounts", get(page_accounts))
         .route("/contracts", get(page_contracts))
         .route("/search", get(search_batch))
-        .route("/batch/height/:height", get(page_batch_by_height))
-        .route("/batch/tx/:txid", get(page_batch_by_txid))
-        .route("/entry/:entry_id", get(page_entry_by_id))
-        .route("/account/:account_id/:section", get(page_account_section))
-        .route("/account/:account_id", get(page_account_root_redirect))
+        .route("/batch/height/{height}", get(page_batch_by_height))
+        .route("/batch/tx/{txid}", get(page_batch_by_txid))
+        .route("/entry/{entry_id}", get(page_entry_by_id))
+        .route("/account/{account_id}/{section}", get(page_account_section))
+        .route("/account/{account_id}", get(page_account_root_redirect))
         .route(
-            "/contract/:contract_id/:section",
+            "/contract/{contract_id}/{section}",
             get(page_contract_section),
         )
-        .route("/contract/:contract_id", get(page_contract_root_redirect))
+        .route("/contract/{contract_id}", get(page_contract_root_redirect))
         .with_state(state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], port));

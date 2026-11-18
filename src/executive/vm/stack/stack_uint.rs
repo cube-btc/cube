@@ -15,7 +15,7 @@ construct_uint! {
 impl From<StackUint> for U512 {
     fn from(value: StackUint) -> Self {
         let mut result = U512::zero();
-        for i in 0..8 {
+        for i in 0..4 {
             result.0[i] = value.0[i];
         }
         result
@@ -25,7 +25,7 @@ impl From<StackUint> for U512 {
 impl From<U512> for StackUint {
     fn from(value: U512) -> Self {
         let mut result = StackUint::zero();
-        for i in 0..8 {
+        for i in 0..4 {
             result.0[i] = value.0[i];
         }
         result
@@ -35,7 +35,7 @@ impl From<U512> for StackUint {
 impl StackUint {
     /// Add two `StackUint` values and return the result modulo MAX::U256.
     pub fn addmod(x: &StackUint, y: &StackUint) -> StackUint {
-        let max = U512::from(StackUint::max_value());
+        let max = U512::from(StackUint::MAX);
 
         let x_as_u512 = U512::from(*x);
         let y_as_u512 = U512::from(*y);
@@ -50,7 +50,7 @@ impl StackUint {
 
     /// Multiply two `StackUint` values and return the result modulo MAX::U256.
     pub fn mulmod(x: &StackUint, y: &StackUint) -> StackUint {
-        let max = U512::from(StackUint::max_value());
+        let max = U512::from(StackUint::MAX);
         let x_as_u512 = U512::from(*x);
         let y_as_u512 = U512::from(*y);
 
@@ -73,9 +73,7 @@ impl StackUint {
 
     /// Returns a 32-byte array representation of the integer in big endian format.
     pub fn bytes_32(&self) -> [u8; 32] {
-        let mut result = [0u8; 32];
-        self.to_big_endian(&mut result);
-        result
+        self.to_big_endian()
     }
 
     /// Creates a `StackUint` from a 32-byte array in big endian format.
@@ -189,9 +187,8 @@ impl StackItemUintExt for StackItem {
             return StackItem::false_item();
         }
 
-        // Create a buffer for the StackUint (256-bit unsigned integer).
-        let mut buf = [0x00u8; 32];
-        value.to_little_endian(&mut buf);
+        // Serialize the StackUint (256-bit unsigned integer) as little-endian bytes.
+        let buf = value.to_little_endian();
 
         // Get the minimal number of bytes required to represent the StackUint.
         let required_bytes = minimal_bytes_required(&value);

@@ -1,3 +1,5 @@
+use nostr_sdk::prelude::*;
+
 pub const DEFAULT_RELAY_LIST: [&str; 5] = [
     "wss://relay.damus.io",
     "wss://relay.primal.net",
@@ -10,7 +12,7 @@ pub trait Relay {
     fn add_default_relay_list(&self) -> impl std::future::Future<Output = ()> + Send;
 }
 
-impl Relay for nostr_sdk::Client {
+impl Relay for Client {
     fn add_default_relay_list(&self) -> impl std::future::Future<Output = ()> + Send {
         async move {
             // Add the list of default relays.
