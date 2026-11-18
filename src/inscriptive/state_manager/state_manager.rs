@@ -4,7 +4,6 @@ use super::errors::insert_update_state_error::SMInsertUpdateStateError;
 use super::errors::register_error::SMRegisterContractError;
 use crate::inscriptive::state_manager::errors::apply_changes_error::SMApplyChangesError;
 use crate::inscriptive::state_manager::errors::remove_state_error::SMRemoveStateError;
-use crate::inscriptive::state_manager::state_holder::state_holder::SMContractStateHolder;
 use crate::operative::run_args::chain::Chain;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
@@ -23,7 +22,7 @@ type StateValue = Vec<u8>;
 /// A struct for managing contract states in-memory and on-disk.
 pub struct StateManager {
     // In-memory states.
-    pub in_memory_states: HashMap<ContractId, SMContractStateHolder>,
+    pub in_memory_states: HashMap<ContractId, HashMap<StateKey, StateValue>>,
 
     // On-disk states.
     pub on_disk_states: sled::Db,
@@ -47,7 +46,7 @@ impl StateManager {
         let states_db = sled::open(states_db_path).map_err(SMConstructionError::DBOpenError)?;
 
         // 2 Initialize the in-memory states.
-        let mut in_memory_states = HashMap::<ContractId, SMContractStateHolder>::new();
+        let mut in_memory_states = HashMap::<ContractId, HashMap<StateKey, StateValue>>::new();
 
         // 3 Collect states from the database.
         for tree_name in states_db.tree_names() {
@@ -72,11 +71,8 @@ impl StateManager {
                 .map(|(k, v)| (k.to_vec(), v.to_vec()))
                 .collect::<HashMap<StateKey, StateValue>>();
 
-            // 3.4 Construct the state holder from the collected values.
-            let state_holder = SMContractStateHolder::new(&states);
-
-            // 3.5 Insert the state holder into the in-memory states.
-            in_memory_states.insert(contract_id, state_holder);
+            // 3.4 Insert the states into the in-memory states.
+            in_memory_states.insert(contract_id, states);
         }
 
         // 4 Construct the state manager.
@@ -132,7 +128,8 @@ impl StateManager {
         // 3 And then try to get from the permanent in-memory states.
         self.in_memory_states
             .get(&contract_id)?
-            .get_state_value(key)
+            .get(key)
+            .cloned()
     }
 
     /// Registers a new contract.
@@ -257,12 +254,9 @@ impl StateManager {
 
             // 1.2 In-memory insertion.
             {
-                // 1.2.1 Create a fresh new contract state holder.
-                let fresh_new_contract_state_holder = SMContractStateHolder::fresh_new();
-
-                // 1.2.2 Insert the contract state into the in-memory states.
+                // 1.2.1 Insert an empty states map for the new contract.
                 self.in_memory_states
-                    .insert(*contract_id, fresh_new_contract_state_holder);
+                    .insert(*contract_id, HashMap::new());
             }
         }
 
@@ -292,15 +286,15 @@ impl StateManager {
 
             // 2.2 In-memory insertion.
             {
-                // 2.2.1 Get the mutable contract state holder from the in-memory states.
-                let mut_contract_state_holder = self.in_memory_states.get_mut(contract_id).ok_or(
+                // 2.2.1 Get the mutable states map from the in-memory states.
+                let mut_contract_states = self.in_memory_states.get_mut(contract_id).ok_or(
                     SMApplyChangesError::ContractIdNotFoundInMemory(*contract_id),
                 )?;
 
-                // 2.2.2 Insert the states into the contract state holder.
+                // 2.2.2 Insert the states into the map.
                 for (ephemeral_state_key, ephemeral_state_value) in ephemeral_states.iter() {
-                    mut_contract_state_holder
-                        .insert_update_state(ephemeral_state_key, ephemeral_state_value);
+                    mut_contract_states
+                        .insert(ephemeral_state_key.clone(), ephemeral_state_value.clone());
                 }
             }
         }
@@ -329,14 +323,14 @@ impl StateManager {
 
             // 3.2 In-memory removal.
             {
-                // 3.2.1 Get the mutable contract state holder from the in-memory states.
-                let mut_contract_state_holder = self.in_memory_states.get_mut(contract_id).ok_or(
+                // 3.2.1 Get the mutable states map from the in-memory states.
+                let mut_contract_states = self.in_memory_states.get_mut(contract_id).ok_or(
                     SMApplyChangesError::ContractIdNotFoundInMemory(*contract_id),
                 )?;
 
-                // 3.2.2 Remove the states from the contract state holder.
+                // 3.2.2 Remove the states from the map.
                 for state_key_to_remove in state_keys_to_remove.iter() {
-                    mut_contract_state_holder.remove_state(state_key_to_remove);
+                    mut_contract_states.remove(state_key_to_remove);
                 }
             }
         }
@@ -365,8 +359,20 @@ impl StateManager {
             Value::Object(
                 self.in_memory_states
                     .iter()
-                    .map(|(contract_id, contract_state_holder)| {
-                        (hex::encode(contract_id), contract_state_holder.json())
+                    .map(|(contract_id, contract_states)| {
+                        let mut contract_obj = Map::new();
+                        contract_obj.insert(
+                            "contract_states".to_string(),
+                            Value::Object(
+                                contract_states
+                                    .iter()
+                                    .map(|(key, value)| {
+                                        (hex::encode(key), Value::String(hex::encode(value)))
+                                    })
+                                    .collect(),
+                            ),
+                        );
+                        (hex::encode(contract_id), Value::Object(contract_obj))
                     })
                     .collect(),
             ),
