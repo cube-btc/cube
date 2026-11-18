@@ -3,8 +3,8 @@ use crate::executive::stack::{
     stack_error::{StackError, StorageError},
     stack_holder::StackHolder,
 };
-use crate::inscriptive::state_manager::state_manager::STATE_MANAGER;
 use crate::inscriptive::params_manager::params_holder::opcode_ops_params::OpcodeOpsParams;
+use crate::inscriptive::state_manager::state_manager::STATE_MANAGER;
 use serde::{Deserialize, Serialize};
 
 /// The `OP_SWRITE` opcode.

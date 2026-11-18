@@ -4,8 +4,8 @@ use crate::executive::stack::{
     stack_item::StackItem,
     stack_uint::StackItemUintExt,
 };
-use crate::transmutative::bls::verify::bls_verify_aggregate;
 use crate::inscriptive::params_manager::params_holder::opcode_ops_params::OpcodeOpsParams;
+use crate::transmutative::bls::verify::bls_verify_aggregate;
 use serde::{Deserialize, Serialize};
 
 /// Checks a BLS aggregate signature against a set of keys and messages.

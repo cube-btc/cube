@@ -14,7 +14,9 @@ impl OP_RECONSTITUTE {
             return Ok(());
         }
 
-        stack_holder.increment_ops(OpcodeOpsParams::as_u32(stack_holder.opcode_ops().op_reconstitute))?;
+        stack_holder.increment_ops(OpcodeOpsParams::as_u32(
+            stack_holder.opcode_ops().op_reconstitute,
+        ))?;
 
         Ok(())
     }

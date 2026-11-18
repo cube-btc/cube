@@ -28,7 +28,9 @@ impl OP_RIPEMD160 {
             .to_vec();
 
         // Increment the ops counter.
-        stack_holder.increment_ops(OpcodeOpsParams::as_u32(stack_holder.opcode_ops().op_ripemd160))?;
+        stack_holder.increment_ops(OpcodeOpsParams::as_u32(
+            stack_holder.opcode_ops().op_ripemd160,
+        ))?;
 
         // Push the hash back to the main stack.
         stack_holder.push(StackItem::new(hash))?;

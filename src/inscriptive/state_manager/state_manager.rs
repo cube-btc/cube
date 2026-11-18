@@ -126,10 +126,7 @@ impl StateManager {
         }
 
         // 3 And then try to get from the permanent in-memory states.
-        self.in_memory_states
-            .get(&contract_id)?
-            .get(key)
-            .cloned()
+        self.in_memory_states.get(&contract_id)?.get(key).cloned()
     }
 
     /// Registers a new contract.
@@ -255,8 +252,7 @@ impl StateManager {
             // 1.2 In-memory insertion.
             {
                 // 1.2.1 Insert an empty states map for the new contract.
-                self.in_memory_states
-                    .insert(*contract_id, HashMap::new());
+                self.in_memory_states.insert(*contract_id, HashMap::new());
             }
         }
 

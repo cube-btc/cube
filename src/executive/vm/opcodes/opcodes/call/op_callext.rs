@@ -81,7 +81,9 @@ impl OP_CALLEXT {
         }
 
         // Increment the ops counter.
-        stack_holder.increment_ops(OpcodeOpsParams::as_u32(stack_holder.opcode_ops().op_callext))?;
+        stack_holder.increment_ops(OpcodeOpsParams::as_u32(
+            stack_holder.opcode_ops().op_callext,
+        ))?;
 
         Ok((contract_id_bytes, method_index_as_u16, arguments))
     }

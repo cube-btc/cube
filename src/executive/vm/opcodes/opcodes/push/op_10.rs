@@ -1,5 +1,5 @@
-use crate::executive::{
-    stack::{stack_error::StackError, stack_holder::StackHolder, stack_item::StackItem},
+use crate::executive::stack::{
+    stack_error::StackError, stack_holder::StackHolder, stack_item::StackItem,
 };
 use crate::inscriptive::params_manager::params_holder::opcode_ops_params::OpcodeOpsParams;
 use serde::{Deserialize, Serialize};

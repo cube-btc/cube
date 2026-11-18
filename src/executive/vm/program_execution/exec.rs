@@ -90,8 +90,8 @@ use crate::{
     },
     inscriptive::{
         coin_manager::coin_manager::COIN_MANAGER,
-        params_manager::params_holder::params_holder::ParamsHolder,
-        registry::registry::REGISTRY, state_manager::state_manager::STATE_MANAGER,
+        params_manager::params_holder::params_holder::ParamsHolder, registry::registry::REGISTRY,
+        state_manager::state_manager::STATE_MANAGER,
     },
 };
 

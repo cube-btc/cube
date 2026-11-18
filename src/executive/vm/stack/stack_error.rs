@@ -9,8 +9,7 @@ use crate::inscriptive::{
         CMShadowDownAllError, CMShadowDownError, CMShadowUpAllError, CMShadowUpError,
     },
     state_manager::errors::{
-        insert_update_state_error::SMInsertUpdateStateError,
-        remove_state_error::SMRemoveStateError,
+        insert_update_state_error::SMInsertUpdateStateError, remove_state_error::SMRemoveStateError,
     },
 };
 

@@ -3,8 +3,8 @@ use crate::executive::stack::{
     stack_holder::StackHolder,
     stack_item::StackItem,
 };
-use crate::inscriptive::params_manager::params_holder::opcode_ops_params::OpcodeOpsParams;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
+use crate::inscriptive::params_manager::params_holder::opcode_ops_params::OpcodeOpsParams;
 use serde::{Deserialize, Serialize};
 
 /// Checks if an account has an allocation within the contract shadow space.
@@ -56,7 +56,9 @@ impl OP_SHADOW_HAS_ALLOC {
         }
 
         // Return the result.
-        stack_holder.increment_ops(OpcodeOpsParams::as_u32(stack_holder.opcode_ops().op_shadow_has_alloc))?;
+        stack_holder.increment_ops(OpcodeOpsParams::as_u32(
+            stack_holder.opcode_ops().op_shadow_has_alloc,
+        ))?;
 
         Ok(())
     }

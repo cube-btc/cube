@@ -1,3 +1,4 @@
+use crate::inscriptive::params_manager::params_holder::opcode_ops_params::OpcodeOpsParams;
 use crate::{
     executive::stack::{
         stack_error::{CoinBalanceGetError, StackError},
@@ -7,7 +8,6 @@ use crate::{
     },
     inscriptive::coin_manager::coin_manager::COIN_MANAGER,
 };
-use crate::inscriptive::params_manager::params_holder::opcode_ops_params::OpcodeOpsParams;
 use serde::{Deserialize, Serialize};
 
 /// Pushes the BTC balance of the underlying contract into the stack.
@@ -48,7 +48,9 @@ impl OP_SELF_BALANCE {
         // Push the contract balance to the stack.
         stack_holder.push(contract_balance_as_stack_item)?;
 
-        stack_holder.increment_ops(OpcodeOpsParams::as_u32(stack_holder.opcode_ops().op_self_balance))?;
+        stack_holder.increment_ops(OpcodeOpsParams::as_u32(
+            stack_holder.opcode_ops().op_self_balance,
+        ))?;
 
         Ok(())
     }

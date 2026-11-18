@@ -1,3 +1,4 @@
+use crate::inscriptive::params_manager::params_holder::opcode_ops_params::OpcodeOpsParams;
 use crate::{
     executive::stack::{
         stack_error::{ShadowOpsError, StackError},
@@ -7,7 +8,6 @@ use crate::{
     },
     inscriptive::coin_manager::coin_manager::COIN_MANAGER,
 };
-use crate::inscriptive::params_manager::params_holder::opcode_ops_params::OpcodeOpsParams;
 use serde::{Deserialize, Serialize};
 
 /// Returns the allocation value of an account within the contract shadow space.
@@ -73,7 +73,9 @@ impl OP_SHADOW_ALLOC_VAL {
         }
 
         // Return the result.
-        stack_holder.increment_ops(OpcodeOpsParams::as_u32(stack_holder.opcode_ops().op_shadow_alloc_val))?;
+        stack_holder.increment_ops(OpcodeOpsParams::as_u32(
+            stack_holder.opcode_ops().op_shadow_alloc_val,
+        ))?;
 
         Ok(())
     }

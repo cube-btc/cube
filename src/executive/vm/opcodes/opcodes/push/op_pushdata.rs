@@ -1,4 +1,3 @@
-use crate::inscriptive::params_manager::params_holder::opcode_ops_params::OpcodeOpsParams;
 use super::op_10::OP_10;
 use super::op_11::OP_11;
 use super::op_12::OP_12;
@@ -20,6 +19,7 @@ use crate::executive::stack::{
     limits::MAX_STACK_ITEM_SIZE, stack_error::StackError, stack_holder::StackHolder,
     stack_item::StackItem,
 };
+use crate::inscriptive::params_manager::params_holder::opcode_ops_params::OpcodeOpsParams;
 use serde::{Deserialize, Serialize};
 
 /// Pushes data to the main stack.

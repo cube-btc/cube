@@ -1,3 +1,4 @@
+use crate::inscriptive::params_manager::params_holder::opcode_ops_params::OpcodeOpsParams;
 use crate::{
     executive::stack::{
         limits::{MAX_KEY_LENGTH, MIN_KEY_LENGTH},
@@ -7,7 +8,6 @@ use crate::{
     },
     inscriptive::state_manager::state_manager::STATE_MANAGER,
 };
-use crate::inscriptive::params_manager::params_holder::opcode_ops_params::OpcodeOpsParams;
 use serde::{Deserialize, Serialize};
 
 /// The `OP_SFREE` opcode.

@@ -39,7 +39,9 @@ impl OP_ISINFINITESECPPOINT {
         stack_holder.push(result_item)?;
 
         // Increment the ops counter.
-        stack_holder.increment_ops(OpcodeOpsParams::as_u32(stack_holder.opcode_ops().op_isinfinitesecppoint))?;
+        stack_holder.increment_ops(OpcodeOpsParams::as_u32(
+            stack_holder.opcode_ops().op_isinfinitesecppoint,
+        ))?;
 
         Ok(())
     }

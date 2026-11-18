@@ -60,7 +60,9 @@ impl OP_CHECKBLSSIG {
         stack_holder.push(result_item)?;
 
         // Increment the ops counter.
-        stack_holder.increment_ops(OpcodeOpsParams::as_u32(stack_holder.opcode_ops().op_checkblssig))?;
+        stack_holder.increment_ops(OpcodeOpsParams::as_u32(
+            stack_holder.opcode_ops().op_checkblssig,
+        ))?;
 
         Ok(())
     }
