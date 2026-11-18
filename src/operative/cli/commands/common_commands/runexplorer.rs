@@ -786,7 +786,7 @@ fn site_header(search_value: &str) -> String {
 
 fn site_footer() -> &'static str {
     r#"<footer class="site-footer" role="contentinfo">
-<p class="footer-tagline">© 2026 Black Box Labs Inc. All Rights Reserved.</p>
+<p class="footer-tagline">© 2026 Cube Project. All Rights Reserved.</p>
 </footer>"#
 }
 
