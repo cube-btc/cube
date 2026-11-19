@@ -133,13 +133,13 @@ impl ExecCtx {
 
                 subsidy_breakdown = bd;
 
-                let liftup_credit_after_fees =
+                let liftup_value_after_fees_in_satoshis =
                     liftup_sum_value_in_satoshis.saturating_sub(fees_after_subsidy);
 
                 increase_account_balance_with_coin_manager(
                     &self.coin_manager,
                     account_key,
-                    liftup_credit_after_fees,
+                    liftup_value_after_fees_in_satoshis,
                 )
                 .await
                 .map_err(LiftupExecutionError::CoinManagerAccountBalanceUpError)?;
@@ -165,13 +165,13 @@ impl ExecCtx {
 
                 subsidy_breakdown = bd;
 
-                let liftup_credit_after_fees =
+                let liftup_value_after_fees_in_satoshis =
                     liftup_sum_value_in_satoshis.saturating_sub(fees_after_subsidy);
 
                 increase_account_balance_with_coin_manager(
                     &self.coin_manager,
                     account_key,
-                    liftup_credit_after_fees,
+                    liftup_value_after_fees_in_satoshis,
                 )
                 .await
                 .map_err(LiftupExecutionError::CoinManagerAccountBalanceUpError)?;

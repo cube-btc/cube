@@ -161,7 +161,7 @@ impl FlameManager {
     }
 
     /// Checks if an account is permanently registered.
-    pub fn is_account_registered(&self, account_key: AccountKey) -> bool {
+    pub fn is_account_permanently_registered(&self, account_key: AccountKey) -> bool {
         self.in_memory_flame_set.contains_key(&account_key)
     }
 
@@ -182,10 +182,15 @@ impl FlameManager {
     pub fn register_account(
         &mut self,
         account_key: AccountKey,
+        optimized: bool,
     ) -> Result<(), FMRegisterAccountError> {
         // 1 Check if the account is already permanently registered.
-        if self.is_account_registered(account_key) {
-            return Err(FMRegisterAccountError::AccountIsAlreadyPermanentlyRegistered(account_key));
+        if !optimized {
+            if self.is_account_permanently_registered(account_key) {
+                return Err(
+                    FMRegisterAccountError::AccountIsAlreadyPermanentlyRegistered(account_key),
+                );
+            }
         }
 
         // 2 Epheremally register the account in the delta.
@@ -203,10 +208,16 @@ impl FlameManager {
     /// Epheremally erases an account.
     ///
     /// NOTE: These changes are saved with the use of the `apply_changes` function.
-    pub fn erase_account(&mut self, account_key: AccountKey) -> Result<(), FMEraseAccountError> {
+    pub fn erase_account(
+        &mut self,
+        account_key: AccountKey,
+        optimized: bool,
+    ) -> Result<(), FMEraseAccountError> {
         // 1 Check if the account is permanently registered.
-        if !self.is_account_registered(account_key) {
-            return Err(FMEraseAccountError::AccountIsNotRegistered(account_key));
+        if !optimized {
+            if !self.is_account_permanently_registered(account_key) {
+                return Err(FMEraseAccountError::AccountIsNotRegistered(account_key));
+            }
         }
 
         // 2 Check if the account has just been ephemerally marked for erasure in the delta.

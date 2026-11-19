@@ -40,6 +40,8 @@ mod coin_manager_tests {
         0x81, 0xc3,
     ];
 
+    const DB_OPTIMIZED: bool = false;
+
     #[tokio::test]
     async fn coin_manager_tests() -> Result<(), String> {
         // 1 Set the chain for local tests.
@@ -62,8 +64,8 @@ mod coin_manager_tests {
             let mut _coin_manager = coin_manager.lock().await;
 
             // 4.4 Register the account.
-            let result_1 = _coin_manager.register_account(special_db_key_1, 0);
-            let result_2 = _coin_manager.register_account(special_db_key_2, 0);
+            let result_1 = _coin_manager.register_account(special_db_key_1, 0, DB_OPTIMIZED);
+            let result_2 = _coin_manager.register_account(special_db_key_2, 0, DB_OPTIMIZED);
 
             // 4.5 The result should be an error.
             assert!(result_1.is_err());
@@ -76,13 +78,13 @@ mod coin_manager_tests {
             let mut _coin_manager = coin_manager.lock().await;
 
             // 5.2 Register the account.
-            let result = _coin_manager.register_account(ACCOUNT_KEY_1, 0);
+            let result = _coin_manager.register_account(ACCOUNT_KEY_1, 0, DB_OPTIMIZED);
 
             // 5.3 The result should be ok.
             assert!(result.is_ok());
 
             // 5.4 Check if the account is registered.
-            let is_registered = _coin_manager.is_account_registered(ACCOUNT_KEY_1);
+            let is_registered = _coin_manager.is_account_permanently_registered(ACCOUNT_KEY_1);
 
             // 5.5 The account should not be registered yet because changes are not applied yet.
             assert!(!is_registered);
@@ -97,7 +99,7 @@ mod coin_manager_tests {
             _coin_manager.flush_delta();
 
             // 5.11 Check if the account is registered.
-            let is_registered = _coin_manager.is_account_registered(ACCOUNT_KEY_1);
+            let is_registered = _coin_manager.is_account_permanently_registered(ACCOUNT_KEY_1);
             assert!(is_registered);
 
             // 5.12 Check if the account balance is 0.
@@ -105,7 +107,7 @@ mod coin_manager_tests {
             assert_eq!(account_balance, Some(0));
 
             // 5.13 Try to register the account again.
-            let result = _coin_manager.register_account(ACCOUNT_KEY_1, 0);
+            let result = _coin_manager.register_account(ACCOUNT_KEY_1, 0, DB_OPTIMIZED);
 
             // 5.14 The result should be an error.
             assert!(result.is_err());
@@ -184,7 +186,7 @@ mod coin_manager_tests {
             let mut _coin_manager = coin_manager.lock().await;
 
             // 6.2 Register the account with initial balance 500.
-            let result = _coin_manager.register_account(ACCOUNT_KEY_2, 500);
+            let result = _coin_manager.register_account(ACCOUNT_KEY_2, 500, DB_OPTIMIZED);
             assert!(result.is_ok());
 
             // 6.3 Apply changes.
@@ -195,7 +197,7 @@ mod coin_manager_tests {
             _coin_manager.flush_delta();
 
             // 6.5 Check if the account is registered.
-            let is_registered = _coin_manager.is_account_registered(ACCOUNT_KEY_2);
+            let is_registered = _coin_manager.is_account_permanently_registered(ACCOUNT_KEY_2);
             assert!(is_registered);
 
             // 6.6 Check if the account balance is 500.
@@ -240,7 +242,7 @@ mod coin_manager_tests {
             let mut _coin_manager = coin_manager.lock().await;
 
             // 7.2 Register the account.
-            let result = _coin_manager.register_account(ACCOUNT_KEY_3, 0);
+            let result = _coin_manager.register_account(ACCOUNT_KEY_3, 0, DB_OPTIMIZED);
             assert!(result.is_ok());
 
             // 7.3 Apply changes.
@@ -251,7 +253,7 @@ mod coin_manager_tests {
             _coin_manager.flush_delta();
 
             // 7.5 Check if the account is registered.
-            let is_registered = _coin_manager.is_account_registered(ACCOUNT_KEY_3);
+            let is_registered = _coin_manager.is_account_permanently_registered(ACCOUNT_KEY_3);
             assert!(is_registered);
         }
 
@@ -261,11 +263,11 @@ mod coin_manager_tests {
             let mut _coin_manager = coin_manager.lock().await;
 
             // 8.3 Register the contract with initial balance 100,000.
-            let result = _coin_manager.register_contract(CONTRACT_ID_1, 100_000);
+            let result = _coin_manager.register_contract(CONTRACT_ID_1, 100_000, DB_OPTIMIZED);
             assert!(result.is_ok());
 
             // 8.7 Check if the contract is registered. Should fail since changes are not applied yet.
-            let is_registered = _coin_manager.is_contract_registered(CONTRACT_ID_1);
+            let is_registered = _coin_manager.is_contract_permanently_registered(CONTRACT_ID_1);
             assert!(!is_registered);
 
             // 8.8 Apply changes.
@@ -276,7 +278,7 @@ mod coin_manager_tests {
             _coin_manager.flush_delta();
 
             // 8.10 Check if the contract is registered.
-            let is_registered = _coin_manager.is_contract_registered(CONTRACT_ID_1);
+            let is_registered = _coin_manager.is_contract_permanently_registered(CONTRACT_ID_1);
             assert!(is_registered);
         }
 
@@ -638,7 +640,7 @@ mod coin_manager_tests {
             let mut _coin_manager = coin_manager.lock().await;
 
             // 25.2 Register the seconds contract.
-            let result = _coin_manager.register_contract(CONTRACT_ID_2, 10_000);
+            let result = _coin_manager.register_contract(CONTRACT_ID_2, 10_000, DB_OPTIMIZED);
             assert!(result.is_ok());
 
             // 25.3 Apply changes.

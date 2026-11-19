@@ -438,6 +438,7 @@ impl PrivilegesManager {
         &mut self,
         account_key: AccountKey,
         account_body: PrivilegesManagerAccountBody,
+        optimized: bool,
     ) -> Result<(), PMRegisterAccountError> {
         if self.is_account_ephemerally_registered(account_key) {
             return Err(
@@ -445,8 +446,12 @@ impl PrivilegesManager {
             );
         }
 
-        if self.is_account_permanently_registered(account_key) {
-            return Err(PMRegisterAccountError::AccountIsAlreadyPermanentlyRegistered(account_key));
+        if !optimized {
+            if self.is_account_permanently_registered(account_key) {
+                return Err(
+                    PMRegisterAccountError::AccountIsAlreadyPermanentlyRegistered(account_key),
+                );
+            }
         }
 
         self.delta
@@ -459,6 +464,7 @@ impl PrivilegesManager {
         &mut self,
         contract_id: ContractId,
         contract_body: PrivilegesManagerContractBody,
+        optimized: bool,
     ) -> Result<(), PMRegisterContractError> {
         if self.is_contract_ephemerally_registered(contract_id) {
             return Err(
@@ -466,10 +472,12 @@ impl PrivilegesManager {
             );
         }
 
-        if self.is_contract_permanently_registered(contract_id) {
-            return Err(
-                PMRegisterContractError::ContractIsAlreadyPermanentlyRegistered(contract_id),
-            );
+        if !optimized {
+            if self.is_contract_permanently_registered(contract_id) {
+                return Err(
+                    PMRegisterContractError::ContractIsAlreadyPermanentlyRegistered(contract_id),
+                );
+            }
         }
 
         self.delta
@@ -480,10 +488,16 @@ impl PrivilegesManager {
     /// Epheremally erases an account.
     ///
     /// NOTE: These changes are saved with the use of the `apply_changes` function.
-    pub fn erase_account(&mut self, account_key: AccountKey) -> Result<(), PMEraseAccountError> {
+    pub fn erase_account(
+        &mut self,
+        account_key: AccountKey,
+        optimized: bool,
+    ) -> Result<(), PMEraseAccountError> {
         // 1 Check if the account is permanently registered.
-        if !self.is_account_permanently_registered(account_key) {
-            return Err(PMEraseAccountError::AccountIsNotRegistered(account_key));
+        if !optimized {
+            if !self.is_account_permanently_registered(account_key) {
+                return Err(PMEraseAccountError::AccountIsNotRegistered(account_key));
+            }
         }
 
         // 2 Check if the account has just been ephemerally marked for erasure in the delta.
@@ -503,10 +517,16 @@ impl PrivilegesManager {
     /// Epheremally erases a contract.
     ///
     /// NOTE: These changes are saved with the use of the `apply_changes` function.
-    pub fn erase_contract(&mut self, contract_id: ContractId) -> Result<(), PMEraseContractError> {
+    pub fn erase_contract(
+        &mut self,
+        contract_id: ContractId,
+        optimized: bool,
+    ) -> Result<(), PMEraseContractError> {
         // 1 Check if the contract is permanently registered.
-        if !self.is_contract_permanently_registered(contract_id) {
-            return Err(PMEraseContractError::ContractIsNotRegistered(contract_id));
+        if !optimized {
+            if !self.is_contract_permanently_registered(contract_id) {
+                return Err(PMEraseContractError::ContractIsNotRegistered(contract_id));
+            }
         }
 
         // 2 Check if the contract has just been ephemerally marked for erasure in the delta.

@@ -31,6 +31,8 @@ mod state_manager_tests {
     const STATE_KEY_3: [u8; 32] = [0xeeu8; 32];
     const STATE_VALUE_3: [u8; 32] = [0xffu8; 32];
 
+    const DB_OPTIMIZED: bool = false;
+
     #[tokio::test]
     async fn state_manager_tests() -> Result<(), String> {
         // 1 Set the chain for local tests.
@@ -53,7 +55,7 @@ mod state_manager_tests {
             let mut _state_manager = state_manager.lock().await;
 
             // 5.2 Register the first contract.
-            let result = _state_manager.register_contract(CONTRACT_ID_1);
+            let result = _state_manager.register_contract(CONTRACT_ID_1, DB_OPTIMIZED);
             assert!(result.is_ok());
         }
 
@@ -272,7 +274,7 @@ mod state_manager_tests {
             let mut _state_manager = state_manager.lock().await;
 
             // 27.2 Register the second contract.
-            let result = _state_manager.register_contract(CONTRACT_ID_2);
+            let result = _state_manager.register_contract(CONTRACT_ID_2, DB_OPTIMIZED);
             assert!(result.is_ok());
         }
 

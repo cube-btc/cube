@@ -197,6 +197,7 @@ impl Graveyard {
         &mut self,
         account_key: [u8; 32],
         redemption_amount: u64,
+        optimized: bool,
     ) -> Result<(), GraveyardBuryAccountError> {
         // 1 Check if the account has just been ephemerally buried.
         if self.delta.is_account_ephemerally_buried(account_key) {
@@ -206,8 +207,12 @@ impl Graveyard {
         }
 
         // 2 Check if the account has already been permanently buried.
-        if self.in_memory_buried_accounts.contains_key(&account_key) {
-            return Err(GraveyardBuryAccountError::AccountIsAlreadyPermanentlyBuried(account_key));
+        if !optimized {
+            if self.in_memory_buried_accounts.contains_key(&account_key) {
+                return Err(
+                    GraveyardBuryAccountError::AccountIsAlreadyPermanentlyBuried(account_key),
+                );
+            }
         }
 
         // 3 Epheremally bury the account in the delta.

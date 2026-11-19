@@ -139,7 +139,7 @@ pub async fn run_engine_cli(
 
                         let is_registered = {
                             let _coin_manager = coin_manager.lock().await;
-                            _coin_manager.is_account_registered(account_key)
+                            _coin_manager.is_account_permanently_registered(account_key)
                         };
                         println!("{}", is_registered);
                     }
@@ -170,7 +170,7 @@ pub async fn run_engine_cli(
 
                         let is_registered = {
                             let _flame_manager = flame_manager.lock().await;
-                            _flame_manager.is_account_registered(account_key)
+                            _flame_manager.is_account_permanently_registered(account_key)
                         };
                         println!("{}", is_registered);
                     }
@@ -315,7 +315,7 @@ pub async fn run_node_cli(
 
                         let is_registered = {
                             let _coin_manager = coin_manager.lock().await;
-                            _coin_manager.is_account_registered(account_key)
+                            _coin_manager.is_account_permanently_registered(account_key)
                         };
                         println!("{}", is_registered);
                     }
@@ -346,7 +346,7 @@ pub async fn run_node_cli(
 
                         let is_registered = {
                             let _flame_manager = flame_manager.lock().await;
-                            _flame_manager.is_account_registered(account_key)
+                            _flame_manager.is_account_permanently_registered(account_key)
                         };
                         println!("{}", is_registered);
                     }

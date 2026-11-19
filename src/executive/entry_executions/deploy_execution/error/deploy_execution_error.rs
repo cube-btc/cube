@@ -26,6 +26,7 @@ pub enum DeployExecutionError {
     DeployFeeDebitOverflow,
     FailedToApplyFeesSubsidy,
     CoinManagerAccountBalanceDownError(CMAccountBalanceDownError),
+    ThisContractIsBuriedBeforeError,
     RegistryRegisterContractError(RMRegisterContractError),
     CoinManagerRegisterContractError(CMRegisterContractError),
     StateManagerRegisterContractError(SMRegisterContractError),

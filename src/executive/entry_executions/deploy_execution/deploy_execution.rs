@@ -12,6 +12,9 @@ use crate::inscriptive::privileges_manager::elements::exemption::exemption::Exem
 use crate::inscriptive::privileges_manager::elements::liveness_flag::liveness_flag::LivenessFlag;
 use crate::inscriptive::privileges_manager::errors::update_error::PMUpdateAccountError;
 
+/// Whether to skip redundant database checks.
+const DB_OPTIMIZED: bool = false;
+
 impl ExecCtx {
     /// Executes a `Deploy` entry.
     pub async fn execute_deploy_internal(
@@ -112,6 +115,13 @@ impl ExecCtx {
         let contract_id = deploy.program.contract_id();
 
         {
+            let _graveyard = self.graveyard.lock().await;
+            if _graveyard.is_contract_buried(contract_id) {
+                return Err(DeployExecutionError::ThisContractIsBuriedBeforeError);
+            }
+        }
+
+        {
             let mut registry = self.registry.lock().await;
             registry
                 .register_contract(contract_id, execution_timestamp, deploy.program.clone())
@@ -121,14 +131,14 @@ impl ExecCtx {
         {
             let mut coin_manager = self.coin_manager.lock().await;
             coin_manager
-                .register_contract(contract_id, deploy.initial_balance as u64)
+                .register_contract(contract_id, deploy.initial_balance as u64, DB_OPTIMIZED)
                 .map_err(DeployExecutionError::CoinManagerRegisterContractError)?;
         }
 
         {
             let mut state_manager = self.state_manager.lock().await;
             state_manager
-                .register_contract(contract_id)
+                .register_contract(contract_id, DB_OPTIMIZED)
                 .map_err(DeployExecutionError::StateManagerRegisterContractError)?;
         }
 
@@ -140,7 +150,7 @@ impl ExecCtx {
             );
             let mut privileges_manager = self.privileges_manager.lock().await;
             privileges_manager
-                .register_contract(contract_id, contract_body)
+                .register_contract(contract_id, contract_body, DB_OPTIMIZED)
                 .map_err(DeployExecutionError::PrivilegesManagerRegisterContractError)?;
         }
 

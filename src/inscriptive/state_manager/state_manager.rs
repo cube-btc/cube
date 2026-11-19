@@ -110,7 +110,7 @@ impl StateManager {
     }
 
     /// Checks if a contract is permanently registered.
-    pub fn is_contract_registered(&self, contract_id: ContractId) -> bool {
+    pub fn is_contract_permanently_registered(&self, contract_id: ContractId) -> bool {
         self.in_memory_states.contains_key(&contract_id)
     }
 
@@ -136,6 +136,7 @@ impl StateManager {
     pub fn register_contract(
         &mut self,
         contract_id: ContractId,
+        optimized: bool,
     ) -> Result<(), SMRegisterContractError> {
         // 1 Check if the contract has just ben ephemerally registered in the delta.
         if self.delta.is_contract_ephemerally_registered(contract_id) {
@@ -145,10 +146,12 @@ impl StateManager {
         }
 
         // 2 Check if the contract is already permanently registered.
-        if self.is_contract_registered(contract_id) {
-            return Err(
-                SMRegisterContractError::ContractIsAlreadyPermanentlyRegistered(contract_id),
-            );
+        if !optimized {
+            if self.is_contract_permanently_registered(contract_id) {
+                return Err(
+                    SMRegisterContractError::ContractIsAlreadyPermanentlyRegistered(contract_id),
+                );
+            }
         }
 
         // 3 Epheremally register the contract in the delta.
@@ -161,10 +164,16 @@ impl StateManager {
     /// Epheremally erases a contract.
     ///
     /// NOTE: These changes are saved with the use of the `apply_changes` function.
-    pub fn erase_contract(&mut self, contract_id: ContractId) -> Result<(), SMEraseContractError> {
+    pub fn erase_contract(
+        &mut self,
+        contract_id: ContractId,
+        optimized: bool,
+    ) -> Result<(), SMEraseContractError> {
         // 1 Check if the contract is permanently registered.
-        if !self.is_contract_registered(contract_id) {
-            return Err(SMEraseContractError::ContractIsNotRegistered(contract_id));
+        if !optimized {
+            if !self.is_contract_permanently_registered(contract_id) {
+                return Err(SMEraseContractError::ContractIsNotRegistered(contract_id));
+            }
         }
 
         // 2 Check if the contract has just been ephemerally marked for erasure in the delta.
@@ -192,7 +201,7 @@ impl StateManager {
         optimized: bool,
     ) -> Result<Option<StateValue>, SMInsertUpdateStateError> {
         // 1 If not optimized, check if the contract is registered.
-        if !optimized && !self.is_contract_registered(contract_id) {
+        if !optimized && !self.is_contract_permanently_registered(contract_id) {
             return Err(SMInsertUpdateStateError::ContractNotRegistered(contract_id));
         }
 
@@ -235,7 +244,7 @@ impl StateManager {
         optimized: bool,
     ) -> Result<(), SMRemoveStateError> {
         // 1 If not optimized, check if the contract is registered.
-        if !optimized && !self.is_contract_registered(contract_id) {
+        if !optimized && !self.is_contract_permanently_registered(contract_id) {
             return Err(SMRemoveStateError::ContractNotRegistered(contract_id));
         }
 

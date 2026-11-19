@@ -13,6 +13,9 @@ use crate::inscriptive::registry::registry::REGISTRY;
 use crate::constructive::entity::account::root_account::unregistered_root_account::ext::register_with_db::register_with_db_error::UnregisteredRootAccountRegisterWithDBError;
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 
+/// Whether to skip redundant database checks.
+const DB_OPTIMIZED: bool = false;
+
 impl UnregisteredRootAccount {
     pub async fn register_with_db(
         &self,
@@ -66,6 +69,7 @@ impl UnregisteredRootAccount {
                 .register_account(
                     self.account_key_to_be_registered,
                     initial_account_balance_in_satoshis,
+                    DB_OPTIMIZED,
                 )
                 .map_err(|e| {
                     UnregisteredRootAccountRegisterWithDBError::CoinManagerRegisterAccountError(e)
@@ -79,7 +83,7 @@ impl UnregisteredRootAccount {
 
             // 4.2 Register the `RootAccount` with the `FlameManager`.
             _flame_manager
-                .register_account(self.account_key_to_be_registered)
+                .register_account(self.account_key_to_be_registered, DB_OPTIMIZED)
                 .map_err(|e| {
                     UnregisteredRootAccountRegisterWithDBError::FlameManagerRegisterAccountError(e)
                 })?;
@@ -108,6 +112,7 @@ impl UnregisteredRootAccount {
                 .register_account(
                     self.account_key_to_be_registered,
                     privileges_manager_account_body,
+                    DB_OPTIMIZED,
                 )
                 .map_err(
                     UnregisteredRootAccountRegisterWithDBError::PrivilegesManagerRegisterAccountError,

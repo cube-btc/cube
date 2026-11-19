@@ -392,14 +392,14 @@ impl CoinManager {
     /// Checks if an account is permanently registered.
     ///
     /// NOTE: Does not check ephemeral registrations in the delta.
-    pub fn is_account_registered(&self, account_key: AccountKey) -> bool {
+    pub fn is_account_permanently_registered(&self, account_key: AccountKey) -> bool {
         self.in_memory_accounts.contains_key(&account_key)
     }
 
     /// Checks if a contract is permanently registered.
     ///
     /// NOTE: Does not check ephemeral registrations in the delta.
-    pub fn is_contract_registered(&self, contract_id: ContractId) -> bool {
+    pub fn is_contract_permanently_registered(&self, contract_id: ContractId) -> bool {
         self.in_memory_contracts.contains_key(&contract_id)
     }
 
@@ -737,6 +737,7 @@ impl CoinManager {
         &mut self,
         account_key: AccountKey,
         initial_account_balance: u64,
+        optimized: bool,
     ) -> Result<(), CMRegisterAccountError> {
         // 1 Check if the account key collides with reserved database keys.
         if account_key == CONTRACT_BALANCE_SPECIAL_DB_KEY
@@ -755,8 +756,12 @@ impl CoinManager {
         }
 
         // 3 Check if the account is already permanently registered.
-        if self.is_account_registered(account_key) {
-            return Err(CMRegisterAccountError::AccountIsAlreadyPermanentlyRegistered(account_key));
+        if !optimized {
+            if self.is_account_permanently_registered(account_key) {
+                return Err(
+                    CMRegisterAccountError::AccountIsAlreadyPermanentlyRegistered(account_key),
+                );
+            }
         }
 
         // 4 Epheremally register the account in the delta.
@@ -774,6 +779,7 @@ impl CoinManager {
         &mut self,
         contract_id: [u8; 32],
         initial_contract_balance: u64,
+        optimized: bool,
     ) -> Result<(), CMRegisterContractError> {
         // 1 Check if the contract has just been ephemerally registered in the delta.
         if self.delta.is_contract_ephemerally_registered(contract_id) {
@@ -783,10 +789,12 @@ impl CoinManager {
         }
 
         // 2 Check if the contract is already permanently registered.
-        if self.is_contract_registered(contract_id) {
-            return Err(
-                CMRegisterContractError::ContractIsAlreadyPermanentlyRegistered(contract_id),
-            );
+        if !optimized {
+            if self.is_contract_permanently_registered(contract_id) {
+                return Err(
+                    CMRegisterContractError::ContractIsAlreadyPermanentlyRegistered(contract_id),
+                );
+            }
         }
 
         // 3 Epheremally register the contract in the delta.
@@ -800,10 +808,16 @@ impl CoinManager {
     /// Epheremally erases an account.
     ///
     /// NOTE: These changes are saved with the use of the `apply_changes` function.
-    pub fn erase_account(&mut self, account_key: AccountKey) -> Result<(), CMEraseAccountError> {
+    pub fn erase_account(
+        &mut self,
+        account_key: AccountKey,
+        optimized: bool,
+    ) -> Result<(), CMEraseAccountError> {
         // 1 Check if the account is permanently registered.
-        if !self.is_account_registered(account_key) {
-            return Err(CMEraseAccountError::AccountIsNotRegistered(account_key));
+        if !optimized {
+            if !self.is_account_permanently_registered(account_key) {
+                return Err(CMEraseAccountError::AccountIsNotRegistered(account_key));
+            }
         }
 
         // 2 Check if the account has just been ephemerally marked for erasure in the delta.
@@ -823,10 +837,16 @@ impl CoinManager {
     /// Epheremally erases a contract.
     ///
     /// NOTE: These changes are saved with the use of the `apply_changes` function.
-    pub fn erase_contract(&mut self, contract_id: ContractId) -> Result<(), CMEraseContractError> {
+    pub fn erase_contract(
+        &mut self,
+        contract_id: ContractId,
+        optimized: bool,
+    ) -> Result<(), CMEraseContractError> {
         // 1 Check if the contract is permanently registered.
-        if !self.is_contract_registered(contract_id) {
-            return Err(CMEraseContractError::ContractIsNotRegistered(contract_id));
+        if !optimized {
+            if !self.is_contract_permanently_registered(contract_id) {
+                return Err(CMEraseContractError::ContractIsNotRegistered(contract_id));
+            }
         }
 
         // 2 Check if the contract has just been ephemerally marked for erasure in the delta.

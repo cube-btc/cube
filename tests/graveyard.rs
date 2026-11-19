@@ -31,6 +31,8 @@ mod graveyard_tests {
     // 3.b Redemption amount for the third account.
     const REDEMPTION_AMOUNT_3: u64 = 10_000;
 
+    const DB_OPTIMIZED: bool = false;
+
     #[tokio::test]
     async fn graveyard_tests() -> Result<(), String> {
         // 1 Set the chain for local tests.
@@ -59,7 +61,7 @@ mod graveyard_tests {
 
             // 5.2 Bury the first account.
             _graveyard
-                .bury_account(ACCOUNT_KEY_1, REDEMPTION_AMOUNT_1)
+                .bury_account(ACCOUNT_KEY_1, REDEMPTION_AMOUNT_1, DB_OPTIMIZED)
                 .map_err(|err| format!("Error burying account: {:?}", err))?;
         }
 
@@ -97,7 +99,7 @@ mod graveyard_tests {
 
             // 8.2 Bury the second account.
             _graveyard
-                .bury_account(ACCOUNT_KEY_2, REDEMPTION_AMOUNT_2)
+                .bury_account(ACCOUNT_KEY_2, REDEMPTION_AMOUNT_2, DB_OPTIMIZED)
                 .map_err(|err| format!("Error burying account: {:?}", err))?;
         }
 
@@ -227,7 +229,7 @@ mod graveyard_tests {
 
             // 17.2 Bury the third account.
             _graveyard
-                .bury_account(ACCOUNT_KEY_3, REDEMPTION_AMOUNT_3)
+                .bury_account(ACCOUNT_KEY_3, REDEMPTION_AMOUNT_3, DB_OPTIMIZED)
                 .map_err(|err| format!("Error burying account: {:?}", err))?;
         }
 

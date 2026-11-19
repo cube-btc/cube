@@ -13,6 +13,9 @@ use crate::constructive::entity::account::account::unregistered_account::ext::re
 use crate::inscriptive::graveyard::graveyard::GRAVEYARD;
 use crate::inscriptive::params_manager::params_holder::params_holder::ParamsHolder;
 
+/// Whether to skip redundant database checks.
+const DB_OPTIMIZED: bool = false;
+
 impl UnregisteredAccount {
     /// Registers the `UnregisteredAccount` with the various database managers.
     pub async fn register_with_db(
@@ -67,6 +70,7 @@ impl UnregisteredAccount {
                 .register_account(
                     self.account_key_to_be_registered,
                     initial_account_balance_in_satoshis,
+                    DB_OPTIMIZED,
                 )
                 .map_err(|e| {
                     UnregisteredAccountRegisterWithDBError::CoinManagerRegisterAccountError(e)
@@ -80,7 +84,7 @@ impl UnregisteredAccount {
 
             // 3.2 Register the `RootAccount` with the `FlameManager`.
             _flame_manager
-                .register_account(self.account_key_to_be_registered)
+                .register_account(self.account_key_to_be_registered, DB_OPTIMIZED)
                 .map_err(|e| {
                     UnregisteredAccountRegisterWithDBError::FlameManagerRegisterAccountError(e)
                 })?;
@@ -108,6 +112,7 @@ impl UnregisteredAccount {
                 .register_account(
                     self.account_key_to_be_registered,
                     privileges_manager_account_body,
+                    DB_OPTIMIZED,
                 )
                 .map_err(
                     UnregisteredAccountRegisterWithDBError::PrivilegesManagerRegisterAccountError,
