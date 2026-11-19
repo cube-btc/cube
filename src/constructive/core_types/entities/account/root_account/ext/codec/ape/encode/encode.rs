@@ -146,7 +146,7 @@ impl RootAccount {
                         // 2.b.2.a The rank is to be encoded as a `LongVal`.
                         true => {
                             // 2.b.2.a.1 Convert the rank value into a `LongVal`.
-                            let rank_as_longval = LongVal::new(rank);
+                            let rank_as_longval = LongVal::new(rank as u64);
 
                             // 2.b.2.a.2 Extend the APE bit vector with the rank value as a `LongVal`.
                             bits.extend(rank_as_longval.encode_ape());
@@ -155,7 +155,7 @@ impl RootAccount {
                         // 2.b.2.b The rank is to be encoded as a `ShortVal`.
                         false => {
                             // 2.b.2.b.1 Convert the rank value into a `ShortVal`.
-                            let rank_as_shortval = ShortVal::new(rank as u32);
+                            let rank_as_shortval = ShortVal::new(rank);
 
                             // 2.b.2.b.2 Extend the APE bit vector with the rank value as a `ShortVal`.
                             bits.extend(rank_as_shortval.encode_ape());
@@ -250,7 +250,7 @@ impl RootAccount {
                         // 2.c.1.2.a The rank is to be encoded as a `LongVal`.
                         true => {
                             // 2.c.1.2.a.1 Convert the rank value into a `LongVal`.
-                            let rank_as_longval = LongVal::new(rank);
+                            let rank_as_longval = LongVal::new(rank as u64);
 
                             // 2.c.1.2.a.2 Extend the APE bit vector with the rank value as a `LongVal`.
                             bits.extend(rank_as_longval.encode_ape());
@@ -259,7 +259,7 @@ impl RootAccount {
                         // 2.c.1.2.b The rank is to be encoded as a `ShortVal`.
                         false => {
                             // 2.c.1.2.b.1 Convert the rank value into a `ShortVal`.
-                            let rank_as_shortval = ShortVal::new(rank as u32);
+                            let rank_as_shortval = ShortVal::new(rank);
 
                             // 2.c.1.2.b.2 Extend the APE bit vector with the rank value as a `ShortVal`.
                             bits.extend(rank_as_shortval.encode_ape());

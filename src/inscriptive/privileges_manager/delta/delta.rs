@@ -27,6 +27,8 @@ pub struct PrivilegesManagerDelta {
     pub updated_contract_liveness_flags: HashMap<ContractId, LivenessFlag>,
     pub updated_contract_immutability_flags: HashMap<ContractId, bool>,
     pub updated_contract_tax_exemptions: HashMap<ContractId, Exemption>,
+    pub accounts_to_erase: Vec<AccountKey>,
+    pub contracts_to_erase: Vec<ContractId>,
 }
 
 impl PrivilegesManagerDelta {
@@ -45,6 +47,8 @@ impl PrivilegesManagerDelta {
             updated_contract_liveness_flags: HashMap::new(),
             updated_contract_immutability_flags: HashMap::new(),
             updated_contract_tax_exemptions: HashMap::new(),
+            accounts_to_erase: Vec::new(),
+            contracts_to_erase: Vec::new(),
         }
     }
 
@@ -62,6 +66,8 @@ impl PrivilegesManagerDelta {
         self.updated_contract_liveness_flags.clear();
         self.updated_contract_immutability_flags.clear();
         self.updated_contract_tax_exemptions.clear();
+        self.accounts_to_erase.clear();
+        self.contracts_to_erase.clear();
     }
 
     /// Checks if an account has just been ephemerally registered in the delta.
@@ -72,6 +78,16 @@ impl PrivilegesManagerDelta {
     /// Checks if a contract has just been ephemerally registered in the delta.
     pub fn is_contract_ephemerally_registered(&self, contract_id: ContractId) -> bool {
         self.new_contracts_to_register.contains_key(&contract_id)
+    }
+
+    /// Checks if an account has just been ephemerally marked for erasure in the delta.
+    pub fn is_account_ephemerally_erased(&self, account_key: AccountKey) -> bool {
+        self.accounts_to_erase.contains(&account_key)
+    }
+
+    /// Checks if a contract has just been ephemerally marked for erasure in the delta.
+    pub fn is_contract_ephemerally_erased(&self, contract_id: ContractId) -> bool {
+        self.contracts_to_erase.contains(&contract_id)
     }
 
     /// Epheremally registers an account in the delta.
@@ -102,5 +118,15 @@ impl PrivilegesManagerDelta {
         self.new_contracts_to_register
             .insert(contract_id, contract_body);
         true
+    }
+
+    /// Epheremally marks an account for erasure in the delta.
+    pub fn ephemerally_erase_account(&mut self, account_key: AccountKey) {
+        self.accounts_to_erase.push(account_key);
+    }
+
+    /// Epheremally marks a contract for erasure in the delta.
+    pub fn ephemerally_erase_contract(&mut self, contract_id: ContractId) {
+        self.contracts_to_erase.push(contract_id);
     }
 }

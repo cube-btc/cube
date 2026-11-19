@@ -6,6 +6,9 @@ type AccountKey = [u8; 32];
 pub struct FMDelta {
     // New accounts to register.
     pub new_accounts_to_register: Vec<AccountKey>,
+
+    // Accounts to erase from the flame manager.
+    pub accounts_to_erase: Vec<AccountKey>,
 }
 
 impl FMDelta {
@@ -13,12 +16,14 @@ impl FMDelta {
     pub fn fresh_new() -> Self {
         Self {
             new_accounts_to_register: Vec::new(),
+            accounts_to_erase: Vec::new(),
         }
     }
 
     /// Clears all values.
     pub fn flush(&mut self) {
         self.new_accounts_to_register.clear();
+        self.accounts_to_erase.clear();
     }
 
     /// Checks if an account has just been ephemerally registered in the delta.
@@ -26,6 +31,11 @@ impl FMDelta {
         self.new_accounts_to_register
             .iter()
             .any(|key| key == &account_key)
+    }
+
+    /// Checks if an account has just been ephemerally marked for erasure in the delta.
+    pub fn is_account_ephemerally_erased(&self, account_key: AccountKey) -> bool {
+        self.accounts_to_erase.contains(&account_key)
     }
 
     /// Epheremally registers an account in the delta.
@@ -44,5 +54,10 @@ impl FMDelta {
                 true
             }
         }
+    }
+
+    /// Epheremally marks an account for erasure in the delta.
+    pub fn ephemerally_erase_account(&mut self, account_key: AccountKey) {
+        self.accounts_to_erase.push(account_key);
     }
 }

@@ -21,7 +21,7 @@ impl Contract {
         let contract_id = self.contract_id();
 
         // 3 Retrieve the rank value from the registry.
-        let rank: u64 = {
+        let rank: u32 = {
             // 3.1 Lock the registry.
             let _registry = registry.lock().await;
 
@@ -36,7 +36,7 @@ impl Contract {
             // 4.a The rank is to be encoded as a `LongVal`.
             true => {
                 // 4.a.1 Convert the rank value into a `LongVal`.
-                let rank_as_longval = LongVal::new(rank);
+                let rank_as_longval = LongVal::new(rank as u64);
 
                 // 4.a.2 Extend the rank value with the `LongVal`.
                 bits.extend(rank_as_longval.encode_ape());
@@ -45,7 +45,7 @@ impl Contract {
             // 4.b The rank is to be encoded as a `ShortVal`.
             false => {
                 // 4.b.1 Convert the rank value into a `ShortVal`.
-                let rank_as_shortval = ShortVal::new(rank as u32);
+                let rank_as_shortval = ShortVal::new(rank);
 
                 // 4.b.2 Extend the rank value with the `ShortVal`.
                 bits.extend(rank_as_shortval.encode_ape());

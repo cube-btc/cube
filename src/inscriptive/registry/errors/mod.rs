@@ -1,5 +1,7 @@
 pub mod apply_changes_error;
 pub mod construction_error;
+pub mod erase_account_error;
+pub mod erase_contract_error;
 pub mod register_account_error;
 pub mod register_contract_error;
 pub mod update_account_bls_key_error;

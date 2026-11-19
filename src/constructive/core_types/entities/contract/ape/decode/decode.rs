@@ -14,15 +14,15 @@ impl Contract {
         decode_rank_as_longval: bool,
     ) -> Result<Contract, ContractAPEDecodeError> {
         // 1 Match on whether to decode the rank value as a `LongVal` or a `ShortVal`.
-        let rank: u64 = match decode_rank_as_longval {
+        let rank: u32 = match decode_rank_as_longval {
             // 1.a The rank is decoded as a `LongVal`.
             true => {
                 // 1.a.1 Decode the rank value as a `LongVal`.
 
-                // 1.a.2 Return the rank value as a `u64`.
+                // 1.a.2 Return the rank value as a `u32`.
                 LongVal::decode_ape(bit_stream)
                     .map_err(ContractAPEDecodeError::FailedToDecodeRankValueAsLongVal)?
-                    .value()
+                    .value() as u32
             }
 
             // 1.b The rank is decoded as a `ShortVal`.
@@ -32,8 +32,8 @@ impl Contract {
                     .map_err(ContractAPEDecodeError::FailedToDecodeRankValueAsShortVal)?
                     .value();
 
-                // 1.b.2 Return the rank value as a `u64`.
-                rank as u64
+                // 1.b.2 Return the rank value as a `u32`.
+                rank
             }
         };
 

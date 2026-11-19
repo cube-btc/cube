@@ -4,7 +4,7 @@ use crate::constructive::valtype::val::{
 };
 
 /// Type alias for the `Contract` rank value.
-type Rank = u64;
+type Rank = u32;
 
 /// Enum to represent errors that can occur when decoding a `Contract` from an Airly Payload Encoding (APE) bitstream.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

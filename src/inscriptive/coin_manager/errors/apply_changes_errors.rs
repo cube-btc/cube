@@ -21,6 +21,7 @@ pub enum CMAccountApplyChangesError {
     BalanceValueOnDiskInsertionError(ACCOUNT_KEY, SATOSHI_AMOUNT, sled::Error),
     ShadowAllocsSumValueOnDiskInsertionError(ACCOUNT_KEY, SATI_SATOSHI_AMOUNT, sled::Error),
     UnableToGetPermanentAccountBody(ACCOUNT_KEY),
+    TreeDropError(ACCOUNT_KEY, sled::Error),
     //TreeValueInsertError(ACCOUNT_KEY, SATOSHI_AMOUNT, sled::Error),
     //UnableToGetAccountBody(ACCOUNT_KEY),
 }
@@ -40,6 +41,7 @@ pub enum CMContractApplyChangesError {
     ),
     InMemoryDeallocAccountError(CONTRACT_ID, ACCOUNT_KEY),
     OnDiskDeallocAccountError(CONTRACT_ID, ACCOUNT_KEY, sled::Error),
+    TreeDropError(CONTRACT_ID, sled::Error),
 }
 
 /// Errors associated with applying account and contract delta changes to the `CoinHolder`.

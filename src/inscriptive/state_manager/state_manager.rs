@@ -1,5 +1,6 @@
 use super::delta::delta::SMDelta;
 use super::errors::construction_error::SMConstructionError;
+use super::errors::erase_contract_error::SMEraseContractError;
 use super::errors::insert_update_state_error::SMInsertUpdateStateError;
 use super::errors::register_error::SMRegisterContractError;
 use crate::inscriptive::state_manager::errors::apply_changes_error::SMApplyChangesError;
@@ -152,6 +153,29 @@ impl StateManager {
 
         // 3 Epheremally register the contract in the delta.
         self.delta.ephemerally_register_contract(contract_id);
+
+        // 4 Return the result.
+        Ok(())
+    }
+
+    /// Epheremally erases a contract.
+    ///
+    /// NOTE: These changes are saved with the use of the `apply_changes` function.
+    pub fn erase_contract(&mut self, contract_id: ContractId) -> Result<(), SMEraseContractError> {
+        // 1 Check if the contract is permanently registered.
+        if !self.is_contract_registered(contract_id) {
+            return Err(SMEraseContractError::ContractIsNotRegistered(contract_id));
+        }
+
+        // 2 Check if the contract has just been ephemerally marked for erasure in the delta.
+        if self.delta.is_contract_ephemerally_erased(contract_id) {
+            return Err(SMEraseContractError::ContractHasJustBeenEphemerallyErased(
+                contract_id,
+            ));
+        }
+
+        // 3 Epheremally mark the contract for erasure in the delta.
+        self.delta.ephemerally_erase_contract(contract_id);
 
         // 4 Return the result.
         Ok(())
@@ -331,7 +355,18 @@ impl StateManager {
             }
         }
 
-        // 4 Return the result.
+        // 4 Erase contracts.
+        for contract_id in self.delta.contracts_to_erase.iter() {
+            // 4.1 On-disk removal.
+            self.on_disk_states
+                .drop_tree(contract_id)
+                .map_err(|e| SMApplyChangesError::TreeDropError(*contract_id, e))?;
+
+            // 4.2 In-memory removal.
+            self.in_memory_states.remove(contract_id);
+        }
+
+        // 5 Return the result.
         Ok(())
     }
 

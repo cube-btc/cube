@@ -1,6 +1,9 @@
 /// Account key.
 type AccountKey = [u8; 32];
 
+/// Contract id.
+type ContractId = [u8; 32];
+
 /// Errors associated with applying changes to the `Graveyard`.
 #[derive(Debug, Clone)]
 pub enum GraveyardApplyChangesError {
@@ -9,4 +12,7 @@ pub enum GraveyardApplyChangesError {
 
     /// Error when inserting buried account on disk.
     BuriedAccountInsertDBError(AccountKey, sled::Error),
+
+    /// Error when inserting buried contract on disk.
+    BuriedContractInsertDBError(ContractId, sled::Error),
 }

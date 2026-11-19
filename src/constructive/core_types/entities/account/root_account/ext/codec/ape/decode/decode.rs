@@ -24,15 +24,15 @@ impl RootAccount {
         registry: &REGISTRY,
     ) -> Result<RootAccount, RootAccountAPEDecodeError> {
         // 1 Decode the rank value from the APE bitstream.
-        let rank: u64 = match decode_rank_as_longval {
+        let rank: u32 = match decode_rank_as_longval {
             // 1.a The rank is decoded as a `LongVal`.
             true => {
                 // 1.a.1 Decode the rank value as a `LongVal`.
 
-                // 1.a.2 Return the rank value as a `u64`.
+                // 1.a.2 Return the rank value as a `u32`.
                 LongVal::decode_ape(bit_stream)
                     .map_err(RootAccountAPEDecodeError::FailedToDecodeRankValueAsLongVal)?
-                    .value()
+                    .value() as u32
             }
 
             // 1.b The rank is decoded as a `ShortVal`.
@@ -42,8 +42,8 @@ impl RootAccount {
                     .map_err(RootAccountAPEDecodeError::FailedToDecodeRankValueAsShortVal)?
                     .value();
 
-                // 1.b.2 Return the rank value as a `u64`.
-                rank as u64
+                // 1.b.2 Return the rank value as a `u32`.
+                rank
             }
         };
 

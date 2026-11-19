@@ -18,6 +18,7 @@ pub enum RMApplyChangesError {
     AccountNotFoundInMemory(AccountKey),
     AccountCallCounterUpdateError(AccountKey, u64, sled::Error),
     AccountLastActivityTimestampUpdateError(AccountKey, u64, sled::Error),
+    AccountTreeDropError(AccountKey, sled::Error),
     ContractTreeOpenError(ContractId, sled::Error),
     ContractRegistryIndexInsertError(ContractId, u64, sled::Error),
     ContractCallCounterInsertError(ContractId, u64, sled::Error),
@@ -26,6 +27,7 @@ pub enum RMApplyChangesError {
     ContractNotFoundInMemory(ContractId),
     ContractCallCounterUpdateError(ContractId, u64, sled::Error),
     ContractLastActivityTimestampUpdateError(ContractId, u64, sled::Error),
+    ContractTreeDropError(ContractId, sled::Error),
     ProgramCompileError(
         ContractId,
         crate::executive::executable::compiler::compiler_error::ProgramCompileError,

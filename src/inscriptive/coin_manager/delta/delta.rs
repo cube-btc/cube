@@ -31,6 +31,9 @@ pub struct CMDelta {
     // Updated global shadow allocs sums for a given account (sum across all contracts).
     pub updated_global_shadow_allocs_sums: HashMap<AccountKey, SatiSatoshiAmount>,
 
+    // Accounts to erase from the coin manager.
+    pub accounts_to_erase: Vec<AccountKey>,
+
     /// CONTRACT RELATED VALUES ///
     /// ------------------------------------------------------------
     // New contracts to register.
@@ -47,6 +50,9 @@ pub struct CMDelta {
 
     // Updated shadow spaces for a given contract.
     pub updated_shadow_spaces: HashMap<ContractId, ShadowSpace>,
+
+    // Contracts to erase from the coin manager.
+    pub contracts_to_erase: Vec<ContractId>,
 }
 
 impl CMDelta {
@@ -56,11 +62,13 @@ impl CMDelta {
             new_accounts_to_register: HashMap::new(),
             updated_account_balances: HashMap::new(),
             updated_global_shadow_allocs_sums: HashMap::new(),
+            accounts_to_erase: Vec::new(),
             new_contracts_to_register: HashMap::new(),
             allocs_list: HashMap::new(),
             deallocs_list: HashMap::new(),
             updated_contract_balances: HashMap::new(),
             updated_shadow_spaces: HashMap::new(),
+            contracts_to_erase: Vec::new(),
         }
     }
 
@@ -69,15 +77,47 @@ impl CMDelta {
         self.new_accounts_to_register.clear();
         self.updated_account_balances.clear();
         self.updated_global_shadow_allocs_sums.clear();
+        self.accounts_to_erase.clear();
         self.new_contracts_to_register.clear();
         self.allocs_list.clear();
         self.deallocs_list.clear();
         self.updated_contract_balances.clear();
         self.updated_shadow_spaces.clear();
+        self.contracts_to_erase.clear();
+    }
+
+    /// Checks if an account has just been ephemerally registered in the delta.
+    pub fn is_account_ephemerally_registered(&self, account_key: AccountKey) -> bool {
+        self.new_accounts_to_register.contains_key(&account_key)
+    }
+
+    /// Checks if a contract has just been ephemerally registered in the delta.
+    pub fn is_contract_ephemerally_registered(&self, contract_id: ContractId) -> bool {
+        self.new_contracts_to_register.contains_key(&contract_id)
+    }
+
+    /// Checks if an account has just been ephemerally marked for erasure in the delta.
+    pub fn is_account_ephemerally_erased(&self, account_key: AccountKey) -> bool {
+        self.accounts_to_erase.contains(&account_key)
+    }
+
+    /// Checks if a contract has just been ephemerally marked for erasure in the delta.
+    pub fn is_contract_ephemerally_erased(&self, contract_id: ContractId) -> bool {
+        self.contracts_to_erase.contains(&contract_id)
     }
 
     /// ACCOUNT RELATED METHODS ///
     /// ------------------------------------------------------------
+    /// Epheremally registers an account in the delta.
+    pub fn ephemerally_register_account(
+        &mut self,
+        account_key: AccountKey,
+        initial_account_balance: SatoshiAmount,
+    ) {
+        self.new_accounts_to_register
+            .insert(account_key, initial_account_balance);
+    }
+
     /// Epheremally updates an account's balance.
     pub fn ephemerally_update_account_balance(
         &mut self,
@@ -97,8 +137,23 @@ impl CMDelta {
             .insert(account_key, global_shadow_allocs_sum);
     }
 
+    /// Epheremally marks an account for erasure in the delta.
+    pub fn ephemerally_erase_account(&mut self, account_key: AccountKey) {
+        self.accounts_to_erase.push(account_key);
+    }
+
     /// CONTRACT RELATED METHODS ///
     /// ------------------------------------------------------------
+    /// Epheremally registers a contract in the delta.
+    pub fn ephemerally_register_contract(
+        &mut self,
+        contract_id: ContractId,
+        initial_contract_balance: SatoshiAmount,
+    ) {
+        self.new_contracts_to_register
+            .insert(contract_id, initial_contract_balance);
+    }
+
     /// Epheremally updates a contract's balance.
     pub fn ephemerally_update_contract_balance(
         &mut self,
@@ -106,6 +161,11 @@ impl CMDelta {
         balance: SatoshiAmount,
     ) {
         self.updated_contract_balances.insert(contract_id, balance);
+    }
+
+    /// Epheremally marks a contract for erasure in the delta.
+    pub fn ephemerally_erase_contract(&mut self, contract_id: ContractId) {
+        self.contracts_to_erase.push(contract_id);
     }
 
     /// Epheremally inserts an allocation record to the allocs list.

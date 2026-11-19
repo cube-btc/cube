@@ -1,6 +1,7 @@
 use crate::inscriptive::graveyard::delta::delta::GraveyardDelta;
 use crate::inscriptive::graveyard::errors::apply_changes_error::GraveyardApplyChangesError;
 use crate::inscriptive::graveyard::errors::bury_account_error::GraveyardBuryAccountError;
+use crate::inscriptive::graveyard::errors::bury_contract_error::GraveyardBuryContractError;
 use crate::inscriptive::graveyard::errors::construction_error::GraveyardConstructionError;
 use crate::inscriptive::graveyard::errors::redeem_account_coins_error::GraveyardRedeemAccountCoinsError;
 use crate::operative::run_args::chain::Chain;
@@ -12,24 +13,35 @@ use tokio::sync::Mutex;
 /// Account key.
 type AccountKey = [u8; 32];
 
+/// Contract id.
+type ContractId = [u8; 32];
+
 /// Redemption amount in satoshis.
 type RedemptionAmountInSatoshis = u64;
 
 /// Minimum redemption amount (dust).
 pub const MIN_REDEMPTION_AMOUNT: u64 = 500;
 
-/// Local storage manager for the storing destroyed accounts.
+/// Local storage manager for the storing destroyed accounts and contracts.
 ///
-/// High Level Overview: The graveyard is used to store the accounts (plebs and residents) that have been destroyed.
-/// Essentially, it is a list of accounts that have been destroyed and the amount of coins (BTC) they are owed for redemption.
+/// High Level Overview: The graveyard is used to store the accounts (plebs and residents) and contracts
+/// that have been destroyed.
+/// Essentially, it is a list of accounts that have been destroyed and the amount of coins (BTC) they are owed for redemption,
+/// plus a list of destroyed contracts kept for historic-record-keeping so that they cannot be re-registered.
 /// The amount part is the variable part of the database which is updated to zero upon redemption.
 /// Upon redemption, we reset the amount to zero, and still keep the records for historic-record-keeping so that they cannot be re-registered.
 pub struct Graveyard {
     // In-memory buried accounts.
     in_memory_buried_accounts: HashMap<AccountKey, RedemptionAmountInSatoshis>,
 
+    // In-memory buried contracts.
+    in_memory_buried_contracts: Vec<ContractId>,
+
     // On-disk db for storing the buried accounts.
     on_disk_buried_accounts: sled::Db,
+
+    // On-disk db for storing the buried contracts.
+    on_disk_buried_contracts: sled::Db,
 
     // State differences to be applied.
     delta: GraveyardDelta,
@@ -44,25 +56,30 @@ pub type GRAVEYARD = Arc<Mutex<Graveyard>>;
 
 impl Graveyard {
     pub fn new(chain: Chain) -> Result<GRAVEYARD, GraveyardConstructionError> {
-        // 1 Open the graveyard db.
-        let graveyard_db_path = format!("storage/{}/graveyard", chain);
-        let graveyard_db =
-            sled::open(graveyard_db_path).map_err(GraveyardConstructionError::DBOpenError)?;
+        // 1 Open the buried accounts db.
+        let accounts_db_path = format!("storage/{}/graveyard/accounts", chain);
+        let on_disk_buried_accounts = sled::open(accounts_db_path)
+            .map_err(GraveyardConstructionError::AccountsDBOpenError)?;
 
-        // 2 Initialize the in-memory buried accounts.
+        // 2 Open the buried contracts db.
+        let contracts_db_path = format!("storage/{}/graveyard/contracts", chain);
+        let on_disk_buried_contracts = sled::open(contracts_db_path)
+            .map_err(GraveyardConstructionError::ContractsDBOpenError)?;
+
+        // 3 Initialize the in-memory buried accounts.
         let mut in_memory_buried_accounts =
             HashMap::<AccountKey, RedemptionAmountInSatoshis>::new();
 
-        // 3 Iterate over all items in the graveyard db to collect the buried accounts.
-        for (key, val) in graveyard_db.iter().flatten() {
-            // 3.1.1 Deserialize the account key.
+        // 4 Iterate over all items in the buried accounts db.
+        for (key, val) in on_disk_buried_accounts.iter().flatten() {
+            // 4.1.1 Deserialize the account key.
             let account_key: [u8; 32] = key.as_ref().try_into().map_err(|_| {
                 GraveyardConstructionError::UnableToDeserializeAccountKeyBytesFromDBKey(
                     key.to_vec(),
                 )
             })?;
 
-            // 3.1.2 Deserialize the coins redemption amount.
+            // 4.1.2 Deserialize the coins redemption amount.
             let redemption_amount: u64 =
                 u64::from_le_bytes(val.as_ref().try_into().map_err(|_| {
                     GraveyardConstructionError::UnableToDeserializeRedemptionAmountBytesFromDBValue(
@@ -71,22 +88,40 @@ impl Graveyard {
                     )
                 })?);
 
-            // 3.1.3 Insert the buried account into the in-memory buried accounts.
+            // 4.1.3 Insert the buried account into the in-memory buried accounts.
             in_memory_buried_accounts.insert(account_key, redemption_amount);
         }
 
-        // 4 Construct the graveyard.
+        // 5 Initialize the in-memory buried contracts.
+        let mut in_memory_buried_contracts = Vec::<ContractId>::new();
+
+        // 6 Iterate over all items in the buried contracts db.
+        for (key, _) in on_disk_buried_contracts.iter().flatten() {
+            // 6.1 Deserialize the contract id.
+            let contract_id: [u8; 32] = key.as_ref().try_into().map_err(|_| {
+                GraveyardConstructionError::UnableToDeserializeContractIdBytesFromDBKey(
+                    key.to_vec(),
+                )
+            })?;
+
+            // 6.2 Insert the buried contract into the in-memory buried contracts.
+            in_memory_buried_contracts.push(contract_id);
+        }
+
+        // 7 Construct the graveyard.
         let graveyard = Graveyard {
             in_memory_buried_accounts,
-            on_disk_buried_accounts: graveyard_db,
+            in_memory_buried_contracts,
+            on_disk_buried_accounts,
+            on_disk_buried_contracts,
             delta: GraveyardDelta::fresh_new(),
             backup_of_delta: GraveyardDelta::fresh_new(),
         };
 
-        // 5 Guard the graveyard.
+        // 8 Guard the graveyard.
         let graveyard = Arc::new(Mutex::new(graveyard));
 
-        // 6 Return the graveyard.
+        // 9 Return the graveyard.
         Ok(graveyard)
     }
 
@@ -116,6 +151,22 @@ impl Graveyard {
 
         // 2 Check in the in-memory buried accounts.
         if self.in_memory_buried_accounts.contains_key(&account_key) {
+            return true;
+        }
+
+        // 3 Return false.
+        false
+    }
+
+    /// Checks if a contract is buried.
+    pub fn is_contract_buried(&self, contract_id: [u8; 32]) -> bool {
+        // 1 Check in the delta first.
+        if self.delta.is_contract_ephemerally_buried(contract_id) {
+            return true;
+        }
+
+        // 2 Check in the in-memory buried contracts.
+        if self.in_memory_buried_contracts.contains(&contract_id) {
             return true;
         }
 
@@ -162,6 +213,35 @@ impl Graveyard {
         // 3 Epheremally bury the account in the delta.
         self.delta
             .ephemerally_bury_account(account_key, redemption_amount);
+
+        // 4 Return the result.
+        Ok(())
+    }
+
+    /// Buries a contract to the graveyard.
+    ///
+    /// NOTE: These changes are saved with the use of the `apply_changes` function.
+    /// NOTE: Contracts have no coin redemption.
+    pub fn bury_contract(
+        &mut self,
+        contract_id: [u8; 32],
+    ) -> Result<(), GraveyardBuryContractError> {
+        // 1 Check if the contract has just been ephemerally buried.
+        if self.delta.is_contract_ephemerally_buried(contract_id) {
+            return Err(
+                GraveyardBuryContractError::ContractHasJustBeenEphemerallyBuried(contract_id),
+            );
+        }
+
+        // 2 Check if the contract has already been permanently buried.
+        if self.in_memory_buried_contracts.contains(&contract_id) {
+            return Err(
+                GraveyardBuryContractError::ContractIsAlreadyPermanentlyBuried(contract_id),
+            );
+        }
+
+        // 3 Ephemerally bury the contract in the delta.
+        self.delta.ephemerally_bury_contract(contract_id);
 
         // 4 Return the result.
         Ok(())
@@ -233,6 +313,7 @@ impl Graveyard {
     /// This persists the delta to both in-memory and on-disk storage:
     /// - Redemptions: Resets SatoshiRedemptionAmount to zero for redeemed accounts.
     /// - New accounts: Adds accounts from `accounts_to_bury` to the buried accounts.
+    /// - New contracts: Adds contracts from `contracts_to_bury` to the buried contracts.
     pub fn apply_changes(&mut self) -> Result<(), GraveyardApplyChangesError> {
         // 1 Apply redemptions: Reset redemption amounts to zero in-memory and on-disk.
         for (account_key, _) in self.delta.redemptions.iter() {
@@ -264,10 +345,23 @@ impl Graveyard {
                 .insert(*account_key, *redemption_amount);
         }
 
-        // 3 Flush the delta.
+        // 3 Insert new contracts to bury into in-memory and on-disk.
+        for contract_id in self.delta.contracts_to_bury.iter() {
+            // 3.1 On-disk: Insert the buried contract (no redemption amount).
+            self.on_disk_buried_contracts
+                .insert(contract_id, vec![])
+                .map_err(|e| {
+                    GraveyardApplyChangesError::BuriedContractInsertDBError(*contract_id, e)
+                })?;
+
+            // 3.2 In-memory: Insert the buried contract.
+            self.in_memory_buried_contracts.push(*contract_id);
+        }
+
+        // 4 Flush the delta.
         self.flush_deltas();
 
-        // 4 Return success.
+        // 5 Return success.
         Ok(())
     }
 
@@ -298,14 +392,25 @@ impl Graveyard {
             ),
         );
 
-        // 3 Return the JSON object.
+        // 3 Insert the in-memory buried contracts.
+        obj.insert(
+            "buried_contracts".to_string(),
+            Value::Array(
+                self.in_memory_buried_contracts
+                    .iter()
+                    .map(|contract_id| Value::String(hex::encode(contract_id)))
+                    .collect(),
+            ),
+        );
+
+        // 4 Return the JSON object.
         Value::Object(obj)
     }
 }
 
 /// Erases the graveyard by db path.
 pub fn erase_graveyard(chain: Chain) {
-    // Graveyard db path.
+    // Graveyard db path (accounts + contracts).
     let graveyard_db_path = format!("storage/{}/graveyard", chain);
 
     // Erase the path.

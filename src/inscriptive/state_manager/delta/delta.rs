@@ -20,6 +20,9 @@ pub struct SMDelta {
 
     // Removed states for a given contract.
     pub removed_contract_states: HashMap<ContractId, Vec<StateKey>>,
+
+    // Contracts to erase from the state manager.
+    pub contracts_to_erase: Vec<ContractId>,
 }
 
 impl SMDelta {
@@ -29,6 +32,7 @@ impl SMDelta {
             new_contracts_to_register: Vec::new(),
             new_or_updated_contract_states: HashMap::new(),
             removed_contract_states: HashMap::new(),
+            contracts_to_erase: Vec::new(),
         }
     }
 
@@ -37,11 +41,17 @@ impl SMDelta {
         self.new_contracts_to_register.clear();
         self.new_or_updated_contract_states.clear();
         self.removed_contract_states.clear();
+        self.contracts_to_erase.clear();
     }
 
     /// Checks if a contract has just been ephemerally registered in the delta.
     pub fn is_contract_ephemerally_registered(&self, contract_id: ContractId) -> bool {
         self.new_contracts_to_register.contains(&contract_id)
+    }
+
+    /// Checks if a contract has just been ephemerally marked for erasure in the delta.
+    pub fn is_contract_ephemerally_erased(&self, contract_id: ContractId) -> bool {
+        self.contracts_to_erase.contains(&contract_id)
     }
 
     /// Checks if a state has just been ephemerally removed in the delta.
@@ -85,6 +95,11 @@ impl SMDelta {
         if !self.new_contracts_to_register.contains(&contract_id) {
             self.new_contracts_to_register.push(contract_id);
         }
+    }
+
+    /// Epheremally marks a contract for erasure in the delta.
+    pub fn ephemerally_erase_contract(&mut self, contract_id: ContractId) {
+        self.contracts_to_erase.push(contract_id);
     }
 
     /// Epheremally inserts a new contract state.

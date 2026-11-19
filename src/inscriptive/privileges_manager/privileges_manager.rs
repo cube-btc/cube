@@ -6,6 +6,8 @@ use crate::inscriptive::privileges_manager::elements::exemption::exemption::Exem
 use crate::inscriptive::privileges_manager::elements::liveness_flag::liveness_flag::LivenessFlag;
 use crate::inscriptive::privileges_manager::elements::timed_switch::timed_switch_bool::timed_switch_bool::TimedSwitchBool;
 use crate::inscriptive::privileges_manager::errors::construction_error::PrivilegesManagerConstructionError;
+use crate::inscriptive::privileges_manager::errors::erase_account_error::PMEraseAccountError;
+use crate::inscriptive::privileges_manager::errors::erase_contract_error::PMEraseContractError;
 use crate::inscriptive::privileges_manager::errors::register_error::{
     PMRegisterAccountError, PMRegisterContractError,
 };
@@ -472,6 +474,52 @@ impl PrivilegesManager {
 
         self.delta
             .ephemerally_register_contract(contract_id, contract_body);
+        Ok(())
+    }
+
+    /// Epheremally erases an account.
+    ///
+    /// NOTE: These changes are saved with the use of the `apply_changes` function.
+    pub fn erase_account(&mut self, account_key: AccountKey) -> Result<(), PMEraseAccountError> {
+        // 1 Check if the account is permanently registered.
+        if !self.is_account_permanently_registered(account_key) {
+            return Err(PMEraseAccountError::AccountIsNotRegistered(account_key));
+        }
+
+        // 2 Check if the account has just been ephemerally marked for erasure in the delta.
+        if self.delta.is_account_ephemerally_erased(account_key) {
+            return Err(PMEraseAccountError::AccountHasJustBeenEphemerallyErased(
+                account_key,
+            ));
+        }
+
+        // 3 Epheremally mark the account for erasure in the delta.
+        self.delta.ephemerally_erase_account(account_key);
+
+        // 4 Return the result.
+        Ok(())
+    }
+
+    /// Epheremally erases a contract.
+    ///
+    /// NOTE: These changes are saved with the use of the `apply_changes` function.
+    pub fn erase_contract(&mut self, contract_id: ContractId) -> Result<(), PMEraseContractError> {
+        // 1 Check if the contract is permanently registered.
+        if !self.is_contract_permanently_registered(contract_id) {
+            return Err(PMEraseContractError::ContractIsNotRegistered(contract_id));
+        }
+
+        // 2 Check if the contract has just been ephemerally marked for erasure in the delta.
+        if self.delta.is_contract_ephemerally_erased(contract_id) {
+            return Err(PMEraseContractError::ContractHasJustBeenEphemerallyErased(
+                contract_id,
+            ));
+        }
+
+        // 3 Epheremally mark the contract for erasure in the delta.
+        self.delta.ephemerally_erase_contract(contract_id);
+
+        // 4 Return the result.
         Ok(())
     }
 
@@ -1048,6 +1096,24 @@ impl PrivilegesManager {
             if let Some(contract_body) = self.in_memory_contracts.get_mut(contract_id) {
                 contract_body.tax_exemptions = tax_exemptions.clone();
             }
+        }
+
+        // 13 Erase accounts.
+        for account_key in self.delta.accounts_to_erase.iter() {
+            // 13.1 On-disk removal.
+            self.on_disk_accounts.drop_tree(account_key)?;
+
+            // 13.2 In-memory removal.
+            self.in_memory_accounts.remove(account_key);
+        }
+
+        // 14 Erase contracts.
+        for contract_id in self.delta.contracts_to_erase.iter() {
+            // 14.1 On-disk removal.
+            self.on_disk_contracts.drop_tree(contract_id)?;
+
+            // 14.2 In-memory removal.
+            self.in_memory_contracts.remove(contract_id);
         }
 
         Ok(())

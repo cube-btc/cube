@@ -9,6 +9,8 @@ use crate::inscriptive::registry::bodies::contract_body::contract_body::RMContra
 use crate::inscriptive::registry::delta::delta::RMDelta;
 use crate::inscriptive::registry::errors::apply_changes_error::RMApplyChangesError;
 use crate::inscriptive::registry::errors::construction_error::RMConstructionError;
+use crate::inscriptive::registry::errors::erase_account_error::RMEraseAccountError;
+use crate::inscriptive::registry::errors::erase_contract_error::RMEraseContractError;
 use crate::inscriptive::registry::errors::register_account_error::RMRegisterAccountError;
 use crate::inscriptive::registry::errors::register_contract_error::RMRegisterContractError;
 use crate::inscriptive::registry::errors::update_account_bls_key_error::RMUpdateAccountBLSKeyError;
@@ -39,7 +41,7 @@ type AccountProjectorConfig = [u8; 32];
 type ContractId = [u8; 32];
 
 /// Rank of an account or contract.
-type Rank = u64;
+type Rank = u32;
 
 /// Registry index of an account.
 type RegistryIndex = u64;
@@ -617,17 +619,17 @@ impl Registry {
     }
 
     /// Returns the account key by its rank.
-    pub fn get_account_key_by_rank(&self, rank: u64) -> Option<AccountKey> {
+    pub fn get_account_key_by_rank(&self, rank: Rank) -> Option<AccountKey> {
         self.in_memory_account_ranks.get(&rank).cloned()
     }
 
     /// Returns the contract id by its rank.
-    pub fn get_contract_id_by_rank(&self, rank: u64) -> Option<ContractId> {
+    pub fn get_contract_id_by_rank(&self, rank: Rank) -> Option<ContractId> {
         self.in_memory_contract_ranks.get(&rank).cloned()
     }
 
     /// Returns the account body by its rank.
-    pub fn get_account_body_by_rank(&self, rank: u64) -> Option<RMAccountBody> {
+    pub fn get_account_body_by_rank(&self, rank: Rank) -> Option<RMAccountBody> {
         self.in_memory_account_ranks
             .get(&rank)
             .and_then(|account_key| self.in_memory_accounts.get(account_key).cloned())
@@ -636,7 +638,7 @@ impl Registry {
     /// Returns the account info by its rank.
     pub fn get_account_info_by_rank(
         &self,
-        rank: u64,
+        rank: Rank,
     ) -> Option<(AccountKey, Option<AccountBLSKey>, RegistryIndex, Rank)> {
         // 1 Get the account key by its rank.
         let account_key = self.get_account_key_by_rank(rank)?;
@@ -674,7 +676,7 @@ impl Registry {
     }
 
     /// Returns the contract body by its rank.
-    pub fn get_contract_body_by_rank(&self, rank: u64) -> Option<RMContractBody> {
+    pub fn get_contract_body_by_rank(&self, rank: Rank) -> Option<RMContractBody> {
         self.in_memory_contract_ranks
             .get(&rank)
             .and_then(|contract_id| self.in_memory_contracts.get(contract_id).cloned())
@@ -740,7 +742,7 @@ impl Registry {
     }
 
     /// Returns the account by its rank.
-    pub fn get_account_by_rank(&self, rank: u64) -> Option<Account> {
+    pub fn get_account_by_rank(&self, rank: Rank) -> Option<Account> {
         // 1 Get the account key by its rank.
         let account_key = self.get_account_key_by_rank(rank)?;
 
@@ -752,7 +754,7 @@ impl Registry {
     }
 
     /// Returns the contract by its rank.
-    pub fn get_contract_by_rank(&self, rank: u64) -> Option<Contract> {
+    pub fn get_contract_by_rank(&self, rank: Rank) -> Option<Contract> {
         // 1 Get the contract id by its rank.
         let contract_id = self.get_contract_id_by_rank(rank)?;
 
@@ -854,6 +856,52 @@ impl Registry {
         // 3 Epheremally register the contract in the delta.
         self.delta
             .ephemerally_register_contract(contract_id, last_activity_timestamp, executable);
+
+        // 4 Return the result.
+        Ok(())
+    }
+
+    /// Epheremally erases an account.
+    ///
+    /// NOTE: These changes are saved with the use of the `apply_changes` function.
+    pub fn erase_account(&mut self, account_key: AccountKey) -> Result<(), RMEraseAccountError> {
+        // 1 Check if the account is permanently registered.
+        if !self.is_account_permanently_registered(account_key) {
+            return Err(RMEraseAccountError::AccountIsNotRegistered(account_key));
+        }
+
+        // 2 Check if the account has just been ephemerally marked for erasure in the delta.
+        if self.delta.is_account_ephemerally_erased(account_key) {
+            return Err(RMEraseAccountError::AccountHasJustBeenEphemerallyErased(
+                account_key,
+            ));
+        }
+
+        // 3 Epheremally mark the account for erasure in the delta.
+        self.delta.ephemerally_erase_account(account_key);
+
+        // 4 Return the result.
+        Ok(())
+    }
+
+    /// Epheremally erases a contract.
+    ///
+    /// NOTE: These changes are saved with the use of the `apply_changes` function.
+    pub fn erase_contract(&mut self, contract_id: ContractId) -> Result<(), RMEraseContractError> {
+        // 1 Check if the contract is permanently registered.
+        if !self.is_contract_permanently_registered(contract_id) {
+            return Err(RMEraseContractError::ContractIsNotRegistered(contract_id));
+        }
+
+        // 2 Check if the contract has just been ephemerally marked for erasure in the delta.
+        if self.delta.is_contract_ephemerally_erased(contract_id) {
+            return Err(RMEraseContractError::ContractHasJustBeenEphemerallyErased(
+                contract_id,
+            ));
+        }
+
+        // 3 Epheremally mark the contract for erasure in the delta.
+        self.delta.ephemerally_erase_contract(contract_id);
 
         // 4 Return the result.
         Ok(())
@@ -1581,19 +1629,39 @@ impl Registry {
             mut_account_body.flame_config = Some(flame_config.clone());
         }
 
-        // 11 Re-rank accounts after all changes.
-        {
-            let new_ranked_accounts = Self::rank_accounts(&self.in_memory_accounts);
-            self.in_memory_account_ranks = new_ranked_accounts;
+        // 11 Erase accounts.
+        for account_key in self.delta.accounts_to_erase.iter() {
+            // 11.1 On-disk removal.
+            self.on_disk_accounts
+                .drop_tree(account_key)
+                .map_err(|e| RMApplyChangesError::AccountTreeDropError(*account_key, e))?;
+
+            // 11.2 In-memory removal.
+            self.in_memory_accounts.remove(account_key);
         }
 
-        // 12 Re-rank contracts after all changes.
-        {
-            let new_ranked_contracts = Self::rank_contracts(&self.in_memory_contracts);
-            self.in_memory_contract_ranks = new_ranked_contracts;
+        // 12 Erase contracts.
+        for contract_id in self.delta.contracts_to_erase.iter() {
+            // 12.1 On-disk removal.
+            self.on_disk_contracts
+                .drop_tree(contract_id)
+                .map_err(|e| RMApplyChangesError::ContractTreeDropError(*contract_id, e))?;
+
+            // 12.2 In-memory removal.
+            self.in_memory_contracts.remove(contract_id);
         }
 
-        // 13 Return the result.
+        // 13 Re-rank accounts after all changes.
+        {
+            self.in_memory_account_ranks = Self::rank_accounts(&self.in_memory_accounts);
+        }
+
+        // 14 Re-rank contracts after all changes.
+        {
+            self.in_memory_contract_ranks = Self::rank_contracts(&self.in_memory_contracts);
+        }
+
+        // 15 Return the result.
         Ok(())
     }
 

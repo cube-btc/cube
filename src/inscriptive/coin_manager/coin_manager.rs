@@ -12,6 +12,8 @@ use crate::inscriptive::coin_manager::errors::balance_update_errors::{
 use crate::inscriptive::coin_manager::errors::construction_errors::{
     CMConstructionAccountError, CMConstructionContractError, CMConstructionError,
 };
+use crate::inscriptive::coin_manager::errors::erase_account_error::CMEraseAccountError;
+use crate::inscriptive::coin_manager::errors::erase_contract_error::CMEraseContractError;
 use crate::inscriptive::coin_manager::errors::register_errors::{
     CMRegisterAccountError, CMRegisterContractError,
 };
@@ -746,11 +748,7 @@ impl CoinManager {
         }
 
         // 2 Check if the account has just been ephemerally registered in the delta.
-        if self
-            .delta
-            .new_accounts_to_register
-            .contains_key(&account_key)
-        {
+        if self.delta.is_account_ephemerally_registered(account_key) {
             return Err(
                 CMRegisterAccountError::AccountHasJustBeenEphemerallyRegistered(account_key),
             );
@@ -761,10 +759,9 @@ impl CoinManager {
             return Err(CMRegisterAccountError::AccountIsAlreadyPermanentlyRegistered(account_key));
         }
 
-        // 4 Insert into the new accounts to register list in the delta.
+        // 4 Epheremally register the account in the delta.
         self.delta
-            .new_accounts_to_register
-            .insert(account_key, initial_account_balance);
+            .ephemerally_register_account(account_key, initial_account_balance);
 
         // 5 Return the result.
         Ok(())
@@ -779,11 +776,7 @@ impl CoinManager {
         initial_contract_balance: u64,
     ) -> Result<(), CMRegisterContractError> {
         // 1 Check if the contract has just been ephemerally registered in the delta.
-        if self
-            .delta
-            .new_contracts_to_register
-            .contains_key(&contract_id)
-        {
+        if self.delta.is_contract_ephemerally_registered(contract_id) {
             return Err(
                 CMRegisterContractError::ContractHasJustBeenEphemerallyRegistered(contract_id),
             );
@@ -796,10 +789,55 @@ impl CoinManager {
             );
         }
 
-        // 3 Insert into the new contracts to register list in the delta.
+        // 3 Epheremally register the contract in the delta.
         self.delta
-            .new_contracts_to_register
-            .insert(contract_id, initial_contract_balance);
+            .ephemerally_register_contract(contract_id, initial_contract_balance);
+
+        // 4 Return the result.
+        Ok(())
+    }
+
+    /// Epheremally erases an account.
+    ///
+    /// NOTE: These changes are saved with the use of the `apply_changes` function.
+    pub fn erase_account(&mut self, account_key: AccountKey) -> Result<(), CMEraseAccountError> {
+        // 1 Check if the account is permanently registered.
+        if !self.is_account_registered(account_key) {
+            return Err(CMEraseAccountError::AccountIsNotRegistered(account_key));
+        }
+
+        // 2 Check if the account has just been ephemerally marked for erasure in the delta.
+        if self.delta.is_account_ephemerally_erased(account_key) {
+            return Err(CMEraseAccountError::AccountHasJustBeenEphemerallyErased(
+                account_key,
+            ));
+        }
+
+        // 3 Epheremally mark the account for erasure in the delta.
+        self.delta.ephemerally_erase_account(account_key);
+
+        // 4 Return the result.
+        Ok(())
+    }
+
+    /// Epheremally erases a contract.
+    ///
+    /// NOTE: These changes are saved with the use of the `apply_changes` function.
+    pub fn erase_contract(&mut self, contract_id: ContractId) -> Result<(), CMEraseContractError> {
+        // 1 Check if the contract is permanently registered.
+        if !self.is_contract_registered(contract_id) {
+            return Err(CMEraseContractError::ContractIsNotRegistered(contract_id));
+        }
+
+        // 2 Check if the contract has just been ephemerally marked for erasure in the delta.
+        if self.delta.is_contract_ephemerally_erased(contract_id) {
+            return Err(CMEraseContractError::ContractHasJustBeenEphemerallyErased(
+                contract_id,
+            ));
+        }
+
+        // 3 Epheremally mark the contract for erasure in the delta.
+        self.delta.ephemerally_erase_contract(contract_id);
 
         // 4 Return the result.
         Ok(())
@@ -1980,7 +2018,33 @@ impl CoinManager {
             }
         }
 
-        // 9 Return the result.
+        // 9 Erase accounts.
+        for account_key in self.delta.accounts_to_erase.iter() {
+            // 9.1 On-disk removal.
+            self.on_disk_accounts.drop_tree(account_key).map_err(|e| {
+                CMApplyChangesError::AccountApplyChangesError(
+                    CMAccountApplyChangesError::TreeDropError(*account_key, e),
+                )
+            })?;
+
+            // 9.2 In-memory removal.
+            self.in_memory_accounts.remove(account_key);
+        }
+
+        // 10 Erase contracts.
+        for contract_id in self.delta.contracts_to_erase.iter() {
+            // 10.1 On-disk removal.
+            self.on_disk_contracts.drop_tree(contract_id).map_err(|e| {
+                CMApplyChangesError::ContractApplyChangesError(
+                    CMContractApplyChangesError::TreeDropError(*contract_id, e),
+                )
+            })?;
+
+            // 10.2 In-memory removal.
+            self.in_memory_contracts.remove(contract_id);
+        }
+
+        // 11 Return the result.
         Ok(())
     }
 

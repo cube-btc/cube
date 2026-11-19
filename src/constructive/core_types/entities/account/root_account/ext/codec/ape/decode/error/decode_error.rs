@@ -2,7 +2,7 @@ use crate::constructive::valtype::val::long_val::ape::decode::error::decode_erro
 use crate::constructive::valtype::val::short_val::ape::decode::error::decode_error::ShortValAPEDecodeError;
 
 /// Type alias for the `RootAccount` rank value.
-type Rank = u64;
+type Rank = u32;
 
 /// Enum to represent errors that can occur when decoding a `RootAccount` from an Airly Payload Encoding (APE) bitstream.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

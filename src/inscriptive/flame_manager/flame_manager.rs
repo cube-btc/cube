@@ -4,6 +4,7 @@ use crate::inscriptive::flame_manager::algorithms::flame_sorting::flame_sorting:
 use crate::inscriptive::flame_manager::delta::delta::FMDelta;
 use crate::inscriptive::flame_manager::errors::apply_changes_error::FMApplyChangesError;
 use crate::inscriptive::flame_manager::errors::construction_error::FMConstructionError;
+use crate::inscriptive::flame_manager::errors::erase_account_error::FMEraseAccountError;
 use crate::inscriptive::flame_manager::errors::register_account_error::FMRegisterAccountError;
 use crate::inscriptive::flame_manager::flame::flame::Flame;
 use crate::inscriptive::registry::registry::REGISTRY;
@@ -196,6 +197,29 @@ impl FlameManager {
         }
 
         // 3 Return the result.
+        Ok(())
+    }
+
+    /// Epheremally erases an account.
+    ///
+    /// NOTE: These changes are saved with the use of the `apply_changes` function.
+    pub fn erase_account(&mut self, account_key: AccountKey) -> Result<(), FMEraseAccountError> {
+        // 1 Check if the account is permanently registered.
+        if !self.is_account_registered(account_key) {
+            return Err(FMEraseAccountError::AccountIsNotRegistered(account_key));
+        }
+
+        // 2 Check if the account has just been ephemerally marked for erasure in the delta.
+        if self.delta.is_account_ephemerally_erased(account_key) {
+            return Err(FMEraseAccountError::AccountHasJustBeenEphemerallyErased(
+                account_key,
+            ));
+        }
+
+        // 3 Epheremally mark the account for erasure in the delta.
+        self.delta.ephemerally_erase_account(account_key);
+
+        // 4 Return the result.
         Ok(())
     }
 
@@ -461,7 +485,18 @@ impl FlameManager {
             }
         }
 
-        // 8 Return the result.
+        // 8 Erase accounts.
+        for account_key in self.delta.accounts_to_erase.iter() {
+            // 8.1 On-disk removal.
+            self.on_disk_accounts.drop_tree(account_key).map_err(|e| {
+                FMApplyChangesError::AccountTreeDropError(account_key.to_owned(), e)
+            })?;
+
+            // 8.2 In-memory removal.
+            self.in_memory_flame_set.remove(account_key);
+        }
+
+        // 9 Return the result.
         Ok(sorted_new_flames_to_insert)
     }
 

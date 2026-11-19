@@ -14,4 +14,5 @@ pub enum SMApplyChangesError {
     ContractIdNotFoundInMemory(ContractId),
     TreeValueInsertError(ContractId, StateKey, StateValue, sled::Error),
     TreeValueRemoveError(ContractId, StateKey, sled::Error),
+    TreeDropError(ContractId, sled::Error),
 }

@@ -14,16 +14,16 @@ impl Account {
         decode_rank_as_longval: bool,
     ) -> Result<Account, AccountAPEDecodeError> {
         // 1 Decode the rank value from the APE bitstream.
-        let rank: u64 = match decode_rank_as_longval {
+        let rank: u32 = match decode_rank_as_longval {
             // 1.a The rank is decoded as a `LongVal`.
             true => LongVal::decode_ape(bit_stream)
                 .map_err(AccountAPEDecodeError::FailedToDecodeRankValueAsLongVal)?
-                .value(),
+                .value() as u32,
 
             // 1.b The rank is decoded as a `ShortVal`.
             false => ShortVal::decode_ape(bit_stream)
                 .map_err(AccountAPEDecodeError::FailedToDecodeRankValueAsShortVal)?
-                .value() as u64,
+                .value(),
         };
 
         // 2 Match the rank value to determine if the `Account` is registered or not.

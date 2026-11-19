@@ -59,6 +59,9 @@ pub struct RMDelta {
     // Updated account flame configs for a given account.
     pub updated_account_flame_configs: HashMap<AccountKey, FMAccountFlameConfig>,
 
+    // Accounts to erase from the registry.
+    pub accounts_to_erase: Vec<AccountKey>,
+
     // CONTRACT RELATED VALUES ///
     /// ------------------------------------------------------------
     // New contracts to register.
@@ -69,6 +72,9 @@ pub struct RMDelta {
 
     // Updated contract last activity timestamps.
     pub updated_contract_last_activity_timestamps: HashMap<ContractId, ActivityTimestamp>,
+
+    // Contracts to erase from the registry.
+    pub contracts_to_erase: Vec<ContractId>,
 }
 
 impl RMDelta {
@@ -82,9 +88,11 @@ impl RMDelta {
             updated_projector_configs: HashMap::new(),
             updated_account_last_activity_timestamps: HashMap::new(),
             updated_account_flame_configs: HashMap::new(),
+            accounts_to_erase: Vec::new(),
             new_contracts_to_register: Vec::new(),
             updated_contract_call_counters: HashMap::new(),
             updated_contract_last_activity_timestamps: HashMap::new(),
+            contracts_to_erase: Vec::new(),
         }
     }
 
@@ -97,9 +105,11 @@ impl RMDelta {
         self.updated_projector_configs.clear();
         self.updated_account_last_activity_timestamps.clear();
         self.updated_account_flame_configs.clear();
+        self.accounts_to_erase.clear();
         self.new_contracts_to_register.clear();
         self.updated_contract_call_counters.clear();
         self.updated_contract_last_activity_timestamps.clear();
+        self.contracts_to_erase.clear();
     }
 
     /// Checks if an account has just been ephemerally registered in the delta.
@@ -114,6 +124,16 @@ impl RMDelta {
         self.new_contracts_to_register
             .iter()
             .any(|(id, _, _)| id == &contract_id)
+    }
+
+    /// Checks if an account has just been ephemerally marked for erasure in the delta.
+    pub fn is_account_ephemerally_erased(&self, account_key: AccountKey) -> bool {
+        self.accounts_to_erase.contains(&account_key)
+    }
+
+    /// Checks if a contract has just been ephemerally marked for erasure in the delta.
+    pub fn is_contract_ephemerally_erased(&self, contract_id: ContractId) -> bool {
+        self.contracts_to_erase.contains(&contract_id)
     }
 
     /// Epheremally registers an account in the delta.
@@ -145,6 +165,16 @@ impl RMDelta {
     ) {
         self.new_contracts_to_register
             .push((contract_id, last_activity_timestamp, executable));
+    }
+
+    /// Epheremally marks an account for erasure in the delta.
+    pub fn ephemerally_erase_account(&mut self, account_key: AccountKey) {
+        self.accounts_to_erase.push(account_key);
+    }
+
+    /// Epheremally marks a contract for erasure in the delta.
+    pub fn ephemerally_erase_contract(&mut self, contract_id: ContractId) {
+        self.contracts_to_erase.push(contract_id);
     }
 
     /// Epheremally increments the call counter delta of an account by one.
