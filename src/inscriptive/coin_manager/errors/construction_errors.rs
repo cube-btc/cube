@@ -30,6 +30,7 @@ pub enum CMConstructionContractError {
     TreeIterError(CONTRACT_ID, usize, sled::Error),
     UnableToDeserializeKeyBytesFromTreeKey(CONTRACT_ID, usize, Vec<u8>),
     UnableToDeserializeContractBalanceFromTreeValue(CONTRACT_ID, usize, [u8; 32], Vec<u8>),
+    UnableToDeserializeContractVitalityBalanceFromTreeValue(CONTRACT_ID, usize, [u8; 32], Vec<u8>),
     UnableToDeserializeAllocsSumFromTreeValue(CONTRACT_ID, usize, [u8; 32], Vec<u8>),
     UnableToDeserializeAllocValueFromTreeValue(CONTRACT_ID, usize, [u8; 32], Vec<u8>),
     AllocsSumExceedsTheContractBalance(CONTRACT_ID, SATOSHI_AMOUNT, SATOSHI_AMOUNT),

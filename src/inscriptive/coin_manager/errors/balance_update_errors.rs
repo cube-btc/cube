@@ -37,3 +37,15 @@ pub enum CMContractBalanceDownError {
     UnableToGetContractAllocsSum(CONTRACT_ID),
     ContractBalanceWouldGoBelowAllocsSum(CONTRACT_ID, SATOSHI_AMOUNT, SATOSHI_AMOUNT),
 }
+
+/// Errors associated with increasing contract's vitality balance.
+#[derive(Debug, Clone)]
+pub enum CMContractVitalityBalanceUpError {
+    UnableToGetContractVitalityBalance(CONTRACT_ID),
+}
+
+/// Errors associated with decreasing contract's vitality balance.
+#[derive(Debug, Clone)]
+pub enum CMContractVitalityBalanceDownError {
+    UnableToGetContractVitalityBalance(CONTRACT_ID),
+}

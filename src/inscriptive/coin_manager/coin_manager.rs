@@ -7,7 +7,7 @@ use crate::inscriptive::coin_manager::errors::apply_changes_errors::{
 };
 use crate::inscriptive::coin_manager::errors::balance_update_errors::{
     CMAccountBalanceDownError, CMAccountBalanceUpError, CMContractBalanceDownError,
-    CMContractBalanceUpError,
+    CMContractBalanceUpError, CMContractVitalityBalanceDownError, CMContractVitalityBalanceUpError,
 };
 use crate::inscriptive::coin_manager::errors::construction_errors::{
     CMConstructionAccountError, CMConstructionContractError, CMConstructionError,
@@ -53,6 +53,9 @@ const CONTRACT_BALANCE_SPECIAL_DB_KEY: [u8; 32] = [0x00; 32];
 
 /// Special db key for the contract shadow allocs sum value (0x01..).
 const CONTRACT_ALLOCS_SUM_SPECIAL_DB_KEY: [u8; 32] = [0x01; 32];
+
+/// Special db key for the contract vitality balance (0x02..).
+const CONTRACT_VITALITY_BALANCE_SPECIAL_DB_KEY: [u8; 32] = [0x02; 32];
 
 /// A database manager for handling account and contract balances & shadow space allocations.
 pub struct CoinManager {
@@ -219,9 +222,10 @@ impl CoinManager {
             // 5.3 Initialize the list of shadow space allocations.
             let mut allocs = HashMap::<AccountKey, SatiSatoshiAmount>::new();
 
-            // 5.4 Initialize the allocs sum and contract balance.
+            // 5.4 Initialize the allocs sum, contract balance, and vitality balance.
             let mut allocs_sum: u64 = 0;
             let mut contract_balance: u64 = 0;
+            let mut contract_vitality_balance: i64 = 0;
 
             // 5.5 Iterate over all items in the tree.
             for (index, item) in tree.iter().enumerate() {
@@ -280,10 +284,26 @@ impl CoinManager {
                         // 5.5.3.2.2 Update the shadow space allocations sum.
                         allocs_sum = allocs_sum_value_in_satoshis;
                     }
-                    _ => {
-                        // 5.5.3.3 This key is an account key that corresponds to an allocation in the contract's shadow space.
+                    // 5.5.3.3 If the key is (0x02..), it is a special key that corresponds to the contract vitality balance value.
+                    CONTRACT_VITALITY_BALANCE_SPECIAL_DB_KEY => {
+                        // 5.5.3.3.1 Deserialize the value bytes.
+                        let contract_vitality_balance_value_in_satoshis: i64 =
+                                i64::from_le_bytes(value.as_ref().try_into().map_err(|_| {
+                                    CMConstructionError::ContractConstructionError(CMConstructionContractError::UnableToDeserializeContractVitalityBalanceFromTreeValue(
+                                        contract_id,
+                                        index,
+                                        tree_key_bytes,
+                                        value.to_vec(),
+                                    ))
+                                })?);
 
-                        // 5.5.3.3.1 Deserialize the allocation value in sati-satoshis.
+                        // 5.5.3.3.2 Update the contract vitality balance.
+                        contract_vitality_balance = contract_vitality_balance_value_in_satoshis;
+                    }
+                    _ => {
+                        // 5.5.3.4 This key is an account key that corresponds to an allocation in the contract's shadow space.
+
+                        // 5.5.3.4.1 Deserialize the allocation value in sati-satoshis.
                         let alloc_value_in_sati_satoshis: u128 =
                                 u128::from_le_bytes(value.as_ref().try_into().map_err(|_| {
                                     CMConstructionError::ContractConstructionError(CMConstructionContractError::UnableToDeserializeAllocValueFromTreeValue(
@@ -294,7 +314,7 @@ impl CoinManager {
                                     ))
                                 })?);
 
-                        // 5.5.3.3.2 Insert the allocation.
+                        // 5.5.3.4.2 Insert the allocation.
                         allocs.insert(tree_key_bytes, alloc_value_in_sati_satoshis);
                     }
                 }
@@ -315,7 +335,8 @@ impl CoinManager {
             let shadow_space = ShadowSpace::new(allocs_sum, allocs);
 
             // 5.8 Construct the contract body.
-            let contract_body = CMContractBody::new(contract_balance, shadow_space);
+            let contract_body =
+                CMContractBody::new(contract_balance, contract_vitality_balance, shadow_space);
 
             // 5.9 Insert the contract body into the contract bodies list.
             contract_bodies.insert(contract_id, contract_body);
@@ -427,6 +448,23 @@ impl CoinManager {
         self.in_memory_contracts
             .get(&contract_id)
             .map(|contract_body| contract_body.balance)
+    }
+
+    /// Returns a contract's vitality balance in satoshis (can be negative).
+    pub fn get_contract_vitality_balance(&self, contract_id: ContractId) -> Option<i64> {
+        // 1 Try to get from the delta first.
+        if let Some(value) = self
+            .delta
+            .updated_contract_vitality_balances
+            .get(&contract_id)
+        {
+            return Some(*value);
+        }
+
+        // 2 And then try to get from the permanent in-memory states.
+        self.in_memory_contracts
+            .get(&contract_id)
+            .map(|contract_body| contract_body.vitality_balance)
     }
 
     /// Returns the base sum of a given account's shadow allocation values across all contracts in sati-satoshis.
@@ -742,6 +780,7 @@ impl CoinManager {
         // 1 Check if the account key collides with reserved database keys.
         if account_key == CONTRACT_BALANCE_SPECIAL_DB_KEY
             || account_key == CONTRACT_ALLOCS_SUM_SPECIAL_DB_KEY
+            || account_key == CONTRACT_VITALITY_BALANCE_SPECIAL_DB_KEY
         {
             return Err(CMRegisterAccountError::AccountKeyCannotBeTheSpecialDbKeys(
                 account_key,
@@ -1000,6 +1039,65 @@ impl CoinManager {
 
         // 7 Return the result.
         Ok(())
+    }
+
+    /// Increases a contract's vitality balance.
+    ///
+    /// NOTE: These changes are saved with the use of the `apply_changes` function.
+    pub fn contract_vitality_balance_up(
+        &mut self,
+        contract_id: [u8; 32],
+        up_value_in_satoshis: u64,
+    ) -> Result<(), CMContractVitalityBalanceUpError> {
+        // 1 Get the contract's existing vitality balance.
+        let existing_contract_vitality_balance_in_satoshis: i64 =
+            self.get_contract_vitality_balance(contract_id).ok_or(
+                CMContractVitalityBalanceUpError::UnableToGetContractVitalityBalance(contract_id),
+            )?;
+
+        // 2 Calculate the contract's new vitality balance.
+        let new_contract_vitality_balance_in_satoshis: i64 =
+            existing_contract_vitality_balance_in_satoshis + up_value_in_satoshis as i64;
+
+        // 3 Epheremally update the contract's vitality balance.
+        self.delta.ephemerally_update_contract_vitality_balance(
+            contract_id,
+            new_contract_vitality_balance_in_satoshis,
+        );
+
+        // 4 Return the result.
+        Ok(())
+    }
+
+    /// Decreases a contract's vitality balance.
+    ///
+    /// Returns the new updated vitality balance in satoshis (can be negative).
+    ///
+    /// NOTE: These changes are saved with the use of the `apply_changes` function.
+    /// NOTE: Vitality balance can go below zero; no below-zero checks are performed.
+    pub fn contract_vitality_balance_down(
+        &mut self,
+        contract_id: [u8; 32],
+        down_value_in_satoshis: u64,
+    ) -> Result<i64, CMContractVitalityBalanceDownError> {
+        // 1 Get the contract's existing vitality balance.
+        let existing_contract_vitality_balance_in_satoshis: i64 =
+            self.get_contract_vitality_balance(contract_id).ok_or(
+                CMContractVitalityBalanceDownError::UnableToGetContractVitalityBalance(contract_id),
+            )?;
+
+        // 2 Calculate the contract's new vitality balance.
+        let new_contract_vitality_balance_in_satoshis: i64 =
+            existing_contract_vitality_balance_in_satoshis - down_value_in_satoshis as i64;
+
+        // 3 Epheremally update the contract's vitality balance.
+        self.delta.ephemerally_update_contract_vitality_balance(
+            contract_id,
+            new_contract_vitality_balance_in_satoshis,
+        );
+
+        // 4 Return the new updated vitality balance.
+        Ok(new_contract_vitality_balance_in_satoshis)
     }
 
     /// Allocates a new account in the contract's shadow space.
@@ -1594,8 +1692,9 @@ impl CoinManager {
 
         // 2 Register new contracts in-memory and on-disk.
         for (contract_id, initial_contract_balance) in self.delta.new_contracts_to_register.iter() {
-            // 2.1 A fresh new contract has a zero allocs sum value.
+            // 2.1 A fresh new contract has a zero allocs sum value and zero vitality balance.
             let initial_contract_allocs_sum_value_in_satoshis: u64 = 0;
+            let initial_contract_vitality_balance_in_satoshis: i64 = 0;
 
             // 2.2 On-disk insertion.
             {
@@ -1637,6 +1736,23 @@ impl CoinManager {
                         ),
                     )
                 })?;
+
+                // 2.2.4 Insert the contract vitality balance on-disk.
+                tree.insert(
+                    CONTRACT_VITALITY_BALANCE_SPECIAL_DB_KEY,
+                    initial_contract_vitality_balance_in_satoshis
+                        .to_le_bytes()
+                        .to_vec(),
+                )
+                .map_err(|e| {
+                    CMApplyChangesError::ContractApplyChangesError(
+                        CMContractApplyChangesError::VitalityBalanceValueOnDiskInsertionError(
+                            *contract_id,
+                            initial_contract_vitality_balance_in_satoshis,
+                            e,
+                        ),
+                    )
+                })?;
             }
 
             // 2.3 In-memory insertion.
@@ -1645,8 +1761,11 @@ impl CoinManager {
                 let fresh_new_shadow_space = ShadowSpace::fresh_new();
 
                 // 2.3.2 Construct the fresh new contract body.
-                let fresh_new_contract_body =
-                    CMContractBody::new(*initial_contract_balance, fresh_new_shadow_space);
+                let fresh_new_contract_body = CMContractBody::new(
+                    *initial_contract_balance,
+                    initial_contract_vitality_balance_in_satoshis,
+                    fresh_new_shadow_space,
+                );
 
                 // 2.3.3 Insert the contract body into the in-memory list.
                 // 2.3.4 Register the contract in-memory.
@@ -1740,8 +1859,53 @@ impl CoinManager {
             }
         }
 
-        // 5 Apply deferred proportional changes (shadow_up_all/down_all) to shadow spaces and update delta.
-        // 5.0 Track cumulative account global shadow allocs sum updates during iteration (to apply after the loop to avoid borrowing issues).
+        // 5 Save contract vitality balances.
+        for (contract_id, ephemeral_contract_vitality_balance) in
+            self.delta.updated_contract_vitality_balances.iter()
+        {
+            // 5.1 On-disk insertion.
+            {
+                // Open tree.
+                let tree = self.on_disk_contracts.open_tree(contract_id).map_err(|e| {
+                    CMApplyChangesError::ContractApplyChangesError(
+                        CMContractApplyChangesError::OpenTreeError(*contract_id, e),
+                    )
+                })?;
+
+                // Update the contract vitality balance on-disk.
+                tree.insert(
+                    CONTRACT_VITALITY_BALANCE_SPECIAL_DB_KEY,
+                    ephemeral_contract_vitality_balance.to_le_bytes().to_vec(),
+                )
+                .map_err(|e| {
+                    CMApplyChangesError::ContractApplyChangesError(
+                        CMContractApplyChangesError::VitalityBalanceValueOnDiskInsertionError(
+                            *contract_id,
+                            *ephemeral_contract_vitality_balance,
+                            e,
+                        ),
+                    )
+                })?;
+            }
+
+            // 5.2 In-memory insertion.
+            {
+                // Get mutable permanent contract body.
+                let mut_permanent_contract_body = self
+                    .in_memory_contracts
+                    .get_mut(contract_id)
+                    .ok_or(CMApplyChangesError::ContractApplyChangesError(
+                        CMContractApplyChangesError::UnableToGetPermanentContractBody(*contract_id),
+                    ))?;
+
+                // Update the contract vitality balance in-memory.
+                mut_permanent_contract_body
+                    .update_vitality_balance(*ephemeral_contract_vitality_balance);
+            }
+        }
+
+        // 6 Apply deferred proportional changes (shadow_up_all/down_all) to shadow spaces and update delta.
+        // 6.0 Track cumulative account global shadow allocs sum updates during iteration (to apply after the loop to avoid borrowing issues).
         // Use HashMap to track cumulative changes so each contract sees updates from previous contracts in the same loop.
         let mut account_global_shadow_allocs_sum_updates: std::collections::HashMap<
             AccountKey,
@@ -1751,7 +1915,7 @@ impl CoinManager {
         for (_contract_id, ephemeral_shadow_space_mut) in
             self.delta.updated_shadow_spaces.iter_mut()
         {
-            // 5.1 Check if there's a deferred proportional change to apply.
+            // 6.1 Check if there's a deferred proportional change to apply.
             let deferred_change_in_satoshis = ephemeral_shadow_space_mut.shadow_up_all_down_alls;
 
             if deferred_change_in_satoshis != 0 {
@@ -1860,18 +2024,18 @@ impl CoinManager {
             }
         }
 
-        // 5.2 Apply all account global shadow allocs sum updates to delta (outside the borrow of updated_shadow_spaces).
+        // 6.2 Apply all account global shadow allocs sum updates to delta (outside the borrow of updated_shadow_spaces).
         for (account_key, new_value) in account_global_shadow_allocs_sum_updates {
             self.delta
                 .ephemerally_update_account_global_shadow_allocs_sum(account_key, new_value);
         }
 
-        // 6 Save account's updated global shadow allocs sum values.
+        // 7 Save account's updated global shadow allocs sum values.
         // NOTE: This also automatically handles new allocations.
         for (account_key, ephemeral_account_global_shadow_allocs_sum) in
             self.delta.updated_global_shadow_allocs_sums.iter()
         {
-            // 5.1 On-disk insertion.
+            // 7.1 On-disk insertion.
             {
                 // Open tree.
                 let tree = self.on_disk_accounts.open_tree(account_key).map_err(|e| {
@@ -1898,7 +2062,7 @@ impl CoinManager {
                 })?;
             }
 
-            // 5.2 In-memory insertion.
+            // 7.2 In-memory insertion.
             {
                 // Get the mutable permanent account body.
                 let mut_permanent_account_body = self
@@ -1914,12 +2078,12 @@ impl CoinManager {
             }
         }
 
-        // 7 Save contract's updated shadow spaces.
+        // 8 Save contract's updated shadow spaces.
         for (contract_id, ephemeral_shadow_space) in self.delta.updated_shadow_spaces.iter() {
             // Get the final shadow allocs sum value.
             let final_shadow_allocs_sum_value = ephemeral_shadow_space.allocs_sum;
 
-            // 7.1 On-disk insertion.
+            // 8.1 On-disk insertion.
             {
                 // Open tree.
                 let tree = self.on_disk_contracts.open_tree(contract_id).map_err(|e| {
@@ -1964,7 +2128,7 @@ impl CoinManager {
                 })?;
             }
 
-            // 7.2 In-memory insertion.
+            // 8.2 In-memory insertion.
             {
                 // Get mutable permanent contract body.
                 let mut_permanent_contract_body = self
@@ -1979,10 +2143,10 @@ impl CoinManager {
             }
         }
 
-        // 8 Handle deallocations.
+        // 9 Handle deallocations.
         {
             for (contract_id, ephemeral_dealloc_list) in self.delta.deallocs_list.iter() {
-                // 7.1 On-disk deletion.
+                // 9.1 On-disk deletion.
                 {
                     // Open tree.
                     let tree = self.on_disk_contracts.open_tree(contract_id).map_err(|e| {
@@ -2008,7 +2172,7 @@ impl CoinManager {
                     }
                 }
 
-                // 7.2 In-memory deletion.
+                // 9.2 In-memory deletion.
                 {
                     // Get mutable permanent contract body.
                     let mut_permanent_contract_body = self
@@ -2038,33 +2202,33 @@ impl CoinManager {
             }
         }
 
-        // 9 Erase accounts.
+        // 10 Erase accounts.
         for account_key in self.delta.accounts_to_erase.iter() {
-            // 9.1 On-disk removal.
+            // 10.1 On-disk removal.
             self.on_disk_accounts.drop_tree(account_key).map_err(|e| {
                 CMApplyChangesError::AccountApplyChangesError(
                     CMAccountApplyChangesError::TreeDropError(*account_key, e),
                 )
             })?;
 
-            // 9.2 In-memory removal.
+            // 10.2 In-memory removal.
             self.in_memory_accounts.remove(account_key);
         }
 
-        // 10 Erase contracts.
+        // 11 Erase contracts.
         for contract_id in self.delta.contracts_to_erase.iter() {
-            // 10.1 On-disk removal.
+            // 11.1 On-disk removal.
             self.on_disk_contracts.drop_tree(contract_id).map_err(|e| {
                 CMApplyChangesError::ContractApplyChangesError(
                     CMContractApplyChangesError::TreeDropError(*contract_id, e),
                 )
             })?;
 
-            // 10.2 In-memory removal.
+            // 11.2 In-memory removal.
             self.in_memory_contracts.remove(contract_id);
         }
 
-        // 11 Return the result.
+        // 12 Return the result.
         Ok(())
     }
 

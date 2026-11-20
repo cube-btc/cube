@@ -13,6 +13,10 @@ type ContractId = [u8; 32];
 #[allow(non_camel_case_types)]
 type SatoshiAmount = u64;
 
+/// Satoshi amount signed.
+#[allow(non_camel_case_types)]
+type SatoshiAmountSigned = i64;
+
 /// Sati-satoshi amount.
 #[allow(non_camel_case_types)]
 type SatiSatoshiAmount = u128;
@@ -48,6 +52,9 @@ pub struct CMDelta {
     // Updated contract balances for a given contract.
     pub updated_contract_balances: HashMap<ContractId, SatoshiAmount>,
 
+    // Updated contract vitality balances for a given contract.
+    pub updated_contract_vitality_balances: HashMap<ContractId, SatoshiAmountSigned>,
+
     // Updated shadow spaces for a given contract.
     pub updated_shadow_spaces: HashMap<ContractId, ShadowSpace>,
 
@@ -67,6 +74,7 @@ impl CMDelta {
             allocs_list: HashMap::new(),
             deallocs_list: HashMap::new(),
             updated_contract_balances: HashMap::new(),
+            updated_contract_vitality_balances: HashMap::new(),
             updated_shadow_spaces: HashMap::new(),
             contracts_to_erase: Vec::new(),
         }
@@ -82,6 +90,7 @@ impl CMDelta {
         self.allocs_list.clear();
         self.deallocs_list.clear();
         self.updated_contract_balances.clear();
+        self.updated_contract_vitality_balances.clear();
         self.updated_shadow_spaces.clear();
         self.contracts_to_erase.clear();
     }
@@ -161,6 +170,16 @@ impl CMDelta {
         balance: SatoshiAmount,
     ) {
         self.updated_contract_balances.insert(contract_id, balance);
+    }
+
+    /// Epheremally updates a contract's vitality balance.
+    pub fn ephemerally_update_contract_vitality_balance(
+        &mut self,
+        contract_id: ContractId,
+        vitality_balance: SatoshiAmountSigned,
+    ) {
+        self.updated_contract_vitality_balances
+            .insert(contract_id, vitality_balance);
     }
 
     /// Epheremally marks a contract for erasure in the delta.

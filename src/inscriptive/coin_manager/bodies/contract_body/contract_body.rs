@@ -5,11 +5,18 @@ use serde_json::{Map, Value};
 #[allow(non_camel_case_types)]
 type SatoshiAmount = u64;
 
+/// Satoshi amount.
+#[allow(non_camel_case_types)]
+type SatoshiAmountSigned = i64;
+
 /// A struct for containing BTC balance and shadow space of a contract.
 #[derive(Clone)]
 pub struct CMContractBody {
     // Contract's BTC balance.
     pub balance: SatoshiAmount,
+
+    // Contract's vitality balance (can be negative).
+    pub vitality_balance: SatoshiAmountSigned,
 
     // Contract's shadow space.
     pub shadow_space: ShadowSpace,
@@ -17,9 +24,14 @@ pub struct CMContractBody {
 
 impl CMContractBody {
     /// Constructs a fresh new contract body.
-    pub fn new(balance: SatoshiAmount, shadow_space: ShadowSpace) -> Self {
+    pub fn new(
+        balance: SatoshiAmount,
+        vitality_balance: SatoshiAmountSigned,
+        shadow_space: ShadowSpace,
+    ) -> Self {
         Self {
             balance,
+            vitality_balance,
             shadow_space,
         }
     }
@@ -27,6 +39,11 @@ impl CMContractBody {
     /// Updates the contract balance.
     pub fn update_balance(&mut self, balance: SatoshiAmount) {
         self.balance = balance;
+    }
+
+    /// Updates the contract vitality balance.
+    pub fn update_vitality_balance(&mut self, vitality_balance: SatoshiAmountSigned) {
+        self.vitality_balance = vitality_balance;
     }
 
     /// Updates the contract shadow space.
@@ -45,10 +62,16 @@ impl CMContractBody {
             Value::String(self.balance.to_string()),
         );
 
-        // 3 Insert the shadow space.
+        // 3 Insert the vitality balance.
+        obj.insert(
+            "vitality_balance".to_string(),
+            Value::String(self.vitality_balance.to_string()),
+        );
+
+        // 4 Insert the shadow space.
         obj.insert("shadow_space".to_string(), self.shadow_space.json());
 
-        // 4 Return the JSON object.
+        // 5 Return the JSON object.
         Value::Object(obj)
     }
 }

@@ -1,4 +1,21 @@
-use crate::inscriptive::params_manager::params_holder::params_holder::ParamsHolder;
+use crate::inscriptive::params_manager::errors::param_update_errors::{
+    PMAccountTerminationCheckPeriodUpdateError,
+    PMConfiguredPlebInactivityTerminationPeriodUpdateError,
+    PMContractNonShadowedLiquidityPpmTaxRateUpdateError,
+    PMContractShadowedLiquidityPpmTaxRateUpdateError, PMContractStoragePpmTaxRateUpdateError,
+    PMContractTerminationCheckPeriodUpdateError,
+    PMMutableContractVitalitySuckedTerminationValueUpdateError,
+    PMUnconfiguredPlebInactivityTerminationPeriodUpdateError,
+};
+use crate::inscriptive::params_manager::params_holder::params_holder::{
+    ParamsHolder, ACCOUNT_TERMINATION_CHECK_PERIOD_CEILING, ACCOUNT_TERMINATION_CHECK_PERIOD_FLOOR,
+    CONTRACT_NON_SHADOWED_LIQUIDITY_PPM_TAX_RATE_CEILING,
+    CONTRACT_SHADOWED_LIQUIDITY_PPM_TAX_RATE_CEILING, CONTRACT_STORAGE_PPM_TAX_RATE_CEILING,
+    CONTRACT_STORAGE_PPM_TAX_RATE_FLOOR, CONTRACT_TERMINATION_CHECK_PERIOD_CEILING,
+    CONTRACT_TERMINATION_CHECK_PERIOD_FLOOR,
+    MUTABLE_CONTRACT_VITALITY_SUCKED_TERMINATION_VALUE_CEILING,
+    MUTABLE_CONTRACT_VITALITY_SUCKED_TERMINATION_VALUE_FLOOR, PLEB_INACTIVITY_PERIOD_FLOOR,
+};
 use crate::inscriptive::params_manager::params_keys::*;
 use crate::operative::run_args::chain::Chain;
 use std::sync::{Arc, Mutex};
@@ -55,7 +72,7 @@ impl ParamsManager {
             };
 
             match key_bytes[0] {
-                PARAMS_CATEGORY_CASUAL => match key_bytes[1] {
+                PARAMS_CATEGORY_CASUAL_TAG => match key_bytes[1] {
                     0x00 => {
                         params_holder.account_can_initially_deploy_liquidity =
                             value.as_ref().first().copied().unwrap_or(1) != 0;
@@ -130,7 +147,57 @@ impl ParamsManager {
                     }
                     _ => (),
                 },
-                PARAMS_CATEGORY_OPCODE_OPS => match key_bytes[1] {
+                PERIODIC_CHECK_TERMINATION_TAG => match key_bytes[1] {
+                    0x00 => {
+                        if let Ok(bytes) = value.as_ref().try_into() {
+                            params_holder.configured_pleb_inactivity_termination_period_seconds =
+                                u64::from_le_bytes(bytes);
+                        }
+                    }
+                    0x01 => {
+                        if let Ok(bytes) = value.as_ref().try_into() {
+                            params_holder.unconfigured_pleb_inactivity_termination_period_seconds =
+                                u64::from_le_bytes(bytes);
+                        }
+                    }
+                    0x02 => {
+                        if let Ok(bytes) = value.as_ref().try_into() {
+                            params_holder.mutable_contract_vitality_sucked_termination_value =
+                                i64::from_le_bytes(bytes);
+                        }
+                    }
+                    0x03 => {
+                        if let Ok(bytes) = value.as_ref().try_into() {
+                            params_holder.contract_storage_ppm_tax_rate = u64::from_le_bytes(bytes);
+                        }
+                    }
+                    0x04 => {
+                        if let Ok(bytes) = value.as_ref().try_into() {
+                            params_holder.contract_shadowed_liquidity_ppm_tax_rate =
+                                u64::from_le_bytes(bytes);
+                        }
+                    }
+                    0x05 => {
+                        if let Ok(bytes) = value.as_ref().try_into() {
+                            params_holder.contract_non_shadowed_liquidity_ppm_tax_rate =
+                                u64::from_le_bytes(bytes);
+                        }
+                    }
+                    0x06 => {
+                        if let Ok(bytes) = value.as_ref().try_into() {
+                            params_holder.account_termination_check_period =
+                                u64::from_le_bytes(bytes);
+                        }
+                    }
+                    0x07 => {
+                        if let Ok(bytes) = value.as_ref().try_into() {
+                            params_holder.contract_termination_check_period =
+                                u64::from_le_bytes(bytes);
+                        }
+                    }
+                    _ => (),
+                },
+                PARAMS_CATEGORY_OPCODE_OPS_TAG => match key_bytes[1] {
                     0x00 => {
                         if let Ok(bytes) = value.as_ref().try_into() {
                             params_holder.opcode_ops.op_false = u64::from_le_bytes(bytes);
@@ -954,6 +1021,181 @@ impl ParamsManager {
             .deploy_entry_per_program_byte_fee = value;
     }
 
+    /// Updates the configured pleb inactivity termination period in seconds.
+    pub fn set_configured_pleb_inactivity_termination_period_seconds(
+        &mut self,
+        value: u64,
+    ) -> Result<(), PMConfiguredPlebInactivityTerminationPeriodUpdateError> {
+        if value < PLEB_INACTIVITY_PERIOD_FLOOR {
+            return Err(
+                PMConfiguredPlebInactivityTerminationPeriodUpdateError::BelowFloor(
+                    value,
+                    PLEB_INACTIVITY_PERIOD_FLOOR,
+                ),
+            );
+        }
+
+        self.get_mut_ephemeral_params_holder()
+            .configured_pleb_inactivity_termination_period_seconds = value;
+        Ok(())
+    }
+
+    /// Updates the unconfigured pleb inactivity termination period in seconds.
+    pub fn set_unconfigured_pleb_inactivity_termination_period_seconds(
+        &mut self,
+        value: u64,
+    ) -> Result<(), PMUnconfiguredPlebInactivityTerminationPeriodUpdateError> {
+        if value < PLEB_INACTIVITY_PERIOD_FLOOR {
+            return Err(
+                PMUnconfiguredPlebInactivityTerminationPeriodUpdateError::BelowFloor(
+                    value,
+                    PLEB_INACTIVITY_PERIOD_FLOOR,
+                ),
+            );
+        }
+
+        self.get_mut_ephemeral_params_holder()
+            .unconfigured_pleb_inactivity_termination_period_seconds = value;
+        Ok(())
+    }
+
+    /// Updates the mutable contract vitality sucked termination value.
+    ///
+    /// Valid range is
+    /// `MUTABLE_CONTRACT_VITALITY_SUCKED_TERMINATION_VALUE_CEILING..=MUTABLE_CONTRACT_VITALITY_SUCKED_TERMINATION_VALUE_FLOOR`.
+    pub fn set_mutable_contract_vitality_sucked_termination_value(
+        &mut self,
+        value: i64,
+    ) -> Result<(), PMMutableContractVitalitySuckedTerminationValueUpdateError> {
+        if value < MUTABLE_CONTRACT_VITALITY_SUCKED_TERMINATION_VALUE_CEILING {
+            return Err(
+                PMMutableContractVitalitySuckedTerminationValueUpdateError::BelowCeiling(
+                    value,
+                    MUTABLE_CONTRACT_VITALITY_SUCKED_TERMINATION_VALUE_CEILING,
+                ),
+            );
+        }
+        if value > MUTABLE_CONTRACT_VITALITY_SUCKED_TERMINATION_VALUE_FLOOR {
+            return Err(
+                PMMutableContractVitalitySuckedTerminationValueUpdateError::AboveFloor(
+                    value,
+                    MUTABLE_CONTRACT_VITALITY_SUCKED_TERMINATION_VALUE_FLOOR,
+                ),
+            );
+        }
+
+        self.get_mut_ephemeral_params_holder()
+            .mutable_contract_vitality_sucked_termination_value = value;
+        Ok(())
+    }
+
+    /// Updates the contract storage PPM tax rate.
+    pub fn set_contract_storage_ppm_tax_rate(
+        &mut self,
+        value: u64,
+    ) -> Result<(), PMContractStoragePpmTaxRateUpdateError> {
+        if value < CONTRACT_STORAGE_PPM_TAX_RATE_FLOOR {
+            return Err(PMContractStoragePpmTaxRateUpdateError::BelowFloor(
+                value,
+                CONTRACT_STORAGE_PPM_TAX_RATE_FLOOR,
+            ));
+        }
+        if value > CONTRACT_STORAGE_PPM_TAX_RATE_CEILING {
+            return Err(PMContractStoragePpmTaxRateUpdateError::AboveCeiling(
+                value,
+                CONTRACT_STORAGE_PPM_TAX_RATE_CEILING,
+            ));
+        }
+
+        self.get_mut_ephemeral_params_holder()
+            .contract_storage_ppm_tax_rate = value;
+        Ok(())
+    }
+
+    /// Updates the contract shadowed liquidity PPM tax rate.
+    pub fn set_contract_shadowed_liquidity_ppm_tax_rate(
+        &mut self,
+        value: u64,
+    ) -> Result<(), PMContractShadowedLiquidityPpmTaxRateUpdateError> {
+        if value > CONTRACT_SHADOWED_LIQUIDITY_PPM_TAX_RATE_CEILING {
+            return Err(
+                PMContractShadowedLiquidityPpmTaxRateUpdateError::AboveCeiling(
+                    value,
+                    CONTRACT_SHADOWED_LIQUIDITY_PPM_TAX_RATE_CEILING,
+                ),
+            );
+        }
+
+        self.get_mut_ephemeral_params_holder()
+            .contract_shadowed_liquidity_ppm_tax_rate = value;
+        Ok(())
+    }
+
+    /// Updates the contract non-shadowed liquidity PPM tax rate.
+    pub fn set_contract_non_shadowed_liquidity_ppm_tax_rate(
+        &mut self,
+        value: u64,
+    ) -> Result<(), PMContractNonShadowedLiquidityPpmTaxRateUpdateError> {
+        if value > CONTRACT_NON_SHADOWED_LIQUIDITY_PPM_TAX_RATE_CEILING {
+            return Err(
+                PMContractNonShadowedLiquidityPpmTaxRateUpdateError::AboveCeiling(
+                    value,
+                    CONTRACT_NON_SHADOWED_LIQUIDITY_PPM_TAX_RATE_CEILING,
+                ),
+            );
+        }
+
+        self.get_mut_ephemeral_params_holder()
+            .contract_non_shadowed_liquidity_ppm_tax_rate = value;
+        Ok(())
+    }
+
+    /// Updates the account termination check period in batch heights.
+    pub fn set_account_termination_check_period(
+        &mut self,
+        value: u64,
+    ) -> Result<(), PMAccountTerminationCheckPeriodUpdateError> {
+        if value < ACCOUNT_TERMINATION_CHECK_PERIOD_FLOOR {
+            return Err(PMAccountTerminationCheckPeriodUpdateError::BelowFloor(
+                value,
+                ACCOUNT_TERMINATION_CHECK_PERIOD_FLOOR,
+            ));
+        }
+        if value > ACCOUNT_TERMINATION_CHECK_PERIOD_CEILING {
+            return Err(PMAccountTerminationCheckPeriodUpdateError::AboveCeiling(
+                value,
+                ACCOUNT_TERMINATION_CHECK_PERIOD_CEILING,
+            ));
+        }
+
+        self.get_mut_ephemeral_params_holder()
+            .account_termination_check_period = value;
+        Ok(())
+    }
+
+    /// Updates the contract termination check period in batch heights.
+    pub fn set_contract_termination_check_period(
+        &mut self,
+        value: u64,
+    ) -> Result<(), PMContractTerminationCheckPeriodUpdateError> {
+        if value < CONTRACT_TERMINATION_CHECK_PERIOD_FLOOR {
+            return Err(PMContractTerminationCheckPeriodUpdateError::BelowFloor(
+                value,
+                CONTRACT_TERMINATION_CHECK_PERIOD_FLOOR,
+            ));
+        }
+        if value > CONTRACT_TERMINATION_CHECK_PERIOD_CEILING {
+            return Err(PMContractTerminationCheckPeriodUpdateError::AboveCeiling(
+                value,
+                CONTRACT_TERMINATION_CHECK_PERIOD_CEILING,
+            ));
+        }
+
+        self.get_mut_ephemeral_params_holder()
+            .contract_termination_check_period = value;
+        Ok(())
+    }
+
     /// Reverts the ephemeral changes associated with the last execution.
     pub fn rollback_last(&mut self) {
         self.restore_delta();
@@ -1067,6 +1309,62 @@ impl ParamsManager {
                 DEPLOY_ENTRY_PER_PROGRAM_BYTE_FEE_SPECIAL_DB_KEY,
                 ephemeral_params_holder
                     .deploy_entry_per_program_byte_fee
+                    .to_le_bytes()
+                    .to_vec(),
+            )?;
+            tree.insert(
+                CONFIGURED_PLEB_INACTIVITY_TERMINATION_PERIOD_SECONDS_SPECIAL_DB_KEY,
+                ephemeral_params_holder
+                    .configured_pleb_inactivity_termination_period_seconds
+                    .to_le_bytes()
+                    .to_vec(),
+            )?;
+            tree.insert(
+                UNCONFIGURED_PLEB_INACTIVITY_TERMINATION_PERIOD_SECONDS_SPECIAL_DB_KEY,
+                ephemeral_params_holder
+                    .unconfigured_pleb_inactivity_termination_period_seconds
+                    .to_le_bytes()
+                    .to_vec(),
+            )?;
+            tree.insert(
+                MUTABLE_CONTRACT_VITALITY_SUCKED_TERMINATION_VALUE_SPECIAL_DB_KEY,
+                ephemeral_params_holder
+                    .mutable_contract_vitality_sucked_termination_value
+                    .to_le_bytes()
+                    .to_vec(),
+            )?;
+            tree.insert(
+                CONTRACT_STORAGE_PPM_TAX_RATE_SPECIAL_DB_KEY,
+                ephemeral_params_holder
+                    .contract_storage_ppm_tax_rate
+                    .to_le_bytes()
+                    .to_vec(),
+            )?;
+            tree.insert(
+                CONTRACT_SHADOWED_LIQUIDITY_PPM_TAX_RATE_SPECIAL_DB_KEY,
+                ephemeral_params_holder
+                    .contract_shadowed_liquidity_ppm_tax_rate
+                    .to_le_bytes()
+                    .to_vec(),
+            )?;
+            tree.insert(
+                CONTRACT_NON_SHADOWED_LIQUIDITY_PPM_TAX_RATE_SPECIAL_DB_KEY,
+                ephemeral_params_holder
+                    .contract_non_shadowed_liquidity_ppm_tax_rate
+                    .to_le_bytes()
+                    .to_vec(),
+            )?;
+            tree.insert(
+                ACCOUNT_TERMINATION_CHECK_PERIOD_SPECIAL_DB_KEY,
+                ephemeral_params_holder
+                    .account_termination_check_period
+                    .to_le_bytes()
+                    .to_vec(),
+            )?;
+            tree.insert(
+                CONTRACT_TERMINATION_CHECK_PERIOD_SPECIAL_DB_KEY,
+                ephemeral_params_holder
+                    .contract_termination_check_period
                     .to_le_bytes()
                     .to_vec(),
             )?;

@@ -10,6 +10,10 @@ type CONTRACT_ID = [u8; 32];
 #[allow(non_camel_case_types)]
 type SATOSHI_AMOUNT = u64;
 
+/// Satoshi amount signed.
+#[allow(non_camel_case_types)]
+type SATOSHI_AMOUNT_SIGNED = i64;
+
 /// Sati-satoshi amount.
 #[allow(non_camel_case_types)]
 type SATI_SATOSHI_AMOUNT = u128;
@@ -31,6 +35,7 @@ pub enum CMAccountApplyChangesError {
 pub enum CMContractApplyChangesError {
     OpenTreeError(CONTRACT_ID, sled::Error),
     BalanceValueOnDiskInsertionError(CONTRACT_ID, SATOSHI_AMOUNT, sled::Error),
+    VitalityBalanceValueOnDiskInsertionError(CONTRACT_ID, SATOSHI_AMOUNT_SIGNED, sled::Error),
     AllocsSumValueOnDiskInsertionError(CONTRACT_ID, SATOSHI_AMOUNT, sled::Error),
     UnableToGetPermanentContractBody(CONTRACT_ID),
     ShadowAllocValueOnDiskInsertionError(

@@ -1,5 +1,6 @@
 pub mod entry_executions;
 pub mod exec_ctx;
+pub mod termination;
 pub mod vm;
 
 pub use vm::opcodes;
