@@ -11,6 +11,7 @@ use crate::executive::entry_executions::liftup_execution::error::liftup_executio
 use crate::executive::entry_executions::move_execution::error::move_execution_error::MoveExecutionError;
 use crate::executive::entry_executions::swapout_execution::error::swapout_execution_error::SwapoutExecutionError;
 use crate::executive::exec_ctx::errors::apply_changes_error::ApplyChangesError;
+use crate::executive::termination::error::termination_error::TerminationError;
 use bitcoin::OutPoint;
 
 /// A type alias for the current batch sync height tip.
@@ -56,5 +57,6 @@ pub enum BatchExecutionError {
     ConfigSighashError(ConfigSighashError),
     AggregateBLSSignatureVerificationError,
     ExecutedEntryIdError,
+    PeriodicTerminationError(TerminationError),
     ApplyChangesError(ApplyChangesError),
 }

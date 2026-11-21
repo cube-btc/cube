@@ -22,5 +22,12 @@ pub enum SwapoutExecutionError {
     CoinManagerAccountBalanceDownError(CMAccountBalanceDownError),
     AmountPlusFeesOverflow,
 
+    /// Root account has no liveness flag in the privileges manager.
+    RootAccountLivenessFlagNotFound([u8; 32]),
+    /// Root account's ToBeFrozen takes-effect timestamp has elapsed.
+    RootAccountFrozen([u8; 32]),
+    /// Root account's ToBeDestroyed takes-effect timestamp has elapsed.
+    RootAccountDestroyed([u8; 32]),
+
     FailedToApplyFeesSubsidy,
 }

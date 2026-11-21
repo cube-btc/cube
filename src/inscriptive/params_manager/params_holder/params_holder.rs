@@ -36,6 +36,18 @@ pub const UNCONFIGURED_PLEB_TO_BE_DESTROYED_RECOVERY_GAP_SECONDS_FLOOR: u64 = 2_
 /// Set to 8 years (same as unconfigured inactivity termination period default).
 pub const UNCONFIGURED_PLEB_TO_BE_DESTROYED_RECOVERY_GAP_SECONDS_CEILING: u64 = 252_455_616;
 
+/// The default gap after a mutable contract is marked ToBeDestroyed before destruction takes effect.
+/// Initially set to 2 years (same as configured Pleb ToBeDestroyed recovery gap). Subject to change via The Governance Contract.
+const MUTABLE_CONTRACT_TO_BE_DESTROYED_GAP_SECONDS_DEFAULT: u64 = 63_072_000;
+
+/// The minimum possible value which a mutable contract ToBeDestroyed gap can be set to.
+/// Set to 1 month (same as Pleb ToBeDestroyed recovery gap floor).
+pub const MUTABLE_CONTRACT_TO_BE_DESTROYED_GAP_SECONDS_FLOOR: u64 = 2_592_000;
+
+/// The maximum possible value which a mutable contract ToBeDestroyed gap can be set to.
+/// Set to 8 years (same as Pleb ToBeDestroyed recovery gap ceiling).
+pub const MUTABLE_CONTRACT_TO_BE_DESTROYED_GAP_SECONDS_CEILING: u64 = 252_455_616;
+
 /// The vitality minus zero balance value at which a mutable contract's termination process will be initiated.
 /// Initially set to minus 10,000 satoshis. Subject to change via The Governance Contract.
 const MUTABLE_CONTRACT_VITALITY_SUCKED_TERMINATION_VALUE_DEFAULT: i64 = -10_000;
@@ -50,12 +62,8 @@ pub const MUTABLE_CONTRACT_VITALITY_SUCKED_TERMINATION_VALUE_CEILING: i64 = -1_0
 
 /// The default contract binsize PPM tax rate.
 /// Initially set to 0.1%, meaning a contract is charged (taxed) 1 satoshi per 1_000 bytes of contract bytecode/binary size.
-/// Subject to change via The Governance Contract.
+/// Subject to change via The Governance Contract. May be set to zero (no tax).
 const CONTRACT_BINSIZE_PPM_TAX_RATE_DEFAULT: u64 = 1_000;
-
-/// The minimum possible value which a contract binsize PPM tax rate can be set to.
-/// Set to 0.0001%, meaning a contract is charged (taxed) 1 satoshi per 100_000_000 bytes of contract bytecode/binary size.
-pub const CONTRACT_BINSIZE_PPM_TAX_RATE_FLOOR: u64 = 1;
 
 /// The maximum possible value which a contract binsize PPM tax rate can be set to.
 /// Set to 10,000%, meaning a contract is charged (taxed) 100 satoshis per one byte of contract bytecode/binary size.
@@ -63,12 +71,8 @@ pub const CONTRACT_BINSIZE_PPM_TAX_RATE_CEILING: u64 = 100_000_000;
 
 /// The default contract statesize PPM tax rate.
 /// Initially set to 0.1%, meaning a contract is charged (taxed) 1 satoshi per 1_000 bytes of contract state (storage).
-/// Subject to change via The Governance Contract.
+/// Subject to change via The Governance Contract. May be set to zero (no tax).
 const CONTRACT_STATESIZE_PPM_TAX_RATE_DEFAULT: u64 = 1_000;
-
-/// The minimum possible value which a contract statesize PPM tax rate can be set to.
-/// Set to 0.0001%, meaning a contract is charged (taxed) 1 satoshi per 100_000_000 bytes of contract state size (storage).
-pub const CONTRACT_STATESIZE_PPM_TAX_RATE_FLOOR: u64 = 1;
 
 /// The maximum possible value which a contract statesize PPM tax rate can be set to.
 /// Set to 10,000%, meaning a contract is charged (taxed) 100 satoshis per one byte of contract state size (storage).
@@ -141,6 +145,8 @@ pub struct ParamsHolder {
     // Pleb ToBeDestroyed recovery gap parameters.
     pub configured_pleb_to_be_destroyed_recovery_gap_seconds: u64,
     pub unconfigured_pleb_to_be_destroyed_recovery_gap_seconds: u64,
+    // Mutable contract ToBeDestroyed gap parameter.
+    pub mutable_contract_to_be_destroyed_gap_seconds: u64,
     // Mutable contract vitality sucked termination value.
     pub mutable_contract_vitality_sucked_termination_value: i64,
     // Contract tax rate parameters.
@@ -183,6 +189,9 @@ impl ParamsHolder {
                 CONFIGURED_PLEB_TO_BE_DESTROYED_RECOVERY_GAP_SECONDS_DEFAULT,
             unconfigured_pleb_to_be_destroyed_recovery_gap_seconds:
                 UNCONFIGURED_PLEB_TO_BE_DESTROYED_RECOVERY_GAP_SECONDS_DEFAULT,
+            // Mutable contract ToBeDestroyed gap parameter.
+            mutable_contract_to_be_destroyed_gap_seconds:
+                MUTABLE_CONTRACT_TO_BE_DESTROYED_GAP_SECONDS_DEFAULT,
             // Mutable contract vitality sucked termination value.
             mutable_contract_vitality_sucked_termination_value:
                 MUTABLE_CONTRACT_VITALITY_SUCKED_TERMINATION_VALUE_DEFAULT,

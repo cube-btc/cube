@@ -114,6 +114,46 @@ impl StateManager {
         self.in_memory_states.contains_key(&contract_id)
     }
 
+    /// Returns the total state size in bytes for a contract (key + value lengths),
+    /// merging ephemeral delta inserts/updates/removals.
+    pub fn get_contract_state_size_in_bytes(&self, contract_id: ContractId) -> u64 {
+        if self.delta.is_contract_ephemerally_erased(contract_id) {
+            return 0;
+        }
+
+        let mut size = 0u64;
+        let mut counted_keys = std::collections::HashSet::<&StateKey>::new();
+
+        if let Some(states) = self.in_memory_states.get(&contract_id) {
+            for (key, value) in states.iter() {
+                if self.delta.is_state_ephemerally_removed(contract_id, key) {
+                    continue;
+                }
+                counted_keys.insert(key);
+                if let Some(ephemeral_value) =
+                    self.delta.get_ephemeral_state_value(contract_id, key)
+                {
+                    size += (key.len() + ephemeral_value.len()) as u64;
+                } else {
+                    size += (key.len() + value.len()) as u64;
+                }
+            }
+        }
+
+        if let Some(new_or_updated) = self.delta.new_or_updated_contract_states.get(&contract_id) {
+            for (key, value) in new_or_updated.iter() {
+                if counted_keys.contains(key)
+                    || self.delta.is_state_ephemerally_removed(contract_id, key)
+                {
+                    continue;
+                }
+                size += (key.len() + value.len()) as u64;
+            }
+        }
+
+        size
+    }
+
     /// Returns the value of a state by contract ID and key.
     pub fn get_state_value(&self, contract_id: ContractId, key: &StateKey) -> Option<StateValue> {
         // 1 Check if the state has just been ephemerally removed in the delta.

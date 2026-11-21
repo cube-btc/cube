@@ -6,7 +6,10 @@ use crate::executive::entry_executions::swapout_execution::error::swapout_execut
 use crate::executive::exec_ctx::exec_ctx::ExecCtx;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
 use crate::inscriptive::coin_manager::errors::balance_update_errors::CMAccountBalanceDownError;
-use crate::inscriptive::privileges_manager::elements::exemption::exemption::ExemptionSubsidyBreakdown;
+use crate::inscriptive::privileges_manager::elements::exemption::exemption::{
+    Exemption, ExemptionSubsidyBreakdown,
+};
+use crate::inscriptive::privileges_manager::elements::liveness_flag::liveness_flag::LivenessFlag;
 use crate::inscriptive::privileges_manager::errors::update_error::PMUpdateAccountError;
 
 impl ExecCtx {
@@ -58,7 +61,31 @@ impl ExecCtx {
         let fees_pre_subsidy = base_fee;
         let account_key = swapout.root_account.account_key();
 
-        // 3.1 Last activity before this entry (read before `sync_with_registry`, which bumps it to `execution_timestamp`).
+        // 3.1 Root liveness + txfee exemptions (single PM lock; exemptions reused by subsidy).
+        let (root_liveness_flag, txfee_exemptions) = {
+            let _privileges_manager = self.privileges_manager.lock().await;
+            _privileges_manager.get_account_liveness_flag_and_txfee_exemptions(account_key)
+        };
+        let Some(liveness_flag) = root_liveness_flag else {
+            return Err(SwapoutExecutionError::RootAccountLivenessFlagNotFound(
+                account_key,
+            ));
+        };
+        match liveness_flag {
+            LivenessFlag::Operational => {}
+            LivenessFlag::ToBeFrozen(takes_effect_at_timestamp) => {
+                if execution_timestamp >= takes_effect_at_timestamp {
+                    return Err(SwapoutExecutionError::RootAccountFrozen(account_key));
+                }
+            }
+            LivenessFlag::ToBeDestroyed(takes_effect_at_timestamp) => {
+                if execution_timestamp >= takes_effect_at_timestamp {
+                    return Err(SwapoutExecutionError::RootAccountDestroyed(account_key));
+                }
+            }
+        }
+
+        // 3.2 Last activity before this entry (read before `sync_with_registry`, which bumps it to `execution_timestamp`).
         let latest_activity_timestamp = {
             let _registry = self.registry.lock().await;
             _registry
@@ -98,6 +125,7 @@ impl ExecCtx {
                     execution_timestamp,
                     fees_pre_subsidy,
                     latest_activity_timestamp,
+                    txfee_exemptions,
                 )
                 .await?
             }
@@ -116,6 +144,7 @@ impl ExecCtx {
                     execution_timestamp,
                     fees_pre_subsidy,
                     latest_activity_timestamp,
+                    txfee_exemptions,
                 )
                 .await?
             }
@@ -140,18 +169,16 @@ impl ExecCtx {
     }
 
     /// Applies the subsidy to the swapout entry fees.
+    ///
+    /// `txfee_exemptions` is pre-fetched with the root liveness flag (single earlier PM lock).
     async fn apply_subsidy_swapout(
         &self,
         account_key: [u8; 32],
         execution_timestamp: u64,
         fees_pre_subsidy: u64,
         latest_activity_timestamp: u64,
+        txfee_exemptions: Option<Exemption>,
     ) -> Result<(u64, Option<ExemptionSubsidyBreakdown>), SwapoutExecutionError> {
-        let txfee_exemptions = {
-            let _privileges_manager = self.privileges_manager.lock().await;
-            _privileges_manager.get_account_txfee_exemptions(account_key)
-        };
-
         let Some(mut exemptions) = txfee_exemptions else {
             return Ok((fees_pre_subsidy, None));
         };

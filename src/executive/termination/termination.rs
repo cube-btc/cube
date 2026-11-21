@@ -3,9 +3,12 @@ use crate::executive::termination::error::termination_error::TerminationError;
 use crate::inscriptive::privileges_manager::elements::account_hierarchy::account_hierarchy::AccountHierarchy;
 use crate::inscriptive::privileges_manager::elements::liveness_flag::liveness_flag::LivenessFlag;
 
+/// Parts-per-million denominator used for occupancy tax rate calculations.
+const PPM_DENOMINATOR: u128 = 1_000_000;
+
 impl ExecCtx {
     /// Executes a periodic termination.
-    async fn periodic_termination(
+    pub(crate) async fn periodic_termination(
         &mut self,
         current_execution_batch_height: u64,
         current_execution_timestamp: u64,
@@ -19,11 +22,17 @@ impl ExecCtx {
         // 2 Get certain related parameters from the params holder.
         let (
             account_termination_check_period,
-            _contract_termination_check_period,
+            contract_termination_check_period,
             configured_pleb_inactivity_termination_period_seconds,
             unconfigured_pleb_inactivity_termination_period_seconds,
             configured_pleb_to_be_destroyed_recovery_gap_seconds,
             unconfigured_pleb_to_be_destroyed_recovery_gap_seconds,
+            mutable_contract_vitality_sucked_termination_value,
+            mutable_contract_to_be_destroyed_gap_seconds,
+            contract_binsize_ppm_tax_rate,
+            contract_statesize_ppm_tax_rate,
+            contract_shadowed_liquidity_ppm_tax_rate,
+            contract_non_shadowed_liquidity_ppm_tax_rate,
         ) = (
             params_holder.account_termination_check_period,
             params_holder.contract_termination_check_period,
@@ -31,12 +40,18 @@ impl ExecCtx {
             params_holder.unconfigured_pleb_inactivity_termination_period_seconds,
             params_holder.configured_pleb_to_be_destroyed_recovery_gap_seconds,
             params_holder.unconfigured_pleb_to_be_destroyed_recovery_gap_seconds,
+            params_holder.mutable_contract_vitality_sucked_termination_value,
+            params_holder.mutable_contract_to_be_destroyed_gap_seconds,
+            params_holder.contract_binsize_ppm_tax_rate,
+            params_holder.contract_statesize_ppm_tax_rate,
+            params_holder.contract_shadowed_liquidity_ppm_tax_rate,
+            params_holder.contract_non_shadowed_liquidity_ppm_tax_rate,
         );
 
         // 3 Get the latest cube batch height periodic check tips from the sync manager.
         let (
             latest_account_period_check_cube_batch_height_tip,
-            _latest_contract_period_check_cube_batch_height_tip,
+            latest_contract_period_check_cube_batch_height_tip,
         ) = {
             let sync_manager = self.sync_manager.lock().await;
             (
@@ -182,6 +197,205 @@ impl ExecCtx {
             }
         }
 
+        // 5 Contracts Phase:
+        // Check mutable contracts whose vitality is sucked below the termination threshold,
+        // mark them ToBeDestroyed, then destroy earlier-marked contracts whose gap has elapsed.
+        {
+            // 5.1 Check if this is an appropriate period for a contract period check.
+            if (latest_contract_period_check_cube_batch_height_tip
+                + contract_termination_check_period)
+                <= current_execution_batch_height
+            {
+                // 5.1.1 Destroy earlier-marked ToBeDestroyed mutable contracts
+                // whose TakesEffectAtTimestamp has elapsed.
+                {
+                    let mut mutable_contracts_to_destroy = Vec::<[u8; 32]>::new();
+                    {
+                        let privileges_manager = self.privileges_manager.lock().await;
+
+                        for contract_id in privileges_manager.contract_ids() {
+                            let Some(immutability) =
+                                privileges_manager.get_contract_immutability(*contract_id)
+                            else {
+                                continue;
+                            };
+                            // Only mutable contracts.
+                            if immutability {
+                                continue;
+                            }
+
+                            let Some(liveness_flag) =
+                                privileges_manager.get_contract_liveness_flag(*contract_id)
+                            else {
+                                continue;
+                            };
+                            if let LivenessFlag::ToBeDestroyed(takes_effect_at_timestamp) =
+                                liveness_flag
+                            {
+                                if takes_effect_at_timestamp < current_execution_timestamp {
+                                    mutable_contracts_to_destroy.push(*contract_id);
+                                }
+                            }
+                        }
+                    }
+
+                    for contract_id in mutable_contracts_to_destroy {
+                        self.destroy_contract(contract_id).await?;
+                    }
+                }
+
+                // 5.1.2 Apply occupancy tax to mutable contracts by sucking vitality.
+                // Tax is derived from binsize, statesize, shadowed and non-shadowed liquidity PPM rates.
+                {
+                    // (contract_id, tax_in_satoshis)
+                    let mut mutable_contracts_to_tax = Vec::<([u8; 32], u64)>::new();
+                    {
+                        let privileges_manager = self.privileges_manager.lock().await;
+                        let coin_manager = self.coin_manager.lock().await;
+                        let registry = self.registry.lock().await;
+                        let state_manager = self.state_manager.lock().await;
+
+                        for contract_id in privileges_manager.contract_ids() {
+                            let Some(immutability) =
+                                privileges_manager.get_contract_immutability(*contract_id)
+                            else {
+                                continue;
+                            };
+                            // Only mutable contracts pay vitality occupancy tax.
+                            if immutability {
+                                continue;
+                            }
+
+                            let binsize_bytes = registry
+                                .get_contract_binsize_in_bytes(*contract_id)
+                                .unwrap_or(0);
+                            let statesize_bytes =
+                                state_manager.get_contract_state_size_in_bytes(*contract_id);
+                            let shadowed_liquidity_sats = coin_manager
+                                .get_contract_shadow_allocs_sum_in_satoshis(*contract_id)
+                                .unwrap_or(0);
+                            let contract_balance_sats =
+                                coin_manager.get_contract_balance(*contract_id).unwrap_or(0);
+                            let non_shadowed_liquidity_sats =
+                                contract_balance_sats.saturating_sub(shadowed_liquidity_sats);
+
+                            let binsize_tax = (binsize_bytes as u128)
+                                .saturating_mul(contract_binsize_ppm_tax_rate as u128)
+                                / PPM_DENOMINATOR;
+                            let statesize_tax = (statesize_bytes as u128)
+                                .saturating_mul(contract_statesize_ppm_tax_rate as u128)
+                                / PPM_DENOMINATOR;
+                            let shadowed_liquidity_tax = (shadowed_liquidity_sats as u128)
+                                .saturating_mul(contract_shadowed_liquidity_ppm_tax_rate as u128)
+                                / PPM_DENOMINATOR;
+                            let non_shadowed_liquidity_tax =
+                                (non_shadowed_liquidity_sats as u128).saturating_mul(
+                                    contract_non_shadowed_liquidity_ppm_tax_rate as u128,
+                                ) / PPM_DENOMINATOR;
+
+                            let total_tax = binsize_tax
+                                .saturating_add(statesize_tax)
+                                .saturating_add(shadowed_liquidity_tax)
+                                .saturating_add(non_shadowed_liquidity_tax)
+                                as u64;
+
+                            if total_tax > 0 {
+                                mutable_contracts_to_tax.push((*contract_id, total_tax));
+                            }
+                        }
+                    }
+
+                    if !mutable_contracts_to_tax.is_empty() {
+                        let mut coin_manager = self.coin_manager.lock().await;
+                        for (contract_id, tax_in_satoshis) in mutable_contracts_to_tax {
+                            coin_manager
+                                .contract_vitality_balance_down(contract_id, tax_in_satoshis)
+                                .map_err(|error| {
+                                    TerminationError::UnableToApplyContractVitalityTax(
+                                        contract_id,
+                                        error,
+                                    )
+                                })?;
+                        }
+                    }
+                }
+
+                // 5.1.3 Mark vitality-sucked operational mutable contracts as ToBeDestroyed.
+                // Newly marked contracts are destroyed in a later period-check iteration
+                // once current_execution_timestamp + ToBeDestroyed gap has elapsed.
+                {
+                    // (contract_id, takes_effect_at_timestamp)
+                    let mut mutable_contracts_to_mark = Vec::<([u8; 32], u64)>::new();
+                    {
+                        let privileges_manager = self.privileges_manager.lock().await;
+                        let coin_manager = self.coin_manager.lock().await;
+
+                        for contract_id in privileges_manager.contract_ids() {
+                            let Some(immutability) =
+                                privileges_manager.get_contract_immutability(*contract_id)
+                            else {
+                                continue;
+                            };
+                            // Only mutable contracts.
+                            if immutability {
+                                continue;
+                            }
+
+                            let Some(liveness_flag) =
+                                privileges_manager.get_contract_liveness_flag(*contract_id)
+                            else {
+                                continue;
+                            };
+                            if !matches!(liveness_flag, LivenessFlag::Operational) {
+                                continue;
+                            }
+
+                            let Some(vitality_balance) =
+                                coin_manager.get_contract_vitality_balance(*contract_id)
+                            else {
+                                continue;
+                            };
+
+                            // Vitality has been sucked at/below the termination threshold.
+                            if vitality_balance
+                                <= mutable_contract_vitality_sucked_termination_value
+                            {
+                                let takes_effect_at_timestamp = current_execution_timestamp
+                                    .saturating_add(mutable_contract_to_be_destroyed_gap_seconds);
+                                mutable_contracts_to_mark
+                                    .push((*contract_id, takes_effect_at_timestamp));
+                            }
+                        }
+                    }
+
+                    if !mutable_contracts_to_mark.is_empty() {
+                        let mut privileges_manager = self.privileges_manager.lock().await;
+                        for (contract_id, takes_effect_at_timestamp) in mutable_contracts_to_mark {
+                            privileges_manager
+                                .set_or_update_contract_liveness_flag(
+                                    contract_id,
+                                    LivenessFlag::new_to_be_destroyed(takes_effect_at_timestamp),
+                                )
+                                .map_err(|error| {
+                                    TerminationError::UnableToUpdateContractLivenessFlag(
+                                        contract_id,
+                                        error,
+                                    )
+                                })?;
+                        }
+                    }
+                }
+
+                // 5.1.4 Update the latest contract period check tip.
+                {
+                    let mut sync_manager = self.sync_manager.lock().await;
+                    sync_manager.set_latest_contract_period_check_cube_batch_height_tip(
+                        current_execution_batch_height,
+                    );
+                }
+            }
+        }
+
         Ok(())
     }
 
@@ -245,6 +459,63 @@ impl ExecCtx {
             let mut registry = self.registry.lock().await;
             registry.erase_account(account_key).map_err(|error| {
                 TerminationError::UnableToEraseAccountFromRegistry(account_key, error)
+            })?;
+        }
+
+        Ok(())
+    }
+
+    /// Destroys a contract across all managers that hold contract state.
+    ///
+    /// Ephemeral erasures are persisted later via `ExecCtx::apply_changes`.
+    async fn destroy_contract(&mut self, contract_id: [u8; 32]) -> Result<(), TerminationError> {
+        // 1 Bury the contract in the graveyard (historic record; no coin redemption).
+        {
+            let mut graveyard = self.graveyard.lock().await;
+            graveyard
+                .bury_contract(contract_id)
+                .map_err(|error| TerminationError::UnableToBuryContract(contract_id, error))?;
+        }
+
+        // 2 Erase from the coin manager.
+        {
+            let mut coin_manager = self.coin_manager.lock().await;
+            if coin_manager.is_contract_permanently_registered(contract_id) {
+                coin_manager
+                    .erase_contract(contract_id, true)
+                    .map_err(|error| {
+                        TerminationError::UnableToEraseContractFromCoinManager(contract_id, error)
+                    })?;
+            }
+        }
+
+        // 3 Erase from the state manager.
+        {
+            let mut state_manager = self.state_manager.lock().await;
+            if state_manager.is_contract_permanently_registered(contract_id) {
+                state_manager
+                    .erase_contract(contract_id, true)
+                    .map_err(|error| {
+                        TerminationError::UnableToEraseContractFromStateManager(contract_id, error)
+                    })?;
+            }
+        }
+
+        // 4 Erase from the privileges manager.
+        {
+            let mut privileges_manager = self.privileges_manager.lock().await;
+            privileges_manager
+                .erase_contract(contract_id, true)
+                .map_err(|error| {
+                    TerminationError::UnableToEraseContractFromPrivilegesManager(contract_id, error)
+                })?;
+        }
+
+        // 5 Erase from the registry.
+        {
+            let mut registry = self.registry.lock().await;
+            registry.erase_contract(contract_id).map_err(|error| {
+                TerminationError::UnableToEraseContractFromRegistry(contract_id, error)
             })?;
         }
 

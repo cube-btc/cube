@@ -45,6 +45,30 @@ impl ExecCtx {
             .checked_add(program_byte_fee)
             .ok_or(DeployExecutionError::DeployTotalPreSubsidyOverflow)?;
 
+        // Root liveness + txfee exemptions (single PM lock; exemptions reused by subsidy).
+        let (root_liveness_flag, txfee_exemptions) = {
+            let _privileges_manager = self.privileges_manager.lock().await;
+            _privileges_manager.get_account_liveness_flag_and_txfee_exemptions(account_key)
+        };
+        let Some(liveness_flag) = root_liveness_flag else {
+            return Err(DeployExecutionError::RootAccountLivenessFlagNotFound(
+                account_key,
+            ));
+        };
+        match liveness_flag {
+            LivenessFlag::Operational => {}
+            LivenessFlag::ToBeFrozen(takes_effect_at_timestamp) => {
+                if execution_timestamp >= takes_effect_at_timestamp {
+                    return Err(DeployExecutionError::RootAccountFrozen(account_key));
+                }
+            }
+            LivenessFlag::ToBeDestroyed(takes_effect_at_timestamp) => {
+                if execution_timestamp >= takes_effect_at_timestamp {
+                    return Err(DeployExecutionError::RootAccountDestroyed(account_key));
+                }
+            }
+        }
+
         let latest_activity_timestamp = {
             let _registry = self.registry.lock().await;
             _registry
@@ -82,6 +106,7 @@ impl ExecCtx {
                     execution_timestamp,
                     fees_pre_subsidy,
                     latest_activity_timestamp,
+                    txfee_exemptions,
                 )
                 .await?
             }
@@ -99,6 +124,7 @@ impl ExecCtx {
                     execution_timestamp,
                     fees_pre_subsidy,
                     latest_activity_timestamp,
+                    txfee_exemptions,
                 )
                 .await?
             }
@@ -164,18 +190,15 @@ impl ExecCtx {
         })
     }
 
+    /// `txfee_exemptions` is pre-fetched with the root liveness flag (single earlier PM lock).
     async fn apply_subsidy_deploy(
         &self,
         account_key: [u8; 32],
         execution_timestamp: u64,
         fees_pre_subsidy: u64,
         latest_activity_timestamp: u64,
+        txfee_exemptions: Option<Exemption>,
     ) -> Result<(u64, Option<ExemptionSubsidyBreakdown>), DeployExecutionError> {
-        let txfee_exemptions = {
-            let _privileges_manager = self.privileges_manager.lock().await;
-            _privileges_manager.get_account_txfee_exemptions(account_key)
-        };
-
         let Some(mut exemptions) = txfee_exemptions else {
             return Ok((fees_pre_subsidy, None));
         };

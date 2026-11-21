@@ -749,12 +749,23 @@ impl ExecCtx {
         )
         .ok_or(BatchExecutionError::ExecutedEntryIdError)?;
 
-        // 31 Apply the batch record to local managers, sync tips, utxo, and archival store.
-        self.apply_changes(&batch_record)
-            .await
-            .map_err(BatchExecutionError::ApplyChangesError)?;
+        // 31 Run periodic account/contract termination (tax, mark, destroy).
+        // Mutations land in manager deltas and are persisted by apply_changes below.
+        {
+            self.periodic_termination(new_batch_height, batch_timestamp)
+                .await
+                .map_err(BatchExecutionError::PeriodicTerminationError)?;
+        }
 
-        // 32 Return the batch record.
+        // 32 Apply the batch record (and termination deltas) to local managers,
+        // sync tips, utxo, and archival store.
+        {
+            self.apply_changes(&batch_record)
+                .await
+                .map_err(BatchExecutionError::ApplyChangesError)?;
+        }
+
+        // 33 Return the batch record.
         Ok(batch_record)
     }
 

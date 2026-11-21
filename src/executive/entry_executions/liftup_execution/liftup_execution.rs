@@ -6,7 +6,10 @@ use crate::executive::entry_executions::liftup_execution::error::liftup_executio
 use crate::executive::exec_ctx::exec_ctx::ExecCtx;
 use crate::inscriptive::coin_manager::coin_manager::COIN_MANAGER;
 use crate::inscriptive::coin_manager::errors::balance_update_errors::CMAccountBalanceUpError;
-use crate::inscriptive::privileges_manager::elements::exemption::exemption::ExemptionSubsidyBreakdown;
+use crate::inscriptive::privileges_manager::elements::exemption::exemption::{
+    Exemption, ExemptionSubsidyBreakdown,
+};
+use crate::inscriptive::privileges_manager::elements::liveness_flag::liveness_flag::LivenessFlag;
 use crate::inscriptive::privileges_manager::errors::update_error::PMUpdateAccountError;
 
 impl ExecCtx {
@@ -58,7 +61,38 @@ impl ExecCtx {
         // 6 Account key (same for all `RootAccount` variants on this entry).
         let account_key = root_account.account_key();
 
-        // 6.1 Last activity before this entry (read before `sync_with_registry`, which bumps it to `execution_timestamp`).
+        // 6.1 Root liveness + txfee exemptions (single PM lock; exemptions reused by subsidy).
+        // Unregistered roots are not in PM yet — skip the operational check for them.
+        let txfee_exemptions = {
+            let _privileges_manager = self.privileges_manager.lock().await;
+            let (liveness_flag, exemptions) =
+                _privileges_manager.get_account_liveness_flag_and_txfee_exemptions(account_key);
+
+            if !matches!(root_account, RootAccount::UnregisteredRootAccount(_)) {
+                let Some(liveness_flag) = liveness_flag else {
+                    return Err(LiftupExecutionError::RootAccountLivenessFlagNotFound(
+                        account_key,
+                    ));
+                };
+                match liveness_flag {
+                    LivenessFlag::Operational => {}
+                    LivenessFlag::ToBeFrozen(takes_effect_at_timestamp) => {
+                        if execution_timestamp >= takes_effect_at_timestamp {
+                            return Err(LiftupExecutionError::RootAccountFrozen(account_key));
+                        }
+                    }
+                    LivenessFlag::ToBeDestroyed(takes_effect_at_timestamp) => {
+                        if execution_timestamp >= takes_effect_at_timestamp {
+                            return Err(LiftupExecutionError::RootAccountDestroyed(account_key));
+                        }
+                    }
+                }
+            }
+
+            exemptions
+        };
+
+        // 6.2 Last activity before this entry (read before `sync_with_registry`, which bumps it to `execution_timestamp`).
         let latest_activity_timestamp = {
             let _registry = self.registry.lock().await;
             _registry
@@ -128,6 +162,7 @@ impl ExecCtx {
                         execution_timestamp,
                         fees_pre_subsidy,
                         latest_activity_timestamp,
+                        txfee_exemptions,
                     )
                     .await?;
 
@@ -160,6 +195,7 @@ impl ExecCtx {
                         execution_timestamp,
                         fees_pre_subsidy,
                         latest_activity_timestamp,
+                        txfee_exemptions,
                     )
                     .await?;
 
@@ -192,18 +228,16 @@ impl ExecCtx {
     /// ephemeral `set_or_update_account_txfee_exemptions` when subsidy ran (skipped if not permanently in PM).
     /// Caller subtracts this from `liftup_sum_value_in_satoshis` for the balance credit. Does not touch `CoinManager`.
     /// If the caller fails afterward, batch `rollback_last` restores PM and coin ephemerals together.
+    ///
+    /// `txfee_exemptions` is pre-fetched with the root liveness flag (single earlier PM lock).
     async fn apply_subsidy_liftup(
         &self,
         account_key: [u8; 32],
         execution_timestamp: u64,
         fees_pre_subsidy: u64,
         latest_activity_timestamp: u64,
+        txfee_exemptions: Option<Exemption>,
     ) -> Result<(u64, Option<ExemptionSubsidyBreakdown>), LiftupExecutionError> {
-        let txfee_exemptions = {
-            let _privileges_manager = self.privileges_manager.lock().await;
-            _privileges_manager.get_account_txfee_exemptions(account_key)
-        };
-
         let Some(mut exemptions) = txfee_exemptions else {
             return Ok((fees_pre_subsidy, None));
         };

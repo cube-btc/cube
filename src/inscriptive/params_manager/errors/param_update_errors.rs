@@ -24,6 +24,13 @@ pub enum PMUnconfiguredPlebToBeDestroyedRecoveryGapUpdateError {
     AboveCeiling(u64, u64),
 }
 
+/// Errors associated with updating a mutable contract ToBeDestroyed gap.
+#[derive(Debug, Clone)]
+pub enum PMMutableContractToBeDestroyedGapUpdateError {
+    BelowFloor(u64, u64),
+    AboveCeiling(u64, u64),
+}
+
 /// Errors associated with updating a mutable contract vitality sucked termination value.
 ///
 /// Valid range is
@@ -38,14 +45,12 @@ pub enum PMMutableContractVitalitySuckedTerminationValueUpdateError {
 /// Errors associated with updating a contract statesize PPM tax rate.
 #[derive(Debug, Clone)]
 pub enum PMContractStatesizePpmTaxRateUpdateError {
-    BelowFloor(u64, u64),
     AboveCeiling(u64, u64),
 }
 
 /// Errors associated with updating a contract binsize PPM tax rate.
 #[derive(Debug, Clone)]
 pub enum PMContractBinsizePpmTaxRateUpdateError {
-    BelowFloor(u64, u64),
     AboveCeiling(u64, u64),
 }
 

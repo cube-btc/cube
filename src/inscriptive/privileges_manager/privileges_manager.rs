@@ -402,6 +402,11 @@ impl PrivilegesManager {
         self.in_memory_accounts.keys()
     }
 
+    /// Iterates permanent contract ids by reference (no allocation).
+    pub fn contract_ids(&self) -> impl Iterator<Item = &ContractId> {
+        self.in_memory_contracts.keys()
+    }
+
     /// Returns the account body by account key.
     pub fn get_account_body_by_account_key(
         &self,
@@ -595,6 +600,46 @@ impl PrivilegesManager {
         self.in_memory_accounts
             .get(&account_key)
             .map(|body| body.txfee_exemptions.clone())
+    }
+
+    /// Returns account liveness flag and txfee exemptions in one lookup.
+    ///
+    /// Ephemeral delta field updates override body values; body is resolved once
+    /// from `new_accounts_to_register` or `in_memory_accounts`.
+    pub fn get_account_liveness_flag_and_txfee_exemptions(
+        &self,
+        account_key: AccountKey,
+    ) -> (Option<LivenessFlag>, Option<Exemption>) {
+        let updated_liveness = self
+            .delta
+            .updated_account_liveness_flags
+            .get(&account_key)
+            .cloned();
+        let updated_exemptions = self
+            .delta
+            .updated_account_txfee_exemptions
+            .get(&account_key)
+            .cloned();
+
+        if updated_liveness.is_some() && updated_exemptions.is_some() {
+            return (updated_liveness, updated_exemptions);
+        }
+
+        if let Some(body) = self.delta.new_accounts_to_register.get(&account_key) {
+            return (
+                updated_liveness.or_else(|| Some(body.liveness_flag.clone())),
+                updated_exemptions.or_else(|| Some(body.txfee_exemptions.clone())),
+            );
+        }
+
+        if let Some(body) = self.in_memory_accounts.get(&account_key) {
+            return (
+                updated_liveness.or_else(|| Some(body.liveness_flag.clone())),
+                updated_exemptions.or_else(|| Some(body.txfee_exemptions.clone())),
+            );
+        }
+
+        (updated_liveness, updated_exemptions)
     }
 
     /// Returns account reserved flag 1 (ephemeral delta overrides permanent state).

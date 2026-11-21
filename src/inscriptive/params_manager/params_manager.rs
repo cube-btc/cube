@@ -4,7 +4,7 @@ use crate::inscriptive::params_manager::errors::param_update_errors::{
     PMConfiguredPlebToBeDestroyedRecoveryGapUpdateError, PMContractBinsizePpmTaxRateUpdateError,
     PMContractNonShadowedLiquidityPpmTaxRateUpdateError,
     PMContractShadowedLiquidityPpmTaxRateUpdateError, PMContractStatesizePpmTaxRateUpdateError,
-    PMContractTerminationCheckPeriodUpdateError,
+    PMContractTerminationCheckPeriodUpdateError, PMMutableContractToBeDestroyedGapUpdateError,
     PMMutableContractVitalitySuckedTerminationValueUpdateError,
     PMUnconfiguredPlebInactivityTerminationPeriodUpdateError,
     PMUnconfiguredPlebToBeDestroyedRecoveryGapUpdateError,
@@ -13,11 +13,11 @@ use crate::inscriptive::params_manager::params_holder::params_holder::{
     ParamsHolder, ACCOUNT_TERMINATION_CHECK_PERIOD_CEILING, ACCOUNT_TERMINATION_CHECK_PERIOD_FLOOR,
     CONFIGURED_PLEB_TO_BE_DESTROYED_RECOVERY_GAP_SECONDS_CEILING,
     CONFIGURED_PLEB_TO_BE_DESTROYED_RECOVERY_GAP_SECONDS_FLOOR,
-    CONTRACT_BINSIZE_PPM_TAX_RATE_CEILING, CONTRACT_BINSIZE_PPM_TAX_RATE_FLOOR,
-    CONTRACT_NON_SHADOWED_LIQUIDITY_PPM_TAX_RATE_CEILING,
+    CONTRACT_BINSIZE_PPM_TAX_RATE_CEILING, CONTRACT_NON_SHADOWED_LIQUIDITY_PPM_TAX_RATE_CEILING,
     CONTRACT_SHADOWED_LIQUIDITY_PPM_TAX_RATE_CEILING, CONTRACT_STATESIZE_PPM_TAX_RATE_CEILING,
-    CONTRACT_STATESIZE_PPM_TAX_RATE_FLOOR, CONTRACT_TERMINATION_CHECK_PERIOD_CEILING,
-    CONTRACT_TERMINATION_CHECK_PERIOD_FLOOR,
+    CONTRACT_TERMINATION_CHECK_PERIOD_CEILING, CONTRACT_TERMINATION_CHECK_PERIOD_FLOOR,
+    MUTABLE_CONTRACT_TO_BE_DESTROYED_GAP_SECONDS_CEILING,
+    MUTABLE_CONTRACT_TO_BE_DESTROYED_GAP_SECONDS_FLOOR,
     MUTABLE_CONTRACT_VITALITY_SUCKED_TERMINATION_VALUE_CEILING,
     MUTABLE_CONTRACT_VITALITY_SUCKED_TERMINATION_VALUE_FLOOR, PLEB_INACTIVITY_PERIOD_FLOOR,
     UNCONFIGURED_PLEB_TO_BE_DESTROYED_RECOVERY_GAP_SECONDS_CEILING,
@@ -218,6 +218,12 @@ impl ParamsManager {
                     0x0A => {
                         if let Ok(bytes) = value.as_ref().try_into() {
                             params_holder.unconfigured_pleb_to_be_destroyed_recovery_gap_seconds =
+                                u64::from_le_bytes(bytes);
+                        }
+                    }
+                    0x0B => {
+                        if let Ok(bytes) = value.as_ref().try_into() {
+                            params_holder.mutable_contract_to_be_destroyed_gap_seconds =
                                 u64::from_le_bytes(bytes);
                         }
                     }
@@ -1139,6 +1145,29 @@ impl ParamsManager {
         Ok(())
     }
 
+    /// Updates the mutable contract ToBeDestroyed gap in seconds.
+    pub fn set_mutable_contract_to_be_destroyed_gap_seconds(
+        &mut self,
+        value: u64,
+    ) -> Result<(), PMMutableContractToBeDestroyedGapUpdateError> {
+        if value < MUTABLE_CONTRACT_TO_BE_DESTROYED_GAP_SECONDS_FLOOR {
+            return Err(PMMutableContractToBeDestroyedGapUpdateError::BelowFloor(
+                value,
+                MUTABLE_CONTRACT_TO_BE_DESTROYED_GAP_SECONDS_FLOOR,
+            ));
+        }
+        if value > MUTABLE_CONTRACT_TO_BE_DESTROYED_GAP_SECONDS_CEILING {
+            return Err(PMMutableContractToBeDestroyedGapUpdateError::AboveCeiling(
+                value,
+                MUTABLE_CONTRACT_TO_BE_DESTROYED_GAP_SECONDS_CEILING,
+            ));
+        }
+
+        self.get_mut_ephemeral_params_holder()
+            .mutable_contract_to_be_destroyed_gap_seconds = value;
+        Ok(())
+    }
+
     /// Updates the mutable contract vitality sucked termination value.
     ///
     /// Valid range is
@@ -1174,12 +1203,6 @@ impl ParamsManager {
         &mut self,
         value: u64,
     ) -> Result<(), PMContractStatesizePpmTaxRateUpdateError> {
-        if value < CONTRACT_STATESIZE_PPM_TAX_RATE_FLOOR {
-            return Err(PMContractStatesizePpmTaxRateUpdateError::BelowFloor(
-                value,
-                CONTRACT_STATESIZE_PPM_TAX_RATE_FLOOR,
-            ));
-        }
         if value > CONTRACT_STATESIZE_PPM_TAX_RATE_CEILING {
             return Err(PMContractStatesizePpmTaxRateUpdateError::AboveCeiling(
                 value,
@@ -1197,12 +1220,6 @@ impl ParamsManager {
         &mut self,
         value: u64,
     ) -> Result<(), PMContractBinsizePpmTaxRateUpdateError> {
-        if value < CONTRACT_BINSIZE_PPM_TAX_RATE_FLOOR {
-            return Err(PMContractBinsizePpmTaxRateUpdateError::BelowFloor(
-                value,
-                CONTRACT_BINSIZE_PPM_TAX_RATE_FLOOR,
-            ));
-        }
         if value > CONTRACT_BINSIZE_PPM_TAX_RATE_CEILING {
             return Err(PMContractBinsizePpmTaxRateUpdateError::AboveCeiling(
                 value,
@@ -1440,6 +1457,13 @@ impl ParamsManager {
                 UNCONFIGURED_PLEB_TO_BE_DESTROYED_RECOVERY_GAP_SECONDS_SPECIAL_DB_KEY,
                 ephemeral_params_holder
                     .unconfigured_pleb_to_be_destroyed_recovery_gap_seconds
+                    .to_le_bytes()
+                    .to_vec(),
+            )?;
+            tree.insert(
+                MUTABLE_CONTRACT_TO_BE_DESTROYED_GAP_SECONDS_SPECIAL_DB_KEY,
+                ephemeral_params_holder
+                    .mutable_contract_to_be_destroyed_gap_seconds
                     .to_le_bytes()
                     .to_vec(),
             )?;

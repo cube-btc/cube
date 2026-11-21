@@ -618,6 +618,15 @@ impl Registry {
         self.in_memory_contracts.get(&contract_id).cloned()
     }
 
+    /// Returns the compiled program (binsize) byte length for a contract.
+    pub fn get_contract_binsize_in_bytes(&self, contract_id: [u8; 32]) -> Option<u64> {
+        use crate::executive::executable::compiler::compiler::ProgramCompiler;
+
+        let contract_body = self.get_contract_body_by_contract_id(contract_id)?;
+        let program_bytes = contract_body.executable.compile().ok()?;
+        Some(program_bytes.len() as u64)
+    }
+
     /// Returns the account key by its rank.
     pub fn get_account_key_by_rank(&self, rank: Rank) -> Option<AccountKey> {
         self.in_memory_account_ranks.get(&rank).cloned()
