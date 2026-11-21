@@ -24,18 +24,31 @@ pub const MUTABLE_CONTRACT_VITALITY_SUCKED_TERMINATION_VALUE_FLOOR: i64 = -100;
 /// Set to minus 1,000,000,000 satoshis. The Governance Contract can never set the vitality sucked termination value below this value.
 pub const MUTABLE_CONTRACT_VITALITY_SUCKED_TERMINATION_VALUE_CEILING: i64 = -1_000_000_000;
 
-/// The default contract storage PPM tax rate.
-/// Initially set to 0.1%, meaning a contract is charged (taxed) 1 satoshi per 1_000 bytes of contract storage (state).
+/// The default contract binsize PPM tax rate.
+/// Initially set to 0.1%, meaning a contract is charged (taxed) 1 satoshi per 1_000 bytes of contract bytecode/binary size.
 /// Subject to change via The Governance Contract.
-const CONTRACT_STORAGE_PPM_TAX_RATE_DEFAULT: u64 = 1_000;
+const CONTRACT_BINSIZE_PPM_TAX_RATE_DEFAULT: u64 = 1_000;
 
-/// The minimum possible value which a contract storage PPM tax rate can be set to.
-/// Set to 0.0001%, meaning a contract is charged (taxed) 1 satoshi per 100_000_000 bytes of contract storage (state).
-pub const CONTRACT_STORAGE_PPM_TAX_RATE_FLOOR: u64 = 1;
+/// The minimum possible value which a contract binsize PPM tax rate can be set to.
+/// Set to 0.0001%, meaning a contract is charged (taxed) 1 satoshi per 100_000_000 bytes of contract bytecode/binary size.
+pub const CONTRACT_BINSIZE_PPM_TAX_RATE_FLOOR: u64 = 1;
 
-/// The maximum possible value which a contract storage PPM tax rate can be set to.
-/// Set to 10,000%, meaning a contract is charged (taxed) 100 satoshis per one byte of contract storage (state).
-pub const CONTRACT_STORAGE_PPM_TAX_RATE_CEILING: u64 = 100_000_000;
+/// The maximum possible value which a contract binsize PPM tax rate can be set to.
+/// Set to 10,000%, meaning a contract is charged (taxed) 100 satoshis per one byte of contract bytecode/binary size.
+pub const CONTRACT_BINSIZE_PPM_TAX_RATE_CEILING: u64 = 100_000_000;
+
+/// The default contract statesize PPM tax rate.
+/// Initially set to 0.1%, meaning a contract is charged (taxed) 1 satoshi per 1_000 bytes of contract state (storage).
+/// Subject to change via The Governance Contract.
+const CONTRACT_STATESIZE_PPM_TAX_RATE_DEFAULT: u64 = 1_000;
+
+/// The minimum possible value which a contract statesize PPM tax rate can be set to.
+/// Set to 0.0001%, meaning a contract is charged (taxed) 1 satoshi per 100_000_000 bytes of contract state size (storage).
+pub const CONTRACT_STATESIZE_PPM_TAX_RATE_FLOOR: u64 = 1;
+
+/// The maximum possible value which a contract statesize PPM tax rate can be set to.
+/// Set to 10,000%, meaning a contract is charged (taxed) 100 satoshis per one byte of contract state size (storage).
+pub const CONTRACT_STATESIZE_PPM_TAX_RATE_CEILING: u64 = 100_000_000;
 
 /// The default contract's shadowed liquidity PPM tax rate.
 /// Initially set to none, meaning no tax is applied to contract's shadowed liquidity.
@@ -104,7 +117,8 @@ pub struct ParamsHolder {
     // Mutable contract vitality sucked termination value.
     pub mutable_contract_vitality_sucked_termination_value: i64,
     // Contract tax rate parameters.
-    pub contract_storage_ppm_tax_rate: u64,
+    pub contract_statesize_ppm_tax_rate: u64,
+    pub contract_binsize_ppm_tax_rate: u64,
     pub contract_shadowed_liquidity_ppm_tax_rate: u64,
     pub contract_non_shadowed_liquidity_ppm_tax_rate: u64,
     // Termination check period parameters.
@@ -141,7 +155,8 @@ impl ParamsHolder {
             mutable_contract_vitality_sucked_termination_value:
                 MUTABLE_CONTRACT_VITALITY_SUCKED_TERMINATION_VALUE_DEFAULT,
             // Contract tax rate parameters.
-            contract_storage_ppm_tax_rate: CONTRACT_STORAGE_PPM_TAX_RATE_DEFAULT,
+            contract_statesize_ppm_tax_rate: CONTRACT_STATESIZE_PPM_TAX_RATE_DEFAULT,
+            contract_binsize_ppm_tax_rate: CONTRACT_BINSIZE_PPM_TAX_RATE_DEFAULT,
             contract_shadowed_liquidity_ppm_tax_rate:
                 CONTRACT_SHADOWED_LIQUIDITY_PPM_TAX_RATE_DEFAULT,
             contract_non_shadowed_liquidity_ppm_tax_rate:

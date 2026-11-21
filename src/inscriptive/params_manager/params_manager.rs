@@ -1,17 +1,18 @@
 use crate::inscriptive::params_manager::errors::param_update_errors::{
     PMAccountTerminationCheckPeriodUpdateError,
-    PMConfiguredPlebInactivityTerminationPeriodUpdateError,
+    PMConfiguredPlebInactivityTerminationPeriodUpdateError, PMContractBinsizePpmTaxRateUpdateError,
     PMContractNonShadowedLiquidityPpmTaxRateUpdateError,
-    PMContractShadowedLiquidityPpmTaxRateUpdateError, PMContractStoragePpmTaxRateUpdateError,
+    PMContractShadowedLiquidityPpmTaxRateUpdateError, PMContractStatesizePpmTaxRateUpdateError,
     PMContractTerminationCheckPeriodUpdateError,
     PMMutableContractVitalitySuckedTerminationValueUpdateError,
     PMUnconfiguredPlebInactivityTerminationPeriodUpdateError,
 };
 use crate::inscriptive::params_manager::params_holder::params_holder::{
     ParamsHolder, ACCOUNT_TERMINATION_CHECK_PERIOD_CEILING, ACCOUNT_TERMINATION_CHECK_PERIOD_FLOOR,
+    CONTRACT_BINSIZE_PPM_TAX_RATE_CEILING, CONTRACT_BINSIZE_PPM_TAX_RATE_FLOOR,
     CONTRACT_NON_SHADOWED_LIQUIDITY_PPM_TAX_RATE_CEILING,
-    CONTRACT_SHADOWED_LIQUIDITY_PPM_TAX_RATE_CEILING, CONTRACT_STORAGE_PPM_TAX_RATE_CEILING,
-    CONTRACT_STORAGE_PPM_TAX_RATE_FLOOR, CONTRACT_TERMINATION_CHECK_PERIOD_CEILING,
+    CONTRACT_SHADOWED_LIQUIDITY_PPM_TAX_RATE_CEILING, CONTRACT_STATESIZE_PPM_TAX_RATE_CEILING,
+    CONTRACT_STATESIZE_PPM_TAX_RATE_FLOOR, CONTRACT_TERMINATION_CHECK_PERIOD_CEILING,
     CONTRACT_TERMINATION_CHECK_PERIOD_FLOOR,
     MUTABLE_CONTRACT_VITALITY_SUCKED_TERMINATION_VALUE_CEILING,
     MUTABLE_CONTRACT_VITALITY_SUCKED_TERMINATION_VALUE_FLOOR, PLEB_INACTIVITY_PERIOD_FLOOR,
@@ -168,7 +169,8 @@ impl ParamsManager {
                     }
                     0x03 => {
                         if let Ok(bytes) = value.as_ref().try_into() {
-                            params_holder.contract_storage_ppm_tax_rate = u64::from_le_bytes(bytes);
+                            params_holder.contract_statesize_ppm_tax_rate =
+                                u64::from_le_bytes(bytes);
                         }
                     }
                     0x04 => {
@@ -193,6 +195,11 @@ impl ParamsManager {
                         if let Ok(bytes) = value.as_ref().try_into() {
                             params_holder.contract_termination_check_period =
                                 u64::from_le_bytes(bytes);
+                        }
+                    }
+                    0x08 => {
+                        if let Ok(bytes) = value.as_ref().try_into() {
+                            params_holder.contract_binsize_ppm_tax_rate = u64::from_le_bytes(bytes);
                         }
                     }
                     _ => (),
@@ -1089,26 +1096,49 @@ impl ParamsManager {
         Ok(())
     }
 
-    /// Updates the contract storage PPM tax rate.
-    pub fn set_contract_storage_ppm_tax_rate(
+    /// Updates the contract statesize PPM tax rate.
+    pub fn set_contract_statesize_ppm_tax_rate(
         &mut self,
         value: u64,
-    ) -> Result<(), PMContractStoragePpmTaxRateUpdateError> {
-        if value < CONTRACT_STORAGE_PPM_TAX_RATE_FLOOR {
-            return Err(PMContractStoragePpmTaxRateUpdateError::BelowFloor(
+    ) -> Result<(), PMContractStatesizePpmTaxRateUpdateError> {
+        if value < CONTRACT_STATESIZE_PPM_TAX_RATE_FLOOR {
+            return Err(PMContractStatesizePpmTaxRateUpdateError::BelowFloor(
                 value,
-                CONTRACT_STORAGE_PPM_TAX_RATE_FLOOR,
+                CONTRACT_STATESIZE_PPM_TAX_RATE_FLOOR,
             ));
         }
-        if value > CONTRACT_STORAGE_PPM_TAX_RATE_CEILING {
-            return Err(PMContractStoragePpmTaxRateUpdateError::AboveCeiling(
+        if value > CONTRACT_STATESIZE_PPM_TAX_RATE_CEILING {
+            return Err(PMContractStatesizePpmTaxRateUpdateError::AboveCeiling(
                 value,
-                CONTRACT_STORAGE_PPM_TAX_RATE_CEILING,
+                CONTRACT_STATESIZE_PPM_TAX_RATE_CEILING,
             ));
         }
 
         self.get_mut_ephemeral_params_holder()
-            .contract_storage_ppm_tax_rate = value;
+            .contract_statesize_ppm_tax_rate = value;
+        Ok(())
+    }
+
+    /// Updates the contract binsize PPM tax rate.
+    pub fn set_contract_binsize_ppm_tax_rate(
+        &mut self,
+        value: u64,
+    ) -> Result<(), PMContractBinsizePpmTaxRateUpdateError> {
+        if value < CONTRACT_BINSIZE_PPM_TAX_RATE_FLOOR {
+            return Err(PMContractBinsizePpmTaxRateUpdateError::BelowFloor(
+                value,
+                CONTRACT_BINSIZE_PPM_TAX_RATE_FLOOR,
+            ));
+        }
+        if value > CONTRACT_BINSIZE_PPM_TAX_RATE_CEILING {
+            return Err(PMContractBinsizePpmTaxRateUpdateError::AboveCeiling(
+                value,
+                CONTRACT_BINSIZE_PPM_TAX_RATE_CEILING,
+            ));
+        }
+
+        self.get_mut_ephemeral_params_holder()
+            .contract_binsize_ppm_tax_rate = value;
         Ok(())
     }
 
@@ -1334,9 +1364,16 @@ impl ParamsManager {
                     .to_vec(),
             )?;
             tree.insert(
-                CONTRACT_STORAGE_PPM_TAX_RATE_SPECIAL_DB_KEY,
+                CONTRACT_STATESIZE_PPM_TAX_RATE_SPECIAL_DB_KEY,
                 ephemeral_params_holder
-                    .contract_storage_ppm_tax_rate
+                    .contract_statesize_ppm_tax_rate
+                    .to_le_bytes()
+                    .to_vec(),
+            )?;
+            tree.insert(
+                CONTRACT_BINSIZE_PPM_TAX_RATE_SPECIAL_DB_KEY,
+                ephemeral_params_holder
+                    .contract_binsize_ppm_tax_rate
                     .to_le_bytes()
                     .to_vec(),
             )?;

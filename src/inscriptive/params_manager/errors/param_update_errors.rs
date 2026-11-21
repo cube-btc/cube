@@ -21,9 +21,16 @@ pub enum PMMutableContractVitalitySuckedTerminationValueUpdateError {
     AboveFloor(i64, i64),
 }
 
-/// Errors associated with updating a contract storage PPM tax rate.
+/// Errors associated with updating a contract statesize PPM tax rate.
 #[derive(Debug, Clone)]
-pub enum PMContractStoragePpmTaxRateUpdateError {
+pub enum PMContractStatesizePpmTaxRateUpdateError {
+    BelowFloor(u64, u64),
+    AboveCeiling(u64, u64),
+}
+
+/// Errors associated with updating a contract binsize PPM tax rate.
+#[derive(Debug, Clone)]
+pub enum PMContractBinsizePpmTaxRateUpdateError {
     BelowFloor(u64, u64),
     AboveCeiling(u64, u64),
 }
