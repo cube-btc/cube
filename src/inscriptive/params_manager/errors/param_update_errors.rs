@@ -10,6 +10,20 @@ pub enum PMUnconfiguredPlebInactivityTerminationPeriodUpdateError {
     BelowFloor(u64, u64),
 }
 
+/// Errors associated with updating a configured pleb ToBeDestroyed recovery gap.
+#[derive(Debug, Clone)]
+pub enum PMConfiguredPlebToBeDestroyedRecoveryGapUpdateError {
+    BelowFloor(u64, u64),
+    AboveCeiling(u64, u64),
+}
+
+/// Errors associated with updating an unconfigured pleb ToBeDestroyed recovery gap.
+#[derive(Debug, Clone)]
+pub enum PMUnconfiguredPlebToBeDestroyedRecoveryGapUpdateError {
+    BelowFloor(u64, u64),
+    AboveCeiling(u64, u64),
+}
+
 /// Errors associated with updating a mutable contract vitality sucked termination value.
 ///
 /// Valid range is

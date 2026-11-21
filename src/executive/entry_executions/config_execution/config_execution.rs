@@ -17,7 +17,7 @@ impl ExecCtx {
     ) -> Result<EntryFees, ConfigExecutionError> {
         let account_key = config.root_account.account_key();
         let params_holder = {
-            let _params_manager = self._params_manager.lock().unwrap();
+            let _params_manager = self._params_manager.lock().await;
             _params_manager.get_params_holder()
         };
         let base_fee = params_holder.config_entry_base_fee;

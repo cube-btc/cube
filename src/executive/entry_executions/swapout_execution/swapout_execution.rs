@@ -51,7 +51,7 @@ impl ExecCtx {
 
         // 3 Params and nominal entry fee (pre-subsidy); account key for subsidy reads.
         let params_holder = {
-            let _params_manager = self._params_manager.lock().unwrap();
+            let _params_manager = self._params_manager.lock().await;
             _params_manager.get_params_holder()
         };
         let base_fee = params_holder.swapout_entry_base_fee;

@@ -38,7 +38,7 @@ pub async fn swapout_command(
     let account_key = root_account.account_key();
 
     let swapout_base_fee = {
-        let _params_manager = params_manager.lock().unwrap();
+        let _params_manager = params_manager.lock().await;
         _params_manager.get_params_holder().swapout_entry_base_fee
     };
 

@@ -12,6 +12,30 @@ const UNCONFIGURED_PLEB_INACTIVITY_TERMINATION_PERIOD_SECONDS_DEFAULT: u64 = 252
 /// Set to 1 month. The Governance Contract can never set the inactivity period below this value.
 pub const PLEB_INACTIVITY_PERIOD_FLOOR: u64 = 2_592_000;
 
+/// The default gap after a configured Pleb is marked ToBeDestroyed before destruction takes effect.
+/// Initially set to 2 years (same as configured inactivity termination period). Subject to change via The Governance Contract.
+const CONFIGURED_PLEB_TO_BE_DESTROYED_RECOVERY_GAP_SECONDS_DEFAULT: u64 = 63_072_000;
+
+/// The minimum possible value which a configured Pleb ToBeDestroyed recovery gap can be set to.
+/// Set to 1 month (same as PLEB_INACTIVITY_PERIOD_FLOOR).
+pub const CONFIGURED_PLEB_TO_BE_DESTROYED_RECOVERY_GAP_SECONDS_FLOOR: u64 = 2_592_000;
+
+/// The maximum possible value which a configured Pleb ToBeDestroyed recovery gap can be set to.
+/// Set to 8 years (same as unconfigured inactivity termination period default).
+pub const CONFIGURED_PLEB_TO_BE_DESTROYED_RECOVERY_GAP_SECONDS_CEILING: u64 = 252_455_616;
+
+/// The default gap after an unconfigured Pleb is marked ToBeDestroyed before destruction takes effect.
+/// Initially set to 8 years (same as unconfigured inactivity termination period). Subject to change via The Governance Contract.
+const UNCONFIGURED_PLEB_TO_BE_DESTROYED_RECOVERY_GAP_SECONDS_DEFAULT: u64 = 252_455_616;
+
+/// The minimum possible value which an unconfigured Pleb ToBeDestroyed recovery gap can be set to.
+/// Set to 1 month (same as PLEB_INACTIVITY_PERIOD_FLOOR).
+pub const UNCONFIGURED_PLEB_TO_BE_DESTROYED_RECOVERY_GAP_SECONDS_FLOOR: u64 = 2_592_000;
+
+/// The maximum possible value which an unconfigured Pleb ToBeDestroyed recovery gap can be set to.
+/// Set to 8 years (same as unconfigured inactivity termination period default).
+pub const UNCONFIGURED_PLEB_TO_BE_DESTROYED_RECOVERY_GAP_SECONDS_CEILING: u64 = 252_455_616;
+
 /// The vitality minus zero balance value at which a mutable contract's termination process will be initiated.
 /// Initially set to minus 10,000 satoshis. Subject to change via The Governance Contract.
 const MUTABLE_CONTRACT_VITALITY_SUCKED_TERMINATION_VALUE_DEFAULT: i64 = -10_000;
@@ -114,6 +138,9 @@ pub struct ParamsHolder {
     // Pleb inactivity period parameters.
     pub configured_pleb_inactivity_termination_period_seconds: u64,
     pub unconfigured_pleb_inactivity_termination_period_seconds: u64,
+    // Pleb ToBeDestroyed recovery gap parameters.
+    pub configured_pleb_to_be_destroyed_recovery_gap_seconds: u64,
+    pub unconfigured_pleb_to_be_destroyed_recovery_gap_seconds: u64,
     // Mutable contract vitality sucked termination value.
     pub mutable_contract_vitality_sucked_termination_value: i64,
     // Contract tax rate parameters.
@@ -151,6 +178,11 @@ impl ParamsHolder {
                 CONFIGURED_PLEB_INACTIVITY_TERMINATION_PERIOD_SECONDS_DEFAULT,
             unconfigured_pleb_inactivity_termination_period_seconds:
                 UNCONFIGURED_PLEB_INACTIVITY_TERMINATION_PERIOD_SECONDS_DEFAULT,
+            // Pleb ToBeDestroyed recovery gap parameters.
+            configured_pleb_to_be_destroyed_recovery_gap_seconds:
+                CONFIGURED_PLEB_TO_BE_DESTROYED_RECOVERY_GAP_SECONDS_DEFAULT,
+            unconfigured_pleb_to_be_destroyed_recovery_gap_seconds:
+                UNCONFIGURED_PLEB_TO_BE_DESTROYED_RECOVERY_GAP_SECONDS_DEFAULT,
             // Mutable contract vitality sucked termination value.
             mutable_contract_vitality_sucked_termination_value:
                 MUTABLE_CONTRACT_VITALITY_SUCKED_TERMINATION_VALUE_DEFAULT,

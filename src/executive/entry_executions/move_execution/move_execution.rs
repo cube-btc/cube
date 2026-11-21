@@ -23,7 +23,7 @@ impl ExecCtx {
 
         // 2 Get params holder from the params manager.
         let params_holder = {
-            let _params_manager = self._params_manager.lock().unwrap();
+            let _params_manager = self._params_manager.lock().await;
             _params_manager.get_params_holder()
         };
 

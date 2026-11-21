@@ -21,6 +21,12 @@ pub struct SyncManager {
     // Payload tip.
     payload_tip: Payload,
 
+    // Cube batch height from the latest account period check (inactivity & termination).
+    latest_account_period_check_cube_batch_height_tip: u64,
+
+    // Cube batch height from the latest contract period check (vitality taxation & termination).
+    latest_contract_period_check_cube_batch_height_tip: u64,
+
     // In-storage db.
     db: sled::Db,
 }
@@ -61,19 +67,37 @@ impl SyncManager {
                 .unwrap_or_else(|| genesis_payload(chain))
         };
 
-        // 5 Construct the sync manager.
+        // 5 Get the latest account period check tip from the db.
+        let latest_account_period_check_cube_batch_height_tip: u64 = db
+            .get(b"latest_account_period_check_cube_batch_height_tip")
+            .ok()
+            .flatten()
+            .and_then(|val| val.as_ref().try_into().ok().map(u64::from_be_bytes))
+            .unwrap_or(0);
+
+        // 6 Get the latest contract period check tip from the db.
+        let latest_contract_period_check_cube_batch_height_tip: u64 = db
+            .get(b"latest_contract_period_check_cube_batch_height_tip")
+            .ok()
+            .flatten()
+            .and_then(|val| val.as_ref().try_into().ok().map(u64::from_be_bytes))
+            .unwrap_or(0);
+
+        // 7 Construct the sync manager.
         let sync_manager = SyncManager {
             synced: false,
             bitcoin_sync_height_tip,
             cube_batch_sync_height_tip,
             payload_tip,
+            latest_account_period_check_cube_batch_height_tip,
+            latest_contract_period_check_cube_batch_height_tip,
             db,
         };
 
-        // 6 Guard the sync manager.
+        // 8 Guard the sync manager.
         let sync_manager = Arc::new(Mutex::new(sync_manager));
 
-        // 7 Return the sync manager.
+        // 9 Return the sync manager.
         Ok(sync_manager)
     }
 
@@ -112,6 +136,16 @@ impl SyncManager {
         self.payload_tip.clone()
     }
 
+    /// Returns the latest account period check cube batch height tip.
+    pub fn latest_account_period_check_cube_batch_height_tip(&self) -> u64 {
+        self.latest_account_period_check_cube_batch_height_tip
+    }
+
+    /// Returns the latest contract period check cube batch height tip.
+    pub fn latest_contract_period_check_cube_batch_height_tip(&self) -> u64 {
+        self.latest_contract_period_check_cube_batch_height_tip
+    }
+
     /// Sets the bitcoin sync height tip.
     pub fn set_bitcoin_sync_height_tip(&mut self, height: u64) {
         // Update in-memory.
@@ -143,6 +177,30 @@ impl SyncManager {
         if let Some(payload_bytes) = payload_tip.serialize() {
             let _ = self.db.insert(b"payload_tip", payload_bytes);
         }
+    }
+
+    /// Sets the latest account period check cube batch height tip.
+    pub fn set_latest_account_period_check_cube_batch_height_tip(&mut self, height: u64) {
+        // Update in-memory.
+        self.latest_account_period_check_cube_batch_height_tip = height;
+
+        // Update in-db.
+        let _ = self.db.insert(
+            b"latest_account_period_check_cube_batch_height_tip",
+            height.to_be_bytes().to_vec(),
+        );
+    }
+
+    /// Sets the latest contract period check cube batch height tip.
+    pub fn set_latest_contract_period_check_cube_batch_height_tip(&mut self, height: u64) {
+        // Update in-memory.
+        self.latest_contract_period_check_cube_batch_height_tip = height;
+
+        // Update in-db.
+        let _ = self.db.insert(
+            b"latest_contract_period_check_cube_batch_height_tip",
+            height.to_be_bytes().to_vec(),
+        );
     }
 }
 

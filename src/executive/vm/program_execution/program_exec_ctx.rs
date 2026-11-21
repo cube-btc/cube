@@ -121,7 +121,7 @@ impl ProgramExecCtx {
         let registry = &self.registry;
 
         let params_holder = {
-            let _params_manager = self._params_manager.lock().unwrap();
+            let _params_manager = self._params_manager.lock().await;
             _params_manager.get_params_holder()
         };
 

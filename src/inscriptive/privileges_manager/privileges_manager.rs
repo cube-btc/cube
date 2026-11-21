@@ -397,6 +397,11 @@ impl PrivilegesManager {
         self.backup_delta();
     }
 
+    /// Iterates permanent account keys by reference (no allocation).
+    pub fn account_keys(&self) -> impl Iterator<Item = &AccountKey> {
+        self.in_memory_accounts.keys()
+    }
+
     /// Returns the account body by account key.
     pub fn get_account_body_by_account_key(
         &self,

@@ -1,14 +1,18 @@
 use crate::inscriptive::params_manager::errors::param_update_errors::{
     PMAccountTerminationCheckPeriodUpdateError,
-    PMConfiguredPlebInactivityTerminationPeriodUpdateError, PMContractBinsizePpmTaxRateUpdateError,
+    PMConfiguredPlebInactivityTerminationPeriodUpdateError,
+    PMConfiguredPlebToBeDestroyedRecoveryGapUpdateError, PMContractBinsizePpmTaxRateUpdateError,
     PMContractNonShadowedLiquidityPpmTaxRateUpdateError,
     PMContractShadowedLiquidityPpmTaxRateUpdateError, PMContractStatesizePpmTaxRateUpdateError,
     PMContractTerminationCheckPeriodUpdateError,
     PMMutableContractVitalitySuckedTerminationValueUpdateError,
     PMUnconfiguredPlebInactivityTerminationPeriodUpdateError,
+    PMUnconfiguredPlebToBeDestroyedRecoveryGapUpdateError,
 };
 use crate::inscriptive::params_manager::params_holder::params_holder::{
     ParamsHolder, ACCOUNT_TERMINATION_CHECK_PERIOD_CEILING, ACCOUNT_TERMINATION_CHECK_PERIOD_FLOOR,
+    CONFIGURED_PLEB_TO_BE_DESTROYED_RECOVERY_GAP_SECONDS_CEILING,
+    CONFIGURED_PLEB_TO_BE_DESTROYED_RECOVERY_GAP_SECONDS_FLOOR,
     CONTRACT_BINSIZE_PPM_TAX_RATE_CEILING, CONTRACT_BINSIZE_PPM_TAX_RATE_FLOOR,
     CONTRACT_NON_SHADOWED_LIQUIDITY_PPM_TAX_RATE_CEILING,
     CONTRACT_SHADOWED_LIQUIDITY_PPM_TAX_RATE_CEILING, CONTRACT_STATESIZE_PPM_TAX_RATE_CEILING,
@@ -16,10 +20,13 @@ use crate::inscriptive::params_manager::params_holder::params_holder::{
     CONTRACT_TERMINATION_CHECK_PERIOD_FLOOR,
     MUTABLE_CONTRACT_VITALITY_SUCKED_TERMINATION_VALUE_CEILING,
     MUTABLE_CONTRACT_VITALITY_SUCKED_TERMINATION_VALUE_FLOOR, PLEB_INACTIVITY_PERIOD_FLOOR,
+    UNCONFIGURED_PLEB_TO_BE_DESTROYED_RECOVERY_GAP_SECONDS_CEILING,
+    UNCONFIGURED_PLEB_TO_BE_DESTROYED_RECOVERY_GAP_SECONDS_FLOOR,
 };
 use crate::inscriptive::params_manager::params_keys::*;
 use crate::operative::run_args::chain::Chain;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 #[derive(Clone)]
 struct ParamsManagerDelta {
@@ -200,6 +207,18 @@ impl ParamsManager {
                     0x08 => {
                         if let Ok(bytes) = value.as_ref().try_into() {
                             params_holder.contract_binsize_ppm_tax_rate = u64::from_le_bytes(bytes);
+                        }
+                    }
+                    0x09 => {
+                        if let Ok(bytes) = value.as_ref().try_into() {
+                            params_holder.configured_pleb_to_be_destroyed_recovery_gap_seconds =
+                                u64::from_le_bytes(bytes);
+                        }
+                    }
+                    0x0A => {
+                        if let Ok(bytes) = value.as_ref().try_into() {
+                            params_holder.unconfigured_pleb_to_be_destroyed_recovery_gap_seconds =
+                                u64::from_le_bytes(bytes);
                         }
                     }
                     _ => (),
@@ -1066,6 +1085,60 @@ impl ParamsManager {
         Ok(())
     }
 
+    /// Updates the configured pleb ToBeDestroyed recovery gap in seconds.
+    pub fn set_configured_pleb_to_be_destroyed_recovery_gap_seconds(
+        &mut self,
+        value: u64,
+    ) -> Result<(), PMConfiguredPlebToBeDestroyedRecoveryGapUpdateError> {
+        if value < CONFIGURED_PLEB_TO_BE_DESTROYED_RECOVERY_GAP_SECONDS_FLOOR {
+            return Err(
+                PMConfiguredPlebToBeDestroyedRecoveryGapUpdateError::BelowFloor(
+                    value,
+                    CONFIGURED_PLEB_TO_BE_DESTROYED_RECOVERY_GAP_SECONDS_FLOOR,
+                ),
+            );
+        }
+        if value > CONFIGURED_PLEB_TO_BE_DESTROYED_RECOVERY_GAP_SECONDS_CEILING {
+            return Err(
+                PMConfiguredPlebToBeDestroyedRecoveryGapUpdateError::AboveCeiling(
+                    value,
+                    CONFIGURED_PLEB_TO_BE_DESTROYED_RECOVERY_GAP_SECONDS_CEILING,
+                ),
+            );
+        }
+
+        self.get_mut_ephemeral_params_holder()
+            .configured_pleb_to_be_destroyed_recovery_gap_seconds = value;
+        Ok(())
+    }
+
+    /// Updates the unconfigured pleb ToBeDestroyed recovery gap in seconds.
+    pub fn set_unconfigured_pleb_to_be_destroyed_recovery_gap_seconds(
+        &mut self,
+        value: u64,
+    ) -> Result<(), PMUnconfiguredPlebToBeDestroyedRecoveryGapUpdateError> {
+        if value < UNCONFIGURED_PLEB_TO_BE_DESTROYED_RECOVERY_GAP_SECONDS_FLOOR {
+            return Err(
+                PMUnconfiguredPlebToBeDestroyedRecoveryGapUpdateError::BelowFloor(
+                    value,
+                    UNCONFIGURED_PLEB_TO_BE_DESTROYED_RECOVERY_GAP_SECONDS_FLOOR,
+                ),
+            );
+        }
+        if value > UNCONFIGURED_PLEB_TO_BE_DESTROYED_RECOVERY_GAP_SECONDS_CEILING {
+            return Err(
+                PMUnconfiguredPlebToBeDestroyedRecoveryGapUpdateError::AboveCeiling(
+                    value,
+                    UNCONFIGURED_PLEB_TO_BE_DESTROYED_RECOVERY_GAP_SECONDS_CEILING,
+                ),
+            );
+        }
+
+        self.get_mut_ephemeral_params_holder()
+            .unconfigured_pleb_to_be_destroyed_recovery_gap_seconds = value;
+        Ok(())
+    }
+
     /// Updates the mutable contract vitality sucked termination value.
     ///
     /// Valid range is
@@ -1353,6 +1426,20 @@ impl ParamsManager {
                 UNCONFIGURED_PLEB_INACTIVITY_TERMINATION_PERIOD_SECONDS_SPECIAL_DB_KEY,
                 ephemeral_params_holder
                     .unconfigured_pleb_inactivity_termination_period_seconds
+                    .to_le_bytes()
+                    .to_vec(),
+            )?;
+            tree.insert(
+                CONFIGURED_PLEB_TO_BE_DESTROYED_RECOVERY_GAP_SECONDS_SPECIAL_DB_KEY,
+                ephemeral_params_holder
+                    .configured_pleb_to_be_destroyed_recovery_gap_seconds
+                    .to_le_bytes()
+                    .to_vec(),
+            )?;
+            tree.insert(
+                UNCONFIGURED_PLEB_TO_BE_DESTROYED_RECOVERY_GAP_SECONDS_SPECIAL_DB_KEY,
+                ephemeral_params_holder
+                    .unconfigured_pleb_to_be_destroyed_recovery_gap_seconds
                     .to_le_bytes()
                     .to_vec(),
             )?;

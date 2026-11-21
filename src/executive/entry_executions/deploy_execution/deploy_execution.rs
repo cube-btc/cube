@@ -25,7 +25,7 @@ impl ExecCtx {
         let account_key = deploy.root_account.account_key();
 
         let params_holder = {
-            let _params_manager = self._params_manager.lock().unwrap();
+            let _params_manager = self._params_manager.lock().await;
             _params_manager.get_params_holder()
         };
         let base_fee = params_holder.deploy_entry_base_fee;

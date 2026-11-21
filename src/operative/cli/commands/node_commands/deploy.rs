@@ -51,7 +51,7 @@ pub async fn deploy_command(
     let deploy = Deploy::new(root_account, program, initial_balance, target);
 
     let params_holder = {
-        let _params_manager = params_manager.lock().unwrap();
+        let _params_manager = params_manager.lock().await;
         _params_manager.get_params_holder()
     };
 
